@@ -3,6 +3,27 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Brand Palette */
+  --alice-blue: #e3f2fdff;
+  --icy-blue: #bbdefbff;
+  --sky-blue: #90caf9ff;
+  --cool-sky: #64b5f6ff;
+  --cool-sky-2: #42a5f5ff;
+  --dodger-blue: #2196f3ff;
+  --brilliant-azure: #1e88e5ff;
+  --twitter-blue: #1976d2ff;
+  --ocean-deep: #1565c0ff;
+  --cobalt-blue: #0d47a1ff;
+
+  /* Mapped Variables for Compatibility */
+  --white: #ffffff;
+  --ink-black: #021a35;
+  /* Much darker for better contrast */
+  /* Using Cobalt Blue as the darkest tone */
+  --deep-space-blue: var(--ocean-deep);
+  --cerulean: var(--cool-sky-2);
+  --fresh-sky: var(--alice-blue);
 }
 
 @theme inline {
@@ -12,13 +33,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Enforce white background always */
 body {
   background: var(--background);
   color: var(--foreground);

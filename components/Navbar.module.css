@@ -3,9 +3,9 @@
   top: 0;
   left: 0;
   width: 100%;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--white);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 52, 89, 0.1);
   z-index: 1000;
   transition: all 0.3s ease;
 }
@@ -22,11 +22,11 @@
 .logo {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--ink-black);
   text-decoration: none;
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
 }
 
 .links {
@@ -36,13 +36,13 @@
 
 .link {
   text-decoration: none;
-  color: #4b5563;
+  color: var(--deep-space-blue);
   font-weight: 500;
   transition: color 0.2s ease;
 }
 
 .link:hover {
-  color: #6366f1;
+  color: var(--cerulean);
 }
 
 .auth {
@@ -53,19 +53,19 @@
 
 .loginBtn {
   text-decoration: none;
-  color: #4b5563;
+  color: var(--deep-space-blue);
   font-weight: 500;
   transition: color 0.2s ease;
 }
 
 .loginBtn:hover {
-  color: #1a1a1a;
+  color: var(--cerulean);
 }
 
 .signupBtn {
   text-decoration: none;
-  background: #1a1a1a;
-  color: #ffffff;
+  background: var(--deep-space-blue);
+  color: var(--white);
   padding: 0.5rem 1.5rem;
   border-radius: 9999px;
   font-weight: 500;
@@ -74,8 +74,8 @@
 
 .signupBtn:hover {
   transform: translateY(-1px);
-  background: #000000;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background: var(--ink-black);
+  box-shadow: 0 4px 6px -1px rgba(0, 52, 89, 0.1), 0 2px 4px -1px rgba(0, 52, 89, 0.06);
 }
 
 @media (max-width: 768px) {

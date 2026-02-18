@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import styles from './Navbar.module.css';
 
@@ -6,7 +7,7 @@ const Navbar = () => {
         <nav className={styles.navbar}>
             <div className={styles.container}>
                 <Link href="/" className={styles.logo}>
-                    AI Recruit
+                    <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={180} height={40} priority />
                 </Link>
                 <div className={styles.links}>
                     <Link href="/employers" className={styles.link}>For Employers</Link>

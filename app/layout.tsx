@@ -15,8 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Recruit | Intelligent Hiring Platform",
-  description: "Connecting top talent with world-class companies using advanced AI matching technology.",
+  title: "TalentMesh",
+  description: "Revolutionizing recruitment with advanced AI matching technology.",
+  icons: {
+    icon: '/TalentMesh White Logo.png',
+  },
 };
 
 export default function RootLayout({

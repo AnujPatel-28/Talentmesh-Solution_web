@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import styles from './Footer.module.css';
 
@@ -7,7 +8,9 @@ const Footer = () => {
             <div className={styles.container}>
                 <div className={styles.grid}>
                     <div className={styles.branding}>
-                        <h3 className={styles.logo}>AI Recruit</h3>
+                        <Link href="/" className={styles.logo}>
+                            <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={150} height={34} />
+                        </Link>
                         <p className={styles.description}>
                             Revolutionizing recruitment with advanced AI matching technology.
                             Connecting top talent with world-class companies.
