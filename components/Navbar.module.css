@@ -36,7 +36,7 @@
 
 .link {
   text-decoration: none;
-  color: var(--deep-space-blue);
+  color: var(--text-body);
   font-weight: 500;
   transition: color 0.2s ease;
 }
@@ -53,7 +53,7 @@
 
 .loginBtn {
   text-decoration: none;
-  color: var(--deep-space-blue);
+  color: var(--text-body);
   font-weight: 500;
   transition: color 0.2s ease;
 }

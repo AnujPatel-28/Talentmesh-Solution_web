@@ -18,9 +18,11 @@
 
   /* Mapped Variables for Compatibility */
   --white: #ffffff;
-  --ink-black: #021a35;
-  /* Much darker for better contrast */
-  /* Using Cobalt Blue as the darkest tone */
+  --ink-black: #0a0a0a;
+  /* Almost pure black */
+  --text-body: #374151;
+  /* Dark gray for high contrast body text */
+
   --deep-space-blue: var(--ocean-deep);
   --cerulean: var(--cool-sky-2);
   --fresh-sky: var(--alice-blue);

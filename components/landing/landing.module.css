@@ -47,7 +47,7 @@
 
 .sectionDesc {
     font-size: 1.125rem;
-    color: var(--ocean-deep);
+    color: var(--text-body);
     opacity: 0.9;
     /* Slightly darker */
     line-height: 1.6;
@@ -84,7 +84,6 @@
     line-height: 1.1;
     font-weight: 800;
     color: var(--ink-black);
-    letter-spacing: -0.02em;
     margin-bottom: 1.5rem;
 }
 
@@ -97,7 +96,7 @@
 .heroDescription {
     font-size: 1.25rem;
     line-height: 1.6;
-    color: var(--ocean-deep);
+    color: var(--text-body);
     opacity: 0.9;
     max-width: 700px;
     margin: 0 auto 2.5rem;
@@ -132,7 +131,7 @@
 
 .secondaryBtn {
     background-color: transparent;
-    color: var(--ocean-deep);
+    color: var(--text-body);
     padding: 1rem 2.5rem;
     border-radius: 0.75rem;
     font-weight: 600;
@@ -149,7 +148,7 @@
 }
 
 .trustedContainer {
-    color: var(--ocean-deep);
+    color: var(--text-body);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -210,7 +209,7 @@
 }
 
 .featureCard p {
-    color: var(--ocean-deep);
+    color: var(--text-body);
     opacity: 0.9;
     line-height: 1.6;
 }
@@ -281,40 +280,73 @@
 }
 
 .stepCard p {
-    color: var(--ocean-deep);
+    color: var(--text-body);
     line-height: 1.6;
     opacity: 0.9;
 }
 
 
-/* STATS SECTION */
-.stats {
-    padding: 6rem 2rem;
-    background: var(--ink-black);
+/* STATS MARQUEE SECTION */
+.statsMarquee {
+    padding: 2rem 0;
+    background: linear-gradient(135deg, var(--dodger-blue) 0%, var(--cobalt-blue) 100%);
+    overflow: hidden;
+    position: relative;
+    /* Removed borders for cleaner look with gradient */
+}
+
+.marqueeContainer {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.marqueeTrack {
+    display: flex;
+    gap: 6rem;
+    width: max-content;
+    animation: marqueeScroll 30s linear infinite;
+    min-width: 100%;
+    align-items: center;
+    /* Vertically center items in track */
+}
+
+@keyframes marqueeScroll {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+.marqueeItem {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    /* Reduce gap between logo and text inside item - track gap handles item separation */
+}
+
+.marqueeLogoWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.marqueeLogo {
+    filter: brightness(0) invert(1);
+    /* Logo back to white for contrast on blue bg */
+    object-fit: contain;
+}
+
+.marqueeText {
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--white);
-    text-align: center;
-}
-
-.statsGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 3rem;
-    max-width: 1000px;
-    margin: 0 auto;
-}
-
-.statItem h3 {
-    font-size: 3.5rem;
-    font-weight: 800;
-    color: var(--dodger-blue);
-    margin-bottom: 0.5rem;
-    line-height: 1;
-}
-
-.statItem p {
-    font-size: 1.125rem;
-    color: var(--icy-blue);
-    font-weight: 500;
+    /* Text back to white for contrast */
+    white-space: nowrap;
 }
 
 
@@ -372,7 +404,7 @@
 
 .authorInfo p {
     font-size: 0.875rem;
-    color: var(--ocean-deep);
+    color: var(--text-body);
     margin: 0;
     opacity: 0.8;
 }
@@ -456,4 +488,136 @@
     .statItem h3 {
         font-size: 2.5rem;
     }
+}
+
+/* PRICING SECTION */
+.pricing {
+    composes: section;
+    background: var(--white);
+}
+
+.pricingGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.pricingCard {
+    background: var(--white);
+    border: 1px solid var(--icy-blue);
+    border-radius: 1.5rem;
+    padding: 3rem 2rem;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.pricingCard:hover {
+    border-color: var(--dodger-blue);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px -5px rgba(33, 150, 243, 0.15);
+}
+
+.pricingCard.popular {
+    background: linear-gradient(to bottom, #f0f9ff, #ffffff);
+    border-color: var(--dodger-blue);
+    position: relative;
+    transform: scale(1.05);
+    z-index: 5;
+    box-shadow: 0 10px 40px -10px rgba(33, 150, 243, 0.2);
+}
+
+.pricingCard.popular:hover {
+    transform: scale(1.05) translateY(-5px);
+}
+
+.popularBadge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--dodger-blue);
+    color: var(--white);
+    padding: 0.25rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.planName {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink-black);
+    margin-bottom: 1rem;
+}
+
+.planPrice {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--ink-black);
+    margin-bottom: 0.5rem;
+}
+
+.planPeriod {
+    color: var(--text-body);
+    font-size: 0.875rem;
+    margin-bottom: 2rem;
+}
+
+.planFeatures {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.planFeatures li {
+    color: var(--text-body);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.checkIcon {
+    color: var(--dodger-blue);
+    font-weight: 800;
+}
+
+/* FAQ SECTION */
+.faq {
+    composes: section;
+    background: var(--alice-blue);
+}
+
+.faqGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.faqItem {
+    background: var(--white);
+    padding: 2rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.question {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ink-black);
+    margin-bottom: 0.75rem;
+}
+
+.answer {
+    color: var(--text-body);
+    line-height: 1.6;
 }
