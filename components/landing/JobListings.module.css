@@ -1,0 +1,244 @@
+.section {
+    padding: 5rem 2rem;
+    background: #ffffff;
+    color: #111111;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #111111;
+    text-align: center;
+    margin-bottom: 3rem;
+    letter-spacing: -0.02em;
+}
+
+/* Layout */
+.layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+}
+
+/* Sidebar */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.categoryItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s ease, color 0.2s ease;
+    color: #555555;
+    font-size: 0.9rem;
+    font-family: inherit;
+    width: 100%;
+}
+
+.categoryItem:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #111111;
+}
+
+.categoryActive {
+    color: #2979ff !important;
+    background: rgba(41, 121, 255, 0.08) !important;
+}
+
+.categoryIcon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    filter: grayscale(0.3);
+}
+
+.categoryLabel {
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+/* Jobs Panel */
+.jobsPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.jobList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Job Card */
+.jobCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.75rem;
+    padding: 1.1rem 1.5rem;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    gap: 1rem;
+}
+
+.jobCard:hover {
+    border-color: #2979ff;
+    background: #f0f5ff;
+}
+
+.jobInfo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.jobLogo {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+}
+
+.jobDetails {
+    min-width: 0;
+}
+
+.jobTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #111111;
+    margin: 0 0 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jobLocation {
+    font-size: 0.8rem;
+    color: #888888;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.locationIcon {
+    font-size: 0.75rem;
+}
+
+/* Job Meta */
+.jobMeta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.jobType {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #444444;
+    min-width: 70px;
+    text-align: center;
+}
+
+.jobType_blue {
+    color: #2979ff;
+}
+
+.viewBtn {
+    display: inline-block;
+    padding: 0.45rem 1.1rem;
+    border: 1px solid #cccccc;
+    border-radius: 0.4rem;
+    color: #333333;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    background: transparent;
+}
+
+.viewBtn:hover {
+    border-color: #2979ff;
+    color: #2979ff;
+    background: rgba(41, 121, 255, 0.06);
+}
+
+/* Browse Button */
+.browseWrapper {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 0.5rem;
+}
+
+.browseBtn {
+    display: inline-block;
+    padding: 0.7rem 1.75rem;
+    background: #2979ff;
+    color: #ffffff;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.browseBtn:hover {
+    background: #1565c0;
+    transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .title {
+        font-size: 1.75rem;
+    }
+
+    .jobCard {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .jobMeta {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

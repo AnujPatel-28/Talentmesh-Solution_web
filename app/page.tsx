@@ -1,14 +1,17 @@
-import { Hero, Features, HowItWorks, Testimonials, Stats, CTA } from '@/components/landing';
+import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, JobListings } from '@/components/landing';
 
 export default function Home() {
   return (
     <div>
       <Hero />
       <Stats />
+      <JobListings />
+       <HowItWorks />
       <Features />
-      <HowItWorks />
+     
       <Testimonials />
       <CTA />
     </div>
   );
 }
+
