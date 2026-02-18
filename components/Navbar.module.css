@@ -3,9 +3,12 @@
   top: 0;
   left: 0;
   width: 100%;
-  background: var(--white);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 52, 89, 0.1);
+  background: rgba(255, 255, 255, 0.85);
+  /* Transparent for blur */
+  backdrop-filter: blur(12px);
+  /* Stronger blur */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  /* Subtle border */
   z-index: 1000;
   transition: all 0.3s ease;
 }
@@ -13,7 +16,8 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 1.25rem 2rem;
+  /* Increased padding */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -36,13 +40,16 @@
 
 .link {
   text-decoration: none;
-  color: var(--deep-space-blue);
-  font-weight: 500;
+  color: var(--deep-navy);
+  font-weight: 600;
+  /* Semi-bold */
+  font-size: 16px;
+  letter-spacing: 0.01em;
   transition: color 0.2s ease;
 }
 
 .link:hover {
-  color: var(--cerulean);
+  color: var(--primary-blue);
 }
 
 .auth {
@@ -53,29 +60,36 @@
 
 .loginBtn {
   text-decoration: none;
-  color: var(--deep-space-blue);
-  font-weight: 500;
+  color: var(--deep-navy);
+  font-weight: 600;
+  /* Semi-bold */
+  font-size: 16px;
+  letter-spacing: 0.01em;
   transition: color 0.2s ease;
 }
 
 .loginBtn:hover {
-  color: var(--cerulean);
+  color: var(--primary-blue);
 }
 
 .signupBtn {
   text-decoration: none;
-  background: var(--deep-space-blue);
+  background: var(--primary-blue);
   color: var(--white);
   padding: 0.5rem 1.5rem;
-  border-radius: 9999px;
-  font-weight: 500;
-  transition: transform 0.2s ease, background 0.2s ease;
+  border-radius: 8px;
+  /* Modern Corporate 8px */
+  font-weight: 600;
+  /* Semi-bold */
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  transition: all 0.2s ease;
 }
 
 .signupBtn:hover {
   transform: translateY(-1px);
-  background: var(--ink-black);
-  box-shadow: 0 4px 6px -1px rgba(0, 52, 89, 0.1), 0 2px 4px -1px rgba(0, 52, 89, 0.06);
+  background: #0069d9;
+  box-shadow: 0 4px 6px -1px rgba(0, 123, 255, 0.3), 0 2px 4px -1px rgba(0, 52, 89, 0.06);
 }
 
 @media (max-width: 768px) {
