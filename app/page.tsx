@@ -6,11 +6,10 @@ export default function Home() {
       <Hero />
       <Stats />
       <JobListings />
-       <HowItWorks />
+      <HowItWorks />
       <Industries />
       <FeaturedJobs />
       <Features />
-      <HowItWorks />
       <Pricing />
       <Testimonials />
       <FAQ />
