@@ -1,65 +1,221 @@
-import Link from 'next/link';
+"use client";
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './landing.module.css';
 
+const POPULAR_JOBS = [
+    'Software Engineer',
+    'Product Designer',
+    'Marketing Manager',
+    'Data Scientist',
+    'Sales Representative',
+    'Project Manager',
+    'Customer Success'
+];
+
+const POPULAR_CITIES = [
+    'New York, NY',
+    'San Francisco, CA',
+    'Austin, TX',
+    'London, UK',
+    'Toronto, ON',
+    'Berlin, DE',
+    'Remote'
+];
+
+const POPULAR_TAGS = ['Remote Engineer', 'Product Designer', 'Marketing AI'];
+
 const Hero = () => {
+    const [jobQuery, setJobQuery] = useState('');
+    const [locationQuery, setLocationQuery] = useState('');
+    const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
+    const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsJobDropdownOpen(false);
+                setIsLocationDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // Trace user location on mount
+    useEffect(() => {
+        if ('geolocation' in navigator) {
+            setIsLocating(true);
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                try {
+                    const { latitude, longitude } = position.coords;
+                    // Using a free reverse geocoding API (BigDataCloud is a good fallback for client-side)
+                    const response = await fetch(
+                        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                    );
+                    const data = await response.json();
+
+                    if (data && (data.city || data.locality)) {
+                        const city = data.city || data.locality;
+                        const region = data.principalSubdivisionCode || '';
+                        setLocationQuery(region ? `${city}, ${region}` : city);
+                    }
+                } catch (error) {
+                    console.error("Error fetching location:", error);
+                } finally {
+                    setIsLocating(false);
+                }
+            }, (error) => {
+                console.log("Geolocation permission denied:", error);
+                setIsLocating(false);
+            });
+        }
+    }, []);
+
+    const filteredJobs = POPULAR_JOBS.filter(job =>
+        job.toLowerCase().includes(jobQuery.toLowerCase())
+    );
+
+    const filteredCities = POPULAR_CITIES.filter(city =>
+        city.toLowerCase().includes(locationQuery.toLowerCase())
+    );
+
     return (
         <section className={styles.hero}>
             <div className={styles.container}>
                 <div className={styles.heroGrid}>
                     <div className={styles.heroBadge}>
-                        <span></span> New: AI-Powered Career Coaching
+                        <span style={{ marginRight: '8px', color: '#2ecc71' }}>●</span> #1 AI Recruitment Platform
                     </div>
 
                     <h1 className={styles.heroTitle}>
-                        Scale Your Team <br />
-                        <span className={styles.highlight}> Not Your Workload</span>
+                        Scale Your Team<br />
+                        <span className={styles.highlight}>Not Your Workload</span>
                     </h1>
 
                     <p className={styles.heroDescription}>
-                        The all-in-one recruiting platform that evolves at the speed of AI. ✨
-                        Empowering ambitious teams from Startups to Enterprises..
+                        The all-in-one recruiting platform that evolves at the <strong>speed of AI</strong>. ✨
+                        Empowering ambitious teams from <strong>Startups to Enterprises</strong>.
                     </p>
 
-                    <div className={styles.searchContainer}>
-                        <div className={styles.searchInputGroup}>
+                    <div className={styles.searchContainer} ref={containerRef} style={{ overflow: 'visible' }}>
+                        {/* Job Input */}
+                        <div className={styles.searchInputGroup} style={{ position: 'relative' }}>
                             <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
                             <input
                                 type="text"
-                                placeholder="Job title or keyword"
+                                placeholder="Job title, keywords, or company"
                                 className={styles.searchInput}
+                                value={jobQuery}
+                                onChange={(e) => {
+                                    setJobQuery(e.target.value);
+                                    setIsJobDropdownOpen(true);
+                                }}
+                                onFocus={() => setIsJobDropdownOpen(true)}
                             />
+                            {isJobDropdownOpen && filteredJobs.length > 0 && (
+                                <ul className={styles.suggestionsList}>
+                                    {filteredJobs.map((job, index) => (
+                                        <li
+                                            key={index}
+                                            className={styles.suggestionItem}
+                                            onClick={() => {
+                                                setJobQuery(job);
+                                                setIsJobDropdownOpen(false);
+                                            }}
+                                        >
+                                            {job}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
-                        <div className={styles.searchInputGroup}>
+
+                        {/* Location Input */}
+                        <div className={styles.searchInputGroup} style={{ position: 'relative' }}>
                             <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                                 <circle cx="12" cy="10" r="3"></circle>
                             </svg>
                             <input
                                 type="text"
-                                placeholder="City, state, or zip"
+                                placeholder={isLocating ? "Locating..." : "City, state, or zip code"}
                                 className={styles.searchInput}
+                                value={locationQuery}
+                                onChange={(e) => {
+                                    setLocationQuery(e.target.value);
+                                    setIsLocationDropdownOpen(true);
+                                }}
+                                onFocus={() => setIsLocationDropdownOpen(true)}
                             />
+                            {isLocationDropdownOpen && filteredCities.length > 0 && (
+                                <ul className={styles.suggestionsList}>
+                                    {filteredCities.map((city, index) => (
+                                        <li
+                                            key={index}
+                                            className={styles.suggestionItem}
+                                            onClick={() => {
+                                                setLocationQuery(city);
+                                                setIsLocationDropdownOpen(false);
+                                            }}
+                                        >
+                                            {city}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
-                        <button className={styles.searchBtn}>Search</button>
+
+                        <button className={styles.searchBtn}>Search Jobs</button>
                     </div>
 
-                    <div className={styles.trustedContainer}>
-                        <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} style={{
-                                    width: '2rem',
-                                    height: '2rem',
-                                    borderRadius: '50%',
-                                    background: '#ddd',
-                                    marginLeft: i > 1 ? '-0.5rem' : 0,
-                                    border: '2px solid white'
-                                }} />
+                    <div className={styles.popularContainer}>
+                        <span className={styles.popularLabel}>Popular:</span>
+                        <div className={styles.popularTags}>
+                            {POPULAR_TAGS.map((tag, index) => (
+                                <span key={index} className={styles.popularTag}>
+                                    {tag}
+                                </span>
                             ))}
                         </div>
-                        <p>Trusted by 10,000+ companies worldwide</p>
+                    </div>
+
+                    {/* Dashboard peek — grounded visual anchor */}
+                    <div className={styles.dashboardPeek}>
+                        <div className={styles.dashboardBar}>
+                            <div className={styles.dashboardBarDot} style={{ background: '#ef4444' }} />
+                            <div className={styles.dashboardBarDot} style={{ background: '#f59e0b' }} />
+                            <div className={styles.dashboardBarDot} style={{ background: '#22c55e' }} />
+                            <span className={styles.dashboardBarTitle}>TalentMesh — Active Pipeline</span>
+                        </div>
+                        <div className={styles.dashboardContent}>
+                            {[
+                                { initials: 'AS', name: 'Alex S.', role: 'Senior Engineer', score: 98, skills: ['React', 'AWS'] },
+                                { initials: 'MK', name: 'Maya K.', role: 'Product Designer', score: 94, skills: ['Figma', 'UX'] },
+                                { initials: 'JR', name: 'James R.', role: 'DevOps Lead', score: 91, skills: ['K8s', 'CI/CD'] },
+                            ].map((c, i) => (
+                                <div key={i} className={styles.dashboardRow}>
+                                    <div className={styles.dashboardAvatar}>{c.initials}</div>
+                                    <div className={styles.dashboardInfo}>
+                                        <span className={styles.dashboardName}>{c.name}</span>
+                                        <span className={styles.dashboardRole}>{c.role}</span>
+                                    </div>
+                                    <div className={styles.dashboardSkills}>
+                                        {c.skills.map(s => <span key={s}>{s}</span>)}
+                                    </div>
+                                    <div className={styles.dashboardScore}>{c.score}%</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

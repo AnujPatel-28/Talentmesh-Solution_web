@@ -15,6 +15,13 @@ const Footer = () => {
                             Revolutionizing recruitment with advanced AI matching technology.
                             Connecting top talent with world-class companies.
                         </p>
+                        <div className={styles.newsletter}>
+                            <h4 style={{ color: 'white', fontWeight: 700 }}>Stay in the loop</h4>
+                            <div className={styles.newsletterInputWrapper}>
+                                <input type="email" placeholder="Enter your email" className={styles.newsletterInput} />
+                                <button className={styles.newsletterBtn}>Subscribe</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div className={styles.column}>
@@ -43,8 +50,15 @@ const Footer = () => {
 
                 <div className={styles.bottom}>
                     <p>&copy; {new Date().getFullYear()} AI Recruit. All rights reserved.</p>
+                    <div className={styles.socials}>
+                        <a href="#" className={styles.socialIcon}>𝕏</a>
+                        <a href="#" className={styles.socialIcon}>in</a>
+                        <a href="#" className={styles.socialIcon}>IG</a>
+                        <a href="#" className={styles.socialIcon}>Fb</a>
+                    </div>
                 </div>
             </div>
+            <div className={styles.footerBranding}>TALENTMESH</div>
         </footer>
     );
 };
