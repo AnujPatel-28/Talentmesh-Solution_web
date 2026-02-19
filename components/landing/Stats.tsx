@@ -4,14 +4,14 @@ import styles from './landing.module.css';
 const Stats = () => {
     // Content to repeat. We repeat it enough times to fill screens and loop seamlessly.
     const items = [
-        "The future is awaiting for you",
+        "Your future starts here",
+        "Hire the Top 1%",
+        "AI-Powered Matching",
+        "No more ghosting",
+        "Join 10,000+ companies",
         "Build your career",
-        "The future is awaiting for you",
-        "Build your career",
-        "The future is awaiting for you",
-        "Build your career",
-        "The future is awaiting for you",
-        "Build your career",
+        "Instant Interviews",
+        "Global Talent Pool",
     ];
 
     return (

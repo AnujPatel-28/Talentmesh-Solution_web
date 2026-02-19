@@ -2,14 +2,16 @@ import styles from './landing.module.css';
 
 const Industries = () => {
     const industries = [
+        { name: "Accounting", icon: "🏛️" },
+        { name: "Business & Consulting", icon: "🤝" },
+        { name: "Human Research", icon: "🕵️" },
+        { name: "Marketing & Finance", icon: "📢" },
+        { name: "Design & Development", icon: "✒️" },
+        { name: "Finance Management", icon: "💰" },
+        { name: "Project Management", icon: "📑" },
+        { name: "Customer Services", icon: "🎧" },
         { name: "Technology & SaaS", icon: "💻" },
-        { name: "Finance & Fintech", icon: "💳" },
         { name: "Healthcare & AI", icon: "🏥" },
-        { name: "E-commerce", icon: "🛍️" },
-        { name: "Green Energy", icon: "⚡" },
-        { name: "EdTech", icon: "🎓" },
-        { name: "Logistics", icon: "🚚" },
-        { name: "Media & Design", icon: "🎨" }
     ];
 
     return (

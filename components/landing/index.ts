@@ -9,3 +9,5 @@ export { default as Industries } from './Industries';
 export { default as Pricing } from './Pricing';
 export { default as FAQ } from './FAQ';
 export { default as JobListings } from './JobListings';
+export { default as UserSegments } from './UserSegments';
+export { default as SuperhumanPowers } from './SuperhumanPowers';
