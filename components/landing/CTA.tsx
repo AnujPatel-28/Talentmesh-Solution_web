@@ -12,7 +12,7 @@ const CTA = () => {
                             Join 10,000+ companies and job seekers using TalentMesh today.
                             Start for free, no credit card required.
                         </p>
-                        <Link href="/signup" className={styles.ctaBtn}>
+                        <Link href="/contact" className={styles.ctaBtn}>
                             Get Started Now
                         </Link>
                     </div>

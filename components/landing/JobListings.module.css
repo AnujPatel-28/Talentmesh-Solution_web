@@ -13,10 +13,14 @@
 .title {
     font-size: 2.75rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--ink-black);
     text-align: center;
     margin-bottom: 4rem;
     letter-spacing: -0.02em;
+}
+
+.highlightText {
+    color: var(--dodger-blue);
 }
 
 /* Layout */
@@ -73,14 +77,22 @@
 }
 
 .categoryIcon {
-    font-size: 1.25rem;
+    width: 22px;
+    height: 22px;
     flex-shrink: 0;
-    filter: grayscale(0.5);
-    transition: filter 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    transition: color 0.2s;
+}
+
+.categoryItem:hover .categoryIcon {
+    color: #0f172a;
 }
 
 .categoryActive .categoryIcon {
-    filter: grayscale(0);
+    color: #2563eb;
 }
 
 .categoryLabel {

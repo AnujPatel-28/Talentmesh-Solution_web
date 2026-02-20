@@ -2,7 +2,8 @@
   background: #0B0F19;
   /* Dark Night Blue */
   color: #94a3b8;
-  padding: 5rem 0 2rem;
+  padding: 5rem 0 0;
+  /* Changed from 2rem to 0 to remove bottom gap */
   font-family: var(--font-inter);
 }
 
@@ -32,7 +33,10 @@
 }
 
 .logo img {
+  width: 180px;
+  height: 65px;
   filter: brightness(0) invert(1);
+  display: block;
 }
 
 .description {
@@ -46,6 +50,12 @@
   flex-direction: column;
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.newsletterTitle {
+  color: white;
+  font-weight: 700;
+  font-family: var(--font-jakarta);
 }
 
 .newsletterInputWrapper {
@@ -150,22 +160,41 @@
   background: var(--primary-blue);
   color: white;
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.twitter:hover {
+  background: #000000 !important;
+}
+
+.linkedin:hover {
+  background: #0077b5 !important;
+}
+
+.instagram:hover {
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%) !important;
 }
 
 .footerBranding {
   font-family: var(--font-jakarta);
   font-weight: 900;
   font-size: 15vw;
-  line-height: 0.8;
+  line-height: 0.7;
+  /* Tightened line height */
   color: rgba(255, 255, 255, 0.03);
   text-align: center;
   width: 100%;
   user-select: none;
   pointer-events: none;
-  margin-top: -2rem;
+  margin-top: 0;
+  /* Adjusted from -2rem */
+  margin-bottom: -1rem;
+  /* Negative margin to pull up footer edge */
   padding-bottom: 0;
   display: block;
   letter-spacing: -0.05em;
+  overflow: hidden;
+  /* Prevent overflow issues */
 }
 
 @media (max-width: 900px) {

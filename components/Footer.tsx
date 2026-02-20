@@ -1,3 +1,4 @@
+import { Twitter, Linkedin, Instagram } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './Footer.module.css';
@@ -49,12 +50,17 @@ const Footer = () => {
                 </div>
 
                 <div className={styles.bottom}>
-                    <p>&copy; {new Date().getFullYear()} AI Recruit. All rights reserved.</p>
+                    <p>&copy; {new Date().getFullYear()} TalentMesh. All rights reserved.</p>
                     <div className={styles.socials}>
-                        <a href="#" className={styles.socialIcon}>𝕏</a>
-                        <a href="#" className={styles.socialIcon}>in</a>
-                        <a href="#" className={styles.socialIcon}>IG</a>
-                        <a href="#" className={styles.socialIcon}>Fb</a>
+                        <a href="#" className={`${styles.socialIcon} ${styles.twitter}`} aria-label="X (Twitter)">
+                            <Twitter size={18} />
+                        </a>
+                        <a href="#" className={`${styles.socialIcon} ${styles.linkedin}`} aria-label="LinkedIn">
+                            <Linkedin size={18} />
+                        </a>
+                        <a href="#" className={`${styles.socialIcon} ${styles.instagram}`} aria-label="Instagram">
+                            <Instagram size={18} />
+                        </a>
                     </div>
                 </div>
             </div>

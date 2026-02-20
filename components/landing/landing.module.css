@@ -56,7 +56,9 @@
 
 /* HERO SECTION */
 .hero {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     min-height: 90vh;
     display: flex;
     align-items: center;
@@ -474,7 +476,9 @@
 
 /* FEATURES SECTION */
 .features {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
     color: var(--white);
     padding: 8rem 2rem;
@@ -629,7 +633,9 @@
 
 /* HOW IT WORKS SECTION */
 .howItWorks {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: var(--white);
 }
 
@@ -784,7 +790,9 @@
 
 /* TESTIMONIALS SECTION - Modern Marquee Style */
 .testimonials {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
     color: var(--white);
     padding: 8rem 0;
@@ -931,7 +939,9 @@
 
 /* CTA SECTION */
 .cta {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     padding: 8rem 2rem;
 }
 
@@ -1050,7 +1060,9 @@
 
 /* INDUSTRIES SECTION */
 .industries {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: var(--white);
     position: relative;
     overflow: hidden;
@@ -1087,8 +1099,21 @@
 }
 
 .industryIcon {
-    font-size: 1.5rem;
-    line-height: 1;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(0, 123, 255, 0.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-blue);
+    flex-shrink: 0;
+    transition: all 0.25s ease;
+}
+
+.industryCard:hover .industryIcon {
+    background: var(--primary-blue);
+    color: #ffffff;
 }
 
 .industryName {
@@ -1104,7 +1129,9 @@
 
 /* PRICING SECTION */
 .pricing {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: var(--white);
 }
 
@@ -1203,7 +1230,9 @@
 
 /* FAQ SECTION */
 .faq {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: var(--alice-blue);
 }
 
@@ -1231,7 +1260,9 @@
 
 /* FEATURED JOBS SECTION */
 .featuredJobs {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: var(--light-ice-blue);
     /* Light Ice Blue Background */
 }
@@ -1346,58 +1377,59 @@
 
 /* INDUSTRIES SECTION */
 .industries {
-    composes: section;
+    padding: 6rem 0;
     background: var(--white);
-    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
 }
 
-.industryGrid {
+.industryFlex {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 1.5rem;
-    max-width: 1000px;
-    margin: 0 auto;
+    gap: 1.5rem 3rem;
+    max-width: 1100px;
+    margin: 4rem auto 0;
+    padding: 0 2rem;
 }
 
-.industryCard {
-    background: transparent;
-    padding: 0;
-    border-radius: 0;
-    text-align: left;
-    border: none;
-    transition: all 0.3s ease;
-    cursor: pointer;
+.industryTag {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    opacity: 0.7;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    filter: grayscale(1);
+    opacity: 0.5;
 }
 
-.industryCard:hover {
-    border-color: transparent;
-    background: transparent;
-    transform: translateY(-2px);
+.industryTag:hover {
+    filter: grayscale(0);
     opacity: 1;
-    text-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
+    transform: translateY(-2px);
 }
 
-.industryIcon {
-    width: auto;
-    height: auto;
-    margin: 0;
-    color: var(--primary-blue);
+.tagIcon {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    color: var(--hover-color);
+    transition: all 0.3s ease;
 }
 
-.industryName {
+.tagName {
     font-size: 1.25rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--deep-navy);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
 }
+
+.industryTag:hover .tagName {
+    color: var(--deep-navy);
+    text-shadow: 0 0 15px color-mix(in srgb, var(--hover-color) 20%, transparent);
+}
+
 
 /* Enhancements for Section Headers - Consistent with new theme */
 .sectionHeader {
@@ -1420,7 +1452,9 @@
 
 /* USER SEGMENTS SECTION */
 .userSegments {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: var(--white);
     padding: 6rem 2rem;
     position: relative;
@@ -1577,36 +1611,37 @@
     margin-bottom: 2rem;
 }
 
-/* Employers specific button */
+/* Employers button (dark card) — white bg + dark text */
 .employers .segmentAction {
     background: var(--white);
     color: var(--deep-navy);
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Hover → blue bg + white text */
 .employers .segmentAction:hover {
-    background: #f8fafc;
-    color: var(--primary-blue);
-    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 6px 24px rgba(37, 99, 235, 0.4);
+    transform: translateY(-2px);
 }
 
-/* Candidates specific button */
+/* Candidates button (white card) — blue bg + white text */
 .candidates .segmentAction {
-    background: var(--deep-navy);
-    color: var(--white);
-    box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+    background: #2563eb;
+    color: #ffffff;
+    border: 2px solid transparent;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
 }
 
+/* Hover → black bg + white text */
 .candidates .segmentAction:hover {
-    background: var(--primary-blue);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 118, 255, 0.23);
-}
-
-.employers .segmentAction:hover,
-.candidates .segmentAction:hover {
-    background: #0069d9;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 118, 255, 0.23);
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+    transform: translateY(-2px);
 }
 
 .segmentImageWrapper {
@@ -1644,7 +1679,9 @@
 
 /* SUPERHUMAN POWERS SECTION */
 .superhumanPowers {
-    composes: section;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
     background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
     color: var(--white);
     padding: 8rem 2rem;
