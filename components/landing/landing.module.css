@@ -61,7 +61,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(180deg, #ffffff 0%, #f0f8ff 60%, #eaf4ff 100%);
+    background: #ffffff;
     padding-top: 140px;
     /* Account for fixed navbar */
     padding-bottom: 120px;
@@ -70,7 +70,7 @@
     overflow: hidden;
 }
 
-/* Faint ice-blue ambient glow — top right only */
+
 .hero::before {
     content: '';
     position: absolute;
@@ -1423,6 +1423,7 @@
     composes: section;
     background: var(--white);
     padding: 6rem 2rem;
+    position: relative;
 }
 
 .segmentsGrid {

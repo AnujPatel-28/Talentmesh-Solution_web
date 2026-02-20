@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google"; // Import Inter and Plus_Jakarta_Sans
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import NavbarWrapper from "@/components/NavbarWrapper";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,11 +31,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jakarta.variable} antialiased`} // Use new font variables
+        className={`${inter.variable} ${jakarta.variable} antialiased`}
       >
-        <Navbar />
+        <NavbarWrapper>
+          <Navbar />
+        </NavbarWrapper>
         {children}
-        <Footer />
+        <NavbarWrapper showFooter>
+          <Footer />
+        </NavbarWrapper>
       </body>
     </html>
   );

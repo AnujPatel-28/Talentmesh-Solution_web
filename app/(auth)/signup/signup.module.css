@@ -1,0 +1,892 @@
+/* ============================
+   SIGNUP PAGE — White bg
+   Left: branding on white
+   Right: dark form card
+   ============================ */
+
+.page {
+    min-height: 100vh;
+    background: #f8fafc;
+    display: flex;
+    align-items: stretch;
+}
+
+/* ============================
+   LEFT PANEL — White branding
+   ============================ */
+.leftPanel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 4rem 5rem 5rem;
+    background: #f8fafc;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle grid */
+.leftPanel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(203, 213, 225, 0.4) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(203, 213, 225, 0.4) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 30% 50%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at 30% 50%, black 30%, transparent 80%);
+    z-index: 0;
+}
+
+.leftPanel::after {
+    content: '';
+    position: absolute;
+    bottom: 10%;
+    left: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.07) 0%, transparent 65%);
+    border-radius: 50%;
+    filter: blur(60px);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.leftContent {
+    position: relative;
+    z-index: 1;
+    max-width: 440px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.logoWrap {
+    display: inline-block;
+    text-decoration: none;
+}
+
+.logoImg {
+    filter: none;
+    opacity: 1;
+}
+
+.brandingText {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.brandTitle {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+}
+
+.brandTitle span {
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.brandDesc {
+    font-size: 1rem;
+    color: #64748b;
+    line-height: 1.75;
+    font-weight: 400;
+    max-width: 380px;
+}
+
+/* Feature list on white */
+.featureList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.featureItem {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.85rem 1.25rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+}
+
+.featureItem:hover {
+    border-color: #bfdbfe;
+    box-shadow: 0 2px 12px rgba(37, 99, 235, 0.06);
+    transform: translateX(3px);
+}
+
+.featureIcon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    width: 1.75rem;
+    text-align: center;
+}
+
+.featureText {
+    font-size: 0.875rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+/* Trust badges */
+.trustBadges {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.trustBadge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.trustStars {
+    color: #f59e0b;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+}
+
+.trustBadgeIcon {
+    font-size: 0.8rem;
+}
+
+.trustText {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* ============================
+   RIGHT PANEL — Dark form card
+   ============================ */
+.rightPanel {
+    flex: 1.05;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 3.5rem 3rem 2rem;
+    background: #f8fafc;
+}
+
+/* The dark card */
+.formCard {
+    width: 100%;
+    max-width: 450px;
+    background: linear-gradient(145deg, #020617 0%, #0f172a 55%, #0d1f3c 100%);
+    border-radius: 24px;
+    padding: 2.5rem 2.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 24px 64px -12px rgba(2, 6, 23, 0.5),
+        0 8px 24px -8px rgba(2, 6, 23, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.07);
+    display: flex;
+    flex-direction: column;
+    gap: 1.3rem;
+}
+
+/* Blobs inside card */
+.bgBlob1 {
+    position: absolute;
+    top: -25%;
+    right: -15%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.22) 0%, transparent 65%);
+    border-radius: 50%;
+    filter: blur(50px);
+    animation: blobFloat1 16s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.bgBlob2 {
+    position: absolute;
+    bottom: -20%;
+    left: -10%;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, transparent 65%);
+    border-radius: 50%;
+    filter: blur(55px);
+    animation: blobFloat2 20s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.bgBlob3 {
+    position: absolute;
+    top: 50%;
+    left: 45%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 65%);
+    border-radius: 50%;
+    filter: blur(40px);
+    animation: blobFloat3 12s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes blobFloat1 {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(-20px, 30px) scale(1.08);
+    }
+}
+
+@keyframes blobFloat2 {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(25px, -20px) scale(1.06);
+    }
+}
+
+@keyframes blobFloat3 {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    100% {
+        transform: translate(-12px, 18px) scale(1.12);
+    }
+}
+
+/* ── All form card content ── */
+
+/* Progress tracker */
+.progress {
+    position: relative;
+    z-index: 1;
+}
+
+.progressSteps {
+    display: flex;
+    align-items: center;
+}
+
+.progressStep {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+.progressStep.progressActive {
+    opacity: 1;
+}
+
+.progressDot {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.14);
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.progressStep.progressActive .progressDot {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.progressStepLabel {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.progressStep.progressActive .progressStepLabel {
+    color: #94a3b8;
+}
+
+.progressLine {
+    flex: 1;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 0 0.6rem;
+    transition: background 0.3s ease;
+}
+
+.progressLine.progressLineActive {
+    background: #2563eb;
+}
+
+/* Form header */
+.formHeader {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.formTitle {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+}
+
+.formSubtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.switchLink {
+    color: #60a5fa;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.switchLink:hover {
+    color: #93c5fd;
+}
+
+/* Step content */
+.stepContent {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stepLabel {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Role selection cards */
+.roleCards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.roleCard {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+}
+
+.roleCard:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.roleCard.roleCardActive {
+    background: rgba(37, 99, 235, 0.12);
+    border-color: rgba(37, 99, 235, 0.6);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.roleCardIcon {
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #60a5fa;
+    flex-shrink: 0;
+    transition: all 0.25s ease;
+}
+
+.roleCard.roleCardActive .roleCardIcon {
+    background: rgba(37, 99, 235, 0.2);
+    color: #93c5fd;
+}
+
+.roleCardContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.roleCardTitle {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.roleCardDesc {
+    font-size: 0.75rem;
+    color: #475569;
+}
+
+.roleCardCheck {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s ease;
+}
+
+.roleCard.roleCardActive .roleCardCheck {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Social buttons */
+.socialButtons {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.socialBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.socialBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+}
+
+/* Next/Continue button */
+.nextBtn {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    width: 100%;
+    padding: 0.9rem 2rem;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    border: none;
+    border-radius: 11px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+}
+
+.nextBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(37, 99, 235, 0.55);
+}
+
+.nextBtnDisabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Form (step 2) */
+.form {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.nameRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+}
+
+.fieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 0.01em;
+}
+
+.inputWrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.inputIcon {
+    position: absolute;
+    left: 0.85rem;
+    color: #475569;
+    pointer-events: none;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.input {
+    width: 100%;
+    padding: 0.8rem 1rem 0.8rem 2.6rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-size: 0.875rem;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.nameRow .input {
+    padding-left: 0.9rem;
+}
+
+.input::placeholder {
+    color: #334155;
+}
+
+.input:focus {
+    border-color: rgba(59, 130, 246, 0.55);
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.eyeBtn {
+    position: absolute;
+    right: 0.85rem;
+    background: none;
+    border: none;
+    color: #475569;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.eyeBtn:hover {
+    color: #94a3b8;
+}
+
+/* Password strength */
+.strengthBar {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 0.3rem;
+}
+
+.strengthSegments {
+    display: flex;
+    gap: 3px;
+    flex: 1;
+}
+
+.strengthSegment {
+    height: 3px;
+    flex: 1;
+    border-radius: 2px;
+    transition: background 0.3s ease;
+}
+
+.strengthLabel {
+    font-size: 0.7rem;
+    font-weight: 700;
+    min-width: 36px;
+    text-align: right;
+    transition: color 0.3s ease;
+}
+
+/* Checkbox */
+.checkboxRow {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox {
+    display: none;
+}
+
+.checkboxCustom {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    position: relative;
+    margin-top: 1px;
+}
+
+.checkbox:checked+.checkboxCustom {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.checkbox:checked+.checkboxCustom::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 8px;
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    transform: translate(-50%, -60%) rotate(45deg);
+    display: block;
+}
+
+.checkboxText {
+    font-size: 0.78rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.inlineLink {
+    color: #60a5fa;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.inlineLink:hover {
+    text-decoration: underline;
+}
+
+/* Form action buttons */
+.formActions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    margin-top: 0.1rem;
+}
+
+.backBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.8rem 1.1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #64748b;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.backBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+}
+
+.submitBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    flex: 1;
+    padding: 0.9rem 1.25rem;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+}
+
+.submitBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(37, 99, 235, 0.5);
+}
+
+.submitBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.spinnerWrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+@media (max-width: 960px) {
+    .page {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .leftPanel {
+        flex: none;
+        width: 100%;
+        max-width: 640px;
+        padding: 4rem 2.5rem 3rem;
+        justify-content: flex-start;
+    }
+
+    .rightPanel {
+        flex: none;
+        width: 100%;
+        max-width: 640px;
+        padding: 0.5rem 2.5rem 4rem;
+    }
+
+    .formCard {
+        max-width: 100%;
+    }
+
+    .brandTitle {
+        font-size: 2.1rem;
+    }
+}
+
+@media (max-width: 520px) {
+    .leftPanel {
+        padding: 3rem 1.5rem 2rem;
+    }
+
+    .rightPanel {
+        padding: 0.5rem 1.5rem 3rem;
+    }
+
+    .brandTitle {
+        font-size: 1.8rem;
+    }
+
+    .formCard {
+        padding: 2rem 1.5rem;
+    }
+
+    .nameRow {
+        grid-template-columns: 1fr;
+    }
+
+    .formActions {
+        flex-direction: column-reverse;
+    }
+
+    .backBtn {
+        width: 100%;
+        justify-content: center;
+    }
+}

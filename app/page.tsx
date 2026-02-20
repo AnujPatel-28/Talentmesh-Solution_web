@@ -1,4 +1,4 @@
-import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, FAQ, Industries, JobListings, UserSegments, SuperhumanPowers,  } from '@/components/landing';
+import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, Industries, JobListings, UserSegments, SuperhumanPowers } from '@/components/landing';
 
 export default function Home() {
   return (
