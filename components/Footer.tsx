@@ -52,13 +52,13 @@ const Footer = () => {
                 <div className={styles.bottom}>
                     <p>&copy; {new Date().getFullYear()} TalentMesh. All rights reserved.</p>
                     <div className={styles.socials}>
-                        <a href="#" className={`${styles.socialIcon} ${styles.twitter}`} aria-label="X (Twitter)">
+                        <a href="https://x.com/TalentmeshS" className={`${styles.socialIcon} ${styles.twitter}`} aria-label="X (Twitter)">
                             <Twitter size={18} />
                         </a>
-                        <a href="#" className={`${styles.socialIcon} ${styles.linkedin}`} aria-label="LinkedIn">
+                        <a href="https://talentmeshsolutions.com/" className={`${styles.socialIcon} ${styles.linkedin}`} aria-label="LinkedIn">
                             <Linkedin size={18} />
                         </a>
-                        <a href="#" className={`${styles.socialIcon} ${styles.instagram}`} aria-label="Instagram">
+                        <a href="https://www.instagram.com/talentmesh_?igsh=NzFidGN2bDc4YzNx" className={`${styles.socialIcon} ${styles.instagram}`} aria-label="Instagram">
                             <Instagram size={18} />
                         </a>
                     </div>
