@@ -27,7 +27,6 @@ const categories = [
             </svg>
         ),
         label: 'Human research',
-        active: true,
     },
     {
         icon: (
@@ -72,110 +71,164 @@ const categories = [
     },
 ];
 
+type BadgeVariant = 'blue' | 'gray' | 'green' | 'orange' | 'purple';
+
+interface Job {
+    id: number;
+    category: string;
+    title: string;
+    location: string;
+    salary: string;
+    posted: string;
+    type: string;
+    badge: BadgeVariant;
+    logo: string;
+    logoColor: string;
+    logoBg: string;
+}
+
+const allJobs: Job[] = [
+    // Accounting
+    { id: 101, category: 'Accounting', title: 'Senior Tax Accountant', location: 'New York, NY', salary: '$90k – $110k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'AC', logoColor: '#fff', logoBg: '#2ecc71' },
+    { id: 102, category: 'Accounting', title: 'Audit Manager', location: 'Chicago, IL', salary: '$85k – $100k', posted: '3 days ago', type: 'Full-Time', badge: 'gray', logo: 'AM', logoColor: '#fff', logoBg: '#3498db' },
+
+    // Business & Consulting
+    { id: 201, category: 'Business & consulting', title: 'Strategy Consultant', location: 'Boston, MA', salary: '$95k – $130k', posted: '2 days ago', type: 'Contract', badge: 'orange', logo: 'SC', logoColor: '#fff', logoBg: '#9b59b6' },
+    { id: 202, category: 'Business & consulting', title: 'Business Analyst', location: 'Remote', salary: '$75k – $95k', posted: '5 days ago', type: 'Full-Time', badge: 'gray', logo: 'BA', logoColor: '#fff', logoBg: '#e67e22' },
+
+    // Human Research
+    { id: 301, category: 'Human research', title: 'UX Researcher', location: 'San Francisco, CA', salary: '$100k – $125k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'UX', logoColor: '#fff', logoBg: '#e74c3c' },
+    { id: 302, category: 'Human research', title: 'Behavioral Scientist', location: 'London, UK', salary: '$70k – $90k', posted: '4 days ago', type: 'Part-Time', badge: 'purple', logo: 'BS', logoColor: '#fff', logoBg: '#f1c40f' },
+
+    // Marketing & Finance (Default Active)
+    { id: 1, category: 'Marketing and finance', title: 'Digital Marketing Manager', location: 'Tokyo, Japan', salary: '$60k – $80k', posted: '2 days ago', type: 'Internship', badge: 'blue', logo: 'DM', logoColor: '#1a73e8', logoBg: '#e8f0fe' },
+    { id: 2, category: 'Marketing and finance', title: 'Financial Analyst', location: 'Mumbai, India', salary: '$55k – $75k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'FA', logoColor: '#ffffff', logoBg: '#3d5a99' },
+    { id: 3, category: 'Marketing and finance', title: 'SEO Specialist', location: 'Remote', salary: '$50k – $65k', posted: '3 days ago', type: 'Part-Time', badge: 'purple', logo: 'SE', logoColor: '#ffffff', logoBg: '#e05c2a' },
+
+    // Design & Development
+    { id: 401, category: 'Design & development', title: 'Senior Frontend Engineer', location: 'Miami, FL', salary: '$110k – $140k', posted: '2 days ago', type: 'Freelance', badge: 'orange', logo: 'FE', logoColor: '#ffffff', logoBg: '#ff4500' },
+    { id: 402, category: 'Design & development', title: 'Product Designer', location: 'Austin, TX', salary: '$90k – $115k', posted: '5 days ago', type: 'Full-Time', badge: 'gray', logo: 'PD', logoColor: '#ffffff', logoBg: '#8e44ad' },
+
+    // Finance Management
+    { id: 501, category: 'Finance management', title: 'Chief Financial Officer', location: 'New York, NY', salary: '$180k – $220k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'CF', logoColor: '#fff', logoBg: '#2c3e50' },
+    { id: 502, category: 'Finance management', title: 'Investment Analyst', location: 'Singapore', salary: '$80k – $100k', posted: '3 days ago', type: 'Internship', badge: 'blue', logo: 'IA', logoColor: '#fff', logoBg: '#16a085' },
+
+    // Project Management
+    { id: 601, category: 'Project management', title: 'Technical Program Manager', location: 'Seattle, WA', salary: '$125k – $155k', posted: '2 days ago', type: 'Full-Time', badge: 'gray', logo: 'PM', logoColor: '#fff', logoBg: '#27ae60' },
+    { id: 602, category: 'Project management', title: 'Scrum Master', location: 'Remote', salary: '$90k – $110k', posted: '6 days ago', type: 'Contract', badge: 'orange', logo: 'SM', logoColor: '#fff', logoBg: '#2980b9' },
+
+    // Customer Services
+    { id: 701, category: 'Customer services', title: 'Customer Success Manager', location: 'Dublin, Ireland', salary: '$65k – $80k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'CS', logoColor: '#fff', logoBg: '#d35400' },
+    { id: 702, category: 'Customer services', title: 'Support Team Lead', location: 'Remote', salary: '$50k – $65k', posted: '4 days ago', type: 'Part-Time', badge: 'purple', logo: 'TL', logoColor: '#fff', logoBg: '#c0392b' },
+];
+
+const badgeClass: Record<BadgeVariant, string> = {
+    blue: styles.badgeBlue,
+    gray: styles.badgeGray,
+    green: styles.badgeGreen,
+    orange: styles.badgeOrange,
+    purple: styles.badgePurple,
+};
+
 const JobListings = () => {
     const [activeCategory, setActiveCategory] = useState<string>('Marketing and finance');
-
-    // Group jobs by category for demo purposes. 
-    // In a real app, you might fetch filtered jobs from an API.
-    const allJobs = [
-        // Accounting
-        { id: 101, category: 'Accounting', title: 'Senior Tax Accountant', location: 'New York, NY', type: 'Full-Time', logo: 'AC', logoColor: '#fff', logoBg: '#2ecc71' },
-        { id: 102, category: 'Accounting', title: 'Audit Manager', location: 'Chicago, IL', type: 'Full-Time', logo: 'AM', logoColor: '#fff', logoBg: '#3498db' },
-
-        // Business & Consulting
-        { id: 201, category: 'Business & consulting', title: 'Strategy Consultant', location: 'Boston, MA', type: 'Contract', logo: 'SC', logoColor: '#fff', logoBg: '#9b59b6' },
-        { id: 202, category: 'Business & consulting', title: 'Business Analyst', location: 'Remote', type: 'Full-Time', logo: 'BA', logoColor: '#fff', logoBg: '#e67e22' },
-
-        // Human Research
-        { id: 301, category: 'Human research', title: 'UX Researcher', location: 'San Francisco, CA', type: 'Full-Time', logo: 'UX', logoColor: '#fff', logoBg: '#e74c3c' },
-        { id: 302, category: 'Human research', title: 'Behavioral Scientist', location: 'London, UK', type: 'Part-Time', logo: 'BS', logoColor: '#fff', logoBg: '#f1c40f' },
-
-        // Marketing & Finance (Default Active)
-        { id: 1, category: 'Marketing and finance', title: 'Digital Marketing Manager', location: 'Tokyo, Japan', type: 'Internship', typeColor: 'blue', logo: 'DM', logoColor: '#1a73e8', logoBg: '#e8f0fe' },
-        { id: 2, category: 'Marketing and finance', title: 'Financial Analyst', location: 'Mumbai, India', type: 'Full-Time', logo: 'FA', logoColor: '#ffffff', logoBg: '#3d5a99' },
-        { id: 3, category: 'Marketing and finance', title: 'SEO Specialist', location: 'Remote', type: 'Part-Time', logo: 'SEO', logoColor: '#ffffff', logoBg: '#e05c2a' },
-
-        // Design & Development
-        { id: 401, category: 'Design & development', title: 'Senior Frontend Engineer', location: 'Miami, Florida', type: 'Freelance', logo: 'SF', logoColor: '#ffffff', logoBg: '#ff4500' },
-        { id: 402, category: 'Design & development', title: 'Product Designer', location: 'Austin, TX', type: 'Full-Time', logo: 'PD', logoColor: '#ffffff', logoBg: '#8e44ad' },
-
-        // Finance Management
-        { id: 501, category: 'Finance management', title: 'CFO', location: 'New York, NY', type: 'Full-Time', logo: 'CF', logoColor: '#fff', logoBg: '#2c3e50' },
-
-        // Project Management
-        { id: 601, category: 'Project management', title: 'Technical Program Manager', location: 'Seattle, WA', type: 'Full-Time', logo: 'PM', logoColor: '#fff', logoBg: '#27ae60' },
-
-        // Customer Services
-        { id: 701, category: 'Customer services', title: 'Customer Success Manager', location: 'Dublin, Ireland', type: 'Full-Time', logo: 'CS', logoColor: '#fff', logoBg: '#d35400' },
-    ];
-
     const filteredJobs = allJobs.filter(job => job.category === activeCategory);
 
     return (
         <section className={styles.section}>
             <div className={styles.container}>
-                <h2 className={styles.title}>Find your <span className={styles.highlightText}>favorite job</span></h2>
+                {/* Headline */}
+                <div className={styles.headlineGroup}>
+                    <h2 className={styles.title}>
+                        Find your <span className={styles.highlight}>favorite job</span>
+                    </h2>
+                    <p className={styles.subtitle}>Explore curated roles that match your expertise.</p>
+                </div>
 
-                <div className={styles.layout}>
-                    {/* Sidebar */}
-                    <aside className={styles.sidebar}>
-                        {categories.map((cat) => (
-                            <button
-                                key={cat.label}
-                                className={`${styles.categoryItem} ${activeCategory === cat.label ? styles.categoryActive : ''}`}
-                                onClick={() => setActiveCategory(cat.label)}
-                            >
-                                <span className={styles.categoryIcon}>{cat.icon}</span>
-                                <span className={styles.categoryLabel}>{cat.label}</span>
-                            </button>
-                        ))}
-                    </aside>
+                {/* Mock App Window */}
+                <div className={styles.appWindow}>
+                    {/* Window chrome dots */}
+                    <div className={styles.windowBar}>
+                        <span className={styles.dot} style={{ background: '#ff5f57' }} />
+                        <span className={styles.dot} style={{ background: '#febc2e' }} />
+                        <span className={styles.dot} style={{ background: '#28c840' }} />
+                    </div>
 
-                    {/* Job Cards */}
-                    <div className={styles.jobsPanel}>
-                        <div className={styles.jobList}>
-                            {filteredJobs.length > 0 ? (
-                                filteredJobs.map((job) => (
-                                    <div key={job.id} className={styles.jobCard}>
-                                        <div className={styles.jobInfo}>
-                                            <div
-                                                className={styles.jobLogo}
-                                                style={{ background: job.logoBg, color: job.logoColor }}
-                                            >
-                                                {job.logo}
+                    <div className={styles.layout}>
+                        {/* Sidebar */}
+                        <aside className={styles.sidebar}>
+                            <p className={styles.sidebarLabel}>Categories</p>
+                            {categories.map((cat) => (
+                                <button
+                                    key={cat.label}
+                                    className={`${styles.categoryItem} ${activeCategory === cat.label ? styles.categoryActive : ''}`}
+                                    onClick={() => setActiveCategory(cat.label)}
+                                >
+                                    <span className={styles.categoryIcon}>{cat.icon}</span>
+                                    <span className={styles.categoryLabel}>{cat.label}</span>
+                                </button>
+                            ))}
+                        </aside>
+
+                        {/* Job Cards */}
+                        <div className={styles.jobsPanel}>
+                            <div className={styles.jobList}>
+                                {filteredJobs.length > 0 ? (
+                                    filteredJobs.map((job) => (
+                                        <div key={job.id} className={styles.jobCard}>
+                                            {/* Left: logo + details */}
+                                            <div className={styles.jobInfo}>
+                                                <div
+                                                    className={styles.jobLogo}
+                                                    style={{ background: job.logoBg, color: job.logoColor }}
+                                                >
+                                                    {job.logo}
+                                                </div>
+                                                <div className={styles.jobDetails}>
+                                                    <h3 className={styles.jobTitle}>{job.title}</h3>
+                                                    <div className={styles.jobMeta}>
+                                                        <span className={styles.metaItem}>
+                                                            📍 {job.location}
+                                                        </span>
+                                                        <span className={styles.metaDot} />
+                                                        <span className={styles.metaItem}>
+                                                            💰 {job.salary}
+                                                        </span>
+                                                        <span className={styles.metaDot} />
+                                                        <span className={styles.metaItem}>
+                                                            🕒 {job.posted}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className={styles.jobDetails}>
-                                                <h3 className={styles.jobTitle}>{job.title}</h3>
-                                                <p className={styles.jobLocation}>
-                                                    <span className={styles.locationIcon}>📍</span>
-                                                    {job.location}
-                                                </p>
+
+                                            {/* Right: badge + button */}
+                                            <div className={styles.jobActions}>
+                                                <span className={`${styles.badge} ${badgeClass[job.badge]}`}>
+                                                    {job.type}
+                                                </span>
+                                                <Link href="/jobs" className={styles.viewBtn}>
+                                                    View Job
+                                                </Link>
                                             </div>
                                         </div>
-
-                                        <div className={styles.jobMeta}>
-                                            <span className={`${styles.jobType} ${job.typeColor ? styles[`jobType_${job.typeColor}`] : ''}`}>
-                                                {job.type}
-                                            </span>
-                                            <Link href="/jobs" className={styles.viewBtn}>
-                                                View Job
-                                            </Link>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>
-                                    No jobs found in this category.
-                                </p>
-                            )}
-                        </div>
-
-                        <div className={styles.browseWrapper}>
-                            <Link href="/jobs" className={styles.browseBtn}>
-                                Browse all jobs
-                            </Link>
+                                    ))
+                                ) : (
+                                    <p className={styles.emptyState}>No jobs found in this category.</p>
+                                )}
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                {/* CTA */}
+                <div className={styles.ctaWrapper}>
+                    <Link href="/jobs" className={styles.browseBtn}>
+                        Browse all jobs
+                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                    </Link>
                 </div>
             </div>
         </section>

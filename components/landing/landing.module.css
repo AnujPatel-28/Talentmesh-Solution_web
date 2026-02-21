@@ -447,32 +447,7 @@
     text-align: right;
 }
 
-@media (max-width: 768px) {
-    .searchContainer {
-        flex-direction: column;
-        border-radius: 14px;
-        padding: 10px;
-        gap: 0;
-        height: auto;
-    }
-
-    .searchInputGroup {
-        padding: 10px 14px;
-    }
-
-    .searchInputGroup:not(:last-of-type) {
-        border-right: none;
-        border-bottom: 1px solid #E2E8F0;
-    }
-
-    .searchBtn {
-        width: 100%;
-        margin-left: 0;
-        margin-top: 8px;
-        border-radius: 8px;
-        height: 48px;
-    }
-}
+/* Search container mobile styles are in the main responsive section at the bottom */
 
 /* FEATURES SECTION */
 .features {
@@ -681,9 +656,10 @@
 
 .stepCard:hover {
     background: #ffffff;
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+    border-color: var(--primary-blue);
+    box-shadow: 0 25px 50px -12px rgba(0, 123, 255, 0.15);
     transform: translateY(-5px);
-    border-color: rgba(0, 0, 0, 0.05);
+
 }
 
 .stepNumber {
@@ -790,26 +766,24 @@
 
 /* TESTIMONIALS SECTION - Modern Marquee Style */
 .testimonials {
-    padding: 6rem 2rem;
+    padding: 6rem 0;
     position: relative;
     overflow: hidden;
     background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
     color: var(--white);
-    padding: 8rem 0;
-    overflow: hidden;
 }
 
 .testimonialHeader {
     text-align: center;
     max-width: 800px;
-    margin: 0 auto 5rem;
+    margin: 0 auto 4rem;
     padding: 0 2rem;
 }
 
 .testimonialHeader .sectionTitle {
     color: var(--white);
-    font-size: 3rem;
-    margin-bottom: 1.5rem;
+    font-size: 2.75rem;
+    margin-bottom: 1rem;
 }
 
 .testimonialHeader .sectionDesc {
@@ -851,13 +825,15 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1.5rem;
     padding: 2.5rem;
-    min-width: 400px;
-    max-width: 400px;
+    min-width: 380px;
+    max-width: 380px;
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .testimonialCard:hover {
@@ -873,18 +849,20 @@
     color: #e2e8f0;
     margin-bottom: 2rem;
     font-style: normal;
+    padding-top: 2.25rem;
 }
 
 .quote::before {
     content: "“";
-    font-size: 4rem;
+    font-size: 3.5rem;
     color: var(--primary-blue);
-    opacity: 0.3;
+    opacity: 0.25;
     position: absolute;
-    top: 1rem;
+    top: 0.75rem;
     left: 1.5rem;
     line-height: 1;
     font-family: serif;
+    pointer-events: none;
 }
 
 .author {
@@ -925,14 +903,76 @@
 }
 
 @media (max-width: 768px) {
-    .testimonialCard {
-        min-width: 300px;
-        max-width: 300px;
-        padding: 2rem;
+    .testimonials {
+        padding: 3.5rem 0 3rem;
+    }
+
+    .testimonialHeader {
+        margin-bottom: 1.5rem;
+        padding: 0 1.25rem;
+    }
+
+    .testimonialHeader .badge {
+        margin-bottom: 1rem;
     }
 
     .testimonialHeader .sectionTitle {
-        font-size: 2.25rem;
+        font-size: 1.875rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .testimonialHeader .sectionDesc {
+        font-size: 0.9rem;
+    }
+
+    .testimonialMarquee {
+        mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        padding: 1rem 0;
+    }
+
+    .testimonialTrack {
+        gap: 1.25rem;
+    }
+
+    .testimonialCard {
+        min-width: 270px;
+        max-width: 270px;
+        padding: 1.5rem;
+        border-radius: 1.25rem;
+    }
+
+    .quote {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.6;
+        padding-top: 1.75rem;
+    }
+
+    .quote::before {
+        font-size: 2.5rem;
+        opacity: 0.18;
+        top: 0.5rem;
+        left: 1.25rem;
+    }
+
+    .author {
+        padding-top: 0.875rem;
+        gap: 0.75rem;
+    }
+
+    .avatar {
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.8rem;
+    }
+
+    .authorInfo h4 {
+        font-size: 0.875rem;
+    }
+
+    .authorInfo p {
+        font-size: 0.75rem;
     }
 }
 
@@ -942,14 +982,13 @@
     padding: 6rem 2rem;
     position: relative;
     overflow: hidden;
-    padding: 8rem 2rem;
 }
 
 .ctaCard {
     background: linear-gradient(135deg, #000428 0%, #004e92 100%);
     /* Deep Night Blue to Rich Blue */
     border-radius: 2.5rem;
-    padding: 6rem 2rem;
+    padding: 5rem 3rem;
     text-align: center;
     color: var(--white);
     position: relative;
@@ -1014,16 +1053,17 @@
 .ctaBtn {
     background: var(--white);
     color: var(--deep-navy);
-    padding: 1.25rem 3.5rem;
+    padding: 1.1rem 3rem;
     border-radius: 9999px;
     font-weight: 700;
-    font-size: 1.125rem;
+    font-size: 1.0625rem;
     text-decoration: none;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: inline-flex;
     align-items: center;
     gap: 0.75rem;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
 }
 
 .ctaBtn:hover {
@@ -1031,32 +1071,7 @@
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .heroTitle {
-        font-size: 3rem;
-    }
-
-    .heroActions {
-        flex-direction: column;
-        width: 100%;
-        gap: 1rem;
-    }
-
-    .primaryBtn,
-    .secondaryBtn {
-        width: 100%;
-        text-align: center;
-    }
-
-    .ctaTitle {
-        font-size: 2rem;
-    }
-
-    .statItem h3 {
-        font-size: 2.5rem;
-    }
-}
+/* Hero, CTA, and stat responsive styles are in the main responsive section at the bottom */
 
 /* INDUSTRIES SECTION */
 .industries {
@@ -1238,7 +1253,7 @@
 
 .faqGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 2rem;
     max-width: 1000px;
     margin: 0 auto;
@@ -1456,14 +1471,12 @@
     position: relative;
     overflow: hidden;
     background: var(--white);
-    padding: 6rem 2rem;
-    position: relative;
 }
 
 .segmentsGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 2.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -1538,29 +1551,31 @@
 
 /* Base Card Content Styles */
 .segmentTitle {
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     font-weight: 800;
     color: var(--deep-navy);
     margin-bottom: 1rem;
-    line-height: 1.1;
+    line-height: 1.15;
     font-family: var(--font-jakarta);
+    word-break: break-word;
 }
 
 .segmentDesc {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--medium-grey);
-    line-height: 1.6;
-    margin-bottom: 2.5rem;
-    max-width: 90%;
+    line-height: 1.65;
+    margin-bottom: 2rem;
+    max-width: 100%;
 }
 
 .segmentFeatures {
     list-style: none;
     padding: 0;
-    margin: 0 0 3rem 0;
+    margin: 0 0 2rem 0;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.875rem;
+    width: 100%;
 }
 
 .segmentFeatureItem {
@@ -1589,7 +1604,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem 2rem;
+    padding: 0.875rem 2rem;
     border-radius: 50px;
     font-weight: 700;
     font-size: 1rem;
@@ -1597,18 +1612,19 @@
     cursor: pointer;
     border: none;
     white-space: nowrap;
+    min-width: 200px;
 }
 
 /* Card Content */
 .segmentBadge {
     display: inline-flex;
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 1rem;
     border-radius: 9999px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 2rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.25rem;
 }
 
 /* Employers button (dark card) — white bg + dark text */
@@ -1665,7 +1681,7 @@
 @media (max-width: 900px) {
     .segmentsGrid {
         grid-template-columns: 1fr;
-        padding: 0 1rem;
+        padding: 0;
     }
 
     .segmentCard {
@@ -1673,7 +1689,12 @@
     }
 
     .segmentTitle {
-        font-size: 2rem;
+        font-size: 1.875rem;
+    }
+
+    .segmentDesc {
+        font-size: 1rem;
+        max-width: 100%;
     }
 }
 
@@ -1723,8 +1744,8 @@
 .powerCard:hover {
     transform: translateY(-4px);
     background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+    border-color: var(--primary-blue);
+    box-shadow: 0 25px 50px -12px rgba(0, 123, 255, 0.15);
 }
 
 /* Bento Grid Layout */
@@ -1999,6 +2020,13 @@
     .hero {
         padding-top: 100px;
         padding-bottom: 60px;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+        min-height: auto;
+    }
+
+    .heroGrid {
+        max-width: 100%;
     }
 
     .heroTitle {
@@ -2007,8 +2035,12 @@
     }
 
     .heroDescription {
-        font-size: 1.125rem;
-        margin-bottom: 2.5rem;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .featureHeader .sectionTitle {
+        font-size: 2.25rem;
     }
 
     /* Stack Search Bar on Mobile */
@@ -2030,8 +2062,9 @@
         height: 3.5rem;
     }
 
-    .searchInputGroup:last-of-type {
-        border-bottom: none;
+    .searchInputGroup:not(:last-of-type) {
+        border-right: none;
+        border-bottom: 1px solid #E2E8F0;
     }
 
     .searchBtn {
@@ -2040,6 +2073,14 @@
         margin: 0.25rem 0 0 0;
         border-radius: 1rem;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboardPeek {
+        max-width: 100%;
+    }
+
+    .dashboardSkills {
+        display: none;
     }
 
     /* Stack Grids */
@@ -2053,8 +2094,11 @@
         margin: 0 auto;
     }
 
-    /* Superhuman Powers Grid Fix */
-    /* Superhuman Powers Grid Fix - Maintain Grid Structure */
+    .faqGrid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Superhuman Powers Grid */
     .powerGrid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -2077,78 +2121,271 @@
         font-size: 1.25rem;
     }
 
-    /* Mobile Small (max-width: 600px) - Switch to single column for readability */
-    @media (max-width: 600px) {
-        .powerGrid {
-            grid-template-columns: 1fr;
-        }
-
-        .cardLarge,
-        .cardSmall {
-            grid-column: span 1;
-        }
+    .powerCardDesc {
+        font-size: 0.9rem;
     }
 
     /* Segments */
+    .userSegments {
+        padding: 4rem 1.25rem;
+    }
+
     .segmentsGrid {
         grid-template-columns: 1fr;
+        gap: 1.5rem;
     }
 
     .segmentCard {
-        padding: 2rem;
+        padding: 2rem 1.75rem;
+        border-radius: 1.5rem;
     }
 
     .segmentTitle {
-        font-size: 1.75rem;
+        font-size: 1.625rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .segmentDesc {
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .segmentFeatures {
+        margin-bottom: 1.5rem;
+    }
+
+    .segmentAction {
+        width: 100%;
+        min-width: unset;
     }
 
     /* CTA */
+    .cta {
+        padding: 4rem 1rem;
+    }
+
     .ctaCard {
-        padding: 3rem 1.5rem;
-        border-radius: 1.5rem;
+        padding: 3rem 2rem;
+        border-radius: 1.75rem;
     }
 
     .ctaTitle {
         font-size: 2rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.015em;
+    }
+
+    .ctaDesc {
+        font-size: 1rem;
+        margin-bottom: 2rem;
     }
 
     .ctaBtn {
         width: 100%;
         justify-content: center;
+        padding: 1rem 2rem;
     }
 
-    /* Mobile Small (max-width: 480px) */
-    @media (max-width: 480px) {
-        .heroTitle {
-            font-size: 2.25rem;
-        }
+    /* Tags */
+    .tagName {
+        font-size: 1rem;
+    }
 
-        .sectionTitle {
-            font-size: 1.75rem;
-        }
+    /* Industries */
+    .industryFlex {
+        gap: 1rem 1.5rem;
+    }
 
-        .badge {
-            font-size: 0.75rem;
-            padding: 0.35rem 0.75rem;
-        }
+    /* Pricing popular card */
+    .pricingCard.popular {
+        transform: scale(1);
+    }
 
-        .segmentAction {
-            width: 100%;
-        }
+    .pricingCard.popular:hover {
+        transform: translateY(-5px);
+    }
+}
 
-        .industryGrid {
-            justify-content: flex-start;
-            overflow-x: auto;
-            flex-wrap: nowrap;
-            padding-bottom: 1rem;
-            /* Horizontal scroll for industries on very small screens */
-        }
+/* Mobile Small (max-width: 600px) */
+@media (max-width: 600px) {
+    .powerGrid {
+        grid-template-columns: 1fr;
+    }
 
-        .industryCard {
-            flex-shrink: 0;
-            background: #f8fafc;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-        }
+    .cardLarge,
+    .cardSmall {
+        grid-column: span 1;
+    }
+
+    .segmentCard {
+        padding: 1.75rem 1.5rem;
+        border-radius: 1.25rem;
+    }
+
+    .segmentBadge {
+        margin-bottom: 1rem;
+    }
+
+    .segmentFeatures {
+        gap: 0.75rem;
+    }
+}
+
+/* Mobile XS (max-width: 480px) */
+@media (max-width: 480px) {
+    .hero {
+        padding-top: 90px;
+        padding-bottom: 48px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .heroTitle {
+        font-size: 2.1rem;
+        letter-spacing: -0.01em;
+    }
+
+    .heroDescription {
+        font-size: 0.95rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .heroBadge {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.85rem;
+        margin-bottom: 16px;
+    }
+
+    .sectionTitle {
+        font-size: 1.75rem;
+    }
+
+    .featureHeader .sectionTitle {
+        font-size: 1.875rem;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .searchContainer {
+        border-radius: 1rem;
+    }
+
+    .popularContainer {
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .popularTags {
+        gap: 0.5rem;
+    }
+
+    .popularTag {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.7rem;
+    }
+
+    .dashboardPeek {
+        margin-top: 1.5rem;
+    }
+
+    .segmentTitle {
+        font-size: 1.4rem;
+    }
+
+    .segmentDesc {
+        font-size: 0.9rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .segmentFeatures {
+        margin-bottom: 1.25rem;
+        gap: 0.65rem;
+    }
+
+    .segmentAction {
+        width: 100%;
+        font-size: 0.95rem;
+        padding: 0.8rem 1.5rem;
+    }
+
+    .cta {
+        padding: 3rem 1rem;
+    }
+
+    .ctaTitle {
+        font-size: 1.625rem;
+        margin-bottom: 0.875rem;
+    }
+
+    .ctaDesc {
+        font-size: 0.9rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .ctaCard {
+        padding: 2.25rem 1.5rem;
+        border-radius: 1.25rem;
+    }
+
+    .ctaBtn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.9rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .industryGrid {
+        justify-content: flex-start;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 1rem;
+    }
+
+    .industryCard {
+        flex-shrink: 0;
+        background: #f8fafc;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+    }
+
+    .tagName {
+        font-size: 0.9rem;
+    }
+
+    .stepsGrid {
+        gap: 1.25rem;
+    }
+
+    .stepCard {
+        padding: 2rem 1.25rem;
+    }
+
+    .featureCard {
+        padding: 2rem 1.5rem;
+    }
+
+    .featureCard h3 {
+        font-size: 1.1rem;
+    }
+
+    .section {
+        padding: 3rem 1rem;
+    }
+
+    .howItWorks,
+    .features,
+    .superhumanPowers,
+    .userSegments,
+    .industries,
+    .pricing,
+    .faq,
+    .featuredJobs,
+    .cta {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 }
