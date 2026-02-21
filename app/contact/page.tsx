@@ -33,17 +33,22 @@ export default function ContactPage() {
         setLoading(true);
 
         try {
-            const response = await fetch('https://webhook.site/c755ba58-1a02-45d6-b021-3b66f62eb9fb', {
+            const response = await fetch('https://api.web3forms.com/submit', {
                 method: 'POST',
-                mode: 'cors', // Explicitly set CORS mode
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    ...formData,
-                    submittedAt: new Date().toISOString(),
-                    source: 'TalentMesh Contact Page'
+                    access_key: 'c755ba58-1a02-45d6-b021-3b66f62eb9fb', // 👈 Replace with your key from web3forms.com
+                    name: formData.fullName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    organization: formData.organization,
+                    userType: formData.userType,
+                    message: formData.message,
+                    subject: `New Contact Form Submission from ${formData.fullName}`,
+                    from_name: 'TalentMesh Contact Form',
                 }),
             });
 
