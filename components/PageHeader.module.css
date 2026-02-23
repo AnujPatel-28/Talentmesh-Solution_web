@@ -1,0 +1,80 @@
+.header {
+    background: #ffffff;
+    padding: 10rem 2rem 6rem;
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 10;
+}
+
+.breadcrumb {
+    display: inline-block;
+    padding: 0.5rem 1.25rem;
+    background: var(--light-ice-blue);
+    color: var(--primary-blue);
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    border: 1px solid var(--icy-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.title {
+    font-size: clamp(2.5rem, 8vw, 4.5rem);
+    font-weight: 900;
+    color: var(--deep-navy);
+    line-height: 1.1;
+    margin-bottom: 2rem;
+    letter-spacing: -0.03em;
+}
+
+.highlight {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.description {
+    font-size: clamp(1.125rem, 2vw, 1.35rem);
+    color: var(--medium-grey);
+    line-height: 1.6;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.decor1 {
+    position: absolute;
+    top: -10%;
+    right: -5%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(0, 123, 255, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.decor2 {
+    position: absolute;
+    bottom: -10%;
+    left: -5%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(0, 123, 255, 0.05) 0%, transparent 70%);
+    border-radius: 50%;
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 8rem 1.5rem 4rem;
+    }
+}

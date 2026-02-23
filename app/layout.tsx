@@ -16,8 +16,15 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "TalentMesh",
-  description: "Revolutionizing recruitment with advanced AI matching technology.",
+  title: {
+    default: "TalentMesh | AI-Driven Recruitment Platform",
+    template: "%s | TalentMesh"
+  },
+  description: "Revolutionizing recruitment with advanced AI matching technology. Connecting top talent with world-class companies effortlessly.",
+  keywords: ["AI Recruitment", "Job Search", "Hiring Platform", "Talent Matching", "Tech Jobs"],
+  verification: {
+    google: "https://talentmeshsolutions.com",
+  },
   icons: {
     icon: '/TalentMesh White Logo.png',
   },

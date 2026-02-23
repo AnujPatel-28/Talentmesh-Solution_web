@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Linkedin, Twitter, Instagram } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import { CTA } from '@/components/landing';
 import styles from './contact.module.css';
 
 const FAQ = [
@@ -70,14 +72,12 @@ export default function ContactPage() {
 
     return (
         <main className={styles.page}>
-            {/* ── Hero ── */}
-            <section className={styles.hero}>
-                <span className={styles.heroTag}>Contact</span>
-                <h1 className={styles.heroTitle}>Let&apos;s build <span>together</span>.</h1>
-                <p className={styles.heroDesc}>
-                    Have a question or looking for a partnership? Our team is ready to assist you.
-                </p>
-            </section>
+            <PageHeader
+                title="Let's build"
+                highlight="together"
+                description="Have a question or looking for a partnership? Our team is ready to assist you."
+                breadcrumb="Contact Us"
+            />
 
             {/* ── Content ── */}
             <div className={styles.mainLayout}>
@@ -237,6 +237,7 @@ export default function ContactPage() {
                     </div>
                 </div>
             </section>
+            <CTA />
         </main>
     );
 }

@@ -1,0 +1,314 @@
+.hero {
+    position: relative;
+    padding: 10rem 0 8rem;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.heroContent {
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    background: #ffffff;
+    color: var(--primary-blue);
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.08);
+}
+
+.title {
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 2rem;
+    color: var(--deep-navy);
+    letter-spacing: -0.03em;
+}
+
+.highlight {
+    background: linear-gradient(135deg, var(--primary-blue), var(--dodger-blue));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.description {
+    font-size: 1.25rem;
+    color: var(--medium-grey);
+    margin-bottom: 4rem;
+    line-height: 1.6;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.searchBar {
+    display: flex;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 16px;
+    box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.06);
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    border: 1px solid #E2E8F0;
+    height: 64px;
+    align-items: center;
+}
+
+.searchField {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1.5rem;
+    height: 100%;
+}
+
+.searchField input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 1rem;
+    color: var(--deep-navy);
+}
+
+.searchBtn {
+    background: var(--primary-blue);
+    color: white;
+    height: 100%;
+    padding: 0 2rem;
+    border-radius: 10px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Featured Section */
+.featuredSection {
+    background: #fafafa;
+    padding: 8rem 0;
+}
+
+.sectionHeader {
+    margin-bottom: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 3rem;
+}
+
+.mainSectionTitle {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--deep-navy);
+}
+
+.categoryGrid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    width: 100%;
+    padding-bottom: 1rem;
+}
+
+.categoryChip {
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--medium-grey);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition-smooth);
+}
+
+.categoryChipActive {
+    background: var(--primary-blue);
+    color: white;
+    border-color: var(--primary-blue);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+}
+
+.articleGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+}
+
+.articleCard {
+    background: white;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+    transition: var(--transition-smooth);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.articleCard:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--primary-blue);
+}
+
+.cardImageWrapper {
+    height: 220px;
+    background: var(--deep-navy);
+    position: relative;
+    overflow: hidden;
+}
+
+.cardImagePlaceholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, var(--deep-navy), var(--primary-blue));
+    opacity: 0.8;
+}
+
+.categoryBadge {
+    position: absolute;
+    top: 1.5rem;
+    left: 1.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--primary-blue);
+    text-transform: uppercase;
+}
+
+.cardContent {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.cardDate {
+    font-size: 0.85rem;
+    color: var(--medium-grey);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.cardTitle {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: var(--deep-navy);
+    line-height: 1.3;
+}
+
+.cardDesc {
+    font-size: 1rem;
+    color: var(--medium-grey);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    flex-grow: 1;
+}
+
+.readMore {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary-blue);
+    font-weight: 800;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: var(--transition-smooth);
+}
+
+.readMore:hover {
+    gap: 0.75rem;
+}
+
+/* Mentorship Section */
+.mentorshipSection {
+    padding: 10rem 0;
+    background: var(--deep-navy);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.mentorshipGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6rem;
+    align-items: center;
+}
+
+.insightCard {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 2.5rem;
+    border-radius: 32px;
+}
+
+.mentorHeadshot {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-blue);
+    margin-bottom: 1.5rem;
+    border: 2px solid white;
+}
+
+/* CTA */
+.ctaSection {
+    padding: 10rem 0;
+}
+
+.ctaCard {
+    background: var(--gradient-primary);
+    border-radius: 40px;
+    padding: 8rem 2rem;
+    text-align: center;
+    color: white;
+}
+
+@media (max-width: 1024px) {
+    .articleGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .mentorshipGrid {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .articleGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .title {
+        font-size: 2.5rem;
+    }
+
+    .mainSectionTitle {
+        font-size: 2rem;
+    }
+}

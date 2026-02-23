@@ -56,117 +56,76 @@
 
 /* HERO SECTION */
 .hero {
-    padding: 6rem 2rem;
+    padding: 8rem 2rem 8rem;
     position: relative;
     overflow: hidden;
-    min-height: 90vh;
+    min-height: 80vh;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #ffffff;
-    padding-top: 140px;
-    /* Account for fixed navbar */
-    padding-bottom: 120px;
     text-align: center;
-    position: relative;
-    overflow: hidden;
 }
-
 
 .hero::before {
     content: '';
     position: absolute;
-    top: -20%;
-    right: -15%;
-    width: 700px;
-    height: 700px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0.04) 50%, rgba(37, 99, 235, 0) 70%);
-    border-radius: 50%;
-    z-index: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(var(--primary-blue) 0.5px, transparent 0.5px);
+    background-size: 30px 30px;
+    opacity: 0.05;
     pointer-events: none;
-    filter: blur(80px);
-    animation: floatBlob 20s infinite ease-in-out alternate;
-}
-
-/* Secondary subtle glow — top left */
-.hero::after {
-    content: '';
-    position: absolute;
-    top: 10%;
-    left: -12%;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.02) 50%, rgba(37, 99, 235, 0) 70%);
-    border-radius: 50%;
-    z-index: 0;
-    pointer-events: none;
-    filter: blur(80px);
-    animation: floatBlob 15s infinite ease-in-out alternate-reverse;
-}
-
-@keyframes floatBlob {
-    0% {
-        transform: translate(0, 0) scale(1);
-    }
-
-    50% {
-        transform: translate(30px, 20px) scale(1.1);
-    }
-
-    100% {
-        transform: translate(-20px, 40px) scale(0.9);
-    }
 }
 
 .heroGrid {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    max-width: 900px;
+    max-width: 1000px;
     margin: 0 auto;
     position: relative;
-    z-index: 1;
+    z-index: 10;
 }
 
 .heroBadge {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    font-weight: 600;
-    font-size: 0.875rem;
-    margin-bottom: 24px;
-    background: var(--light-ice-blue);
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 1.2rem;
+    background: #ffffff;
     color: var(--primary-blue);
-    border: 1px solid var(--icy-blue);
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.08);
 }
 
 .heroTitle {
-    font-size: 64px;
-    line-height: 1.15;
-    font-weight: 800;
+    font-size: clamp(3rem, 7vw, 5rem);
+    line-height: 1.05;
+    font-weight: 900;
     color: var(--deep-navy);
-    letter-spacing: -0.02em;
-    margin-bottom: 32px;
+    letter-spacing: -0.04em;
+    margin-bottom: 2rem;
 }
 
 .heroTitle .highlight {
-    background: linear-gradient(90deg, var(--primary-blue), var(--dodger-blue));
+    background: linear-gradient(135deg, var(--primary-blue), #60a5fa);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    position: relative;
-    white-space: wrap;
-    display: inline-block;
 }
 
 .heroDescription {
-    font-size: 20px;
+    font-size: 1.25rem;
     line-height: 1.6;
-    color: #475569;
-    font-weight: 400;
-    max-width: 700px;
-    margin: 0 auto 48px;
+    color: var(--medium-grey);
+    max-width: 650px;
+    margin-bottom: 4rem;
 }
 
 .searchContainer {

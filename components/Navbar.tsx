@@ -45,8 +45,7 @@ const Navbar = () => {
                         </div>
                         <div className={styles.dropdown}>
                             <Link href="/jobs" className={styles.dropdownLink}>Browse Jobs</Link>
-                            <Link href="/companies" className={styles.dropdownLink}>Browse Companies</Link>
-                            <Link href="/salaries" className={styles.dropdownLink}>Salary Guide</Link>
+                            <Link href="/job-seekers" className={styles.dropdownLink}>Candidate Benefits</Link>
                             <Link href="/career-advice" className={styles.dropdownLink}>Career Advice</Link>
                         </div>
                     </div>
@@ -56,10 +55,10 @@ const Navbar = () => {
                             For Employers <span style={{ fontSize: '10px' }}>▼</span>
                         </div>
                         <div className={styles.dropdown}>
-                            <Link href="/employers/products" className={styles.dropdownLink}>Products & Pricing</Link>
-                            <Link href="/employers/post-job" className={styles.dropdownLink}>Post a Job</Link>
-                            <Link href="/employers/sourcing" className={styles.dropdownLink}>Talent Sourcing</Link>
+                            <Link href="/employers" className={styles.dropdownLink}>Employers</Link>
+                            <Link href="/pricing" className={styles.dropdownLink}>Pricing</Link>
                             <Link href="/case-studies" className={styles.dropdownLink}>Success Stories</Link>
+                            <Link href="/features" className={styles.dropdownLink}>AI Features</Link>
                         </div>
                     </div>
 
@@ -68,8 +67,9 @@ const Navbar = () => {
                             Company <span style={{ fontSize: '10px' }}>▼</span>
                         </div>
                         <div className={styles.dropdown}>
-                            <Link href="/about" className={styles.dropdownLink}>About Us</Link>
+                            <Link href="/about" className={styles.dropdownLink}>About</Link>
                             <Link href="/contact" className={styles.dropdownLink}>Contact</Link>
+                            <Link href="/careers" className={styles.dropdownLink}>Careers</Link>
                             <Link href="/blog" className={styles.dropdownLink}>Blog</Link>
                             <Link href="/press" className={styles.dropdownLink}>Press</Link>
                         </div>
@@ -96,24 +96,27 @@ const Navbar = () => {
             {/* Mobile Navigation Drawer */}
             <div className={`${styles.mobileNav} ${isMenuOpen ? styles.open : ''}`}>
                 <div className={styles.mobileNavItem}>
-                    <span className={styles.mobileNavLabel}>Find Work</span>
-                    <Link href="/jobs" className={styles.mobileNavLink}>Browse Jobs</Link>
-                    <Link href="/companies" className={styles.mobileNavLink}>Browse Companies</Link>
-                    <Link href="/salaries" className={styles.mobileNavLink}>Salary Guide</Link>
+                    <span className={styles.mobileNavLabel}>Employers</span>
+                    <Link href="/employers" className={styles.mobileNavLink}>Employers</Link>
+                    <Link href="/pricing" className={styles.mobileNavLink}>Pricing</Link>
+                    <Link href="/case-studies" className={styles.mobileNavLink}>Success Stories</Link>
+                    <Link href="/features" className={styles.mobileNavLink}>AI Features</Link>
                 </div>
 
                 <div className={styles.mobileNavItem}>
-                    <span className={styles.mobileNavLabel}>For Employers</span>
-                    <Link href="/employers/post-job" className={styles.mobileNavLink}>Post a Job</Link>
-                    <Link href="/employers/sourcing" className={styles.mobileNavLink}>Talent Sourcing</Link>
-                    <Link href="/employers/products" className={styles.mobileNavLink}>Pricing</Link>
+                    <span className={styles.mobileNavLabel}>Job Seekers</span>
+                    <Link href="/jobs" className={styles.mobileNavLink}>Browse Jobs</Link>
+                    <Link href="/job-seekers" className={styles.mobileNavLink}>Candidate Benefits</Link>
+                    <Link href="/career-advice" className={styles.mobileNavLink}>Career Advice</Link>
                 </div>
 
                 <div className={styles.mobileNavItem}>
                     <span className={styles.mobileNavLabel}>Company</span>
-                    <Link href="/about" className={styles.mobileNavLink}>About Us</Link>
+                    <Link href="/about" className={styles.mobileNavLink}>About</Link>
                     <Link href="/contact" className={styles.mobileNavLink}>Contact</Link>
+                    <Link href="/careers" className={styles.mobileNavLink}>Careers</Link>
                     <Link href="/blog" className={styles.mobileNavLink}>Blog</Link>
+                    <Link href="/press" className={styles.mobileNavLink}>Press</Link>
                 </div>
 
                 <div className={styles.mobileAuth}>
