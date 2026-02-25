@@ -1,0 +1,482 @@
+/* ─── Shell ────────────────────────────────────────────────────────────────── */
+.shell {
+    display: flex;
+    min-height: 100vh;
+    background: var(--light-ice-blue);
+    font-family: var(--font-inter), system-ui, Arial, sans-serif;
+}
+
+/* ─── Sidebar ──────────────────────────────────────────────────────────────── */
+.sidebar {
+    width: 252px;
+    min-width: 252px;
+    background: #0a1628;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 300;
+    scrollbar-width: none;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none;
+}
+
+.sidebarLogo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.35rem 1.25rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+}
+
+.logoLink {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.logoMark {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, var(--primary-blue), var(--brilliant-azure));
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 14px rgba(0, 123, 255, 0.45);
+    flex-shrink: 0;
+}
+
+.logoText {
+    font-size: 1rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.02em;
+}
+
+.closeMobile {
+    display: none;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 4px;
+}
+
+/* ─── Role Switcher ────────────────────────────────────────────────────────── */
+.roleSwitcher {
+    display: flex;
+    gap: 4px;
+    margin: 1rem 1rem 0.5rem;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 4px;
+    flex-shrink: 0;
+}
+
+.roleBtn {
+    flex: 1;
+    text-align: center;
+    padding: 0.45rem 0.5rem;
+    border-radius: 7px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.roleBtn:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.roleBtnActive {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: white !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Search ───────────────────────────────────────────────────────────────── */
+.sidebarSearch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0.75rem 1rem 0.25rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+}
+
+.sidebarSearch:focus-within {
+    border-color: rgba(0, 123, 255, 0.5);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.searchInput {
+    background: none;
+    border: none;
+    outline: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.83rem;
+    width: 100%;
+}
+
+.searchInput::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─── Navigation ───────────────────────────────────────────────────────────── */
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5rem 0.75rem;
+    flex: 1;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.62rem 0.75rem;
+    border-radius: 9px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.855rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.18s;
+    position: relative;
+}
+
+.navItem:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.navItemActive {
+    background: rgba(0, 123, 255, 0.18) !important;
+    color: #60a5fa !important;
+    font-weight: 700;
+}
+
+.navIcon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.navLabel {
+    flex: 1;
+}
+
+.navBadge {
+    background: var(--primary-blue);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 20px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.navArrow {
+    color: rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+}
+
+/* ─── AI Status ────────────────────────────────────────────────────────────── */
+.aiStatus {
+    margin: 0.5rem 1rem;
+    background: rgba(0, 123, 255, 0.12);
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.aiDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+    }
+}
+
+.aiLabel {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #93c5fd;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.aiSub {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.3);
+    margin-top: 2px;
+}
+
+/* ─── User Card ────────────────────────────────────────────────────────────── */
+.userCard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+}
+
+.userAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-blue), var(--cobalt-blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 800;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+.userInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.userName {
+    font-size: 0.83rem;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.userRole {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─── Main Wrap ────────────────────────────────────────────────────────────── */
+.mainWrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+/* ─── Topbar ───────────────────────────────────────────────────────────────── */
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.5rem;
+    background: white;
+    border-bottom: 1px solid var(--alice-blue);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 1rem;
+}
+
+.topbarLeft {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.hamburger {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--cobalt-blue);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.hamburger:hover {
+    background: var(--alice-blue);
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--medium-grey);
+}
+
+.breadcrumbActive {
+    color: var(--cobalt-blue);
+    font-weight: 700;
+}
+
+.topbarRight {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.aiPill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0, 123, 255, 0.08);
+    color: var(--primary-blue);
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    padding: 0.32rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.73rem;
+    font-weight: 700;
+}
+
+.notifBtn {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--alice-blue);
+    background: white;
+    color: var(--medium-grey);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.notifBtn:hover {
+    border-color: var(--primary-blue);
+    color: var(--primary-blue);
+}
+
+.notifDot {
+    position: absolute;
+    top: 6px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.topbarAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-blue), var(--cobalt-blue));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 800;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+/* ─── Content ──────────────────────────────────────────────────────────────── */
+.content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-x: hidden;
+}
+
+/* ─── Overlay ──────────────────────────────────────────────────────────────── */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 299;
+    backdrop-filter: blur(2px);
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100%;
+        transform: translateX(-100%);
+    }
+
+    .sidebarOpen {
+        transform: translateX(0) !important;
+        box-shadow: 4px 0 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
+    .closeMobile {
+        display: flex;
+    }
+
+    .content {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .topbar {
+        padding: 0.75rem 1rem;
+    }
+
+    .aiPill {
+        display: none;
+    }
+
+    .breadcrumb {
+        font-size: 0.75rem;
+    }
+
+    .content {
+        padding: 0.75rem;
+    }
+}

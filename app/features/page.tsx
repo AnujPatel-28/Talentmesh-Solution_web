@@ -1,8 +1,12 @@
-import PageHeader from '@/components/PageHeader';
-import Marquee from '@/components/Marquee';
-import PremiumCardGrid from '@/components/PremiumCardGrid';
-import { SuperhumanPowers, CTA } from '@/components/landing';
-import { Network, Database, BrainCircuit, Workflow, Lock, MousePointerSquareDashed } from 'lucide-react';
+import { PageHeader } from '@/components/ui';
+import { Marquee } from '@/components/ui';
+import { PremiumCardGrid } from '@/components/ui';
+import { SuperhumanPowers, CTA } from '@/components/sections';
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
+import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import AdsClickOutlinedIcon from '@mui/icons-material/AdsClickOutlined';
 
 export default function FeaturesPage() {
     return (
@@ -28,8 +32,8 @@ export default function FeaturesPage() {
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                             {[
-                                { icon: <BrainCircuit color="var(--primary-blue)" />, title: "Semantic Analysis", text: "Identifies that a 'Product Engineer' might be a better fit than a 'React Developer' for certain roles." },
-                                { icon: <Database color="var(--primary-blue)" />, title: "Contextual Mapping", text: "Maps 50+ data points including past company size, growth stages, and team structures." }
+                                { icon: <PsychologyOutlinedIcon sx={{ color: 'var(--primary-blue)' }} />, title: "Semantic Analysis", text: "Identifies that a 'Product Engineer' might be a better fit than a 'React Developer' for certain roles." },
+                                { icon: <StorageOutlinedIcon sx={{ color: 'var(--primary-blue)' }} />, title: "Contextual Mapping", text: "Maps 50+ data points including past company size, growth stages, and team structures." }
                             ].map((item, idx) => (
                                 <div key={idx} style={{ display: 'flex', gap: '1.5rem' }}>
                                     <div style={{ flexShrink: 0 }}>{item.icon}</div>
@@ -75,12 +79,14 @@ export default function FeaturesPage() {
             </section>
 
             <PremiumCardGrid items={[
-                { icon: <Lock />, title: "Bank-Grade Security", desc: "Your data is encrypted at rest and in transit with SOC2 Compliance." },
-                { icon: <Workflow />, title: "Custom Workflows", desc: "Build automated hiring stages that match your specific organizational needs." },
-                { icon: <MousePointerSquareDashed />, title: "Bulk Operations", desc: "Manage 1,000+ candidates as easily as you manage one." }
+                { icon: <LockOutlinedIcon />, title: "Bank-Grade Security", desc: "Your data is encrypted at rest and in transit with SOC2 Compliance." },
+                { icon: <AccountTreeOutlinedIcon />, title: "Custom Workflows", desc: "Build automated hiring stages that match your specific organizational needs." },
+                { icon: <AdsClickOutlinedIcon />, title: "Bulk Operations", desc: "Manage 1,000+ candidates as easily as you manage one." }
             ]} />
 
             <CTA />
         </main>
     );
 }
+
+

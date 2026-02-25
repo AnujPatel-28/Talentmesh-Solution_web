@@ -1,4 +1,4 @@
-import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, Industries, JobListings, UserSegments, SuperhumanPowers, FeaturedJobs, FAQ } from '@/components/landing';
+import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, Industries, JobListings, UserSegments, SuperhumanPowers, FeaturedJobs, FAQ } from '@/components/sections';
 
 export default function Home() {
   return (
@@ -16,4 +16,5 @@ export default function Home() {
     </div>
   );
 }
+
 

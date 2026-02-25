@@ -1,4 +1,4 @@
-import InfoLayout from '@/components/InfoLayout';
+import { InfoLayout } from '@/components/ui';
 
 export default function SecurityPage() {
     return (
@@ -16,3 +16,5 @@ export default function SecurityPage() {
         </InfoLayout>
     );
 }
+
+

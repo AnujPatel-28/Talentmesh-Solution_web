@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Linkedin, Twitter, Instagram } from 'lucide-react';
-import PageHeader from '@/components/PageHeader';
-import { CTA } from '@/components/landing';
+import XIcon from '@mui/icons-material/X';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import { PageHeader } from '@/components/ui';
+import { CTA } from '@/components/sections';
 import styles from './contact.module.css';
 
 const FAQ = [
@@ -105,13 +107,13 @@ export default function ContactPage() {
                         <span className={styles.infoLabel}>Follow Us</span>
                         <div className={styles.socialLinks}>
                             <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="LinkedIn">
-                                <Linkedin />
+                                <LinkedInIcon />
                             </a>
                             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Twitter">
-                                <Twitter />
+                                <XIcon />
                             </a>
                             <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
-                                <Instagram />
+                                <InstagramIcon />
                             </a>
                         </div>
                     </div>
@@ -241,3 +243,5 @@ export default function ContactPage() {
         </main>
     );
 }
+
+

@@ -1,6 +1,11 @@
-import PageHeader from '@/components/PageHeader';
-import { JobListings, CTA, Stats } from '@/components/landing';
-import { Heart, Globe2, ShieldCheck, Zap, Coffee, Laptop } from 'lucide-react';
+import { PageHeader } from '@/components/ui';
+import { JobListings, CTA, Stats } from '@/components/sections';
+import FavoriteOutlinedIcon from '@mui/icons-material/FavoriteOutlined';
+import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
+import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
+import LocalCafeOutlinedIcon from '@mui/icons-material/LocalCafeOutlined';
+import LaptopOutlinedIcon from '@mui/icons-material/LaptopOutlined';
 
 export default function CareersPage() {
     return (
@@ -37,9 +42,9 @@ export default function CareersPage() {
                         </p>
                         <ul style={{ listStyle: 'none', padding: 0 }}>
                             {[
-                                { icon: <Laptop size={18} />, text: "Remote-first culture with flex-hours" },
-                                { icon: <Globe2 size={18} />, text: "Coworking stipends in 50+ countries" },
-                                { icon: <Heart size={18} />, text: "Comprehensive family leave & wellness" }
+                                { icon: <LaptopOutlinedIcon sx={{ fontSize: 18 }} />, text: "Remote-first culture with flex-hours" },
+                                { icon: <PublicOutlinedIcon sx={{ fontSize: 18 }} />, text: "Coworking stipends in 50+ countries" },
+                                { icon: <FavoriteOutlinedIcon sx={{ fontSize: 18 }} />, text: "Comprehensive family leave & wellness" }
                             ].map((li, idx) => (
                                 <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.25rem', fontWeight: 600, color: 'var(--deep-navy)' }}>
                                     <span style={{ color: 'var(--primary-blue)' }}>{li.icon}</span> {li.text}
@@ -66,10 +71,10 @@ export default function CareersPage() {
                 <div className="premium-container">
                     <div className="premium-grid-4">
                         {[
-                            { icon: <Zap />, title: "Learning", text: "$2.5k annual learning budget." },
-                            { icon: <Coffee />, title: "Perks", text: "Healthy snacks & coffee stipends." },
-                            { icon: <ShieldCheck />, title: "Health", text: "Premium global medical coverage." },
-                            { icon: <Laptop />, title: "Stock", text: "Equity options for all employees." }
+                            { icon: <BoltOutlinedIcon />, title: "Learning", text: "$2.5k annual learning budget." },
+                            { icon: <LocalCafeOutlinedIcon />, title: "Perks", text: "Healthy snacks & coffee stipends." },
+                            { icon: <VerifiedUserOutlinedIcon />, title: "Health", text: "Premium global medical coverage." },
+                            { icon: <LaptopOutlinedIcon />, title: "Stock", text: "Equity options for all employees." }
                         ].map((item, i) => (
                             <div key={i} style={{ textAlign: 'center' }}>
                                 <div style={{ color: 'var(--primary-blue)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>{item.icon}</div>
@@ -85,3 +90,5 @@ export default function CareersPage() {
         </main>
     );
 }
+
+

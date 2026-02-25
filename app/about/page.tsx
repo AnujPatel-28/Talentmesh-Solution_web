@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import PageHeader from '@/components/PageHeader';
-import ValueShowcase from '@/components/ValueShowcase';
-import { CTA } from '@/components/landing';
+import { PageHeader } from '@/components/ui';
+import { ValueShowcase } from '@/components/ui';
+import { CTA } from '@/components/sections';
 import styles from './about.module.css';
 
 const STATS = [
@@ -137,3 +137,5 @@ export default function AboutPage() {
         </main>
     );
 }
+
+

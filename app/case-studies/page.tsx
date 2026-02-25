@@ -1,148 +1,169 @@
-"use client";
-import React from 'react';
+'use client';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import styles from './case-studies.module.css';
 
-// --- Premium Custom Icons ---
-const IconArrowRight = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-    </svg>
-);
+// ─── Icons ─────────────────────────────────────────────────────────────────────
+const ArrowIco = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-7-7 7 7-7 7" /></svg>;
 
-const IconSparkle = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-        <path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915L12 3Z" />
-    </svg>
-);
+// ─── Data ───────────────────────────────────────────────────────────────────────
+const STATS = [
+    { val: '10,000+', label: 'Companies' },
+    { val: '3x', label: 'Faster Time-to-Hire' },
+    { val: '94%', label: 'Satisfaction Rate' },
+    { val: '50+', label: 'Platforms Searched' },
+];
 
-const CASE_STUDIES = [
+const FILTERS = ['All', 'Tech', 'Finance', 'Marketing', 'Design', 'Operations'];
+
+const CASES = [
     {
-        title: "ScaleUp Tech's Global Nexus",
-        description: "How a Series D fintech infrastructure reduced their specialized engineering time-to-hire from 45 days to 12 via Aura AI protocols.",
-        category: "Fintech Infrastructure",
-        outcome: "60% Efficiency Gain",
-        link: "/case-studies/scaleup-tech",
-        accent: "rgba(0, 123, 255, 0.1)"
+        id: 1, company: 'Veritas Cloud', logo: 'VC', color: '#0D47A1', size: '250 employees', industry: 'Tech',
+        challenge: 'Struggling to hire senior engineers in a competitive market with a 90-day average time-to-fill.',
+        approach: 'TalentMesh\'s AI sourcing searched GitHub, LinkedIn, and Stack Overflow to surface passive candidates.',
+        metric: '60% faster', metricLabel: 'Time-to-Hire',
+        quote: 'We\'d tried three agencies before TalentMesh. Night and day difference in candidate quality.',
+        person: 'Samira Chen', personRole: 'VP Engineering',
     },
     {
-        title: "Global Corp's Quantum Leap",
-        description: "Executing a massive talent deployment across 5 global hubs for a quantum computing initiative in record-breaking time.",
-        category: "Enterprise Systems",
-        outcome: "400+ Specialists Deployed",
-        link: "/case-studies/global-corp",
-        accent: "rgba(16, 185, 129, 0.1)"
+        id: 2, company: 'BrightCapital', logo: 'BC', color: '#1565C0', size: '800 employees', industry: 'Finance',
+        challenge: 'Needed to scale from 2 to 20 finance analysts in under 3 months after Series B funding.',
+        approach: 'Applied RPO model — dedicated sourcing team embedded within BrightCapital\'s processes.',
+        metric: '20 hires', metricLabel: 'in 6 Weeks',
+        quote: 'The candidate fit scores were incredibly accurate. We saved weeks of screening time.',
+        person: 'Daniel Okafor', personRole: 'CFO',
     },
     {
-        title: "Nexus Labs Talent Architecture",
-        description: "Re-engineering a multi-disciplinary team for a confidential deep-tech overhaul using stealth sourcing protocols.",
-        category: "Stealth Tech",
-        outcome: "100% Retained Hires",
-        link: "/case-studies/nexus-labs",
-        accent: "rgba(139, 92, 246, 0.1)"
+        id: 3, company: 'ViralLoop', logo: 'VL', color: '#1E88E5', size: '50 employees', industry: 'Marketing',
+        challenge: 'A fast-growing performance marketing startup needed senior growth specialists — a scarce profile.',
+        approach: 'TalentMesh built a custom talent map and proactively outreached to candidates on 12 platforms.',
+        metric: '4 hires', metricLabel: 'in 3 Weeks',
+        quote: 'Our team went from 3 to 7 growth marketers in under a month. Exceptional speed.',
+        person: 'Priya Sharma', personRole: 'CMO',
     },
     {
-        title: "Aether AI's Sourcing Protocol",
-        description: "Identifying passive specialist talent in the distributed ledger space before they reached the open market.",
-        category: "Distributed Systems",
-        outcome: "92% Offer Acceptance",
-        link: "/case-studies/aether-ai",
-        accent: "rgba(236, 72, 153, 0.1)"
-    }
+        id: 4, company: 'Designify Studio', logo: 'DS', color: '#2196F3', size: '120 employees', industry: 'Design',
+        challenge: 'Required a mix of UX researchers, product designers, and a head of brand — all at once.',
+        approach: 'AI screening matched portfolio quality against role benchmarks, removing bias from the process.',
+        metric: '89%', metricLabel: 'Offer Acceptance Rate',
+        quote: 'Every shortlisted candidate had a portfolio that blew us away. Zero wasted interviews.',
+        person: 'Mei Lin', personRole: 'Head of Product',
+    },
+    {
+        id: 5, company: 'OpsForce Global', logo: 'OG', color: '#42A5F5', size: '1,200 employees', industry: 'Operations',
+        challenge: 'High-volume ops hiring across 5 countries with tight compliance requirements.',
+        approach: 'Full RPO engagement — TalentMesh handled JD writing, sourcing, screening, and offer management.',
+        metric: '150 hires', metricLabel: 'in One Quarter',
+        quote: 'We\'d never scaled hiring this fast before. TalentMesh made international hiring feel simple.',
+        person: 'James Okafor', personRole: 'COO',
+    },
+    {
+        id: 6, company: 'NovaPay', logo: 'NP', color: '#0D47A1', size: '300 employees', industry: 'Finance',
+        challenge: 'Needed to replace a legacy payroll team while simultaneously hiring for new fintech roles.',
+        approach: 'Parallel sourcing streams — one for replacement hires, one for new capabilities.',
+        metric: '2.5x', metricLabel: 'Pipeline Quality Score',
+        quote: 'The AI match scores for fintech specialists were surprisingly accurate.',
+        person: 'Fatima Al-Hassan', personRole: 'CHRO',
+    },
 ];
 
 export default function CaseStudiesPage() {
+    const [filter, setFilter] = useState('All');
+
+    const shown = filter === 'All' ? CASES : CASES.filter(c => c.industry === filter);
+
     return (
-        <main style={{ background: '#fff' }}>
-            {/* 1. Success Hero */}
+        <main className={styles.page}>
+            {/* ── HERO ── */}
             <section className={styles.hero}>
                 <div className="premium-container">
-                    <div className={styles.heroContent}>
-                        <div className={styles.badge}>
-                            <IconSparkle /> Success Protocols • Verified Outcomes
-                        </div>
-                        <h1 className={styles.title}>
-                            Diagnostic <br />
-                            <span className={styles.highlight}>impact stories.</span>
-                        </h1>
-                        <p className={styles.description}>
-                            Explore how the world's leading enterprise ecosystems utilize TalentMesh
-                            to build their high-performance technical core.
-                        </p>
-                    </div>
-                </div>
-            </section>
+                    <h1 className={styles.heroTitle}>Real Companies. Real Results.</h1>
+                    <p className={styles.heroSub}>See how businesses across industries scaled their teams faster with TalentMesh.</p>
 
-            {/* 2. Impact Pulse */}
-            <section className={styles.impactSection}>
-                <div className="premium-container">
-                    <div className={styles.impactGrid}>
-                        <div className={styles.impactItem}>
-                            <span className={styles.impactValue}>45%</span>
-                            <span className={styles.impactLabel}>Avg. Hiring Cycle Reduction</span>
-                        </div>
-                        <div className={styles.impactItem}>
-                            <span className={styles.impactValue}>98.4%</span>
-                            <span className={styles.impactLabel}>Candidate Retention Rate</span>
-                        </div>
-                        <div className={styles.impactItem}>
-                            <span className={styles.impactValue}>1.2M</span>
-                            <span className={styles.impactLabel}>Specialists Analyzed</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* 3. Case Studies Grid */}
-            <section className={styles.studySection}>
-                <div className="premium-container">
-                    <div className={styles.sectionHeader}>
-                        <h2 className={styles.sectionTitle}>Success Protocols.</h2>
-                        <p style={{ color: 'var(--medium-grey)', fontSize: '1.25rem' }}>Real-world data from our active deployment partners.</p>
-                    </div>
-
-                    <div className={styles.studyGrid}>
-                        {CASE_STUDIES.map((study, i) => (
-                            <div key={i} className={styles.studyCard}>
-                                <div className={styles.cardHeader} style={{ background: study.accent }}>
-                                    <span className={styles.categoryTag}>{study.category}</span>
-                                    {/* Abstract Visual Placeholder */}
-                                    <div style={{ padding: '4rem', opacity: 0.2 }}>
-                                        <svg width="200" height="200" viewBox="0 0 200 200">
-                                            <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="10 20" />
-                                            <path d="M40,100 L160,100 M100,40 L100,160" stroke="currentColor" strokeWidth="1" opacity="0.5" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className={styles.cardBody}>
-                                    <h3 className={styles.studyTitle}>{study.title}</h3>
-                                    <p className={styles.studyDesc}>{study.description}</p>
-
-                                    <div className={styles.cardFooter}>
-                                        <div className={styles.outcome}>
-                                            <span style={{ color: 'var(--primary-blue)', display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '4px' }}>Outcome</span>
-                                            {study.outcome}
-                                        </div>
-                                        <Link href={study.link} className={styles.readMore}>
-                                            Case Profile <IconArrowRight />
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
+                    {/* Filter tabs */}
+                    <div className={styles.filterRow}>
+                        {FILTERS.map(f => (
+                            <button key={f} className={`${styles.filterTab} ${filter === f ? styles.filterTabActive : ''}`}
+                                onClick={() => setFilter(f)}>{f}</button>
                         ))}
                     </div>
                 </div>
+
+                {/* Stats bar */}
+                <div className={styles.statsBar}>
+                    <div className="premium-container">
+                        <div className={styles.statsInner}>
+                            {STATS.map((s, i) => (
+                                <React.Fragment key={s.val}>
+                                    {i > 0 && <div className={styles.statDiv} />}
+                                    <div className={styles.statItem}>
+                                        <div className={styles.statVal}>{s.val}</div>
+                                        <div className={styles.statLabel}>{s.label}</div>
+                                    </div>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </section>
 
-            {/* 4. Strategic CTA */}
-            <section className={styles.ctaSection}>
+            {/* ── CASE STUDY CARDS ── */}
+            <section className={styles.cardsSection}>
                 <div className="premium-container">
-                    <div className={styles.ctaBox}>
-                        <h2 className={styles.ctaTitle}>Start your protocol.</h2>
-                        <p className={styles.ctaDesc}>
-                            Join 200+ world-class organizations using TalentMesh to build their technical core with absolute certainty.
-                        </p>
-                        <Link href="/contact" className={styles.ctaBtn}>Schedule a Consult</Link>
+                    {shown.length > 0 ? (
+                        <div className={styles.cardsGrid}>
+                            {shown.map(c => (
+                                <div key={c.id} className={`${styles.card} glass-card`}>
+                                    {/* Card head */}
+                                    <div className={styles.cardHead}>
+                                        <div className={styles.cardLogo} style={{ background: c.color }}>{c.logo}</div>
+                                        <div>
+                                            <div className={styles.cardCompany}>{c.company}</div>
+                                            <div className={styles.cardSize}>{c.industry} · {c.size}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Challenge */}
+                                    <div className={styles.section}>
+                                        <div className={styles.sectionLbl}>Challenge</div>
+                                        <p className={styles.sectionTxt}>{c.challenge}</p>
+                                    </div>
+
+                                    {/* Approach */}
+                                    <div className={styles.section}>
+                                        <div className={styles.sectionLbl}>Approach</div>
+                                        <p className={styles.sectionTxt}>{c.approach}</p>
+                                    </div>
+
+                                    {/* Result metric */}
+                                    <div className={styles.metricBox}>
+                                        <div className={styles.metricVal}>{c.metric}</div>
+                                        <div className={styles.metricLabel}>{c.metricLabel}</div>
+                                    </div>
+
+                                    {/* Quote */}
+                                    <div className={styles.quoteBlock}>
+                                        <p className={styles.quoteText}>&ldquo;{c.quote}&rdquo;</p>
+                                        <div className={styles.quotePerson}>— {c.person}, <em>{c.personRole}</em></div>
+                                    </div>
+
+                                    <Link href="#" className={styles.readMore}>Read Full Story <ArrowIco /></Link>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className={styles.emptyState}>No case studies found for this category yet.</div>
+                    )}
+                </div>
+            </section>
+
+            {/* ── CTA STRIP ── */}
+            <section className={styles.ctaStrip}>
+                <div className="premium-container">
+                    <h2 className={styles.ctaTitle}>Ready to Write Your Own Success Story?</h2>
+                    <div className={styles.ctaBtns}>
+                        <Link href="/employers/post-job" className={styles.ctaPrimary}>Post a Job Free</Link>
+                        <Link href="/employers/sourcing" className={styles.ctaSecondary}>Talk to Our Team</Link>
                     </div>
                 </div>
             </section>
