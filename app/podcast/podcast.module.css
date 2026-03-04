@@ -1,6 +1,6 @@
 /* ── Podcast Page ── */
 .page {
-    background: #fff;
+    background: var(--light-ice-blue, #F0F7FF);
 }
 
 /* Hero */
@@ -16,8 +16,8 @@
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(ellipse 60% 60% at 20% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 80% 10%, rgba(0, 123, 255, 0.18) 0%, transparent 60%);
+        radial-gradient(ellipse 60% 60% at 20% 80%, rgba(0, 123, 255, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 10%, rgba(13, 71, 161, 0.2) 0%, transparent 60%);
 }
 
 .heroContent {
@@ -29,9 +29,9 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #34d399;
+    background: rgba(0, 123, 255, 0.15);
+    border: 1px solid rgba(0, 123, 255, 0.3);
+    color: var(--sky-blue, #90CAF9);
     padding: 8px 18px;
     border-radius: 50px;
     font-size: 0.82rem;
@@ -50,7 +50,7 @@
 }
 
 .heroHighlight {
-    background: linear-gradient(135deg, #34d399, #10b981);
+    background: linear-gradient(135deg, var(--sky-blue, #90CAF9), var(--primary-blue, #007BFF));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -94,7 +94,7 @@
 /* Section Tag */
 .sectionTagLight {
     display: inline-block;
-    color: #10b981;
+    color: var(--primary-blue, #007BFF);
     font-size: 0.8rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -105,6 +105,7 @@
 /* Featured Episode */
 .featuredSection {
     padding: 7rem 0 0;
+    background: white;
 }
 
 .featuredCard {
@@ -112,7 +113,7 @@
     grid-template-columns: 5fr 7fr;
     border-radius: var(--radius-lg);
     overflow: hidden;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sky-blue, #90CAF9);
 }
 
 .featuredVisual {
@@ -138,9 +139,10 @@
 
 .waveBar {
     width: 5px;
-    background: rgba(255, 255, 255, 0.45);
+    background: linear-gradient(to top, rgba(0, 123, 255, 0.7), rgba(255, 255, 255, 0.6));
     border-radius: 3px;
     animation: wavePulse 1.4s ease-in-out infinite alternate;
+    box-shadow: 0 0 6px rgba(0, 123, 255, 0.3);
 }
 
 @keyframes wavePulse {
@@ -158,14 +160,14 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: #f8fafc;
+    background: var(--light-ice-blue, #F0F7FF);
     gap: 0;
 }
 
 .epNum {
     display: inline-block;
-    background: rgba(16, 185, 129, 0.1);
-    color: #10b981;
+    background: rgba(0, 123, 255, 0.1);
+    color: var(--primary-blue, #007BFF);
     font-size: 0.75rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -250,6 +252,7 @@
 /* Episodes Section */
 .episodesSection {
     padding: 6rem 0;
+    background: white;
 }
 
 .episodesHeader {
@@ -274,9 +277,9 @@
 .chip {
     padding: 0.5rem 1.25rem;
     border-radius: 50px;
-    border: 1px solid #e2e8f0;
-    background: #fff;
-    color: var(--deep-navy);
+    border: 1px solid var(--sky-blue, #90CAF9);
+    background: var(--alice-blue, #E3F2FD);
+    color: var(--cobalt-blue, #0D47A1);
     font-weight: 700;
     font-size: 0.85rem;
     cursor: pointer;
@@ -284,14 +287,14 @@
 }
 
 .chip:hover {
-    border-color: #10b981;
-    color: #10b981;
+    border-color: var(--primary-blue, #007BFF);
+    color: var(--primary-blue, #007BFF);
 }
 
 .chipActive {
-    background: #10b981;
+    background: var(--primary-blue, #007BFF);
     color: #fff;
-    border-color: #10b981;
+    border-color: var(--primary-blue, #007BFF);
 }
 
 /* Episodes Grid */
@@ -302,15 +305,35 @@
 }
 
 .episodeCard {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sky-blue, #90CAF9);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    transition: transform 0.25s, box-shadow 0.25s;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    background: white;
+}
+
+.episodeCard::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, var(--primary-blue, #007BFF), var(--dodger-blue, #2196F3));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
 }
 
 .episodeCard:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+    transform: translateY(-8px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 123, 255, 0.25);
+}
+
+.episodeCard:hover::before {
+    opacity: 1;
 }
 
 .epCardVisual {
@@ -350,8 +373,21 @@
 }
 
 .playing {
-    background: #10b981;
-    border-color: #10b981;
+    background: var(--primary-blue, #007BFF);
+    border-color: var(--primary-blue, #007BFF);
+    animation: playPulse 2s ease-in-out infinite;
+}
+
+@keyframes playPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(0, 123, 255, 0);
+    }
 }
 
 .epCardBody {
@@ -368,7 +404,7 @@
 .epNumSmall {
     font-size: 0.72rem;
     font-weight: 800;
-    color: #10b981;
+    color: var(--primary-blue, #007BFF);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -396,11 +432,14 @@
 .guestBadge {
     font-size: 0.78rem;
     font-weight: 700;
-    color: var(--deep-navy);
-    background: #f1f5f9;
-    padding: 5px 12px;
+    color: var(--cobalt-blue, #0D47A1);
+    background: var(--alice-blue, #E3F2FD);
+    padding: 6px 14px 6px 12px;
     border-radius: 50px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(0, 123, 255, 0.15);
 }
 
 /* CTA */
@@ -421,7 +460,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 60% 60% at 50% 0%, rgba(16, 185, 129, 0.2) 0%, transparent 70%);
+    background: radial-gradient(ellipse 60% 60% at 50% 0%, rgba(0, 123, 255, 0.25) 0%, transparent 70%);
 }
 
 .ctaIcon {

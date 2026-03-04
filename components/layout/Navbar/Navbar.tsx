@@ -62,10 +62,10 @@ const Navbar = () => {
                             For Employers <span className={styles.chevron}>▼</span>
                         </div>
                         <div className={styles.dropdown}>
-                            <Link href="/employers/post-job" className={`${styles.dropdownLink} ${pathname === '/employers/post-job' ? styles.dropdownLinkActive : ''}`}><span className={styles.ddIcon}>📝</span> Post a Job</Link>
-                            <Link href="/employers/sourcing" className={`${styles.dropdownLink} ${pathname === '/employers/sourcing' ? styles.dropdownLinkActive : ''}`}><span className={styles.ddIcon}>🎯</span> Talent Sourcing</Link>
-                            <Link href="/employers/products" className={`${styles.dropdownLink} ${pathname === '/employers/products' ? styles.dropdownLinkActive : ''}`}><span className={styles.ddIcon}>💼</span> Products & Pricing</Link>
-                            <Link href="/case-studies" className={`${styles.dropdownLink} ${pathname === '/case-studies' ? styles.dropdownLinkActive : ''}`}><span className={styles.ddIcon}>📊</span> Success Stories</Link>
+                            <Link href="/employers/post-job" className={`${styles.dropdownLink} ${pathname === '/employers/post-job' ? styles.dropdownLinkActive : ''}`}>Post a Job</Link>
+                            <Link href="/employers/sourcing" className={`${styles.dropdownLink} ${pathname === '/employers/sourcing' ? styles.dropdownLinkActive : ''}`}>Talent Sourcing</Link>
+                            {/* <Link href="/employers/products" className={`${styles.dropdownLink} ${pathname === '/employers/products' ? styles.dropdownLinkActive : ''}`}>Products & Pricing</Link> */}
+                            {/* <Link href="/case-studies" className={`${styles.dropdownLink} ${pathname === '/case-studies' ? styles.dropdownLinkActive : ''}`}>Success Stories</Link> */}
                         </div>
                     </div>
 
@@ -145,13 +145,6 @@ const Navbar = () => {
                     <Link href="/careers" className={styles.mobileNavLink}>Careers</Link>
                     <Link href="/blog" className={styles.mobileNavLink}>Blog</Link>
                     <Link href="/podcast" className={styles.mobileNavLink}>Podcast</Link>
-                </div>
-
-                {/* Dashboard ── new mobile section */}
-                <div className={styles.mobileNavItem}>
-                    <span className={styles.mobileNavLabel}>Dashboard</span>
-                    <Link href="/dashboard/company" className={`${styles.mobileNavLink} ${styles.mobileNavLinkDash}`}>🏢 Company Hub</Link>
-                    <Link href="/dashboard/candidate" className={`${styles.mobileNavLink} ${styles.mobileNavLinkDash}`}>👤 My Career</Link>
                 </div>
 
                 <div className={styles.mobileAuth}>

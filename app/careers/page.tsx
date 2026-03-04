@@ -6,48 +6,75 @@ import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import LocalCafeOutlinedIcon from '@mui/icons-material/LocalCafeOutlined';
 import LaptopOutlinedIcon from '@mui/icons-material/LaptopOutlined';
+import styles from './careers.module.css';
 
 export default function CareersPage() {
     return (
-        <main style={{ background: '#fff' }}>
+        <main className={styles.page}>
             <PageHeader
                 title="Build the future"
                 highlight="with us"
-                description="We&apos;re a team of engineers, designers, and dreamers building the next generation of talent infrastructure."
+                description="We're a team of engineers, designers, and dreamers building the next generation of talent infrastructure."
                 breadcrumb="Life at TalentMesh"
             />
 
             <Stats />
 
-            {/* Unique Section 1: Our Culture */}
-            <section className="premium-section">
-                <div className="premium-container premium-grid-2" style={{ alignItems: 'center' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+            {/* ── Our Culture ── */}
+            <section className={styles.cultureSection}>
+                <div className={styles.cultureGrid}>
+                    <div className={styles.cultureCards}>
                         {[
-                            { color: '#eff6ff', label: 'Innovation' },
-                            { color: '#f0fdf4', label: 'Diversity' },
-                            { color: '#fef2f2', label: 'Speed' },
-                            { color: '#faf5ff', label: 'Empathy' }
+                            {
+                                color: 'Blue', label: 'Innovation', icon: (
+                                    <svg className={styles.cultureCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+                                    </svg>
+                                )
+                            },
+                            {
+                                color: 'Green', label: 'Diversity', icon: (
+                                    <svg className={styles.cultureCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                    </svg>
+                                )
+                            },
+                            {
+                                color: 'Red', label: 'Speed', icon: (
+                                    <svg className={styles.cultureCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                    </svg>
+                                )
+                            },
+                            {
+                                color: 'Purple', label: 'Empathy', icon: (
+                                    <svg className={styles.cultureCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                                    </svg>
+                                )
+                            },
                         ].map((box, i) => (
-                            <div key={i} style={{ aspectRatio: '1/1', background: box.color, borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--deep-navy)', fontSize: '1.1rem', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                            <div key={i} className={`${styles.cultureCard} ${styles[`cultureCard${box.color}`]}`}>
+                                {box.icon}
                                 {box.label}
                             </div>
                         ))}
                     </div>
-                    <div>
-                        <span style={{ color: 'var(--primary-blue)', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.85rem' }}>Workplace Evolution</span>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--deep-navy)', margin: '1.5rem 0' }}>As remote as you are.</h2>
-                        <p style={{ color: 'var(--medium-grey)', fontSize: '1.125rem', lineHeight: 1.8, marginBottom: '2.5rem' }}>
+                    <div className={styles.cultureContent}>
+                        <span className={styles.cultureSectionTag}>Workplace Evolution</span>
+                        <h2 className={styles.cultureTitle}>As remote as you are.</h2>
+                        <p className={styles.cultureDesc}>
                             We believe that the best talent shouldn&apos;t be restricted by geography. TalentMesh is a remote-first organization with hubs in Ahmedabad, San Francisco, and London.
                         </p>
-                        <ul style={{ listStyle: 'none', padding: 0 }}>
+                        <ul className={styles.perksList}>
                             {[
                                 { icon: <LaptopOutlinedIcon sx={{ fontSize: 18 }} />, text: "Remote-first culture with flex-hours" },
                                 { icon: <PublicOutlinedIcon sx={{ fontSize: 18 }} />, text: "Coworking stipends in 50+ countries" },
                                 { icon: <FavoriteOutlinedIcon sx={{ fontSize: 18 }} />, text: "Comprehensive family leave & wellness" }
                             ].map((li, idx) => (
-                                <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.25rem', fontWeight: 600, color: 'var(--deep-navy)' }}>
-                                    <span style={{ color: 'var(--primary-blue)' }}>{li.icon}</span> {li.text}
+                                <li key={idx} className={styles.perksItem}>
+                                    <span className={styles.perksIcon}>{li.icon}</span>
+                                    {li.text}
                                 </li>
                             ))}
                         </ul>
@@ -55,34 +82,32 @@ export default function CareersPage() {
                 </div>
             </section>
 
-            {/* Unique Section 2: Open Roles */}
-            <section className="premium-section" style={{ background: '#f8fafc' }}>
+            {/* ── Open Positions ── */}
+            <section className={styles.positionsSection}>
                 <div className="premium-container">
-                    <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '-0.04em' }}>Open Positions</h2>
-                        <p style={{ color: 'var(--medium-grey)', marginTop: '1rem' }}>Find your next challenge and grow with us.</p>
+                    <div className={styles.positionsHeader}>
+                        <h2 className={styles.positionsTitle}>Open Positions</h2>
+                        <p className={styles.positionsSubtitle}>Find your next challenge and grow with us.</p>
                     </div>
                     <JobListings />
                 </div>
             </section>
 
-            {/* Unique Section 3: Benefits Matrix */}
-            <section className="premium-section">
-                <div className="premium-container">
-                    <div className="premium-grid-4">
-                        {[
-                            { icon: <BoltOutlinedIcon />, title: "Learning", text: "$2.5k annual learning budget." },
-                            { icon: <LocalCafeOutlinedIcon />, title: "Perks", text: "Healthy snacks & coffee stipends." },
-                            { icon: <VerifiedUserOutlinedIcon />, title: "Health", text: "Premium global medical coverage." },
-                            { icon: <LaptopOutlinedIcon />, title: "Stock", text: "Equity options for all employees." }
-                        ].map((item, i) => (
-                            <div key={i} style={{ textAlign: 'center' }}>
-                                <div style={{ color: 'var(--primary-blue)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>{item.icon}</div>
-                                <h4 style={{ fontWeight: 800, marginBottom: '0.75rem' }}>{item.title}</h4>
-                                <p style={{ fontSize: '0.9rem', color: 'var(--medium-grey)' }}>{item.text}</p>
-                            </div>
-                        ))}
-                    </div>
+            {/* ── Benefits Matrix ── */}
+            <section className={styles.benefitsSection}>
+                <div className={styles.benefitsGrid}>
+                    {[
+                        { icon: <BoltOutlinedIcon />, title: "Learning", text: "$2.5k annual learning budget." },
+                        { icon: <LocalCafeOutlinedIcon />, title: "Perks", text: "Healthy snacks & coffee stipends." },
+                        { icon: <VerifiedUserOutlinedIcon />, title: "Health", text: "Premium global medical coverage." },
+                        { icon: <LaptopOutlinedIcon />, title: "Stock", text: "Equity options for all employees." }
+                    ].map((item, i) => (
+                        <div key={i} className={styles.benefitCard}>
+                            <div className={styles.benefitIcon}>{item.icon}</div>
+                            <h4 className={styles.benefitTitle}>{item.title}</h4>
+                            <p className={styles.benefitText}>{item.text}</p>
+                        </div>
+                    ))}
                 </div>
             </section>
 
@@ -90,5 +115,3 @@ export default function CareersPage() {
         </main>
     );
 }
-
-

@@ -1,5 +1,5 @@
 /* ============================
-   CANDIDATE DASHBOARD — Content Styles
+   RECRUITER DASHBOARD — Content Styles
    ============================ */
 
 .dashboard {
@@ -74,8 +74,8 @@
     justify-content: space-between;
     gap: 1.5rem;
     padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border: 1px solid #fde68a;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #ddd6fe;
     border-radius: 12px;
 }
 
@@ -92,13 +92,13 @@
 .bannerTitle {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #92400e;
+    color: #5b21b6;
     margin: 0;
 }
 
 .bannerText {
     font-size: 0.72rem;
-    color: #a16207;
+    color: #7c3aed;
     margin: 0.1rem 0 0 0;
 }
 
@@ -112,14 +112,14 @@
 .bannerBar {
     width: 100px;
     height: 6px;
-    background: #fde68a;
+    background: #ddd6fe;
     border-radius: 3px;
     overflow: hidden;
 }
 
 .bannerFill {
     height: 100%;
-    background: #f59e0b;
+    background: #7c3aed;
     border-radius: 3px;
     transition: width 0.5s ease;
 }
@@ -127,7 +127,7 @@
 .bannerPercent {
     font-size: 0.72rem;
     font-weight: 700;
-    color: #92400e;
+    color: #5b21b6;
 }
 
 /* Panels */
@@ -190,64 +190,76 @@
     color: #94a3b8;
 }
 
-.jobSalary {
-    font-size: 0.7rem;
-    color: #64748b;
-    font-weight: 600;
-}
-
-.jobTag {
+.jobStatus {
     font-size: 0.65rem;
     font-weight: 700;
-    color: var(--primary-blue);
-    background: #eff6ff;
+    color: #10b981;
+    background: #f0fdf4;
     padding: 0.2rem 0.55rem;
     border-radius: 12px;
     white-space: nowrap;
 }
 
-/* Interview list */
-.interviewList {
+/* Candidate list */
+.candidateList {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
 
-.interviewItem {
+.candidateItem {
     display: flex;
-    gap: 0.75rem;
-    padding: 0.65rem 0.75rem;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.75rem;
     border: 1px solid #f1f5f9;
     border-radius: 9px;
+    transition: all 0.15s ease;
+}
+
+.candidateItem:hover {
+    background: #f8fafc;
+}
+
+.candidateAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #7c3aed;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 700;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.interviewDate {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--primary-blue);
-    background: #eff6ff;
-    padding: 0.3rem 0.5rem;
-    border-radius: 6px;
-    white-space: nowrap;
-    min-width: 90px;
-    text-align: center;
-}
-
-.interviewInfo {
+.candidateInfo {
+    flex: 1;
     display: flex;
     flex-direction: column;
 }
 
-.interviewRole {
+.candidateName {
     font-size: 0.78rem;
     font-weight: 600;
     color: #0f172a;
 }
 
-.interviewCompany {
+.candidateMeta {
     font-size: 0.68rem;
     color: #94a3b8;
+}
+
+.candidateMatch {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #7c3aed;
+    background: #f5f3ff;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    white-space: nowrap;
 }
 
 /* Responsive */

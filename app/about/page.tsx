@@ -30,6 +30,13 @@ const TIMELINE = [
     { year: '2025', title: 'Autonomous Hiring', body: 'Launching the first ethical autopilot for end-to-end recruitment.' },
 ];
 
+const INNOVATION_ITEMS = [
+    'Bias-Free Neural Filtering',
+    'Cross-Domain Skill Translation',
+    'Real-time Market Liquidity Indexing',
+    'Automated Technical Assessments',
+];
+
 export default function AboutPage() {
     return (
         <main className={styles.page}>
@@ -55,14 +62,24 @@ export default function AboutPage() {
             {/* ── The Mission: Problem & Solution ── */}
             <section className={styles.storySection}>
                 <div className={styles.storyGrid}>
-                    <div style={{ background: 'var(--light-ice-blue)', padding: '3rem', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2rem' }}>
-                        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                            <h4 style={{ color: 'var(--primary-blue)', marginBottom: '0.5rem' }}>The Legacy Problem</h4>
-                            <p style={{ fontSize: '0.9rem', color: 'var(--medium-grey)' }}>Manual screening takes 20+ hours per hire, leading to burnout and missed opportunities.</p>
+                    <div className={styles.missionVisual}>
+                        <div className={`${styles.missionCard} ${styles.missionCardProblem}`}>
+                            <h4 className={`${styles.missionCardTitle} ${styles.missionCardTitleProblem}`}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                                </svg>
+                                The Legacy Problem
+                            </h4>
+                            <p className={styles.missionCardText}>Manual screening takes 20+ hours per hire, leading to burnout and missed opportunities.</p>
                         </div>
-                        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: 'var(--border-premium)', boxShadow: 'var(--shadow-lg)' }}>
-                            <h4 style={{ color: '#059669', marginBottom: '0.5rem' }}>The TalentMesh Solution</h4>
-                            <p style={{ fontSize: '0.9rem', color: 'var(--deep-navy)', fontWeight: 600 }}>Zero-friction matching. Our AI finds the top 1% without you lifting a finger.</p>
+                        <div className={`${styles.missionCard} ${styles.missionCardSolution}`}>
+                            <h4 className={`${styles.missionCardTitle} ${styles.missionCardTitleSolution}`}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                                </svg>
+                                The TalentMesh Solution
+                            </h4>
+                            <p className={`${styles.missionCardText} ${styles.missionCardTextSolution}`}>Zero-friction matching. Our AI finds the top 1% without you lifting a finger.</p>
                         </div>
                     </div>
                     <div>
@@ -82,10 +99,10 @@ export default function AboutPage() {
             <ValueShowcase />
 
             {/* ── Global Footprint ── */}
-            <section className="premium-section" style={{ background: 'var(--deep-navy)', color: '#fff', textAlign: 'center' }}>
+            <section className="premium-section" style={{ background: 'linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 50%, #081428 100%)', color: '#fff', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                 <div className="premium-container">
                     <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '2rem', letterSpacing: '-0.04em' }}>Global Talent Infrastructure</h2>
-                    <p style={{ opacity: 0.7, fontSize: '1.25rem', maxWidth: '700px', margin: '0 auto 5rem' }}>
+                    <p style={{ opacity: 0.5, fontSize: '1.25rem', maxWidth: '700px', margin: '0 auto 5rem' }}>
                         Moving beyond local borders. We connect the world&apos;s best engineers with the world&apos;s most innovative companies.
                     </p>
                     <div className="premium-grid-4">
@@ -96,8 +113,8 @@ export default function AboutPage() {
                             { label: 'Remote First', val: 'Since Day 1' }
                         ].map((stat, i) => (
                             <div key={i}>
-                                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--primary-blue)', marginBottom: '0.5rem' }}>{stat.val}</div>
-                                <div style={{ fontWeight: 600, opacity: 0.6 }}>{stat.label}</div>
+                                <div className={styles.globalStatValue}>{stat.val}</div>
+                                <div className={styles.globalStatLabel}>{stat.label}</div>
                             </div>
                         ))}
                     </div>
@@ -113,22 +130,25 @@ export default function AboutPage() {
                         <p className={styles.storyText}>
                             Our R&D team is constantly iterating on our neural matching engine. We are moving towards a future where bias is mathematically impossible.
                         </p>
-                        <ul style={{ listStyle: 'none', padding: 0, marginTop: '2rem' }}>
-                            {[
-                                'Bias-Free Neural Filtering',
-                                'Cross-Domain Skill Translation',
-                                'Real-time Market Liquidity Indexing',
-                                'Automated Technical Assessments'
-                            ].map((item, id) => (
-                                <li key={id} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem', fontWeight: 600, color: 'var(--deep-navy)' }}>
-                                    <div style={{ width: '8px', height: '8px', background: 'var(--primary-blue)', borderRadius: '50%' }}></div>
+                        <ul className={styles.innovationList}>
+                            {INNOVATION_ITEMS.map((item, id) => (
+                                <li key={id} className={styles.innovationItem}>
+                                    <div className={styles.innovationDot}></div>
                                     {item}
                                 </li>
                             ))}
                         </ul>
                     </div>
-                    <div style={{ background: 'var(--light-ice-blue)', borderRadius: 'var(--radius-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', minHeight: '300px' }}>
-                        <div style={{ fontSize: '5rem' }}>🧪</div>
+                    <div className={styles.labsVisual}>
+                        <div className={styles.labsIcon}>
+                            <svg className={styles.labsIconSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 3h6v4l3 8H6l3-8V3z" />
+                                <path d="M6 15v3a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3" />
+                                <path d="M10 3v4" />
+                                <path d="M14 3v4" />
+                            </svg>
+                            <span className={styles.labsIconLabel}>R&D Active</span>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -137,5 +157,3 @@ export default function AboutPage() {
         </main>
     );
 }
-
-

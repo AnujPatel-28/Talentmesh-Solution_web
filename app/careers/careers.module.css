@@ -1,0 +1,315 @@
+/* ============================
+   CAREERS PAGE — TalentMesh
+   Premium Edition
+   ============================ */
+
+.page {
+    min-height: 100vh;
+    background: #ffffff;
+}
+
+/* ── Culture Section ── */
+.cultureSection {
+    padding: 8rem 2rem;
+}
+
+.cultureGrid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6rem;
+    align-items: center;
+}
+
+/* Culture value cards grid */
+.cultureCards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+}
+
+.cultureCard {
+    aspect-ratio: 1/1;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-weight: 800;
+    color: var(--deep-navy);
+    font-size: 1rem;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid transparent;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cultureCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    padding: 2px;
+    background: linear-gradient(135deg, transparent, transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    transition: all 0.4s ease;
+}
+
+.cultureCard:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+}
+
+.cultureCardBlue {
+    background: linear-gradient(145deg, #eff6ff, #dbeafe);
+}
+
+.cultureCardBlue:hover::before {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+}
+
+.cultureCardGreen {
+    background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+}
+
+.cultureCardGreen:hover::before {
+    background: linear-gradient(135deg, #10b981, #34d399);
+}
+
+.cultureCardRed {
+    background: linear-gradient(145deg, #fef2f2, #fee2e2);
+}
+
+.cultureCardRed:hover::before {
+    background: linear-gradient(135deg, #ef4444, #f87171);
+}
+
+.cultureCardPurple {
+    background: linear-gradient(145deg, #faf5ff, #f3e8ff);
+}
+
+.cultureCardPurple:hover::before {
+    background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+}
+
+.cultureCardIcon {
+    color: var(--primary-blue);
+    width: 28px;
+    height: 28px;
+}
+
+/* ── Culture Content ── */
+.cultureContent {
+    display: flex;
+    flex-direction: column;
+}
+
+.cultureSectionTag {
+    color: var(--primary-blue);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.4rem 1rem;
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 50px;
+    border: 1px solid rgba(59, 130, 246, 0.15);
+    width: fit-content;
+}
+
+.cultureTitle {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--deep-navy);
+    margin: 1.5rem 0;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+
+.cultureDesc {
+    color: var(--medium-grey);
+    font-size: 1.1rem;
+    line-height: 1.8;
+    margin-bottom: 2.5rem;
+}
+
+/* Perks list */
+.perksList {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.perksItem {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0.85rem 0;
+    font-weight: 600;
+    color: var(--deep-navy);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+}
+
+.perksItem:last-child {
+    border-bottom: none;
+}
+
+.perksItem:hover {
+    transform: translateX(6px);
+}
+
+.perksIcon {
+    color: var(--primary-blue);
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 10px;
+}
+
+/* ── Open Positions Section ── */
+.positionsSection {
+    padding: 8rem 2rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.positionsSection::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.positionsHeader {
+    text-align: center;
+    margin-bottom: 4rem;
+    position: relative;
+}
+
+.positionsTitle {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: var(--deep-navy);
+}
+
+.positionsSubtitle {
+    color: var(--medium-grey);
+    margin-top: 1rem;
+    font-size: 1.1rem;
+}
+
+/* ── Benefits Section ── */
+.benefitsSection {
+    padding: 8rem 2rem;
+}
+
+.benefitsGrid {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+}
+
+.benefitCard {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    border-radius: 24px;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.benefitCard:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.06);
+    border-color: rgba(59, 130, 246, 0.15);
+}
+
+.benefitIcon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border-radius: 16px;
+    color: var(--primary-blue);
+    margin: 0 auto 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.benefitCard:hover .benefitIcon {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+}
+
+.benefitTitle {
+    font-weight: 800;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+    color: var(--deep-navy);
+}
+
+.benefitText {
+    font-size: 0.9rem;
+    color: var(--medium-grey);
+    line-height: 1.6;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+    .cultureGrid {
+        grid-template-columns: 1fr;
+        gap: 4rem;
+    }
+
+    .benefitsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .cultureCards {
+        grid-template-columns: 1fr;
+    }
+
+    .cultureTitle {
+        font-size: 2.25rem;
+    }
+
+    .benefitsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .positionsTitle {
+        font-size: 2.25rem;
+    }
+
+    .cultureCard {
+        aspect-ratio: auto;
+        padding: 2rem;
+    }
+}

@@ -545,6 +545,19 @@
     color: var(--ocean-deep, #1565C0);
 }
 
+.countryBadge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    color: #065f46;
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
 .matchBadge {
     font-size: 0.72rem;
     font-weight: 700;

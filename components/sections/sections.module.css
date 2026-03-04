@@ -1500,6 +1500,16 @@
     border: 1px solid #f1f5f9;
 }
 
+.segmentCard.candidates .segmentBadge {
+    background: rgba(255, 255, 255, 0.1);
+    color: #000000;
+    border: 1px solid rgba(0, 0, 0, 0.274);
+}
+
+.segmentCard.candidates .segmentBadge:hover {
+    border-color: var(--primary-blue);
+}
+
 .segmentCard.candidates .segmentTitle {
     background: linear-gradient(135deg, var(--deep-navy) 0%, var(--primary-blue) 100%);
     -webkit-background-clip: text;

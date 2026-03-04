@@ -1,184 +1,137 @@
-/* ─── Shell ────────────────────────────────────────────────────────────────── */
+/* ============================
+   DASHBOARD LAYOUT — Modern Minimal
+   Separate candidate / recruiter dashboards
+   ============================ */
+
 .shell {
     display: flex;
     min-height: 100vh;
-    background: var(--light-ice-blue);
-    font-family: var(--font-inter), system-ui, Arial, sans-serif;
+    background: #f8fafc;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* ─── Sidebar ──────────────────────────────────────────────────────────────── */
+/* ── Sidebar ── */
 .sidebar {
-    width: 252px;
-    min-width: 252px;
-    background: #0a1628;
+    width: 250px;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    padding: 1.25rem 0;
+    flex-shrink: 0;
     position: sticky;
     top: 0;
+    height: 100vh;
     overflow-y: auto;
-    overflow-x: hidden;
-    z-index: 300;
-    scrollbar-width: none;
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 50;
 }
 
-.sidebar::-webkit-scrollbar {
-    display: none;
-}
-
-.sidebarLogo {
+.sidebarTop {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.35rem 1.25rem 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    flex-shrink: 0;
+    padding: 0 1.25rem;
+    margin-bottom: 1.5rem;
 }
 
-.logoLink {
+.logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.6rem;
     text-decoration: none;
 }
 
 .logoMark {
-    width: 34px;
-    height: 34px;
-    background: linear-gradient(135deg, var(--primary-blue), var(--brilliant-azure));
-    border-radius: 9px;
+    width: 32px;
+    height: 32px;
+    background: var(--primary-blue);
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-weight: 900;
-    font-size: 0.8rem;
-    box-shadow: 0 4px 14px rgba(0, 123, 255, 0.45);
-    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.recruiterTheme .logoMark {
+    background: #7c3aed;
 }
 
 .logoText {
     font-size: 1rem;
     font-weight: 800;
-    color: white;
-    letter-spacing: -0.02em;
+    color: #0f172a;
+    letter-spacing: -0.01em;
 }
 
 .closeMobile {
     display: none;
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.5);
+    color: #64748b;
     cursor: pointer;
     padding: 4px;
 }
 
-/* ─── Role Switcher ────────────────────────────────────────────────────────── */
-.roleSwitcher {
-    display: flex;
-    gap: 4px;
-    margin: 1rem 1rem 0.5rem;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
-    padding: 4px;
-    flex-shrink: 0;
-}
-
-.roleBtn {
-    flex: 1;
-    text-align: center;
-    padding: 0.45rem 0.5rem;
-    border-radius: 7px;
-    font-size: 0.74rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.5);
-    text-decoration: none;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.roleBtn:hover {
-    color: rgba(255, 255, 255, 0.8);
-}
-
-.roleBtnActive {
-    background: rgba(255, 255, 255, 0.15) !important;
-    color: white !important;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* ─── Search ───────────────────────────────────────────────────────────────── */
-.sidebarSearch {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0.75rem 1rem 0.25rem;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 0.5rem 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
-    flex-shrink: 0;
-    transition: border-color 0.2s;
-}
-
-.sidebarSearch:focus-within {
-    border-color: rgba(0, 123, 255, 0.5);
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.searchInput {
-    background: none;
-    border: none;
-    outline: none;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 0.83rem;
-    width: 100%;
-}
-
-.searchInput::placeholder {
-    color: rgba(255, 255, 255, 0.3);
-}
-
-/* ─── Navigation ───────────────────────────────────────────────────────────── */
+/* Nav */
 .nav {
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 0.5rem 0.75rem;
-    flex: 1;
+    padding: 0 0.65rem;
+}
+
+.navSection {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0 0.65rem;
+    margin-bottom: 0.35rem;
 }
 
 .navItem {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 0.62rem 0.75rem;
-    border-radius: 9px;
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.855rem;
-    font-weight: 600;
+    gap: 0.6rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
     text-decoration: none;
-    transition: all 0.18s;
-    position: relative;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
 }
 
 .navItem:hover {
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.9);
+    background: #f1f5f9;
+    color: #374151;
 }
 
 .navItemActive {
-    background: rgba(0, 123, 255, 0.18) !important;
-    color: #60a5fa !important;
-    font-weight: 700;
+    background: #eff6ff;
+    color: var(--primary-blue);
+    font-weight: 600;
+}
+
+.recruiterTheme .navItemActive {
+    background: #f5f3ff;
+    color: #7c3aed;
 }
 
 .navIcon {
-    flex-shrink: 0;
     display: flex;
     align-items: center;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.navItemActive .navIcon {
+    opacity: 1;
 }
 
 .navLabel {
@@ -186,297 +139,300 @@
 }
 
 .navBadge {
+    font-size: 0.65rem;
+    font-weight: 700;
     background: var(--primary-blue);
     color: white;
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 20px;
+    border-radius: 10px;
+    padding: 0.1rem 0.45rem;
     min-width: 18px;
     text-align: center;
 }
 
-.navArrow {
-    color: rgba(255, 255, 255, 0.3);
-    display: flex;
-    align-items: center;
+.recruiterTheme .navBadge {
+    background: #7c3aed;
 }
 
-/* ─── AI Status ────────────────────────────────────────────────────────────── */
-.aiStatus {
-    margin: 0.5rem 1rem;
-    background: rgba(0, 123, 255, 0.12);
-    border: 1px solid rgba(0, 123, 255, 0.2);
+/* Profile nudge */
+.profileNudge {
+    margin: 0.75rem 0.85rem;
+    padding: 0.85rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
     border-radius: 10px;
-    padding: 0.65rem 0.85rem;
+}
+
+.nudgeHeader {
     display: flex;
     align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
 }
 
-.aiDot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
-    flex-shrink: 0;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
-    }
-
-    50% {
-        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
-    }
-}
-
-.aiLabel {
-    font-size: 0.74rem;
+.nudgeTitle {
+    font-size: 0.72rem;
     font-weight: 700;
-    color: #93c5fd;
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    color: #92400e;
 }
 
-.aiSub {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.3);
-    margin-top: 2px;
+.nudgePercent {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #92400e;
 }
 
-/* ─── User Card ────────────────────────────────────────────────────────────── */
+.nudgeBar {
+    width: 100%;
+    height: 4px;
+    background: #fde68a;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.35rem;
+}
+
+.nudgeFill {
+    height: 100%;
+    background: #f59e0b;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+.nudgeText {
+    font-size: 0.66rem;
+    color: #92400e;
+    margin: 0;
+}
+
+/* User card */
 .userCard {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 1rem 1.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
-    flex-shrink: 0;
+    gap: 0.6rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #f1f5f9;
+    margin-top: auto;
 }
 
 .userAvatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-blue), var(--cobalt-blue));
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--primary-blue);
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-weight: 800;
-    font-size: 0.72rem;
     flex-shrink: 0;
+}
+
+.recruiterTheme .userAvatar {
+    background: #7c3aed;
 }
 
 .userInfo {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
 }
 
 .userName {
-    font-size: 0.83rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    color: white;
+    color: #0f172a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .userRole {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.4);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.66rem;
+    color: #94a3b8;
 }
 
-/* ─── Main Wrap ────────────────────────────────────────────────────────────── */
-.mainWrap {
+.logoutBtn {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.logoutBtn:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+/* Mobile overlay */
+.overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 40;
+}
+
+/* ── Main area ── */
+.main {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-width: 0;
-    overflow-x: hidden;
 }
 
-/* ─── Topbar ───────────────────────────────────────────────────────────────── */
+/* Topbar */
 .topbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.85rem 1.5rem;
-    background: white;
-    border-bottom: 1px solid var(--alice-blue);
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
     position: sticky;
     top: 0;
-    z-index: 100;
-    gap: 1rem;
-}
-
-.topbarLeft {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+    z-index: 30;
 }
 
 .hamburger {
     display: none;
     background: none;
     border: none;
-    color: var(--cobalt-blue);
+    color: #374151;
     cursor: pointer;
     padding: 4px;
-    border-radius: 6px;
-    transition: background 0.2s;
 }
 
-.hamburger:hover {
-    background: var(--alice-blue);
-}
-
-.breadcrumb {
+.topbarSearch {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.8rem;
-    color: var(--medium-grey);
+    gap: 0.5rem;
+    max-width: 400px;
+    padding: 0.5rem 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #94a3b8;
+    transition: all 0.2s ease;
 }
 
-.breadcrumbActive {
-    color: var(--cobalt-blue);
-    font-weight: 700;
+.topbarSearch:focus-within {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.08);
+}
+
+.recruiterTheme .topbarSearch:focus-within {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.08);
+}
+
+.searchInput {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.82rem;
+    color: #0f172a;
+    font-family: inherit;
+    width: 100%;
+}
+
+.searchInput::placeholder {
+    color: #b0b8c4;
 }
 
 .topbarRight {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-}
-
-.aiPill {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(0, 123, 255, 0.08);
-    color: var(--primary-blue);
-    border: 1px solid rgba(0, 123, 255, 0.2);
-    padding: 0.32rem 0.7rem;
-    border-radius: 20px;
-    font-size: 0.73rem;
-    font-weight: 700;
+    gap: 0.6rem;
+    margin-left: auto;
 }
 
 .notifBtn {
     position: relative;
-    width: 36px;
-    height: 36px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    border: 1px solid var(--alice-blue);
-    background: white;
-    color: var(--medium-grey);
+    padding: 0.45rem;
+    color: #64748b;
     cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
 }
 
 .notifBtn:hover {
-    border-color: var(--primary-blue);
-    color: var(--primary-blue);
+    background: #f1f5f9;
+    color: #374151;
 }
 
 .notifDot {
     position: absolute;
     top: 6px;
-    right: 7px;
-    width: 7px;
-    height: 7px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
     background: #ef4444;
     border-radius: 50%;
-    border: 2px solid white;
+    border: 1.5px solid white;
 }
 
 .topbarAvatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-blue), var(--cobalt-blue));
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--primary-blue);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-weight: 800;
-    font-size: 0.72rem;
-    cursor: pointer;
 }
 
-/* ─── Content ──────────────────────────────────────────────────────────────── */
+.recruiterTheme .topbarAvatar {
+    background: #7c3aed;
+}
+
+/* Content area */
 .content {
     flex: 1;
     padding: 1.5rem;
-    overflow-x: hidden;
+    overflow-y: auto;
 }
 
-/* ─── Overlay ──────────────────────────────────────────────────────────────── */
-.overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 299;
-    backdrop-filter: blur(2px);
-}
-
-/* ─── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 1024px) {
+/* ── Responsive ── */
+@media (max-width: 768px) {
     .sidebar {
         position: fixed;
-        left: 0;
+        left: -260px;
         top: 0;
-        height: 100%;
-        transform: translateX(-100%);
+        height: 100vh;
+        transition: left 0.3s ease;
+        box-shadow: none;
+        z-index: 50;
     }
 
     .sidebarOpen {
-        transform: translateX(0) !important;
-        box-shadow: 4px 0 40px rgba(0, 0, 0, 0.4);
-    }
-
-    .hamburger {
-        display: flex;
+        left: 0;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
     }
 
     .closeMobile {
         display: flex;
     }
 
+    .overlay {
+        display: block;
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
     .content {
         padding: 1rem;
-    }
-}
-
-@media (max-width: 640px) {
-    .topbar {
-        padding: 0.75rem 1rem;
-    }
-
-    .aiPill {
-        display: none;
-    }
-
-    .breadcrumb {
-        font-size: 0.75rem;
-    }
-
-    .content {
-        padding: 0.75rem;
     }
 }
