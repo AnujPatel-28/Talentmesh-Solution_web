@@ -1,7 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 
-const AUTH_PATHS = ["/login", "/signup", "/forgot-password"];
+const HIDDEN_PATHS = ["/login", "/signup", "/forgot-password", "/dashboard", "/onboarding"];
 
 interface NavbarWrapperProps {
     children: React.ReactNode;
@@ -10,9 +10,9 @@ interface NavbarWrapperProps {
 
 export default function NavbarWrapper({ children, showFooter = false }: NavbarWrapperProps) {
     const pathname = usePathname();
-    const isAuthPage = AUTH_PATHS.some(p => pathname === p || pathname.startsWith(p + "/"));
+    const isHidden = HIDDEN_PATHS.some(p => pathname === p || pathname.startsWith(p + "/"));
 
-    if (isAuthPage) return null;
+    if (isHidden) return null;
 
     return <>{children}</>;
 }
