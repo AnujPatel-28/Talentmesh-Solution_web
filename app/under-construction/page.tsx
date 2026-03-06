@@ -15,7 +15,7 @@ export default function UnderConstructionPage() {
                 <div className={styles.visualSide}>
                     <div className={styles.illustration}>
                         <Image
-                            src="/under construction.jpg"
+                            src="/under construction.png"
                             alt="Under Construction"
                             width={600}
                             height={600}
