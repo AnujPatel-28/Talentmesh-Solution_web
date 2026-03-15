@@ -10,9 +10,6 @@
     overflow: hidden;
 }
 
-.heroInner {
-    /* unused; kept for potential future use */
-}
 
 .heroTitle {
     font-size: clamp(2rem, 5vw, 3rem);
