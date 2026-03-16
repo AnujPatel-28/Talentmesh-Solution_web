@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 const DEV_COOKIE = 'tm_dev_access';
 const DEV_SECRET = process.env.DEV_ACCESS_KEY || '';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     // ──────────────────────────────────────────────
     // Route protection is DISABLED for now.
     // To re‑enable, uncomment the block below.
