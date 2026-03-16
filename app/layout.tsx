@@ -15,11 +15,25 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "TalentMesh | AI-Driven Recruitment Platform",
-    template: "%s | TalentMesh"
+    default: "TalentMesh | #1 AI-Driven Recruitment & Matching Platform",
+    template: "%s | TalentMesh - Modern AI Hiring"
   },
-  description: "Revolutionizing recruitment with advanced AI matching technology. Connecting top talent with world-class companies effortlessly.",
-  keywords: ["AI Recruitment", "Job Search", "Hiring Platform", "Talent Matching", "Tech Jobs"],
+  description: "Experience the future of hiring with TalentMesh. Our AI-powered platform connects top tech talent with world-class companies using advanced skill-matching algorithms. Hire faster, smarter, and more efficiently.",
+  keywords: ["AI Recruitment Platform", "AI Job Matching", "Tech Recruitment", "Smart Hiring", "Talent Acquisition Software", "Recruitment Automation"],
+  authors: [{ name: "TalentMesh Team" }],
+  openGraph: {
+    title: "TalentMesh | Revolutionary AI-Powered Recruitment",
+    description: "Connect with the best opportunities using our advanced AI matching technology.",
+    url: "https://talentmesh solutions.com",
+    siteName: "TalentMesh",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TalentMesh | AI Recruitment Platform",
+    description: "Hire top talent with the power of AI.",
+  },
   verification: {
     google: "https://talentmeshsolutions.com",
   },
@@ -27,6 +41,8 @@ export const metadata: Metadata = {
     icon: '/TalentMesh White Logo.png',
   },
 };
+
+import { AuthProvider } from "@/lib/auth/AuthContext";
 
 export default function RootLayout({
   children,
@@ -38,13 +54,15 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jakarta.variable} antialiased`}
       >
-        <NavbarWrapper>
-          <Navbar />
-        </NavbarWrapper>
-        {children}
-        <NavbarWrapper showFooter>
-          <Footer />
-        </NavbarWrapper>
+        <AuthProvider>
+          <NavbarWrapper>
+            <Navbar />
+          </NavbarWrapper>
+          {children}
+          <NavbarWrapper showFooter>
+            <Footer />
+          </NavbarWrapper>
+        </AuthProvider>
       </body>
     </html>
   );

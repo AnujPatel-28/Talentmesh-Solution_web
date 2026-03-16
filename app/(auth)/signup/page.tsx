@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { insforge } from '@/lib/insforge';
 import styles from './signup.module.css';
 
 type Role = 'job_seeker' | 'employer' | '';
@@ -31,13 +33,56 @@ export default function SignupPage() {
         }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const { login } = useAuth();
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setTimeout(() => {
+        setError('');
+
+        try {
+            const userRole = role === 'job_seeker' ? 'candidate' : 'recruiter';
+            const { data: authData, error: authError } = await insforge.auth.signUp({
+                email: formData.email,
+                password: formData.password,
+            });
+
+            if (authError) throw new Error(authError.message);
+            const signupUser = authData?.user;
+            if (!signupUser) throw new Error('Signup failed');
+
+            const userId = signupUser.id;
+
+            // Create profile
+            const { error: profileError } = await insforge.database
+                .from('profiles')
+                .insert([{
+                    id: userId,
+                    email: formData.email,
+                    role: userRole,
+                    full_name: `${formData.firstName} ${formData.lastName}`
+                }]);
+
+            if (profileError) throw new Error(profileError.message);
+
+            // Log activity
+            await insforge.database.from('activity').insert([{
+                user_id: userId,
+                description: `Joined Talentmesh as ${userRole}`,
+                type: 'signup'
+            }]);
+
+            login('', {
+                id: userId,
+                email: formData.email,
+                role: userRole as any
+            });
+
+        } catch (err: any) {
+            setError(err.message);
             setIsLoading(false);
-            setShowNotice(true);
-        }, 1200);
+        }
     };
 
     const passwordStrength = () => {
@@ -203,6 +248,7 @@ export default function SignupPage() {
                 {/* STEP 2 — Details Form */}
                 {step === 2 && (
                     <form className={styles.form} onSubmit={handleSubmit}>
+                        {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', marginBottom: '1rem', padding: '0.5rem', background: '#fef2f2', borderRadius: '8px' }}>{error}</div>}
                         <div className={styles.nameRow}>
                             <div className={styles.fieldGroup}>
                                 <label className={styles.label} htmlFor="firstName">First name</label>
@@ -360,29 +406,6 @@ export default function SignupPage() {
                     </form>
                 )}
             </div>
-
-            {/* Coming Soon Notice */}
-            {showNotice && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-                    <div style={{ background: '#ffffff', borderRadius: 20, padding: '2.5rem 2rem', maxWidth: 420, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-                        <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg, #007BFF, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                            </svg>
-                        </div>
-                        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.5rem' }}>Coming Soon!</h2>
-                        <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                            Account registration is currently under development. We&apos;re building something amazing for you. Stay tuned!
-                        </p>
-                        <button
-                            onClick={() => setShowNotice(false)}
-                            style={{ padding: '0.65rem 2rem', background: 'linear-gradient(135deg, #007BFF, #2563eb)', color: 'white', border: 'none', borderRadius: 12, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(37,99,235,0.3)', transition: 'all 0.2s' }}
-                        >
-                            Got it
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* Bottom terms */}
             <p className={styles.terms}>

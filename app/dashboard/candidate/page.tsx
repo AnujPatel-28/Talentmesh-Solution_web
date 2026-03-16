@@ -1,6 +1,8 @@
 "use client";
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './candidate.module.css';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { insforge } from '@/lib/insforge';
 
 /* ─── Inline SVG icons ─── */
 const IC = {
@@ -24,148 +26,188 @@ const IC = {
 };
 
 export default function CandidateHome() {
+    const [profile, setProfile] = useState<any>(null);
+    const [jobs, setJobs] = useState<any[]>([]);
+    const [activity, setActivity] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                // Fetch Profile
+                const { data: profileData } = await insforge.database
+                    .from('candidateprofile')
+                    .select('*')
+                    .limit(1)
+                    .single();
+                setProfile(profileData);
+
+                // Fetch Jobs with Company details (lowercase relation name because postgrest-js might handle it)
+                // Actually in @insforge/sdk, it's just raw PostgREST.
+                const { data: jobData } = await insforge.database
+                    .from('job')
+                    .select('*, companyprofile(*)')
+                    .limit(3);
+                setJobs(jobData || []);
+
+                // Fetch Activity
+                const { data: actData } = await insforge.database
+                    .from('activity')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                setActivity(actData || []);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchData();
+    }, []);
+
+    if (loading) return <div className={styles.dash}><p style={{ color: 'white', padding: '2rem' }}>Loading Dashboard...</p></div>;
+
+    const userName = profile?.name || 'Sarah';
+
     return (
         <div className={styles.dash}>
             {/* Greeting */}
             <div className={styles.greet}>
-                <h1 className={styles.greetTitle}>Welcome back, Sarah!</h1>
+                <h1 className={styles.greetTitle}>Welcome back, {userName}!</h1>
                 <p className={styles.greetSub}>Here&apos;s what&apos;s happening with your job search today.</p>
             </div>
 
             {/* Stat Cards */}
-            <div className={styles.stats}>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Active Applications</span>
-                        <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.send}</span>
+            <AnimateOnScroll animation="fadeUp" delay={100}>
+                <div className={styles.stats}>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Active Applications</span>
+                            <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.send}</span>
+                        </div>
+                        <span className={styles.statVal}>12</span>
+                        <span className={styles.statChange}>{IC.trending} +2 this week</span>
                     </div>
-                    <span className={styles.statVal}>12</span>
-                    <span className={styles.statChange}>{IC.trending} +2 this week</span>
-                </div>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Profile Strength</span>
-                        <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.target}</span>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Profile Strength</span>
+                            <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.target}</span>
+                        </div>
+                        <span className={styles.statVal}>{profile?.profile_strength || 85}%</span>
+                        <span className={styles.statHint}>Add {Math.max(0, 90 - (profile?.profile_strength || 85))}% more to reach 90%</span>
                     </div>
-                    <span className={styles.statVal}>85%</span>
-                    <span className={styles.statHint}>Add 2 more skills to reach 90%</span>
-                </div>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Upcoming Interviews</span>
-                        <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.cal}</span>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Upcoming Interviews</span>
+                            <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.cal}</span>
+                        </div>
+                        <span className={styles.statVal}>2</span>
+                        <span className={styles.statHint}>Next: Today, 2:00 PM</span>
                     </div>
-                    <span className={styles.statVal}>2</span>
-                    <span className={styles.statHint}>Next: Today, 2:00 PM</span>
                 </div>
-            </div>
+            </AnimateOnScroll>
 
             {/* Main Grid */}
-            <div className={styles.mainGrid}>
-                <div className={styles.leftCol}>
-                    {/* Top AI Matches */}
-                    <div className={styles.card}>
-                        <div className={styles.cardHead}>
-                            <h2 className={styles.cardTitle}>{IC.star} Top AI Matches</h2>
-                            <button className={styles.viewAll}>View all matches</button>
-                        </div>
-                        {[
-                            { title: 'Senior Product Designer', company: 'TechFlow Inc.', loc: 'Remote', match: 98, tags: ['UX Research', 'Figma', 'Design Systems'], time: 'Posted 2 days ago' },
-                            { title: 'UX/UI Lead', company: 'Creative Solutions', loc: 'New York, NY', match: 92, tags: ['Leadership', 'Prototyping'], time: 'Posted 5 hours ago' },
-                            { title: 'Frontend Developer', company: 'Razorpay', loc: 'Bangalore, IN', match: 88, tags: ['React', 'TypeScript', 'CSS'], time: 'Posted 1 day ago' },
-                        ].map((job, i) => (
-                            <div key={i} className={styles.jobCard}>
-                                <div className={styles.jobIcon}>{job.company[0]}</div>
-                                <div className={styles.jobBody}>
-                                    <div className={styles.jobRow}>
-                                        <span className={styles.jobTitle}>{job.title}</span>
-                                        <span className={styles.matchBadge}>{IC.check} {job.match}% Match</span>
-                                    </div>
-                                    <span className={styles.jobMeta}>{job.company} · {job.loc}</span>
-                                    <div className={styles.jobTags}>
-                                        {job.tags.map(t => <span key={t} className={styles.tag}>{t}</span>)}
-                                    </div>
-                                    <div className={styles.jobFoot}>
-                                        <span className={styles.jobTime}>{job.time}</span>
-                                        <button className={styles.viewJobBtn}>View Job</button>
+            <AnimateOnScroll animation="fadeUp" delay={200}>
+                <div className={styles.mainGrid}>
+                    <div className={styles.leftCol}>
+                        {/* Top AI Matches */}
+                        <div className={styles.card}>
+                            <div className={styles.cardHead}>
+                                <h2 className={styles.cardTitle}>{IC.star} Top AI Matches</h2>
+                                <button className={styles.viewAll}>View all matches</button>
+                            </div>
+                            {jobs.map((job, i) => (
+                                <div key={i} className={styles.jobCard}>
+                                    <div className={styles.jobIcon}>{job.companyprofile?.company_name?.[0] || 'J'}</div>
+                                    <div className={styles.jobBody}>
+                                        <div className={styles.jobRow}>
+                                            <span className={styles.jobTitle}>{job.title}</span>
+                                            <span className={styles.matchBadge}>{IC.check} {job.ai_match_rate}% Match</span>
+                                        </div>
+                                        <span className={styles.jobMeta}>{job.companyprofile?.company_name} · {job.location}</span>
+                                        <div className={styles.jobTags}>
+                                            {(job.tags || ['Design', 'Full-time']).map((t: string) => <span key={t} className={styles.tag}>{t}</span>)}
+                                        </div>
+                                        <div className={styles.jobFoot}>
+                                            <span className={styles.jobTime}>Posted {job.posted_days} days ago</span>
+                                            <button className={styles.viewJobBtn}>View Job</button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
 
-                    {/* Recent Activity */}
-                    <div className={styles.card}>
-                        <h2 className={styles.cardTitle}>Recent Activity</h2>
-                        {[
-                            { icon: IC.eye, text: <>Profile viewed by <b>Google</b></>, time: '2 hours ago' },
-                            { icon: IC.mail, text: <>Interview invitation from <b>Spotify</b></>, time: 'Yesterday', action: 'Reply' },
-                            { icon: IC.bookmark, text: <>You saved a job: <b>Senior UI Designer</b></>, time: '3 days ago' },
-                        ].map((act, i) => (
-                            <div key={i} className={styles.actItem}>
-                                <span className={styles.actIcon}>{act.icon}</span>
-                                <div className={styles.actContent}>
-                                    <span className={styles.actText}>{act.text}</span>
-                                    <span className={styles.actTime}>{act.time}</span>
+                        {/* Recent Activity */}
+                        <div className={styles.card}>
+                            <h2 className={styles.cardTitle}>Recent Activity</h2>
+                            {activity.map((act, i) => (
+                                <div key={i} className={styles.actItem}>
+                                    <span className={styles.actIcon}>{IC.eye}</span>
+                                    <div className={styles.actContent}>
+                                        <span className={styles.actText}>{act.description}</span>
+                                        <span className={styles.actTime}>{act.time_ago}</span>
+                                    </div>
+                                    {act.meta && <button className={styles.actAction}>View</button>}
                                 </div>
-                                {act.action && <button className={styles.actAction}>{act.action}</button>}
+                            ))}
+                            <button className={styles.viewAllFooter}>View All Activity</button>
+                        </div>
+                    </div>
+
+                    <div className={styles.rightCol}>
+                        {/* Schedule */}
+                        <div className={styles.card}>
+                            <div className={styles.cardHead}>
+                                <h2 className={styles.cardTitle}>Schedule</h2>
+                                <button className={styles.moreBtn}>{IC.moreH}</button>
                             </div>
-                        ))}
-                        <button className={styles.viewAllFooter}>View All Activity</button>
+                            <div className={styles.scheduleItem}>
+                                <div className={styles.schedBadge}>TODAY</div>
+                                <span className={styles.schedTitle}>Technical Interview</span>
+                                <span className={styles.schedMeta}>with Amazon Web Services</span>
+                                <div className={styles.schedDetails}>
+                                    <span>{IC.clock} 2:00 PM</span>
+                                    <span>{IC.monitor} Google Meet</span>
+                                </div>
+                                <button className={styles.joinBtn}>Join Meeting</button>
+                            </div>
+                            <div className={styles.scheduleItem} style={{ borderLeftColor: '#94a3b8' }}>
+                                <div className={styles.schedDateBlock}>
+                                    <span className={styles.schedDay}>FRI</span>
+                                    <span className={styles.schedNum}>24</span>
+                                </div>
+                                <span className={styles.schedTitle}>Cultural Fit Chat</span>
+                                <span className={styles.schedMeta}>Netflix · 10:30 AM</span>
+                            </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className={styles.card}>
+                            <h2 className={styles.cardTitle}>Quick Actions</h2>
+                            {[
+                                { icon: IC.file, label: 'Update Resume' },
+                                { icon: IC.sliders, label: 'Edit Preferences' },
+                                { icon: IC.award, label: 'Add Certifications' },
+                            ].map((qa, i) => (
+                                <button key={i} className={styles.quickAction}>
+                                    <span className={styles.qaIcon}>{qa.icon}</span>
+                                    <span className={styles.qaLabel}>{qa.label}</span>
+                                    {IC.chevron}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Featured Company */}
+                        <div className={styles.featuredCard}>
+                            <span className={styles.featuredLabel}>FEATURED COMPANY</span>
+                            <span className={styles.featuredName}>Join the team at Airbnb</span>
+                            <button className={styles.featuredLink}>View 15 open roles {IC.arrowRight}</button>
+                        </div>
                     </div>
                 </div>
-
-                <div className={styles.rightCol}>
-                    {/* Schedule */}
-                    <div className={styles.card}>
-                        <div className={styles.cardHead}>
-                            <h2 className={styles.cardTitle}>Schedule</h2>
-                            <button className={styles.moreBtn}>{IC.moreH}</button>
-                        </div>
-                        <div className={styles.scheduleItem}>
-                            <div className={styles.schedBadge}>TODAY</div>
-                            <span className={styles.schedTitle}>Technical Interview</span>
-                            <span className={styles.schedMeta}>with Amazon Web Services</span>
-                            <div className={styles.schedDetails}>
-                                <span>{IC.clock} 2:00 PM</span>
-                                <span>{IC.monitor} Google Meet</span>
-                            </div>
-                            <button className={styles.joinBtn}>Join Meeting</button>
-                        </div>
-                        <div className={styles.scheduleItem} style={{ borderLeftColor: '#94a3b8' }}>
-                            <div className={styles.schedDateBlock}>
-                                <span className={styles.schedDay}>FRI</span>
-                                <span className={styles.schedNum}>24</span>
-                            </div>
-                            <span className={styles.schedTitle}>Cultural Fit Chat</span>
-                            <span className={styles.schedMeta}>Netflix · 10:30 AM</span>
-                        </div>
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className={styles.card}>
-                        <h2 className={styles.cardTitle}>Quick Actions</h2>
-                        {[
-                            { icon: IC.file, label: 'Update Resume' },
-                            { icon: IC.sliders, label: 'Edit Preferences' },
-                            { icon: IC.award, label: 'Add Certifications' },
-                        ].map((qa, i) => (
-                            <button key={i} className={styles.quickAction}>
-                                <span className={styles.qaIcon}>{qa.icon}</span>
-                                <span className={styles.qaLabel}>{qa.label}</span>
-                                {IC.chevron}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Featured Company */}
-                    <div className={styles.featuredCard}>
-                        <span className={styles.featuredLabel}>FEATURED COMPANY</span>
-                        <span className={styles.featuredName}>Join the team at Airbnb</span>
-                        <button className={styles.featuredLink}>View 15 open roles {IC.arrowRight}</button>
-                    </div>
-                </div>
-            </div>
+            </AnimateOnScroll>
         </div>
     );
 }

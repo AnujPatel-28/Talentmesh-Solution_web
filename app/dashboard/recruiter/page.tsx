@@ -1,6 +1,8 @@
 "use client";
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './recruiter.module.css';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { insforge } from '@/lib/insforge';
 
 /* ─── Icons ─── */
 const IC = {
@@ -15,6 +17,59 @@ const IC = {
 };
 
 export default function RecruiterHome() {
+    const [jobs, setJobs] = useState<any[]>([]);
+    const [candidates, setCandidates] = useState<any[]>([]);
+    const [interviews, setInterviews] = useState<any[]>([]);
+    const [stats, setStats] = useState({ open: 0, applicants: 0, interviews: 0, hires: 15 });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                // Fetch Jobs
+                const { data: jobData } = await insforge.database
+                    .from('job')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                const openJobs = jobData || [];
+                setJobs(openJobs);
+
+                // Fetch Candidates (mocking top matches)
+                const { data: candData } = await insforge.database
+                    .from('candidateprofile')
+                    .select('*')
+                    .order('ai_karma', { ascending: false })
+                    .limit(3);
+                setCandidates(candData || []);
+
+                // Fetch Today's Interviews
+                const { data: intData } = await insforge.database
+                    .from('interview')
+                    .select('*')
+                    .limit(2);
+                setInterviews(intData || []);
+
+                // Calculate Stats
+                const totalApplicants = openJobs.reduce((acc, j) => acc + (j.applicants || 0), 0);
+                setStats({
+                    open: openJobs.length,
+                    applicants: totalApplicants,
+                    interviews: 6, // Hardcoded for now
+                    hires: 15
+                });
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchData();
+    }, []);
+
+    if (loading) return <div className={styles.dash}><p style={{ color: 'white', padding: '2rem' }}>Loading Dashboard...</p></div>;
+
     return (
         <div className={styles.dash}>
             <div className={styles.greet}>
@@ -22,135 +77,130 @@ export default function RecruiterHome() {
                 <p className={styles.greetSub}>Here&apos;s your hiring pipeline overview.</p>
             </div>
 
-            <div className={styles.stats}>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Open Positions</span>
-                        <span className={styles.statBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.clipboard}</span>
-                    </div>
-                    <span className={styles.statVal}>8</span>
-                    <span className={styles.statHint}>3 urgent roles</span>
-                </div>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Total Applicants</span>
-                        <span className={styles.statBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.users}</span>
-                    </div>
-                    <span className={styles.statVal}>234</span>
-                    <span className={styles.statChange}>{IC.trending} +18 this week</span>
-                </div>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Interviews This Week</span>
-                        <span className={styles.statBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.calendar}</span>
-                    </div>
-                    <span className={styles.statVal}>6</span>
-                    <span className={styles.statHint}>Next: Today, 3:00 PM</span>
-                </div>
-                <div className={styles.stat}>
-                    <div className={styles.statTop}>
-                        <span className={styles.statLabel}>Hires This Quarter</span>
-                        <span className={styles.statBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
-                    </div>
-                    <span className={styles.statVal}>15</span>
-                    <span className={styles.statHint}>Target: 20</span>
-                </div>
-            </div>
-
-            <div className={styles.mainGrid}>
-                <div className={styles.leftCol}>
-                    <div className={styles.card}>
-                        <div className={styles.cardHead}>
-                            <h2 className={styles.cardTitle}>Active Positions</h2>
-                            <button className={styles.viewAll}>View all</button>
+            <AnimateOnScroll animation="fadeUp" delay={100}>
+                <div className={styles.stats}>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Open Positions</span>
+                            <span className={styles.statBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.clipboard}</span>
                         </div>
-                        {[
-                            { title: 'Senior Frontend Engineer', applicants: 45, newCount: 8, urgent: true },
-                            { title: 'Backend Developer (Node.js)', applicants: 32, newCount: 5 },
-                            { title: 'UI/UX Designer', applicants: 28, newCount: 3 },
-                            { title: 'Data Scientist', applicants: 19, newCount: 2 },
-                        ].map((j, i) => (
-                            <div key={i} className={styles.posCard}>
-                                <div className={styles.posBody}>
-                                    <div className={styles.posRow}>
-                                        <span className={styles.posTitle}>{j.title}</span>
-                                        {j.urgent && <span className={styles.urgentTag}>{IC.alertCircle} Urgent</span>}
-                                    </div>
-                                    <span className={styles.posMeta}>{j.applicants} applicants · {j.newCount} new</span>
-                                </div>
-                                <span className={styles.posStatus}>Active</span>
-                            </div>
-                        ))}
+                        <span className={styles.statVal}>{stats.open}</span>
+                        <span className={styles.statHint}>3 urgent roles</span>
                     </div>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Total Applicants</span>
+                            <span className={styles.statBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.users}</span>
+                        </div>
+                        <span className={styles.statVal}>{stats.applicants}</span>
+                        <span className={styles.statChange}>{IC.trending} +18 this week</span>
+                    </div>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Interviews This Week</span>
+                            <span className={styles.statBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.calendar}</span>
+                        </div>
+                        <span className={styles.statVal}>{stats.interviews}</span>
+                        <span className={styles.statHint}>Next: Today, 3:00 PM</span>
+                    </div>
+                    <div className={styles.stat}>
+                        <div className={styles.statTop}>
+                            <span className={styles.statLabel}>Hires This Quarter</span>
+                            <span className={styles.statBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+                        </div>
+                        <span className={styles.statVal}>{stats.hires}</span>
+                        <span className={styles.statHint}>Target: 20</span>
+                    </div>
+                </div>
+            </AnimateOnScroll>
 
-                    <div className={styles.card}>
-                        <h2 className={styles.cardTitle}>Hiring Pipeline</h2>
-                        <div className={styles.pipelineBar}>
-                            {[
-                                { label: 'Screening', count: 48, width: '35%', color: '#3b82f6' },
-                                { label: 'Interview', count: 22, width: '25%', color: '#7c3aed' },
-                                { label: 'Assessment', count: 14, width: '20%', color: '#f59e0b' },
-                                { label: 'Offer', count: 8, width: '20%', color: '#10b981' },
-                            ].map((s, i) => (
-                                <div key={i} className={styles.pipeSegment}>
-                                    <div className={styles.pipeBar} style={{ width: s.width, background: s.color }} />
-                                    <div className={styles.pipeMeta}>
-                                        <span className={styles.pipeLabel}>{s.label}</span>
-                                        <span className={styles.pipeCount}>{s.count}</span>
+            <AnimateOnScroll animation="fadeUp" delay={200}>
+
+                <div className={styles.mainGrid}>
+                    <div className={styles.leftCol}>
+                        <div className={styles.card}>
+                            <div className={styles.cardHead}>
+                                <h2 className={styles.cardTitle}>Active Positions</h2>
+                                <button className={styles.viewAll}>View all</button>
+                            </div>
+                            {jobs.map((j, i) => (
+                                <div key={i} className={styles.posCard}>
+                                    <div className={styles.posBody}>
+                                        <div className={styles.posRow}>
+                                            <span className={styles.posTitle}>{j.title}</span>
+                                            {j.applicants > 50 && <span className={styles.urgentTag}>{IC.alertCircle} Hot</span>}
+                                        </div>
+                                        <span className={styles.posMeta}>{j.applicants} applicants · {j.new_applicants} new</span>
                                     </div>
+                                    <span className={styles.posStatus}>{j.status}</span>
                                 </div>
                             ))}
                         </div>
-                    </div>
-                </div>
 
-                <div className={styles.rightCol}>
-                    <div className={styles.card}>
-                        <div className={styles.cardHead}>
-                            <h2 className={styles.cardTitle}>Top Candidates</h2>
-                            <button className={styles.viewAll}>View all</button>
+                        <div className={styles.card}>
+                            <h2 className={styles.cardTitle}>Hiring Pipeline</h2>
+                            <div className={styles.pipelineBar}>
+                                {[
+                                    { label: 'Screening', count: 48, width: '35%', color: '#3b82f6' },
+                                    { label: 'Interview', count: 22, width: '25%', color: '#7c3aed' },
+                                    { label: 'Assessment', count: 14, width: '20%', color: '#f59e0b' },
+                                    { label: 'Offer', count: 8, width: '20%', color: '#10b981' },
+                                ].map((s, i) => (
+                                    <div key={i} className={styles.pipeSegment}>
+                                        <div className={styles.pipeBar} style={{ width: s.width, background: s.color }} />
+                                        <div className={styles.pipeMeta}>
+                                            <span className={styles.pipeLabel}>{s.label}</span>
+                                            <span className={styles.pipeCount}>{s.count}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        {[
-                            { name: 'Arjun Patel', role: 'Frontend Engineer', match: 96, skills: 'React, TypeScript' },
-                            { name: 'Priya Sharma', role: 'Full Stack Developer', match: 92, skills: 'Node.js, React' },
-                            { name: 'Alex Johnson', role: 'UI/UX Designer', match: 89, skills: 'Figma, Adobe XD' },
-                        ].map((c, i) => (
-                            <div key={i} className={styles.candCard}>
-                                <div className={styles.candAvatar}>{c.name.split(' ').map(n => n[0]).join('')}</div>
-                                <div className={styles.candBody}>
-                                    <span className={styles.candName}>{c.name}</span>
-                                    <span className={styles.candMeta}>{c.role} · {c.skills}</span>
-                                </div>
-                                <span className={styles.candMatch}>{c.match}%</span>
-                            </div>
-                        ))}
                     </div>
 
-                    <div className={styles.card}>
-                        <h2 className={styles.cardTitle}>Today&apos;s Interviews</h2>
-                        {[
-                            { name: 'Priya S.', role: 'Frontend Eng', time: '3:00 PM', type: 'Technical' },
-                            { name: 'Alex J.', role: 'UX Designer', time: '4:30 PM', type: 'Cultural' },
-                        ].map((intr, i) => (
-                            <div key={i} className={styles.intCard}>
-                                <div className={styles.intTime}>{intr.time}</div>
-                                <div className={styles.intBody}>
-                                    <span className={styles.intName}>{intr.name} — {intr.role}</span>
-                                    <span className={styles.intType}>{intr.type} Round</span>
-                                </div>
-                                <button className={styles.intBtn}>Join</button>
+                    <div className={styles.rightCol}>
+                        <div className={styles.card}>
+                            <div className={styles.cardHead}>
+                                <h2 className={styles.cardTitle}>Top Candidates</h2>
+                                <button className={styles.viewAll}>View all</button>
                             </div>
-                        ))}
-                    </div>
+                            {candidates.map((c, i) => (
+                                <div key={i} className={styles.candCard}>
+                                    <div className={styles.candAvatar}>{c.name.split(' ').map((n: string) => n[0]).join('')}</div>
+                                    <div className={styles.candBody}>
+                                        <span className={styles.candName}>{c.name}</span>
+                                        <span className={styles.candMeta}>{c.role} · {c.skills?.slice(0, 2).join(', ')}</span>
+                                    </div>
+                                    <span className={styles.candMatch}>{Math.min(100, (c.ai_karma / 5) || 90).toFixed(0)}%</span>
+                                </div>
+                            ))}
+                        </div>
 
-                    <div className={styles.card}>
-                        <h2 className={styles.cardTitle}>Quick Actions</h2>
-                        <button className={styles.primaryAction}>{IC.plus} Post a New Job</button>
-                        <button className={styles.secondaryAction}>{IC.barChart} View Reports</button>
-                        <button className={styles.secondaryAction}>{IC.users} Browse Candidates</button>
+                        <div className={styles.card}>
+                            <h2 className={styles.cardTitle}>Today&apos;s Interviews</h2>
+                            {interviews.length > 0 ? interviews.map((intr, i) => (
+                                <div key={i} className={styles.intCard}>
+                                    <div className={styles.intTime}>{intr.time}</div>
+                                    <div className={styles.intBody}>
+                                        <span className={styles.intName}>{intr.role}</span>
+                                        <span className={styles.intType}>{intr.type} Round</span>
+                                    </div>
+                                    <button className={styles.intBtn}>Join</button>
+                                </div>
+                            )) : (
+                                <p className={styles.emptyText}>No interviews scheduled for today.</p>
+                            )}
+                        </div>
+
+                        <div className={styles.card}>
+                            <h2 className={styles.cardTitle}>Quick Actions</h2>
+                            <button className={styles.primaryAction}>{IC.plus} Post a New Job</button>
+                            <button className={styles.secondaryAction}>{IC.barChart} View Reports</button>
+                            <button className={styles.secondaryAction}>{IC.users} Browse Candidates</button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </AnimateOnScroll>
         </div>
     );
 }

@@ -1,9 +1,12 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getJobById } from '../jobsData';
 import styles from './jobDetail.module.css';
+import { insforge } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { BlogFeed } from '@/components/sections';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const Ico = {
@@ -26,8 +29,73 @@ const BENEFIT_ICONS = ['💰', '🏖️', '📚', '💎', '🩺'];
 
 export default function JobDetailPage() {
     const params = useParams();
-    const jobId = Number(params.id);
-    const job = getJobById(jobId);
+    const jobId = params.id as string;
+    const { user } = useAuth();
+    const [job, setJob] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [isApplying, setIsApplying] = useState(false);
+    const [applied, setApplied] = useState(false);
+
+    useEffect(() => {
+        async function fetchJob() {
+            try {
+                const { data } = await insforge.database
+                    .from('job')
+                    .select('*, companyprofile(*)')
+                    .eq('id', jobId)
+                    .single();
+                setJob(data);
+
+                if (user) {
+                    const { data: app } = await insforge.database
+                        .from('application')
+                        .select('id')
+                        .eq('job_id', jobId)
+                        .eq('candidate_id', user.id)
+                        .single();
+                    if (app) setApplied(true);
+                }
+            } catch (err) {
+                console.error('Error fetching job:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchJob();
+    }, [jobId, user]);
+
+    const handleApply = async () => {
+        if (!user) return;
+        setIsApplying(true);
+        try {
+            const { error: appError } = await insforge.database
+                .from('application')
+                .insert([{
+                    job_id: jobId,
+                    candidate_id: user.id,
+                    status: 'applied'
+                }]);
+            
+            if (appError) throw appError;
+
+            // Log activity
+            await insforge.database.from('activity').insert([{
+                user_id: user.id,
+                description: `Applied to ${job.title} at ${job.companyprofile?.company_name}`,
+                type: 'application'
+            }]);
+
+            setApplied(true);
+            alert('Application sent successfully!');
+        } catch (err) {
+            console.error(err);
+            alert('Failed to apply. Please try again.');
+        } finally {
+            setIsApplying(false);
+        }
+    };
+
+    if (loading) return <div className={styles.page}><p style={{ color: 'white', padding: '5rem', textAlign: 'center' }}>Loading Job Details...</p></div>;
 
     if (!job) {
         return (
@@ -41,188 +109,155 @@ export default function JobDetailPage() {
         );
     }
 
-    const matchColor = job.match >= 90 ? '#059669' : job.match >= 80 ? '#1E88E5' : '#475569';
+    const matchColor = job.ai_match_rate >= 90 ? '#059669' : job.ai_match_rate >= 80 ? '#1E88E5' : '#475569';
 
     return (
         <main className={styles.page}>
 
             {/* ── Hero ── */}
-            <section className={styles.hero}>
-                <div className="premium-container">
-                    {/* Breadcrumb */}
-                    <nav className={styles.breadcrumb}>
-                        <Link href="/">Home</Link>
-                        <span className={styles.breadcrumbSep}>›</span>
-                        <Link href="/browse-jobs">Browse Jobs</Link>
-                        <span className={styles.breadcrumbSep}>›</span>
-                        <span>{job.title}</span>
-                    </nav>
+            <AnimateOnScroll animation="fadeUp">
+                <section className={styles.hero}>
+                    <div className="premium-container">
+                        {/* Breadcrumb */}
+                        <nav className={styles.breadcrumb}>
+                            <Link href="/">Home</Link>
+                            <span className={styles.breadcrumbSep}>›</span>
+                            <Link href="/browse-jobs">Browse Jobs</Link>
+                            <span className={styles.breadcrumbSep}>›</span>
+                            <span>{job.title}</span>
+                        </nav>
 
-                    <div className={styles.heroInner}>
-                        <div className={styles.companyLogo} style={{ background: job.color }}>
-                            {job.logo}
-                        </div>
-
-                        <div className={styles.heroInfo}>
-                            <h1 className={styles.heroTitle}>{job.title}</h1>
-                            <div className={styles.heroMeta}>
-                                <span className={styles.heroMetaItem}><Ico.Building /> {job.company}</span>
-                                <span className={styles.heroMetaItem}><Ico.Location /> {job.location}</span>
-                                <span className={styles.heroMetaItem}><Ico.Clock /> {job.posted}</span>
+                        <div className={styles.heroInner}>
+                            <div className={styles.companyLogo} style={{ background: job.color || '#0D47A1' }}>
+                                {job.logo || job.companyprofile?.company_name?.[0]}
                             </div>
-                            <div className={styles.heroBadges}>
-                                <span className={`${styles.badge} ${styles.badgeType}`}>{job.type}</span>
-                                <span className={`${styles.badge} ${styles.badgeSalary}`}><Ico.Salary /> {job.salary}</span>
-                                <span className={`${styles.badge} ${styles.badgeCountry}`}>{job.country === 'India' ? '🇮🇳' : '🇺🇸'} {job.country}</span>
-                                {job.match >= 70 && (
-                                    <span className={`${styles.badge} ${styles.badgeMatch}`}><Ico.Sparkle /> {job.match}% Match</span>
+
+                            <div className={styles.heroInfo}>
+                                <h1 className={styles.heroTitle}>{job.title}</h1>
+                                <div className={styles.heroMeta}>
+                                    <span className={styles.heroMetaItem}><Ico.Building /> {job.companyprofile?.company_name}</span>
+                                    <span className={styles.heroMetaItem}><Ico.Location /> {job.location}</span>
+                                    <span className={styles.heroMetaItem}><Ico.Clock /> {job.posted_days || 0} days ago</span>
+                                </div>
+                                <div className={styles.heroBadges}>
+                                    <span className={`${styles.badge} ${styles.badgeType}`}>{job.type}</span>
+                                    <span className={`${styles.badge} ${styles.badgeSalary}`}><Ico.Salary /> {job.salary}</span>
+                                    {job.ai_match_rate >= 70 && (
+                                        <span className={`${styles.badge} ${styles.badgeMatch}`}><Ico.Sparkle /> {job.ai_match_rate}% Match</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className={styles.heroActions}>
+                                {user?.role === 'candidate' ? (
+                                    <button 
+                                        className={`${styles.applyBtnHero} ${applied ? styles.appliedBtn : ''}`}
+                                        onClick={handleApply}
+                                        disabled={applied || isApplying}
+                                    >
+                                        {isApplying ? 'Applying...' : applied ? 'Applied' : 'Quick Apply'} <Ico.ArrowR />
+                                    </button>
+                                ) : !user ? (
+                                    <Link href="/login" className={styles.applyBtnHero}>
+                                        Login to Apply <Ico.ArrowR />
+                                    </Link>
+                                ) : (
+                                    <span className={styles.badge}>Recruiter View</span>
                                 )}
+                                <button className={styles.saveBtn} aria-label="Save job"><Ico.Heart /></button>
                             </div>
-                        </div>
-
-                        <div className={styles.heroActions}>
-                            <Link href="/signup" className={styles.applyBtnHero}>
-                                Apply Now <Ico.ArrowR />
-                            </Link>
-                            <button className={styles.saveBtn} aria-label="Save job"><Ico.Heart /></button>
-                            <button className={styles.shareBtn} aria-label="Share"><Ico.Share /></button>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
 
             {/* ── Body ── */}
             <div className="premium-container">
                 <div className={styles.body}>
-                    {/* ── Main Content ── */}
-                    <div>
-                        {/* Description */}
-                        <div className={styles.contentCard}>
-                            <h2 className={styles.cardTitle}>
-                                <Ico.Briefcase /> About this Role
-                            </h2>
-                            <p className={styles.description}>{job.description}</p>
-                        </div>
-
-                        {/* Responsibilities */}
-                        <div className={styles.contentCard}>
-                            <h2 className={styles.cardTitle}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-                                Key Responsibilities
-                            </h2>
-                            <ul className={styles.itemList}>
-                                {job.responsibilities.map((r, i) => (
-                                    <li key={i}>
-                                        <span className={styles.bullet} />
-                                        {r}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        {/* Requirements */}
-                        <div className={styles.contentCard}>
-                            <h2 className={styles.cardTitle}>
-                                <Ico.Star /> Requirements
-                            </h2>
-                            <ul className={styles.itemList}>
-                                {job.requirements.map((r, i) => (
-                                    <li key={i}>
-                                        <span className={styles.checkBullet}><Ico.Check /></span>
-                                        {r}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        {/* Benefits */}
-                        <div className={styles.contentCard}>
-                            <h2 className={styles.cardTitle}>
-                                <Ico.Award /> Benefits & Perks
-                            </h2>
-                            <div className={styles.benefitsGrid}>
-                                {job.benefits.map((b, i) => (
-                                    <div key={i} className={styles.benefitItem}>
-                                        <span className={styles.benefitIcon}>{BENEFIT_ICONS[i % BENEFIT_ICONS.length]}</span>
-                                        {b}
-                                    </div>
-                                ))}
+                    <div className={styles.leftCol}>
+                        <AnimateOnScroll animation="fadeUp" delay={100}>
+                            <div className={styles.contentCard}>
+                                <h2 className={styles.cardTitle}>
+                                    <Ico.Briefcase /> About this Role
+                                </h2>
+                                <p className={styles.description}>{job.description}</p>
                             </div>
-                        </div>
+                        </AnimateOnScroll>
+
+                        {job.responsibilities && (
+                            <AnimateOnScroll animation="fadeUp" delay={200}>
+                                <div className={styles.contentCard}>
+                                    <h2 className={styles.cardTitle}>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+                                        Key Responsibilities
+                                    </h2>
+                                    <ul className={styles.itemList}>
+                                        {(Array.isArray(job.responsibilities) ? job.responsibilities : []).map((r: string, i: number) => (
+                                            <li key={i}><span className={styles.bullet} />{r}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </AnimateOnScroll>
+                        )}
+
+                        {job.requirements && (
+                            <AnimateOnScroll animation="fadeUp" delay={300}>
+                                <div className={styles.contentCard}>
+                                    <h2 className={styles.cardTitle}>
+                                        <Ico.Star /> Requirements
+                                    </h2>
+                                    <ul className={styles.itemList}>
+                                        {(Array.isArray(job.requirements) ? job.requirements : []).map((r: string, i: number) => (
+                                            <li key={i}><span className={styles.checkBullet}><Ico.Check /></span>{r}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </AnimateOnScroll>
+                        )}
                     </div>
 
-                    {/* ── Sidebar ── */}
                     <aside className={styles.sidebar}>
-                        {/* Job Overview */}
-                        <div className={styles.sidebarCard}>
-                            <h3 className={styles.sidebarTitle}>Job Overview</h3>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}><Ico.Briefcase /> Job Type</span>
-                                <span className={styles.detailValue}>{job.type}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}><Ico.Location /> Location</span>
-                                <span className={styles.detailValue}>{job.location}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}><Ico.Salary /> Salary</span>
-                                <span className={styles.detailValue}>{job.salary}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}><Ico.Star /> Experience</span>
-                                <span className={styles.detailValue}>{job.exp} Level</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}><Ico.Building /> Industry</span>
-                                <span className={styles.detailValue}>{job.industry}</span>
-                            </div>
-                            <div className={styles.detailRow}>
-                                <span className={styles.detailLabel}><Ico.Globe /> Country</span>
-                                <span className={styles.detailValue}>{job.country === 'India' ? '🇮🇳' : '🇺🇸'} {job.country}</span>
-                            </div>
-
-                            {/* Match Bar */}
-                            {job.match >= 60 && (
-                                <div className={styles.matchBar}>
-                                    <div className={styles.matchBarLabel}>
-                                        <span className={styles.matchBarLabelText}><Ico.Sparkle /> AI Match Score</span>
-                                        <span className={styles.matchBarValue} style={{ color: matchColor }}>{job.match}%</span>
-                                    </div>
-                                    <div className={styles.matchBarTrack}>
-                                        <div className={styles.matchBarFill} style={{ width: `${job.match}%` }} />
-                                    </div>
+                        <AnimateOnScroll animation="fadeUp" delay={400}>
+                            <div className={styles.sidebarCard}>
+                                <h3 className={styles.sidebarTitle}>Job Overview</h3>
+                                <div className={styles.detailRow}>
+                                    <span className={styles.detailLabel}><Ico.Briefcase /> Job Type</span>
+                                    <span className={styles.detailValue}>{job.type}</span>
                                 </div>
-                            )}
+                                <div className={styles.detailRow}>
+                                    <span className={styles.detailLabel}><Ico.Location /> Location</span>
+                                    <span className={styles.detailValue}>{job.location}</span>
+                                </div>
+                                <div className={styles.detailRow}>
+                                    <span className={styles.detailLabel}><Ico.Salary /> Salary Range</span>
+                                    <span className={styles.detailValue}>{job.salary}</span>
+                                </div>
 
-                            <span className={styles.postedAt}><Ico.Clock /> Posted {job.posted}</span>
-                        </div>
-
-                        {/* Company Info */}
-                        <div className={`${styles.sidebarCard} ${styles.companyCard}`}>
-                            <div className={styles.companyLogoSidebar} style={{ background: job.color }}>
-                                {job.logo}
+                                {job.ai_match_rate >= 60 && (
+                                    <div className={styles.matchBar}>
+                                        <div className={styles.matchBarLabel}>
+                                            <span className={styles.matchBarLabelText}><Ico.Sparkle /> AI Match Score</span>
+                                            <span className={styles.matchBarValue} style={{ color: matchColor }}>{job.ai_match_rate}%</span>
+                                        </div>
+                                        <div className={styles.matchBarTrack}>
+                                            <div className={styles.matchBarFill} style={{ width: `${job.ai_match_rate}%` }} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className={styles.companyName}>{job.company}</div>
-                            <div className={styles.companyIndustry}>{job.industry} • {job.country}</div>
-                            <p className={styles.companyAbout}>{job.about}</p>
-                            <button className={styles.viewCompanyBtn}>
-                                View Company Profile <Ico.ArrowR />
-                            </button>
-                        </div>
+                        </AnimateOnScroll>
 
-                        {/* Apply CTA */}
-                        <div className={styles.ctaCard}>
-                            <h3 className={styles.ctaTitle}>Interested in this role?</h3>
-                            <p className={styles.ctaText}>
-                                Create your free account to apply and get AI-matched to similar opportunities.
-                            </p>
-                            <Link href="/signup" className={styles.ctaBtn}>
-                                Get Started <Ico.ArrowR />
-                            </Link>
-                        </div>
+                        <AnimateOnScroll animation="fadeUp" delay={500}>
+                            <div className={styles.sidebarCard}>
+                                <h3 className={styles.sidebarTitle}>Company</h3>
+                                <div className={styles.companyNameS}>{job.companyprofile?.company_name}</div>
+                                <p className={styles.companyAboutS}>{job.companyprofile?.about || 'Leading innovators.'}</p>
+                            </div>
+                        </AnimateOnScroll>
                     </aside>
                 </div>
             </div>
+            <BlogFeed />
         </main>
     );
 }

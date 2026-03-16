@@ -1,6 +1,9 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../admin.module.css';
+import { insforge } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const IC = {
     search: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>,
@@ -9,88 +12,94 @@ const IC = {
     briefcase: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>,
 };
 
-const RECRUITERS = [
-    { name: 'Harper Reid', email: 'harper@techcorp.com', company: 'TechCorp Inc.', loc: 'San Francisco', jobs: 12, hires: 34, status: 'Active', joined: 'Jan 2025', initials: 'HR', color: '#0D47A1' },
-    { name: 'Emily Zhang', email: 'emily@innovate.co', company: 'Innovate Co.', loc: 'New York', jobs: 8, hires: 21, status: 'Active', joined: 'Feb 2025', initials: 'EZ', color: '#1565C0' },
-    { name: 'Raj Malhotra', email: 'raj@globalhr.in', company: 'GlobalHR India', loc: 'Mumbai', jobs: 15, hires: 47, status: 'Active', joined: 'Dec 2024', initials: 'RM', color: '#1E88E5' },
-    { name: 'Sarah Kim', email: 'sarah@startupx.io', company: 'StartupX', loc: 'Berlin', jobs: 5, hires: 12, status: 'Pending', joined: 'Mar 2026', initials: 'SK', color: '#2196F3' },
-    { name: 'Michael Torres', email: 'michael@recruit.co', company: 'RecruitPro', loc: 'Chicago', jobs: 0, hires: 0, status: 'Suspended', joined: 'Jan 2026', initials: 'MT', color: '#42A5F5' },
-    { name: 'Anita Desai', email: 'anita@hrplus.in', company: 'HR Plus', loc: 'Bangalore', jobs: 9, hires: 28, status: 'Active', joined: 'Nov 2024', initials: 'AD', color: '#0D47A1' },
-];
-
-const statusClass = (s: string) => {
-    if (s === 'Active') return styles.badgeActive;
-    if (s === 'Pending') return styles.badgeNew;
-    return styles.badgeClosed;
-};
-
 export default function AdminRecruitersPage() {
+    const { user, isLoading: authLoading } = useAuth();
+    const router = useRouter();
+    const [recruiters, setRecruiters] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({ total: 0, pending: 0, suspended: 0 });
+
+    useEffect(() => {
+        if (!authLoading && (!user || user.role !== 'super_admin')) {
+            router.push('/dashboard/candidate');
+            return;
+        }
+
+        async function fetchData() {
+            try {
+                const { data } = await insforge.database
+                    .from('profiles')
+                    .select('*, companyprofile(name)')
+                    .eq('role', 'recruiter')
+                    .order('created_at', { ascending: false });
+                
+                setRecruiters(data || []);
+                
+                // Calculate stats (mocked since status field might not exist yet)
+                setStats({
+                    total: (data || []).length,
+                    pending: 0,
+                    suspended: 0
+                });
+
+            } catch (err) {
+                console.error('Fetch recruiters error:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (user?.role === 'super_admin') fetchData();
+    }, [user, authLoading, router]);
+
+    const handleStatusUpdate = async (recId: string, newStatus: string) => {
+        alert(`Setting recruiter ${recId} status to ${newStatus}`);
+    };
+
+    if (authLoading || loading) return <div className={styles.loading}>Loading recruiters...</div>;
+
     return (
         <div className={styles.dash}>
             <div className={styles.pageHead}>
-                <div>
-                    <h1 className={styles.pageTitle}>Manage Recruiters</h1>
-                    <p className={styles.pageSub}>View, approve, and manage recruiter accounts across the platform</p>
-                </div>
-                <button className={styles.primaryBtn}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    Invite Recruiter
-                </button>
+                <h1 className={styles.pageTitle}>Manage Recruiters</h1>
+                <p className={styles.pageSub}>View, approve, and manage recruiter accounts across the platform.</p>
             </div>
 
-            <div className={styles.searchRow}>
-                <div className={styles.searchBar}>
-                    {IC.search}
-                    <input placeholder="Search recruiters by name, company, or email..." />
-                </div>
-                <button className={styles.filterBtn}>Status</button>
-                <button className={styles.filterBtn}>{IC.mapPin} Location</button>
-            </div>
-
-            {/* Stats */}
             <div className={styles.stats} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                <div className={styles.stat}><span className={styles.statLabel}>Total Recruiters</span><span className={styles.statVal}>42</span></div>
-                <div className={styles.stat}><span className={styles.statLabel}>Pending Approval</span><span className={styles.statVal} style={{ color: '#d97706' }}>6</span></div>
-                <div className={styles.stat}><span className={styles.statLabel}>Suspended</span><span className={styles.statVal} style={{ color: '#dc2626' }}>2</span></div>
+                <div className={styles.stat}><span className={styles.statLabel}>Total Recruiters</span><span className={styles.statVal}>{stats.total}</span></div>
+                <div className={styles.stat}><span className={styles.statLabel}>Pending Approval</span><span className={styles.statVal} style={{ color: '#d97706' }}>{stats.pending}</span></div>
+                <div className={styles.stat}><span className={styles.statLabel}>Suspended</span><span className={styles.statVal} style={{ color: '#dc2626' }}>{stats.suspended}</span></div>
             </div>
 
-            {/* Table */}
             <div className={styles.card}>
                 <table className={styles.table}>
                     <thead>
                         <tr>
                             <th>Recruiter</th>
                             <th>Company</th>
-                            <th>Location</th>
-                            <th>Active Jobs</th>
-                            <th>Total Hires</th>
                             <th>Status</th>
+                            <th>Joined</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {RECRUITERS.map((r, i) => (
+                        {recruiters.map((r, i) => (
                             <tr key={i}>
                                 <td>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                        <div className={styles.avatar} style={{ background: r.color }}>{r.initials}</div>
+                                        <div className={styles.avatar} style={{ background: '#1565C0' }}>{(r.full_name || 'R')[0].toUpperCase()}</div>
                                         <div>
-                                            <div style={{ fontWeight: 600 }}>{r.name}</div>
+                                            <div style={{ fontWeight: 600 }}>{r.full_name || 'Anonymous Recruiter'}</div>
                                             <div style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>{IC.mail} {r.email}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td style={{ fontWeight: 500 }}>{r.company}</td>
-                                <td style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem' }}>{IC.mapPin} {r.loc}</td>
-                                <td>{IC.briefcase} {r.jobs}</td>
-                                <td style={{ fontWeight: 600 }}>{r.hires}</td>
-                                <td><span className={`${styles.badge} ${statusClass(r.status)}`}>{r.status}</span></td>
+                                <td style={{ fontWeight: 500 }}>{r.companyprofile?.name || 'Self-employed'}</td>
+                                <td><span className={`${styles.badge} ${styles.badgeActive}`}>Active</span></td>
+                                <td style={{ fontSize: '0.78rem', color: '#64748b' }}>{new Date(r.created_at).toLocaleDateString()}</td>
                                 <td>
                                     <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                        {r.status === 'Pending' && <button className={styles.successBtn}>Approve</button>}
-                                        {r.status === 'Active' && <button className={styles.secondaryBtn} style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}>View</button>}
-                                        {r.status === 'Active' && <button className={styles.dangerBtn}>Suspend</button>}
-                                        {r.status === 'Suspended' && <button className={styles.successBtn}>Reactivate</button>}
+                                        <button className={styles.dangerBtn} onClick={() => handleStatusUpdate(r.id, 'suspended')}>Suspend</button>
                                     </div>
                                 </td>
                             </tr>

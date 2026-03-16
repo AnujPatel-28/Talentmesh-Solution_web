@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import styles from './job-seekers.module.css';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 const IconSparkle = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -113,105 +114,115 @@ export default function JobSeekersPage() {
             </section>
 
             {/* 2. Stats Strip */}
-            <section className={styles.statsStrip}>
-                <div className="premium-container">
-                    <div className={styles.statsGrid}>
-                        {STATS.map((s, i) => (
-                            <div key={i} className={styles.statItem}>
-                                <span className={styles.statVal}>{s.val}</span>
-                                <span className={styles.statLabel}>{s.label}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* 3. How It Works */}
-            <section className={styles.howSection}>
-                <div className="premium-container">
-                    <div className={styles.sectionHeader}>
-                        <span className={styles.sectionTag}>The Process</span>
-                        <h2 className={styles.sectionTitle}>Three steps to your next role.</h2>
-                        <p className={styles.sectionDesc}>
-                            No cover letters. No rejection emails. Just precision matching.
-                        </p>
-                    </div>
-                    <div className={styles.stepsGrid}>
-                        {STEPS.map((step, i) => (
-                            <div key={i} className={styles.stepCard}>
-                                <div className={styles.stepNum} style={{ color: step.color }}>{step.num}</div>
-                                <h3 className={styles.stepTitle}>{step.title}</h3>
-                                <p className={styles.stepDesc}>{step.desc}</p>
-                                <div className={styles.stepLine} style={{ background: step.color }} />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* 4. Benefits Grid */}
-            <section className={styles.benefitsSection}>
-                <div className="premium-container">
-                    <div className={styles.sectionHeader}>
-                        <span className={styles.sectionTag}>What You Get</span>
-                        <h2 className={styles.sectionTitle}>Everything you need to land the role.</h2>
-                    </div>
-                    <div className={styles.benefitsGrid}>
-                        {BENEFITS.map((b, i) => (
-                            <div key={i} className={styles.benefitCard}>
-                                <div className={styles.benefitIcon}>{b.icon}</div>
-                                <h3 className={styles.benefitTitle}>{b.title}</h3>
-                                <p className={styles.benefitDesc}>{b.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* 5. Testimonials */}
-            <section className={styles.testimonialsSection}>
-                <div className="premium-container">
-                    <div className={styles.sectionHeader} style={{ textAlign: 'center' }}>
-                        <span className={styles.sectionTag}>Success Stories</span>
-                        <h2 className={styles.sectionTitle} style={{ color: '#fff' }}>Real outcomes. Real people.</h2>
-                    </div>
-                    <div className={styles.testimonialsGrid}>
-                        {TESTIMONIALS.map((t, i) => (
-                            <div key={i} className={styles.testimonialCard}>
-                                <div className={styles.outcomeBadge} style={{ background: t.color }}>
-                                    <IconCheck /> {t.outcome}
+            <AnimateOnScroll animation="scaleUp">
+                <section className={styles.statsStrip}>
+                    <div className="premium-container">
+                        <div className={styles.statsGrid}>
+                            {STATS.map((s, i) => (
+                                <div key={i} className={styles.statItem}>
+                                    <span className={styles.statVal}>{s.val}</span>
+                                    <span className={styles.statLabel}>{s.label}</span>
                                 </div>
-                                <p className={styles.testimonialQuote}>{t.quote}</p>
-                                <div className={styles.testimonialMeta}>
-                                    <div className={styles.avatar} style={{ background: t.color }}>
-                                        {t.name.split(' ').map(n => n[0]).join('')}
-                                    </div>
-                                    <div>
-                                        <div className={styles.testimonialName}>{t.name}</div>
-                                        <div className={styles.testimonialRole}>{t.role}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* 6. CTA */}
-            <section className={styles.ctaSection}>
-                <div className="premium-container">
-                    <div className={styles.ctaCard}>
-                        <h2 className={styles.ctaTitle}>Join 300K+ job seekers.</h2>
-                        <p className={styles.ctaDesc}>
-                            Get matched to your next high-impact role today — completely free.
-                        </p>
-                        <div className={styles.ctaBtns}>
-                            <Link href="/signup" className={styles.ctaPrimary}>Get Matched Today</Link>
-                            <Link href="/browse-jobs" className={styles.ctaSecondary}>Browse All Jobs</Link>
+                            ))}
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
+
+            {/* 3. How It Works */}
+            <AnimateOnScroll animation="fadeUp">
+                <section className={styles.howSection}>
+                    <div className="premium-container">
+                        <div className={styles.sectionHeader}>
+                            <span className={styles.sectionTag}>The Process</span>
+                            <h2 className={styles.sectionTitle}>Three steps to your next role.</h2>
+                            <p className={styles.sectionDesc}>
+                                No cover letters. No rejection emails. Just precision matching.
+                            </p>
+                        </div>
+                        <div className={styles.stepsGrid}>
+                            {STEPS.map((step, i) => (
+                                <div key={i} className={styles.stepCard}>
+                                    <div className={styles.stepNum} style={{ color: step.color }}>{step.num}</div>
+                                    <h3 className={styles.stepTitle}>{step.title}</h3>
+                                    <p className={styles.stepDesc}>{step.desc}</p>
+                                    <div className={styles.stepLine} style={{ background: step.color }} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            </AnimateOnScroll>
+
+            {/* 4. Benefits Grid */}
+            <AnimateOnScroll animation="fadeUp" delay={100}>
+                <section className={styles.benefitsSection}>
+                    <div className="premium-container">
+                        <div className={styles.sectionHeader}>
+                            <span className={styles.sectionTag}>What You Get</span>
+                            <h2 className={styles.sectionTitle}>Everything you need to land the role.</h2>
+                        </div>
+                        <div className={styles.benefitsGrid}>
+                            {BENEFITS.map((b, i) => (
+                                <div key={i} className={styles.benefitCard}>
+                                    <div className={styles.benefitIcon}>{b.icon}</div>
+                                    <h3 className={styles.benefitTitle}>{b.title}</h3>
+                                    <p className={styles.benefitDesc}>{b.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            </AnimateOnScroll>
+
+            {/* 5. Testimonials */}
+            <AnimateOnScroll animation="blurIn">
+                <section className={styles.testimonialsSection}>
+                    <div className="premium-container">
+                        <div className={styles.sectionHeader} style={{ textAlign: 'center' }}>
+                            <span className={styles.sectionTag}>Success Stories</span>
+                            <h2 className={styles.sectionTitle} style={{ color: '#fff' }}>Real outcomes. Real people.</h2>
+                        </div>
+                        <div className={styles.testimonialsGrid}>
+                            {TESTIMONIALS.map((t, i) => (
+                                <div key={i} className={styles.testimonialCard}>
+                                    <div className={styles.outcomeBadge} style={{ background: t.color }}>
+                                        <IconCheck /> {t.outcome}
+                                    </div>
+                                    <p className={styles.testimonialQuote}>{t.quote}</p>
+                                    <div className={styles.testimonialMeta}>
+                                        <div className={styles.avatar} style={{ background: t.color }}>
+                                            {t.name.split(' ').map(n => n[0]).join('')}
+                                        </div>
+                                        <div>
+                                            <div className={styles.testimonialName}>{t.name}</div>
+                                            <div className={styles.testimonialRole}>{t.role}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            </AnimateOnScroll>
+
+            {/* 6. CTA */}
+            <AnimateOnScroll animation="scaleUp">
+                <section className={styles.ctaSection}>
+                    <div className="premium-container">
+                        <div className={styles.ctaCard}>
+                            <h2 className={styles.ctaTitle}>Join 300K+ job seekers.</h2>
+                            <p className={styles.ctaDesc}>
+                                Get matched to your next high-impact role today — completely free.
+                            </p>
+                            <div className={styles.ctaBtns}>
+                                <Link href="/signup" className={styles.ctaPrimary}>Get Matched Today</Link>
+                                <Link href="/browse-jobs" className={styles.ctaSecondary}>Browse All Jobs</Link>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </AnimateOnScroll>
         </main>
     );
 }

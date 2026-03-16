@@ -125,6 +125,18 @@
     justify-content: center;
     padding: 3rem;
     gap: 2rem;
+    background: #0f172a;
+    overflow: hidden;
+}
+
+.podcastImg {
+    object-fit: cover;
+    opacity: 0.5;
+    transition: transform 0.6s ease;
+}
+
+.featuredCard:hover .podcastImg {
+    transform: scale(1.05);
 }
 
 .featuredEmoji {
@@ -342,6 +354,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #0f172a;
+    overflow: hidden;
 }
 
 .epCardEmoji {

@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import XIcon from '@mui/icons-material/X';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import { PageHeader } from '@/components/ui';
 import { CTA } from '@/components/sections';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
 import styles from './contact.module.css';
 
 const FAQ = [
@@ -82,164 +84,178 @@ export default function ContactPage() {
             />
 
             {/* ── Content ── */}
-            <div className={styles.mainLayout}>
-                {/* Left side */}
-                <div className={styles.contactInfo}>
-                    <div className={styles.infoBlock}>
-                        <span className={styles.infoLabel}>General Inquiries</span>
-                        <a href="mailto:info@talentmeshsolutions.com" className={styles.infoValue}>info@talentmeshsolutions.com</a>
-                    </div>
-                    <div className={styles.infoBlock}>
-                        <span className={styles.infoLabel}>Contact Number</span>
-                        <a href="tel:+919898161106" className={styles.infoValue}>+91 98981 61106</a>
-                    </div>
-                    <div className={styles.infoBlock}>
-                        <span className={styles.infoLabel}>Headquarters</span>
-                        <span className={styles.infoValue}>Ahmedabad, India</span>
-                        <span className={styles.infoSub}>
-                            3rd Floor, Chinubhai House,<br />
-                            7-B Amrutbaug Colony, Navjivan,<br />
-                            Ahmedabad, Gujarat 380014
-                        </span>
-                    </div>
-
-                    <div className={styles.socialSection}>
-                        <span className={styles.infoLabel}>Follow Us</span>
-                        <div className={styles.socialLinks}>
-                            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="LinkedIn">
-                                <LinkedInIcon />
-                            </a>
-                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Twitter">
-                                <XIcon />
-                            </a>
-                            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
-                                <InstagramIcon />
-                            </a>
+            <AnimateOnScroll animation="fadeUp">
+                <div className={styles.mainLayout}>
+                    {/* Left side */}
+                    <div className={styles.contactInfo}>
+                        <div className={styles.contactImageWrapper}>
+                            <Image
+                                src="/images/customer-support.jpg"
+                                alt="TalentMesh Customer Support"
+                                fill
+                                className={styles.contactImg}
+                            />
                         </div>
-                    </div>
-                </div>
-
-                {/* Right side */}
-                <div className={styles.formContainer}>
-                    {sent ? (
-                        <div style={{ padding: '2rem 0', textAlign: 'center' }}>
-                            <h2 style={{ fontSize: '2.25rem', fontWeight: 900, marginBottom: '1rem', color: '#000000' }}>Message received.</h2>
-                            <p style={{ color: '#64748b', fontSize: '1.125rem', marginBottom: '2.5rem' }}>We&apos;ll be in touch shortly. Thank you.</p>
-                            <button className={styles.submitBtn} onClick={() => setSent(false)} style={{ margin: '0 auto' }}>Send Another</button>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>General Inquiries</span>
+                            <a href="mailto:info@talentmeshsolutions.com" className={styles.infoValue}>info@talentmeshsolutions.com</a>
                         </div>
-                    ) : (
-                        <>
-                            <div style={{ marginBottom: '3.5rem' }}>
-                                <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#000000', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Send a Message</h2>
-                                <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Fill out the form below and our team will get back to you shortly.</p>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Contact Number</span>
+                            <a href="tel:+919898161106" className={styles.infoValue}>+91 98981 61106</a>
+                        </div>
+                        <div className={styles.infoBlock}>
+                            <span className={styles.infoLabel}>Headquarters</span>
+                            <span className={styles.infoValue}>Ahmedabad, India</span>
+                            <span className={styles.infoSub}>
+                                3rd Floor, Chinubhai House,<br />
+                                7-B Amrutbaug Colony, Navjivan,<br />
+                                Ahmedabad, Gujarat 380014
+                            </span>
+                        </div>
+
+                        <div className={styles.socialSection}>
+                            <span className={styles.infoLabel}>Follow Us</span>
+                            <div className={styles.socialLinks}>
+                                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="LinkedIn">
+                                    <LinkedInIcon />
+                                </a>
+                                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Twitter">
+                                    <XIcon />
+                                </a>
+                                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className={styles.socialIcon} aria-label="Instagram">
+                                    <InstagramIcon />
+                                </a>
                             </div>
-                            <form className={styles.form} onSubmit={handleSubmit}>
-                                <div className={styles.formRow}>
+                        </div>
+                    </div>
+
+                    {/* Right side */}
+                    <div className={styles.formContainer}>
+                        {sent ? (
+                            <div style={{ padding: '2rem 0', textAlign: 'center' }}>
+                                <h2 style={{ fontSize: '2.25rem', fontWeight: 900, marginBottom: '1rem', color: '#000000' }}>Message received.</h2>
+                                <p style={{ color: '#64748b', fontSize: '1.125rem', marginBottom: '2.5rem' }}>We&apos;ll be in touch shortly. Thank you.</p>
+                                <button className={styles.submitBtn} onClick={() => setSent(false)} style={{ margin: '0 auto' }}>Send Another</button>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ marginBottom: '3.5rem' }}>
+                                    <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#000000', marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>Send a Message</h2>
+                                    <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Fill out the form below and our team will get back to you shortly.</p>
+                                </div>
+                                <form className={styles.form} onSubmit={handleSubmit}>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.field}>
+                                            <label className={styles.label}>Full Name</label>
+                                            <input
+                                                className={styles.input}
+                                                type="text"
+                                                name="fullName"
+                                                placeholder="Arjun Patel"
+                                                required
+                                                value={formData.fullName}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                        <div className={styles.field}>
+                                            <label className={styles.label}>Work Email</label>
+                                            <input
+                                                className={styles.input}
+                                                type="email"
+                                                name="email"
+                                                placeholder="arjun@company.com"
+                                                required
+                                                value={formData.email}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.field}>
+                                            <label className={styles.label}>Phone Number</label>
+                                            <input
+                                                className={styles.input}
+                                                type="tel"
+                                                name="phone"
+                                                placeholder="+91 98981 61106"
+                                                required
+                                                value={formData.phone}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                        <div className={styles.field}>
+                                            <label className={styles.label}>Company/Organization</label>
+                                            <input
+                                                className={styles.input}
+                                                type="text"
+                                                name="organization"
+                                                placeholder="TechFlow Solutions"
+                                                required
+                                                value={formData.organization}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                    </div>
                                     <div className={styles.field}>
-                                        <label className={styles.label}>Full Name</label>
-                                        <input
-                                            className={styles.input}
-                                            type="text"
-                                            name="fullName"
-                                            placeholder="Arjun Patel"
+                                        <label className={styles.label}>I am a...</label>
+                                        <select
+                                            className={styles.select}
+                                            name="userType"
                                             required
-                                            value={formData.fullName}
+                                            value={formData.userType}
+                                            onChange={handleChange}
+                                        >
+                                            <option value="">Choose an option...</option>
+                                            <option value="employer">I am an Employer / Recruiter looking for talent</option>
+                                            <option value="candidate">I am a Candidate / Job Seeker looking for roles</option>
+                                            <option value="partner">I am interested in a Business Partnership</option>
+                                            <option value="other">Other Inquiry</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.field}>
+                                        <label className={styles.label}>Message</label>
+                                        <textarea
+                                            className={styles.textarea}
+                                            name="message"
+                                            placeholder="How can we help you achieve your goals?"
+                                            required
+                                            value={formData.message}
                                             onChange={handleChange}
                                         />
                                     </div>
-                                    <div className={styles.field}>
-                                        <label className={styles.label}>Work Email</label>
-                                        <input
-                                            className={styles.input}
-                                            type="email"
-                                            name="email"
-                                            placeholder="arjun@company.com"
-                                            required
-                                            value={formData.email}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
-                                </div>
-                                <div className={styles.formRow}>
-                                    <div className={styles.field}>
-                                        <label className={styles.label}>Phone Number</label>
-                                        <input
-                                            className={styles.input}
-                                            type="tel"
-                                            name="phone"
-                                            placeholder="+91 98981 61106"
-                                            required
-                                            value={formData.phone}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
-                                    <div className={styles.field}>
-                                        <label className={styles.label}>Company/Organization</label>
-                                        <input
-                                            className={styles.input}
-                                            type="text"
-                                            name="organization"
-                                            placeholder="TechFlow Solutions"
-                                            required
-                                            value={formData.organization}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
-                                </div>
-                                <div className={styles.field}>
-                                    <label className={styles.label}>I am a...</label>
-                                    <select
-                                        className={styles.select}
-                                        name="userType"
-                                        required
-                                        value={formData.userType}
-                                        onChange={handleChange}
-                                    >
-                                        <option value="">Choose an option...</option>
-                                        <option value="employer">I am an Employer / Recruiter looking for talent</option>
-                                        <option value="candidate">I am a Candidate / Job Seeker looking for roles</option>
-                                        <option value="partner">I am interested in a Business Partnership</option>
-                                        <option value="other">Other Inquiry</option>
-                                    </select>
-                                </div>
-                                <div className={styles.field}>
-                                    <label className={styles.label}>Message</label>
-                                    <textarea
-                                        className={styles.textarea}
-                                        name="message"
-                                        placeholder="How can we help you achieve your goals?"
-                                        required
-                                        value={formData.message}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <button type="submit" className={styles.submitBtn} disabled={loading}>
-                                    {loading ? 'Sending Request...' : 'Submit Inquiry'}
-                                </button>
-                            </form>
-                        </>
-                    )}
+                                    <button type="submit" className={styles.submitBtn} disabled={loading}>
+                                        {loading ? 'Sending Request...' : 'Submit Inquiry'}
+                                    </button>
+                                </form>
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </AnimateOnScroll>
 
             {/* ── FAQ ── */}
-            <section className={styles.faqSection}>
-                <div className={styles.faqContainer}>
-                    <h2 className={styles.faqTitle}>Common Questions</h2>
-                    <div className={styles.faqList}>
-                        {FAQ.map((f, i) => (
-                            <div key={i} className={styles.faqItem}>
-                                <button className={styles.faqQuestion} onClick={() => setOpen(open === i ? null : i)}>
-                                    {f.q}
-                                    <span style={{ transform: open === i ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s', fontSize: '1.5rem', fontWeight: 300, color: '#94a3b8' }}>+</span>
-                                </button>
-                                {open === i && <p className={styles.faqAnswer}>{f.a}</p>}
-                            </div>
-                        ))}
+            <AnimateOnScroll animation="fadeUp" delay={100}>
+                <section className={styles.faqSection}>
+                    <div className={styles.faqContainer}>
+                        <h2 className={styles.faqTitle}>Common Questions</h2>
+                        <div className={styles.faqList}>
+                            {FAQ.map((f, i) => (
+                                <div key={i} className={styles.faqItem}>
+                                    <button className={styles.faqQuestion} onClick={() => setOpen(open === i ? null : i)}>
+                                        {f.q}
+                                        <span style={{ transform: open === i ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s', fontSize: '1.5rem', fontWeight: 300, color: '#94a3b8' }}>+</span>
+                                    </button>
+                                    {open === i && <p className={styles.faqAnswer}>{f.a}</p>}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </section>
-            <CTA />
+                </section>
+            </AnimateOnScroll>
+            <AnimateOnScroll animation="scaleUp">
+                <CTA />
+            </AnimateOnScroll>
         </main>
     );
 }

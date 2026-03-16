@@ -175,7 +175,16 @@ const Hero = () => {
                             )}
                         </div>
 
-                        <button className={styles.searchBtn}>Search Jobs</button>
+                        <button 
+                            className={styles.searchBtn}
+                            onClick={() => {
+                                const q = jobQuery || '';
+                                const l = locationQuery || '';
+                                window.location.href = `/browse-jobs?search=${encodeURIComponent(q)}&location=${encodeURIComponent(l)}`;
+                            }}
+                        >
+                            Search Jobs
+                        </button>
                     </div>
 
                     <div className={styles.popularContainer}>
