@@ -2,7 +2,8 @@
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './dashboard-layout.module.css';
 
 /* ─── SVG Icon Components ─── */
@@ -78,27 +79,31 @@ const RECRUITER_NAV: NavItem[] = [
     { label: 'Reports', href: '/dashboard/recruiter/reports', icon: Icons.pieChart },
 ];
 
-const ADMIN_NAV: NavItem[] = [
+const SUPER_ADMIN_NAV: NavItem[] = [
     { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
     { label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, badge: 14 },
     { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: 23 },
     { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>, badge: 6 },
+    { label: 'Blogs', href: '/dashboard/admin/blogs', icon: Icons.edit },
     { label: 'Reports', href: '/dashboard/admin/reports', icon: Icons.pieChart },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const { user: authUser, logout, isLoading } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    const isAdmin = pathname.startsWith('/dashboard/admin');
+    const isSuperAdmin = pathname.startsWith('/dashboard/admin');
     const isRecruiter = pathname.startsWith('/dashboard/recruiter');
-    const navItems = isAdmin ? ADMIN_NAV : isRecruiter ? RECRUITER_NAV : CANDIDATE_NAV;
-    const user = isAdmin
-        ? { name: 'Admin Panel', initials: 'AP', email: 'admin@talentmesh.ai' }
-        : isRecruiter
-            ? { name: 'Harper Reid', initials: 'HR', email: 'harper@techcorp.com' }
-            : { name: 'Sarah Jenkins', initials: 'SJ', email: 'sarah.j@email.com' };
+    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV : isRecruiter ? RECRUITER_NAV : CANDIDATE_NAV;
+
+    const user = {
+        name: authUser?.full_name || authUser?.email?.split('@')[0] || 'User',
+        initials: (authUser?.full_name?.split(' ').map(n => n[0]).join('') || 'U').toUpperCase(),
+        email: authUser?.email || ''
+    };
 
     const pageTitle = (() => {
         const seg = pathname.split('/').pop();
@@ -113,6 +118,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             setCollapsed(prev => !prev);
         }
     }, []);
+
+    if (isLoading) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+        <div style={{ width: 40, height: 40, border: '4px solid #e2e8f0', borderTopColor: '#007BFF', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>;
+
+    if (!authUser) {
+        router.push('/login');
+        return null;
+    }
 
     return (
         <div className={styles.shell}>
@@ -156,13 +171,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 <div className={styles.sidebarFoot}>
                     <Link
-                        href={isAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : '/dashboard/candidate/settings'}
+                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : '/dashboard/candidate/settings'}
                         className={styles.navLink}
                         onClick={() => setMobileOpen(false)}
                     >
                         <span className={styles.navIcon}>{Icons.settings}</span>
                         {!collapsed && <span className={styles.navLabel}>Settings</span>}
                     </Link>
+                    <button onClick={logout} className={`${styles.navLink} ${styles.logoutBtn}`}>
+                        <span className={styles.navIcon}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                        </span>
+                        {!collapsed && <span className={styles.navLabel}>Logout</span>}
+                    </button>
                     <div className={styles.userCard}>
                         <div className={styles.userAvatar}>{user.initials}</div>
                         {!collapsed && (

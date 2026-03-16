@@ -165,34 +165,16 @@ const MOCK_CANDIDATE_INTERVIEWS: Interview[] = [
     { id: 'ci3', candidateName: 'Raj Mehta', candidateAvatar: 'RM', role: 'Principal Engineer @ Vercel',       date: 'Mon Mar 3',  time: '11:30 AM', duration: '60 min', type: 'video',     status: 'scheduled', aiSuggested: true,  hasConflict: false, interviewers: ['Vercel CTO'],        meetingLink: undefined },
 ];
 
+import { apiFetch } from './client';
+
 // ─── Public API Functions ─────────────────────────────────────────────────────
 
-export async function fetchCompanyDashboard(_companyId: string): Promise<CompanyDashboardData> {
-    // ↑ Replace with: const res = await fetch(`${API_BASE}/company/${companyId}/dashboard`, { headers: AUTH_HEADERS });
-    await delay(600 + Math.random() * 400);
-    return {
-        kpis: MOCK_COMPANY_KPIS,
-        pipeline: { stages: MOCK_PIPELINE_STAGES, candidates: MOCK_CANDIDATES },
-        jobs: MOCK_JOBS,
-        topCandidates: MOCK_CANDIDATES.filter(c => c.status === 'active').slice(0, 3),
-        interviews: MOCK_INTERVIEWS,
-        diversity: MOCK_DIVERSITY,
-        activity: MOCK_ACTIVITY,
-    };
+export async function fetchCompanyDashboard(companyId: string): Promise<CompanyDashboardData> {
+    return apiFetch(`/dashboard/company/${companyId}`);
 }
 
-export async function fetchCandidateDashboard(_candidateId: string): Promise<CandidateDashboardData> {
-    // ↑ Replace with: const res = await fetch(`${API_BASE}/candidate/${candidateId}/dashboard`, { headers: AUTH_HEADERS });
-    await delay(500 + Math.random() * 400);
-    return {
-        profile: MOCK_CANDIDATE_PROFILE,
-        kpis: MOCK_CANDIDATE_KPIS,
-        applications: MOCK_APPLICATIONS,
-        recommendations: MOCK_RECOMMENDATIONS,
-        interviews: MOCK_CANDIDATE_INTERVIEWS,
-        skillGaps: MOCK_SKILL_GAPS,
-        activity: MOCK_CANDIDATE_ACTIVITY,
-    };
+export async function fetchCandidateDashboard(candidateId: string): Promise<CandidateDashboardData> {
+    return apiFetch(`/dashboard/candidate/${candidateId}`);
 }
 
 export async function confirmInterview(interviewId: string): Promise<{ success: boolean }> {

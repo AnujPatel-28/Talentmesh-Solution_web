@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import styles from './podcast.module.css';
 
 const IconSparkle = () => (
@@ -144,7 +145,13 @@ export default function PodcastPage() {
                 <div className="premium-container">
                     <span className={styles.sectionTagLight}>Latest Episode</span>
                     <div className={styles.featuredCard}>
-                        <div className={styles.featuredVisual} style={{ background: FEATURED_EPISODE.gradient }}>
+                        <div className={styles.featuredVisual}>
+                            <Image
+                                src="/images/podcast-studio.jpg"
+                                alt="Featured Episode"
+                                fill
+                                className={styles.podcastImg}
+                            />
                             <div className={styles.featuredEmoji}>{FEATURED_EPISODE.emoji}</div>
                             <div className={styles.featuredWave}>
                                 {Array.from({ length: 14 }).map((_, i) => (
@@ -201,7 +208,13 @@ export default function PodcastPage() {
                     <div className={styles.episodesGrid}>
                         {EPISODES.map((ep, i) => (
                             <div key={i} className={styles.episodeCard}>
-                                <div className={styles.epCardVisual} style={{ background: ep.gradient }}>
+                                <div className={styles.epCardVisual}>
+                                    <Image
+                                        src="/images/podcast-studio.jpg"
+                                        alt={ep.title}
+                                        fill
+                                        className={styles.podcastImg}
+                                    />
                                     <span className={styles.epCardEmoji}>{ep.emoji}</span>
                                     <button
                                         className={`${styles.playBtn} ${playing === i ? styles.playing : ''}`}

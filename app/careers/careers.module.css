@@ -102,6 +102,24 @@
     height: 28px;
 }
 
+.cultureImageWrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1/1;
+    border-radius: 30px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+}
+
+.cultureImg {
+    object-fit: cover;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cultureImageWrapper:hover .cultureImg {
+    transform: scale(1.05);
+}
+
 /* ── Culture Content ── */
 .cultureContent {
     display: flex;

@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import styles from './pricing.module.css';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 // --- Premium Custom Icons ---
 const IconCheck = () => (
@@ -118,108 +119,116 @@ export default function PricingPage() {
             </div>
 
             {/* 3. Pricing Grid */}
-            <section className={styles.pricingSection}>
-                <div className="premium-container">
-                    <div className={styles.pricingGrid}>
-                        {PLANS.map((plan, i) => (
-                            <div key={i} className={styles.pricingCard}>
-                                {plan.popular && <div className={styles.popularBadge}>Most Precision</div>}
-                                <h3 className={styles.planName}>{plan.name}</h3>
-                                <div className={styles.planPrice}>
-                                    {plan.price !== "Custom" && <span className={styles.currency}>$</span>}
-                                    <span className={styles.amount}>{plan.price}</span>
-                                    {plan.price !== "Custom" && <span className={styles.period}>/mo</span>}
+            <AnimateOnScroll animation="fadeUp">
+                <section className={styles.pricingSection}>
+                    <div className="premium-container">
+                        <div className={styles.pricingGrid}>
+                            {PLANS.map((plan, i) => (
+                                <div key={i} className={styles.pricingCard}>
+                                    {plan.popular && <div className={styles.popularBadge}>Most Precision</div>}
+                                    <h3 className={styles.planName}>{plan.name}</h3>
+                                    <div className={styles.planPrice}>
+                                        {plan.price !== "Custom" && <span className={styles.currency}>$</span>}
+                                        <span className={styles.amount}>{plan.price}</span>
+                                        {plan.price !== "Custom" && <span className={styles.period}>/mo</span>}
+                                    </div>
+                                    <p className={styles.planDesc}>{plan.desc}</p>
+
+                                    <ul className={styles.featureList}>
+                                        {plan.features.map((feature, idx) => (
+                                            <li key={idx} className={styles.featureItem}>
+                                                <div className={styles.checkIcon}><IconCheck /></div>
+                                                {feature}
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    <Link
+                                        href="/register"
+                                        className={`${styles.planBtn} ${plan.primary ? styles.primaryBtn : ''}`}
+                                    >
+                                        {plan.button}
+                                    </Link>
                                 </div>
-                                <p className={styles.planDesc}>{plan.desc}</p>
-
-                                <ul className={styles.featureList}>
-                                    {plan.features.map((feature, idx) => (
-                                        <li key={idx} className={styles.featureItem}>
-                                            <div className={styles.checkIcon}><IconCheck /></div>
-                                            {feature}
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <Link
-                                    href="/register"
-                                    className={`${styles.planBtn} ${plan.primary ? styles.primaryBtn : ''}`}
-                                >
-                                    {plan.button}
-                                </Link>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
 
             {/* 4. Enterprise Grade Details */}
-            <section className={styles.infraSection}>
-                <div className="premium-container">
-                    <div className={styles.infraHeader}>
-                        <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '1.5rem', letterSpacing: '-0.03em' }}>Diagnostic Infrastructure</h2>
-                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '1.25rem' }}>Security, compliance, and support at scale.</p>
-                    </div>
+            <AnimateOnScroll animation="blurIn">
+                <section className={styles.infraSection}>
+                    <div className="premium-container">
+                        <div className={styles.infraHeader}>
+                            <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '1.5rem', letterSpacing: '-0.03em' }}>Diagnostic Infrastructure</h2>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '1.25rem' }}>Security, compliance, and support at scale.</p>
+                        </div>
 
-                    <div className={styles.infraGrid}>
-                        <div className={styles.infraCard}>
-                            <div className={styles.infraIcon}><IconShield /></div>
-                            <h3 className={styles.infraTitle}>SSO & Auth 2.0</h3>
-                            <p className={styles.infraText}>Integrated with Okta, Azure AD, and Google Workspace for seamless enterprise access management.</p>
-                        </div>
-                        <div className={styles.infraCard}>
-                            <div className={styles.infraIcon}><IconGlobe /></div>
-                            <h3 className={styles.infraTitle}>Data Sovereignty</h3>
-                            <p className={styles.infraText}>Select your primary hosting region to comply with global GDPR, CCPA, and regional data residency laws.</p>
-                        </div>
-                        <div className={styles.infraCard}>
-                            <div className={styles.infraIcon}><IconZap /></div>
-                            <h3 className={styles.infraTitle}>Dedicated Deployment</h3>
-                            <p className={styles.infraText}>Guaranteed 99.99% system uptime with a dedicated deployment success lead for your team.</p>
+                        <div className={styles.infraGrid}>
+                            <div className={styles.infraCard}>
+                                <div className={styles.infraIcon}><IconShield /></div>
+                                <h3 className={styles.infraTitle}>SSO & Auth 2.0</h3>
+                                <p className={styles.infraText}>Integrated with Okta, Azure AD, and Google Workspace for seamless enterprise access management.</p>
+                            </div>
+                            <div className={styles.infraCard}>
+                                <div className={styles.infraIcon}><IconGlobe /></div>
+                                <h3 className={styles.infraTitle}>Data Sovereignty</h3>
+                                <p className={styles.infraText}>Select your primary hosting region to comply with global GDPR, CCPA, and regional data residency laws.</p>
+                            </div>
+                            <div className={styles.infraCard}>
+                                <div className={styles.infraIcon}><IconZap /></div>
+                                <h3 className={styles.infraTitle}>Dedicated Deployment</h3>
+                                <p className={styles.infraText}>Guaranteed 99.99% system uptime with a dedicated deployment success lead for your team.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
 
             {/* 5. FAQ Section */}
-            <section className={styles.faqSection}>
-                <div className="premium-container">
-                    <div style={{ textAlign: 'center' }}>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--deep-navy)' }}>Frequently Asked Questions</h2>
-                    </div>
+            <AnimateOnScroll animation="fadeUp" delay={100}>
+                <section className={styles.faqSection}>
+                    <div className="premium-container">
+                        <div style={{ textAlign: 'center' }}>
+                            <h2 style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--deep-navy)' }}>Frequently Asked Questions</h2>
+                        </div>
 
-                    <div className={styles.faqGrid}>
-                        <div className={styles.faqItem}>
-                            <h4 className={styles.faqQuestion}>How does the AI sourcing work?</h4>
-                            <p className={styles.faqAnswer}>Our engine scans millions of open-source signals, project contributions, and technical deployments to identify specialists before they are active in the market.</p>
-                        </div>
-                        <div className={styles.faqItem}>
-                            <h4 className={styles.faqQuestion}>Can I cancel my subscription?</h4>
-                            <p className={styles.faqAnswer}>Yes, you can upgrade or discontinue your protocol at any time. We also offer month-to-month deployment options for specific hiring sprints.</p>
-                        </div>
-                        <div className={styles.faqItem}>
-                            <h4 className={styles.faqQuestion}>Do you offer volume discounts?</h4>
-                            <p className={styles.faqAnswer}>Our Enterprise ecosystems can scale to thousands of hires annually. Contact our solutions team for custom volume pricing and platform white-labeling.</p>
+                        <div className={styles.faqGrid}>
+                            <div className={styles.faqItem}>
+                                <h4 className={styles.faqQuestion}>How does the AI sourcing work?</h4>
+                                <p className={styles.faqAnswer}>Our engine scans millions of open-source signals, project contributions, and technical deployments to identify specialists before they are active in the market.</p>
+                            </div>
+                            <div className={styles.faqItem}>
+                                <h4 className={styles.faqQuestion}>Can I cancel my subscription?</h4>
+                                <p className={styles.faqAnswer}>Yes, you can upgrade or discontinue your protocol at any time. We also offer month-to-month deployment options for specific hiring sprints.</p>
+                            </div>
+                            <div className={styles.faqItem}>
+                                <h4 className={styles.faqQuestion}>Do you offer volume discounts?</h4>
+                                <p className={styles.faqAnswer}>Our Enterprise ecosystems can scale to thousands of hires annually. Contact our solutions team for custom volume pricing and platform white-labeling.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
 
             {/* 6. Custom CTA */}
-            <section style={{ padding: '10rem 0' }}>
-                <div className="premium-container">
-                    <div style={{ background: 'var(--gradient-primary)', borderRadius: '48px', padding: '10rem 4rem', textAlign: 'center', color: 'white' }}>
-                        <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '2rem' }}>Ready to deploy?</h2>
-                        <p style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '4rem', maxWidth: '600px', margin: '0 auto 4rem' }}>
-                            Join the world's leading Enterprise Ecosystems and start sourcing elite technical talent today.
-                        </p>
-                        <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                            <Link href="/register" style={{ background: 'white', color: 'var(--primary-blue)', padding: '1.5rem 4rem', borderRadius: '18px', fontWeight: 900, fontSize: '1.1rem' }}>Start Now</Link>
-                            <Link href="/contact" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '1.5rem 4rem', borderRadius: '18px', fontWeight: 900, fontSize: '1.1rem', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>Talk to Sales</Link>
+            <AnimateOnScroll animation="scaleUp">
+                <section style={{ padding: '10rem 0' }}>
+                    <div className="premium-container">
+                        <div style={{ background: 'var(--gradient-primary)', borderRadius: '48px', padding: '10rem 4rem', textAlign: 'center', color: 'white' }}>
+                            <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '2rem' }}>Ready to deploy?</h2>
+                            <p style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '4rem', maxWidth: '600px', margin: '0 auto 4rem' }}>
+                                Join the world's leading Enterprise Ecosystems and start sourcing elite technical talent today.
+                            </p>
+                            <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                <Link href="/register" style={{ background: 'white', color: 'var(--primary-blue)', padding: '1.5rem 4rem', borderRadius: '18px', fontWeight: 900, fontSize: '1.1rem' }}>Start Now</Link>
+                                <Link href="/contact" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '1.5rem 4rem', borderRadius: '18px', fontWeight: 900, fontSize: '1.1rem', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>Talk to Sales</Link>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
         </main>
     );
 }

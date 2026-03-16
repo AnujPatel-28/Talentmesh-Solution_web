@@ -124,6 +124,25 @@
     gap: 1.5rem;
 }
 
+.missionImageWrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+    margin-top: 2rem;
+}
+
+.missionImg {
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.missionImageWrapper:hover .missionImg {
+    transform: scale(1.03);
+}
+
 .missionCard {
     padding: 2rem;
     border-radius: 20px;

@@ -1,7 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+// UNIQUE_TAG: REAL_BLOG_PAGE_FIX_V1
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import styles from './blog.module.css';
+import { insforge } from '@/lib/insforge';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 const IconSparkle = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -14,85 +18,48 @@ const IconArrowRight = () => (
     </svg>
 );
 
-const FEATURED_POST = {
-    title: "The State of AI Recruitment in 2026",
-    description: "A deep-dive into how machine learning is fundamentally changing the speed, accuracy, and fairness of hiring across every industry sector.",
-    category: "Technology",
-    date: "Feb 22, 2026",
-    emoji: "🤖",
-    link: "/blog/state-of-ai-2026",
-    gradient: "linear-gradient(135deg, #0f172a 0%, #1e40af 100%)",
-};
-
-const BLOG_POSTS = [
-    {
-        title: "The Future of AI in Recruitment",
-        description: "How machine learning is changing the way we find and vet top engineering talent in 2026.",
-        category: "Technology",
-        date: "Feb 15, 2026",
-        link: "/blog/future-of-ai",
-        emoji: "🧠",
-        gradient: "linear-gradient(135deg, #1e3a5f, #007BFF)",
-    },
-    {
-        title: "Navigating Remote Work Culture",
-        description: "Best practices for maintaining team cohesion and productivity in a distributed environment.",
-        category: "Culture",
-        date: "Feb 10, 2026",
-        link: "/blog/remote-culture",
-        emoji: "🏠",
-        gradient: "linear-gradient(135deg, #064e3b, #10b981)",
-    },
-    {
-        title: "Mastering the Technical Interview",
-        description: "A comprehensive guide for candidates to excel in high-stakes engineering interviews.",
-        category: "Career Advice",
-        date: "Feb 05, 2026",
-        link: "/blog/technical-interview",
-        emoji: "💻",
-        gradient: "linear-gradient(135deg, #4c1d95, #8b5cf6)",
-    },
-    {
-        title: "Building a Bias-Free Hiring Process",
-        description: "Practical strategies for structuring interviews and evaluations that remove unconscious bias.",
-        category: "Engineering",
-        date: "Jan 30, 2026",
-        link: "/blog/bias-free-hiring",
-        emoji: "⚖️",
-        gradient: "linear-gradient(135deg, #7f1d1d, #ef4444)",
-    },
-    {
-        title: "Engineering Team Culture at Scale",
-        description: "How leading tech companies maintain strong culture as headcount grows from 50 to 5,000.",
-        category: "Culture",
-        date: "Jan 22, 2026",
-        link: "/blog/engineering-culture",
-        emoji: "🏗️",
-        gradient: "linear-gradient(135deg, #78350f, #f59e0b)",
-    },
-    {
-        title: "Salary Trends in Tech for 2026",
-        description: "Data-backed analysis of compensation trends across engineering, product, and design roles.",
-        category: "Product",
-        date: "Jan 15, 2026",
-        link: "/blog/salary-trends-2026",
-        emoji: "📈",
-        gradient: "linear-gradient(135deg, #0c4a6e, #06b6d4)",
-    },
-];
-
 const CATEGORIES = ["All", "Technology", "Culture", "Career Advice", "Engineering", "Product"];
 
 export default function BlogPage() {
+    const [posts, setPosts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [activeCategory, setActiveCategory] = useState("All");
     const [search, setSearch] = useState("");
 
-    const filtered = BLOG_POSTS.filter(p => {
+    useEffect(() => {
+        async function fetchPosts() {
+            try {
+                const { data } = await insforge.database
+                    .from('blog')
+                    .select('*')
+                    .eq('status', 'published')
+                    .order('created_at', { ascending: false });
+                setPosts(data || []);
+            } catch (err) {
+                console.error('Fetch posts error:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchPosts();
+    }, []);
+
+    const filtered = posts.filter(p => {
         const matchesCat = activeCategory === "All" || p.category === activeCategory;
         const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase()) ||
-            p.description.toLowerCase().includes(search.toLowerCase());
+            p.excerpt?.toLowerCase().includes(search.toLowerCase());
         return matchesCat && matchesSearch;
     });
+
+    const featuredPost = filtered[0];
+    const displayPosts = filtered.slice(1);
+
+    if (loading) return (
+        <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+            <div style={{ width: 40, height: 40, border: '4px solid #f3f3f3', borderTopColor: '#007BFF', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
 
     return (
         <main style={{ background: '#fff' }}>
@@ -127,87 +94,107 @@ export default function BlogPage() {
             </section>
 
             {/* 2. Featured Post */}
-            <section className={styles.featuredSection}>
-                <div className="premium-container">
-                    <div className={styles.featuredCard}>
-                        <div className={styles.featuredBanner} style={{ background: FEATURED_POST.gradient }}>
-                            <div className={styles.cardBannerEmoji}>{FEATURED_POST.emoji}</div>
+            {featuredPost && (
+                <AnimateOnScroll animation="fadeUp">
+                    <section className={styles.featuredSection}>
+                        <div className="premium-container">
+                            <div className={styles.featuredCard}>
+                                <div className={styles.featuredBanner}>
+                                    <Image
+                                        src={featuredPost.cover_image || "/images/tech-office.jpg"}
+                                        alt={featuredPost.title}
+                                        fill
+                                        className={styles.featuredImg}
+                                        style={{ objectFit: 'cover' }}
+                                    />
+                                </div>
+                                <div className={styles.featuredBody}>
+                                    <span className={styles.featuredCategory}>⭐ Featured • {featuredPost.category}</span>
+                                    <div className={styles.featuredDate}>{new Date(featuredPost.created_at).toLocaleDateString()}</div>
+                                    <h2 className={styles.featuredTitle}>{featuredPost.title}</h2>
+                                    <p className={styles.featuredDesc}>{featuredPost.excerpt}</p>
+                                    <Link href={`/blog/${featuredPost.slug}`} className={styles.readMoreBtn}>
+                                        Read Article <IconArrowRight />
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
-                        <div className={styles.featuredBody}>
-                            <span className={styles.featuredCategory}>⭐ Featured • {FEATURED_POST.category}</span>
-                            <div className={styles.featuredDate}>{FEATURED_POST.date}</div>
-                            <h2 className={styles.featuredTitle}>{FEATURED_POST.title}</h2>
-                            <p className={styles.featuredDesc}>{FEATURED_POST.description}</p>
-                            <Link href={FEATURED_POST.link} className={styles.readMoreBtn}>
-                                Read Article <IconArrowRight />
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                    </section>
+                </AnimateOnScroll>
+            )}
 
             {/* 3. Articles Grid */}
-            <section className={styles.articlesSection}>
-                <div className="premium-container">
-                    <div className={styles.categoryRow}>
-                        {CATEGORIES.map(cat => (
-                            <button
-                                key={cat}
-                                className={`${styles.chip} ${activeCategory === cat ? styles.chipActive : ''}`}
-                                onClick={() => setActiveCategory(cat)}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-
-                    {filtered.length > 0 ? (
-                        <div className={styles.articlesGrid}>
-                            {filtered.map((post, i) => (
-                                <div key={i} className={styles.articleCard}>
-                                    <div className={styles.cardBanner} style={{ background: post.gradient }}>
-                                        <div className={styles.cardBannerEmoji}>{post.emoji}</div>
-                                        <span className={styles.catTag}>{post.category}</span>
-                                    </div>
-                                    <div className={styles.cardBody}>
-                                        <div className={styles.cardDate}>{post.date}</div>
-                                        <h3 className={styles.cardTitle}>{post.title}</h3>
-                                        <p className={styles.cardDesc}>{post.description}</p>
-                                        <Link href={post.link} className={styles.readLink}>
-                                            Read Article <IconArrowRight />
-                                        </Link>
-                                    </div>
-                                </div>
+            <AnimateOnScroll animation="fadeUp" delay={100}>
+                <section className={styles.articlesSection}>
+                    <div className="premium-container">
+                        <div className={styles.categoryRow}>
+                            {CATEGORIES.map(cat => (
+                                <button
+                                    key={cat}
+                                    className={`${styles.chip} ${activeCategory === cat ? styles.chipActive : ''}`}
+                                    onClick={() => setActiveCategory(cat)}
+                                >
+                                    {cat}
+                                </button>
                             ))}
                         </div>
-                    ) : (
-                        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--medium-grey)' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-                            <p style={{ fontSize: '1.1rem' }}>No articles found. Try a different search or category.</p>
-                        </div>
-                    )}
-                </div>
-            </section>
+
+                        {displayPosts.length > 0 ? (
+                            <div className={styles.articlesGrid}>
+                                {displayPosts.map((post, i) => (
+                                    <div key={post.id} className={styles.articleCard}>
+                                        <div className={styles.cardBanner}>
+                                            <Image
+                                                src={post.cover_image || "/images/tech-office.jpg"}
+                                                alt={post.title}
+                                                fill
+                                                className={styles.cardImg}
+                                                style={{ objectFit: 'cover' }}
+                                            />
+                                            <span className={styles.catTag}>{post.category}</span>
+                                        </div>
+                                        <div className={styles.cardBody}>
+                                            <div className={styles.cardDate}>{new Date(post.created_at).toLocaleDateString()}</div>
+                                            <h3 className={styles.cardTitle}>{post.title}</h3>
+                                            <p className={styles.cardDesc}>{post.excerpt}</p>
+                                            <Link href={`/blog/${post.slug}`} className={styles.readLink}>
+                                                Read Article <IconArrowRight />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : !featuredPost && (
+                            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--medium-grey)' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+                                <p style={{ fontSize: '1.1rem' }}>No articles found. Try a different search or category.</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            </AnimateOnScroll>
 
             {/* 4. Newsletter */}
-            <section className={styles.newsletterSection}>
-                <div className="premium-container">
-                    <div className={styles.newsletterCard}>
-                        <h2>Never miss an update.</h2>
-                        <p>
-                            Get the latest insights on AI recruitment and talent strategy delivered straight to your inbox every week.
-                        </p>
-                        <div className={styles.emailForm}>
-                            <input
-                                type="email"
-                                placeholder="Enter your email address"
-                                className={styles.emailInput}
-                            />
-                            <button className={styles.subscribeBtn}>Subscribe</button>
+            <AnimateOnScroll animation="scaleUp">
+                <section className={styles.newsletterSection}>
+                    <div className="premium-container">
+                        <div className={styles.newsletterCard}>
+                            <h2>Never miss an update.</h2>
+                            <p>
+                                Get the latest insights on AI recruitment and talent strategy delivered straight to your inbox every week.
+                            </p>
+                            <div className={styles.emailForm}>
+                                <input
+                                    type="email"
+                                    placeholder="Enter your email address"
+                                    className={styles.emailInput}
+                                />
+                                <button className={styles.subscribeBtn}>Subscribe</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </AnimateOnScroll>
         </main>
     );
 }
