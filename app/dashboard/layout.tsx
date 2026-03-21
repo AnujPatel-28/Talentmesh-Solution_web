@@ -91,7 +91,7 @@ const SUPER_ADMIN_NAV: NavItem[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user: authUser, logout, isLoading } = useAuth();
+    const { user: authUser, signOut, isLoading } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -100,8 +100,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const navItems = isSuperAdmin ? SUPER_ADMIN_NAV : isRecruiter ? RECRUITER_NAV : CANDIDATE_NAV;
 
     const user = {
-        name: authUser?.full_name || authUser?.email?.split('@')[0] || 'User',
-        initials: (authUser?.full_name?.split(' ').map(n => n[0]).join('') || 'U').toUpperCase(),
+        name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
+        initials: (authUser?.name?.split(' ').map(n => n[0]).join('') || 'U').toUpperCase(),
         email: authUser?.email || ''
     };
 
@@ -178,7 +178,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <span className={styles.navIcon}>{Icons.settings}</span>
                         {!collapsed && <span className={styles.navLabel}>Settings</span>}
                     </Link>
-                    <button onClick={logout} className={`${styles.navLink} ${styles.logoutBtn}`}>
+                    <button onClick={signOut} className={`${styles.navLink} ${styles.logoutBtn}`}>
                         <span className={styles.navIcon}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />

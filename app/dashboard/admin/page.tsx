@@ -39,8 +39,8 @@ export default function AdminPage() {
             try {
                 // Fetch counts
                 const [{ count: jobCount }, { count: candCount }, { count: recCount }] = await Promise.all([
-                    insforge.database.from('job').select('*', { count: 'exact', head: true }),
-                    insforge.database.from('candidateprofile').select('*', { count: 'exact', head: true }),
+                    insforge.database.from('jobs').select('*', { count: 'exact', head: true }),
+                    insforge.database.from('candidate_profiles').select('*', { count: 'exact', head: true }),
                     insforge.database.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'recruiter')
                 ]);
 
@@ -53,8 +53,8 @@ export default function AdminPage() {
 
                 // Fetch pending jobs (assuming status 'pending' exists)
                 const { data: jobs } = await insforge.database
-                    .from('job')
-                    .select('*, companyprofile(name)')
+                    .from('jobs')
+                    .select('*, company_profiles(company_name)')
                     .limit(5); // In a real app, you'd filter by status
                 
                 setPendingJobs(jobs || []);
@@ -150,7 +150,7 @@ export default function AdminPage() {
                                     {pendingJobs.map((j, i) => (
                                         <tr key={i}>
                                             <td style={{ fontWeight: 600 }}>{j.title}</td>
-                                            <td>{j.companyprofile?.name || 'Unknown'}</td>
+                                            <td>{j.company_profiles?.company_name || 'Unknown'}</td>
                                             <td>{j.industry}</td>
                                             <td>{j.applicants_count || 0}</td>
                                             <td>

@@ -28,7 +28,7 @@ export default function AdminBlogsPage() {
             try {
                 const { data } = await insforge.database
                     .from('blog')
-                    .select('*, author:profiles(full_name)')
+                    .select('*, author:profiles(name)')
                     .order('created_at', { ascending: false });
                 setBlogs(data || []);
             } catch (err) {
@@ -100,7 +100,7 @@ export default function AdminBlogsPage() {
                         {blogs.map(b => (
                             <tr key={b.id}>
                                 <td style={{ fontWeight: 600 }}>{b.title}</td>
-                                <td>{b.author?.full_name || 'Admin'}</td>
+                                <td>{b.author?.name || 'Admin'}</td>
                                 <td><span className={styles.chip}>{b.category}</span></td>
                                 <td>
                                     <span className={`${styles.badge} ${b.status === 'published' ? styles.badgeActive : styles.badgePending}`}>

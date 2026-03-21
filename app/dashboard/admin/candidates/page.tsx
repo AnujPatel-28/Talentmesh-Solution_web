@@ -28,8 +28,8 @@ export default function AdminCandidatesPage() {
         async function fetchData() {
             try {
                 const { data } = await insforge.database
-                    .from('application')
-                    .select('*, job(title, companyprofile(name)), profiles(full_name, email)')
+                    .from('applications')
+                    .select('*, jobs(title, company_profiles(company_name)), profiles(name, email)')
                     .order('created_at', { ascending: false });
                 
                 setApplications(data || []);
@@ -57,7 +57,7 @@ export default function AdminCandidatesPage() {
     const handleStatusUpdate = async (appId: string, newStatus: string) => {
         try {
             const { error } = await insforge.database
-                .from('application')
+                .from('applications')
                 .update({ status: newStatus })
                 .eq('id', appId);
             
@@ -111,10 +111,10 @@ export default function AdminCandidatesPage() {
                                 <td>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                                         <div className={styles.avatar} style={{ background: '#0D47A1' }}>
-                                            {(app.profiles?.full_name || 'U')[0].toUpperCase()}
+                                            {(app.profiles?.name || 'U')[0].toUpperCase()}
                                         </div>
                                         <div>
-                                            <div style={{ fontWeight: 600 }}>{app.profiles?.full_name || 'Unknown Candidate'}</div>
+                                            <div style={{ fontWeight: 600 }}>{app.profiles?.name || 'Unknown Candidate'}</div>
                                             <div style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                                                 {IC.mail} {app.profiles?.email}
                                             </div>
@@ -122,7 +122,7 @@ export default function AdminCandidatesPage() {
                                     </div>
                                 </td>
                                 <td style={{ fontWeight: 500 }}>{app.job?.title}</td>
-                                <td>{app.job?.companyprofile?.name}</td>
+                                <td>{app.jobs?.company_profiles?.company_name}</td>
                                 <td><span className={`${styles.badge} ${statusClass(app.status)}`}>{app.status}</span></td>
                                 <td style={{ fontSize: '0.78rem', color: '#64748b' }}>{new Date(app.created_at).toLocaleDateString()}</td>
                                 <td>

@@ -36,7 +36,7 @@ export default function CandidateHome() {
             try {
                 // Fetch Profile
                 const { data: profileData } = await insforge.database
-                    .from('candidateprofile')
+                    .from('candidate_profiles')
                     .select('*')
                     .limit(1)
                     .single();
@@ -45,8 +45,8 @@ export default function CandidateHome() {
                 // Fetch Jobs with Company details (lowercase relation name because postgrest-js might handle it)
                 // Actually in @insforge/sdk, it's just raw PostgREST.
                 const { data: jobData } = await insforge.database
-                    .from('job')
-                    .select('*, companyprofile(*)')
+                    .from('jobs')
+                    .select('*, company_profiles(*)')
                     .limit(3);
                 setJobs(jobData || []);
 
@@ -120,13 +120,13 @@ export default function CandidateHome() {
                             </div>
                             {jobs.map((job, i) => (
                                 <div key={i} className={styles.jobCard}>
-                                    <div className={styles.jobIcon}>{job.companyprofile?.company_name?.[0] || 'J'}</div>
+                                    <div className={styles.jobIcon}>{job.company_profiles?.company_name?.[0] || 'J'}</div>
                                     <div className={styles.jobBody}>
                                         <div className={styles.jobRow}>
                                             <span className={styles.jobTitle}>{job.title}</span>
                                             <span className={styles.matchBadge}>{IC.check} {job.ai_match_rate}% Match</span>
                                         </div>
-                                        <span className={styles.jobMeta}>{job.companyprofile?.company_name} · {job.location}</span>
+                                        <span className={styles.jobMeta}>{job.company_profiles?.company_name} · {job.location}</span>
                                         <div className={styles.jobTags}>
                                             {(job.tags || ['Design', 'Full-time']).map((t: string) => <span key={t} className={styles.tag}>{t}</span>)}
                                         </div>

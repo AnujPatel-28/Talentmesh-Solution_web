@@ -31,7 +31,7 @@ export default function BlogDetailPage() {
             try {
                 const { data, error } = await insforge.database
                     .from('blog')
-                    .select('*, author:profiles(full_name)')
+                    .select('*, author:profiles(name)')
                     .eq('slug', slug)
                     .single();
                 
@@ -88,10 +88,10 @@ export default function BlogDetailPage() {
                         </h1>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '2rem', color: '#64748b', fontSize: '0.9rem' }}>
                             <div style={{ width: '40px', height: '40px', background: 'var(--primary-blue)', borderRadius: '50%', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                                {post.author?.full_name?.charAt(0) || 'A'}
+                                {post.author?.name?.charAt(0) || 'A'}
                             </div>
                             <div style={{ textAlign: 'left' }}>
-                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{post.author?.full_name || 'Talentmesh Editorial'}</div>
+                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{post.author?.name || 'Talentmesh Editorial'}</div>
                                 <div>{new Date(post.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} • 5 min read</div>
                             </div>
                         </div>

@@ -30,7 +30,7 @@ export default function PostJobPage() {
 
         try {
             const { error } = await insforge.database
-                .from('job')
+                .from('jobs')
                 .insert([{
                     title: formData.title,
                     location: formData.location,
@@ -40,7 +40,7 @@ export default function PostJobPage() {
                     description: formData.description,
                     requirements: formData.requirements.split('\n').filter((r: string) => r.trim()),
                     responsibilities: formData.responsibilities.split('\n').filter((r: string) => r.trim()),
-                    companyprofile_id: user.company_id,
+                    company_id: user.company_id,
                     logo: 'https://logo.clearbit.com/talentmesh.ai', 
                     color: '#0D47A1',
                     status: 'active'

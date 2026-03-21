@@ -28,7 +28,7 @@ export default function RecruiterHome() {
             try {
                 // Fetch Jobs
                 const { data: jobData } = await insforge.database
-                    .from('job')
+                    .from('jobs')
                     .select('*')
                     .order('created_at', { ascending: false });
                 
@@ -37,7 +37,7 @@ export default function RecruiterHome() {
 
                 // Fetch Candidates (mocking top matches)
                 const { data: candData } = await insforge.database
-                    .from('candidateprofile')
+                    .from('candidate_profiles')
                     .select('*')
                     .order('ai_karma', { ascending: false })
                     .limit(3);
@@ -45,7 +45,7 @@ export default function RecruiterHome() {
 
                 // Fetch Today's Interviews
                 const { data: intData } = await insforge.database
-                    .from('interview')
+                    .from('interviews')
                     .select('*')
                     .limit(2);
                 setInterviews(intData || []);

@@ -1,4 +1,3 @@
-"use client";
 import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, Industries, JobListings, UserSegments, SuperhumanPowers, FeaturedJobs, FAQ, BlogFeed } from '@/components/sections';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 

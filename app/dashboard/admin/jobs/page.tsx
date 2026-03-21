@@ -25,8 +25,8 @@ export default function AdminJobsPage() {
         async function fetchJobs() {
             try {
                 const { data } = await insforge.database
-                    .from('job')
-                    .select('*, companyprofile(name)')
+                    .from('jobs')
+                    .select('*, company_profiles(company_name)')
                     .order('created_at', { ascending: false });
                 setJobs(data || []);
             } catch (err) {
@@ -42,7 +42,7 @@ export default function AdminJobsPage() {
     const handleStatusUpdate = async (jobId: string, newStatus: string) => {
         try {
             const { error } = await insforge.database
-                .from('job')
+                .from('jobs')
                 .update({ status: newStatus })
                 .eq('id', jobId);
             if (error) throw error;
@@ -58,7 +58,7 @@ export default function AdminJobsPage() {
         if (!confirm('Are you sure you want to delete this job?')) return;
         try {
             const { error } = await insforge.database
-                .from('job')
+                .from('jobs')
                 .delete()
                 .eq('id', jobId);
             if (error) throw error;
@@ -102,7 +102,7 @@ export default function AdminJobsPage() {
                         {jobs.map(j => (
                             <tr key={j.id}>
                                 <td style={{ fontWeight: 600 }}>{j.title}</td>
-                                <td>{j.companyprofile?.name}</td>
+                                <td>{j.company_profiles?.company_name}</td>
                                 <td style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>{IC.mapPin} {j.location}</td>
                                 <td><span className={`${styles.badge} ${statusClass(j.status)}`}>{j.status}</span></td>
                                 <td style={{ fontSize: '0.78rem', color: '#64748b' }}>{new Date(j.created_at).toLocaleDateString()}</td>

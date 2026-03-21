@@ -40,15 +40,15 @@ export default function JobDetailPage() {
         async function fetchJob() {
             try {
                 const { data } = await insforge.database
-                    .from('job')
-                    .select('*, companyprofile(*)')
+                    .from('jobs')
+                    .select('*, company_profiles(*)')
                     .eq('id', jobId)
                     .single();
                 setJob(data);
 
                 if (user) {
                     const { data: app } = await insforge.database
-                        .from('application')
+                        .from('applications')
                         .select('id')
                         .eq('job_id', jobId)
                         .eq('candidate_id', user.id)
@@ -69,7 +69,7 @@ export default function JobDetailPage() {
         setIsApplying(true);
         try {
             const { error: appError } = await insforge.database
-                .from('application')
+                .from('applications')
                 .insert([{
                     job_id: jobId,
                     candidate_id: user.id,
@@ -81,7 +81,7 @@ export default function JobDetailPage() {
             // Log activity
             await insforge.database.from('activity').insert([{
                 user_id: user.id,
-                description: `Applied to ${job.title} at ${job.companyprofile?.company_name}`,
+                description: `Applied to ${job.title} at ${job.company_profiles?.company_name}`,
                 type: 'application'
             }]);
 
@@ -129,13 +129,13 @@ export default function JobDetailPage() {
 
                         <div className={styles.heroInner}>
                             <div className={styles.companyLogo} style={{ background: job.color || '#0D47A1' }}>
-                                {job.logo || job.companyprofile?.company_name?.[0]}
+                                {job.logo || job.company_profiles?.company_name?.[0]}
                             </div>
 
                             <div className={styles.heroInfo}>
                                 <h1 className={styles.heroTitle}>{job.title}</h1>
                                 <div className={styles.heroMeta}>
-                                    <span className={styles.heroMetaItem}><Ico.Building /> {job.companyprofile?.company_name}</span>
+                                    <span className={styles.heroMetaItem}><Ico.Building /> {job.company_profiles?.company_name}</span>
                                     <span className={styles.heroMetaItem}><Ico.Location /> {job.location}</span>
                                     <span className={styles.heroMetaItem}><Ico.Clock /> {job.posted_days || 0} days ago</span>
                                 </div>
@@ -250,8 +250,8 @@ export default function JobDetailPage() {
                         <AnimateOnScroll animation="fadeUp" delay={500}>
                             <div className={styles.sidebarCard}>
                                 <h3 className={styles.sidebarTitle}>Company</h3>
-                                <div className={styles.companyNameS}>{job.companyprofile?.company_name}</div>
-                                <p className={styles.companyAboutS}>{job.companyprofile?.about || 'Leading innovators.'}</p>
+                                <div className={styles.companyNameS}>{job.company_profiles?.company_name}</div>
+                                <p className={styles.companyAboutS}>{job.company_profiles?.about || 'Leading innovators.'}</p>
                             </div>
                         </AnimateOnScroll>
                     </aside>

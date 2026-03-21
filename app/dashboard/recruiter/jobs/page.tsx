@@ -23,9 +23,9 @@ export default function RecruiterJobsPage() {
             }
             try {
                 const { data } = await insforge.database
-                    .from('job')
-                    .select('*, application(count)')
-                    .eq('companyprofile_id', user.company_id);
+                    .from('jobs')
+                    .select('*, applications(count)')
+                    .eq('company_id', user.company_id);
                 
                 setJobs(data || []);
             } catch (err) {
@@ -58,7 +58,7 @@ export default function RecruiterJobsPage() {
                             <span className={styles.jobPostTitle}>{j.title}</span>
                             <span className={styles.jobPostMeta}>{IC.mapPin} {j.location || 'Remote'} · Posted {new Date(j.created_at).toLocaleDateString()}</span>
                             <div className={styles.jobPostStats}>
-                                <span className={styles.jobPostStat}>{(j.application?.[0]?.count || 0)} applicants</span>
+                                <span className={styles.jobPostStat}>{(j.applications?.[0]?.count || 0)} applicants</span>
                                 <span className={styles.jobPostStat}>0 new</span>
                                 <span className={styles.jobPostStat} style={{ color: j.status === 'active' ? '#10b981' : '#f59e0b' }}>● {j.status || 'Active'}</span>
                             </div>

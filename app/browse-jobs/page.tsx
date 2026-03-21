@@ -49,8 +49,8 @@ export default function BrowseJobsPage() {
         async function fetchJobs() {
             try {
                 const { data } = await insforge.database
-                    .from('job')
-                    .select('*, companyprofile(*)');
+                    .from('jobs')
+                    .select('*, company_profiles(*)');
                 setJobs(data || []);
             } catch (err) {
                 console.error('Error fetching jobs:', err);
@@ -66,7 +66,7 @@ export default function BrowseJobsPage() {
 
     const filtered = useMemo(() => {
         return jobs.filter(j => {
-            if (search && !j.title.toLowerCase().includes(search.toLowerCase()) && !j.companyprofile?.company_name.toLowerCase().includes(search.toLowerCase())) return false;
+            if (search && !j.title.toLowerCase().includes(search.toLowerCase()) && !j.company_profiles?.company_name.toLowerCase().includes(search.toLowerCase())) return false;
             if (locSearch && !j.location.toLowerCase().includes(locSearch.toLowerCase())) return false;
             if (jobType && j.type !== jobType) return false;
             if (category !== 'All' && !j.department?.toLowerCase().includes(category.toLowerCase()) && !j.title.toLowerCase().includes(category.toLowerCase())) return false;
@@ -190,11 +190,11 @@ export default function BrowseJobsPage() {
                                 {paginated.map(job => (
                                     <Link key={job.id} href={`/browse-jobs/${job.id}`} className={`${styles.jobCard} glass-card`} style={{ textDecoration: 'none', color: 'inherit' }}>
                                         <div className={styles.cardTop}>
-                                            <div className={styles.jobLogo} style={{ background: job.companyprofile?.color || '#0D47A1' }}>{job.companyprofile?.initials || job.companyprofile?.company_name?.[0]}</div>
+                                            <div className={styles.jobLogo} style={{ background: job.company_profiles?.color || '#0D47A1' }}>{job.company_profiles?.initials || job.company_profiles?.company_name?.[0]}</div>
                                             <div className={styles.jobInfo}>
                                                 <div className={styles.jobTitle}>{job.title}</div>
                                                 <div className={styles.jobMeta}>
-                                                    <span>{job.companyprofile?.company_name}</span>
+                                                    <span>{job.company_profiles?.company_name}</span>
                                                     <span className={styles.metaDot}>·</span>
                                                     <Ico.Location /><span>{job.location}</span>
                                                 </div>
