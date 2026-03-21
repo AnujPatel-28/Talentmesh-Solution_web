@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth, UserRole } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
+import { signupSchema } from '@/lib/validation/auth';
 import styles from './signup.module.css';
 
 type Role = 'job_seeker' | 'employer' | '';
@@ -17,11 +18,14 @@ export default function SignupPage() {
         lastName: '',
         email: '',
         password: '',
+        confirmPassword: '',
         company: '',
         agree: false,
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [otp, setOtp] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [showNotice, setShowNotice] = useState(false);
     const router = useRouter();
 
@@ -33,26 +37,97 @@ export default function SignupPage() {
         }));
     };
 
-    const { login } = useAuth();
+    const { signUp, login } = useAuth();
     const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
+        setFieldErrors({});
+
+        // 1. Password confirmation check
+        if (formData.password !== formData.confirmPassword) {
+            setFieldErrors({ confirmPassword: 'Passwords do not match' });
+            setIsLoading(false);
+            return;
+        }
+
+        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+        const userRole: UserRole = role === 'job_seeker' ? 'candidate' : 'recruiter';
+
+        // 2. Validate with signupSchema
+        const validation = signupSchema.safeParse({
+            name: fullName,
+            email: formData.email,
+            password: formData.password,
+            role: userRole,
+        });
+
+        if (!validation.success) {
+            const errors: Record<string, string> = {};
+            validation.error.issues.forEach(issue => {
+                const path = issue.path[0]?.toString();
+                if (path === 'name') {
+                    errors.firstName = issue.message;
+                } else if (path) {
+                    errors[path] = issue.message;
+                }
+            });
+            setFieldErrors(errors);
+            setIsLoading(false);
+            return;
+        }
 
         try {
-            const userRole = role === 'job_seeker' ? 'candidate' : 'recruiter';
-            const { data: authData, error: authError } = await insforge.auth.signUp({
+            // 3. Call signUp from AuthContext
+            const result = await signUp(
+                formData.email,
+                formData.password,
+                userRole,
+                fullName
+            );
+
+            if (result.error) {
+                setError(result.error);
+                setIsLoading(false);
+                return;
+            }
+
+            if (result.requireEmailVerification) {
+                setStep(3);
+                setIsLoading(false);
+                return;
+            }
+
+            // 5. Success! Redirection
+            if (userRole === 'candidate') {
+                router.push('/onboarding/candidate/skills');
+            } else {
+                router.push('/onboarding/recruiter/setup');
+            }
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred. Please try again.');
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerify = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const { data, error: verifyError } = await insforge.auth.verifyEmail({
                 email: formData.email,
-                password: formData.password,
+                otp,
             });
 
-            if (authError) throw new Error(authError.message);
-            const signupUser = authData?.user;
-            if (!signupUser) throw new Error('Signup failed');
+            if (verifyError) throw new Error(verifyError.message);
+            if (!data?.user) throw new Error('Verification failed. Please try again.');
 
-            const userId = signupUser.id;
+            const userId = data.user.id;
+            const userRole = role === 'job_seeker' ? 'candidate' : 'recruiter';
 
             // Create profile
             const { error: profileError } = await insforge.database
@@ -61,7 +136,7 @@ export default function SignupPage() {
                     id: userId,
                     email: formData.email,
                     role: userRole,
-                    full_name: `${formData.firstName} ${formData.lastName}`
+                    name: `${formData.firstName} ${formData.lastName}`
                 }]);
 
             if (profileError) throw new Error(profileError.message);
@@ -73,15 +148,56 @@ export default function SignupPage() {
                 type: 'signup'
             }]);
 
-            login('', {
+            const actualToken = data.accessToken || (data as any).session?.access_token || (data as any).access_token || '';
+            console.log('Verify successful! data:', data);
+
+            login(actualToken, {
                 id: userId,
                 email: formData.email,
+                name: `${formData.firstName} ${formData.lastName}`,
                 role: userRole as any
             });
+
+            // Redirect based on role
+            if (userRole === 'candidate') {
+                router.push('/onboarding/candidate/skills');
+            } else {
+                router.push('/onboarding/recruiter/setup');
+            }
 
         } catch (err: any) {
             setError(err.message);
             setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSignup = async () => {
+        if (!role) return;
+        try {
+            setError('');
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+            const { error: authError } = await insforge.auth.signInWithOAuth({
+                provider: 'google',
+                redirectTo: `${siteUrl}/auth/callback?role=${role}`,
+            });
+            if (authError) throw authError;
+        } catch (err: any) {
+            setError('Failed to initiate Google signup. Please try again.');
+        }
+    };
+
+    const handleLinkedInSignup = async () => {
+        if (!role) return;
+        try {
+            setError('');
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+            const { error: authError } = await insforge.auth.signInWithOAuth({
+                provider: 'linkedin',
+                redirectTo: `${siteUrl}/auth/callback?role=${role}`,
+            });
+            if (authError) throw authError;
+        } catch (err: any) {
+            setError('Failed to initiate LinkedIn signup. Please verify it is enabled in your dashboard.');
         }
     };
 
@@ -213,7 +329,7 @@ export default function SignupPage() {
 
                         {/* Social */}
                         <div className={styles.socialRow}>
-                            <button className={styles.socialBtn} type="button">
+                            <button className={styles.socialBtn} type="button" onClick={handleGoogleSignup} disabled={!role}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -222,7 +338,7 @@ export default function SignupPage() {
                                 </svg>
                                 Google
                             </button>
-                            <button className={styles.socialBtn} type="button">
+                            <button className={styles.socialBtn} type="button" onClick={handleLinkedInSignup} disabled={!role}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2">
                                     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                                 </svg>
@@ -254,19 +370,23 @@ export default function SignupPage() {
                                 <label className={styles.label} htmlFor="firstName">First name</label>
                                 <input
                                     id="firstName" name="firstName" type="text"
-                                    className={styles.input} placeholder="John"
+                                    className={`${styles.input} ${fieldErrors.firstName ? styles.inputError : ''}`} 
+                                    placeholder="John"
                                     value={formData.firstName} onChange={handleChange}
                                     required autoComplete="given-name"
                                 />
+                                {fieldErrors.firstName && <span className={styles.errorText}>{fieldErrors.firstName}</span>}
                             </div>
                             <div className={styles.fieldGroup}>
                                 <label className={styles.label} htmlFor="lastName">Last name</label>
                                 <input
                                     id="lastName" name="lastName" type="text"
-                                    className={styles.input} placeholder="Doe"
+                                    className={`${styles.input} ${fieldErrors.lastName ? styles.inputError : ''}`} 
+                                    placeholder="Doe"
                                     value={formData.lastName} onChange={handleChange}
                                     required autoComplete="family-name"
                                 />
+                                {fieldErrors.lastName && <span className={styles.errorText}>{fieldErrors.lastName}</span>}
                             </div>
                         </div>
 
@@ -281,12 +401,13 @@ export default function SignupPage() {
                                 </svg>
                                 <input
                                     id="signup-email" name="email" type="email"
-                                    className={`${styles.input} ${styles.inputWithIcon}`}
+                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.email ? styles.inputError : ''}`}
                                     placeholder={role === 'employer' ? 'you@company.com' : 'you@email.com'}
                                     value={formData.email} onChange={handleChange}
                                     required autoComplete="email"
                                 />
                             </div>
+                            {fieldErrors.email && <span className={styles.errorText}>{fieldErrors.email}</span>}
                         </div>
 
                         {role === 'employer' && (
@@ -317,7 +438,8 @@ export default function SignupPage() {
                                 <input
                                     id="signup-password" name="password"
                                     type={showPassword ? 'text' : 'password'}
-                                    className={`${styles.input} ${styles.inputWithIcon}`} placeholder="Min. 8 characters"
+                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.password ? styles.inputError : ''}`} 
+                                    placeholder="Min. 8 characters"
                                     value={formData.password} onChange={handleChange}
                                     required autoComplete="new-password"
                                 />
@@ -335,6 +457,8 @@ export default function SignupPage() {
                                     )}
                                 </button>
                             </div>
+                            {fieldErrors.password && <span className={styles.errorText}>{fieldErrors.password}</span>}
+                            
                             {formData.password && (
                                 <div className={styles.strengthBar}>
                                     <div className={styles.strengthSegments}>
@@ -351,6 +475,25 @@ export default function SignupPage() {
                                     </span>
                                 </div>
                             )}
+                        </div>
+
+                        <div className={styles.fieldGroup}>
+                            <label className={styles.label} htmlFor="confirm-password">Confirm Password</label>
+                            <div className={styles.inputWrap}>
+                                <svg className={styles.inputIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                <input
+                                    id="confirm-password" name="confirmPassword"
+                                    type={showPassword ? 'text' : 'password'}
+                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.confirmPassword ? styles.inputError : ''}`} 
+                                    placeholder="Confirm your password"
+                                    value={formData.confirmPassword} onChange={handleChange}
+                                    required autoComplete="new-password"
+                                />
+                            </div>
+                            {fieldErrors.confirmPassword && <span className={styles.errorText}>{fieldErrors.confirmPassword}</span>}
                         </div>
 
                         <label className={styles.checkboxLabel}>
@@ -403,6 +546,52 @@ export default function SignupPage() {
                                 )}
                             </button>
                         </div>
+                    </form>
+                )}
+
+                {/* STEP 3 — OTP Verification */}
+                {step === 3 && (
+                    <form className={styles.form} onSubmit={handleVerify}>
+                        {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', marginBottom: '1rem', padding: '0.5rem', background: '#fef2f2', borderRadius: '8px' }}>{error}</div>}
+
+                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                            <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                                    <polyline points="22,6 12,13 2,6" />
+                                </svg>
+                            </div>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#111827', marginBottom: '0.5rem' }}>Check your email</h2>
+                            <p style={{ color: '#4b5563', lineHeight: 1.5 }}>
+                                We sent a 6-digit verification code to<br /><strong>{formData.email}</strong>
+                            </p>
+                        </div>
+
+                        <div className={styles.fieldGroup}>
+                            <label className={styles.label} htmlFor="otp-code">Verification Code</label>
+                            <input
+                                id="otp-code" type="text"
+                                className={styles.input} placeholder="123456"
+                                value={otp} onChange={(e) => setOtp(e.target.value)}
+                                required maxLength={6}
+                                style={{ textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.2rem', fontWeight: 600 }}
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className={styles.submitBtn}
+                            disabled={isLoading || otp.length < 6}
+                        >
+                            {isLoading ? (
+                                <span className={styles.spinnerWrap}>
+                                    <span className={styles.spinner} />
+                                    Verifying...
+                                </span>
+                            ) : (
+                                'Verify & Continue'
+                            )}
+                        </button>
                     </form>
                 )}
             </div>

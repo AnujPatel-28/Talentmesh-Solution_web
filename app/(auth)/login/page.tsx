@@ -6,54 +6,86 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
+import { loginSchema } from '@/lib/validation/auth';
 import styles from './login.module.css';
 
 type Persona = 'candidate' | 'recruiter';
 
 export default function LoginPage() {
+    const router = useRouter();
     const [persona, setPersona] = useState<Persona>('candidate');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
-    const [showNotice, setShowNotice] = useState(false);
-    const { login } = useAuth();
+    const { signIn } = useAuth();
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
+        setFieldErrors({});
+
+        // 1. Validate with loginSchema
+        const validation = loginSchema.safeParse({ email, password });
+        if (!validation.success) {
+            const errors: Record<string, string> = {};
+            validation.error.issues.forEach(issue => {
+                const path = issue.path[0]?.toString();
+                if (path) errors[path] = issue.message;
+            });
+            setFieldErrors(errors);
+            setIsLoading(false);
+            return;
+        }
 
         try {
-            const { data: authData, error: authError } = await insforge.auth.signInWithPassword({
-                email,
-                password,
-            });
+            // 2. Clear previous errors and attempt sign in
+            const result = await signIn(email, password);
 
-            if (authError) throw new Error(authError.message);
-            const authUser = authData?.user;
-            if (!authUser) throw new Error('Login failed');
+            if (result.error) {
+                setError(result.error);
+                setIsLoading(false);
+                return;
+            }
 
-            // Fetch profile for role
-            const { data: profile, error: profileError } = await insforge.database
-                .from('profiles')
-                .select('role')
-                .eq('id', authUser.id)
-                .single();
-
-            if (profileError) throw new Error('Profile not found. Please contact support.');
-
-            login('', {
-                id: authUser.id,
-                email: authUser.email!,
-                role: profile.role as any
-            });
-
+            // 3. Success! Redirection is handled by the middleware logic, 
+            // but we can proactively push to /dashboard
+            router.push('/dashboard');
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'An unexpected error occurred. Please try again.');
             setIsLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        try {
+            setError('');
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+            const { error: authError } = await insforge.auth.signInWithOAuth({
+                provider: 'google',
+                redirectTo: `${siteUrl}/auth/callback`,
+            });
+            if (authError) throw authError;
+        } catch (err: any) {
+            setError('Failed to initiate Google login. Please try again.');
+        }
+    };
+
+    const handleLinkedInLogin = async () => {
+        try {
+            setError('');
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+            const { error: authError } = await insforge.auth.signInWithOAuth({
+                provider: 'linkedin',
+                redirectTo: `${siteUrl}/auth/callback`,
+            });
+            if (authError) throw authError;
+        } catch (err: any) {
+            setError('Failed to initiate LinkedIn login. Please verify it is enabled in your dashboard.');
         }
     };
 
@@ -116,7 +148,7 @@ export default function LoginPage() {
 
                 {/* Social Login */}
                 <div className={styles.socialRow}>
-                    <button className={styles.socialBtn} type="button" id="google-login">
+                    <button className={styles.socialBtn} type="button" id="google-login" onClick={handleGoogleLogin}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -125,7 +157,7 @@ export default function LoginPage() {
                         </svg>
                         Google
                     </button>
-                    <button className={styles.socialBtn} type="button" id="linkedin-login">
+                    <button className={styles.socialBtn} type="button" id="linkedin-login" onClick={handleLinkedInLogin}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2">
                             <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                         </svg>
@@ -155,7 +187,7 @@ export default function LoginPage() {
                             <input
                                 id="email"
                                 type="email"
-                                className={styles.input}
+                                className={`${styles.input} ${fieldErrors.email ? styles.inputError : ''}`}
                                 placeholder={isCandidate ? 'you@email.com' : 'you@company.com'}
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
@@ -163,6 +195,7 @@ export default function LoginPage() {
                                 autoComplete="email"
                             />
                         </div>
+                        {fieldErrors.email && <span className={styles.errorText}>{fieldErrors.email}</span>}
                     </div>
 
                     <div className={styles.fieldGroup}>
@@ -178,7 +211,7 @@ export default function LoginPage() {
                             <input
                                 id="password"
                                 type={showPassword ? 'text' : 'password'}
-                                className={styles.input}
+                                className={`${styles.input} ${fieldErrors.password ? styles.inputError : ''}`}
                                 placeholder="Enter your password"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
@@ -204,6 +237,7 @@ export default function LoginPage() {
                                 )}
                             </button>
                         </div>
+                        {fieldErrors.password && <span className={styles.errorText}>{fieldErrors.password}</span>}
                     </div>
 
                     <div className={styles.optionsRow}>

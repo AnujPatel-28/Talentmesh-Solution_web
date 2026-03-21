@@ -1,11 +1,14 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+/**
+ * TalentMesh API Client
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Uses internal Next.js API routes. Auth is handled by InsForge session cookies.
+ */
+
+const API_BASE = '/api';
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('tm_token');
-  
   const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 
