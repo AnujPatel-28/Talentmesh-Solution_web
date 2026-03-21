@@ -155,6 +155,24 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 
 ---
 
+## 🛡️ Manual Admin Creation
+
+For security reasons, admin accounts cannot be created via the signup form.
+
+1. **InsForge Dashboard**: Go to [Authentication → Users](https://console.insforge.com).
+2. **Create User**: Add a new user with their email and password.
+3. **Environment Variables**: Ensure the admin's email is added to the `ADMIN_EMAILS` comma-separated list in `.env.local`.
+4. **User Metadata**: In the InsForge Dashboard, set the user's metadata to:
+   ```json
+   {
+     "role": "admin",
+     "name": "Admin Full Name"
+   }
+   ```
+5. **Direct Entry**: Alternatively, manually insert a row into the `profiles` table with `role = 'admin'`.
+
+---
+
 ## 🔐 Auth Status
 
 | Feature | Status |
