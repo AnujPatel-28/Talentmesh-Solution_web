@@ -1,155 +1,105 @@
-
 "use client";
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
-import { loginSchema } from '@/lib/validation/auth';
 import styles from './login.module.css';
-
-type Persona = 'candidate' | 'recruiter';
 
 export default function LoginPage() {
     const router = useRouter();
-    const [persona, setPersona] = useState<Persona>('candidate');
+    const { signIn } = useAuth();
+    
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
-    const { signIn } = useAuth();
     const [error, setError] = useState('');
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
-        setError('');
-        setFieldErrors({});
-
-        // 1. Validate with loginSchema
-        const validation = loginSchema.safeParse({ email, password });
-        if (!validation.success) {
-            const errors: Record<string, string> = {};
-            validation.error.issues.forEach(issue => {
-                const path = issue.path[0]?.toString();
-                if (path) errors[path] = issue.message;
-            });
-            setFieldErrors(errors);
-            setIsLoading(false);
+        
+        // 1. Basic Validation
+        if (!email || !password) {
+            setError('Email and password are required');
+            return;
+        }
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters');
             return;
         }
 
+        setIsLoading(true);
+        setError('');
+        setIsEmailUnconfirmed(false);
+
         try {
-            // 2. Clear previous errors and attempt sign in
+            // 2. Attempt sign in
             const result = await signIn(email, password);
 
             if (result.error) {
-                setError(result.error);
+                if (result.error.toLowerCase().includes('confirm your email') || result.error.includes('email_not_confirmed')) {
+                    setIsEmailUnconfirmed(true);
+                    setError('Please confirm your email address before logging in.');
+                } else {
+                    setError(result.error);
+                }
                 setIsLoading(false);
                 return;
             }
 
-            // 3. Success! Redirection is handled by the middleware logic, 
-            // but we can proactively push to /dashboard
-            router.push('/dashboard');
+            // 3. Success - Let middleware handle redirect
+            router.refresh();
+            
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
             setIsLoading(false);
         }
     };
 
-    const handleGoogleLogin = async () => {
+    const handleOAuthLogin = async (provider: 'google' | 'linkedin') => {
         try {
             setError('');
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
             const { error: authError } = await insforge.auth.signInWithOAuth({
-                provider: 'google',
+                provider,
                 redirectTo: `${siteUrl}/auth/callback`,
             });
             if (authError) throw authError;
         } catch (err: any) {
-            setError('Failed to initiate Google login. Please try again.');
+            setError(`Failed to initiate ${provider} login. Please try again.`);
         }
     };
-
-    const handleLinkedInLogin = async () => {
-        try {
-            setError('');
-            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-            const { error: authError } = await insforge.auth.signInWithOAuth({
-                provider: 'linkedin',
-                redirectTo: `${siteUrl}/auth/callback`,
-            });
-            if (authError) throw authError;
-        } catch (err: any) {
-            setError('Failed to initiate LinkedIn login. Please verify it is enabled in your dashboard.');
-        }
-    };
-
-    const isCandidate = persona === 'candidate';
 
     return (
-        <div className={`${styles.page} ${!isCandidate ? styles.pageRecruiter : ''}`}>
-            {/* Background decorations */}
+        <div className={styles.page}>
             <div className={styles.bgGlow1} />
             <div className={styles.bgGlow2} />
             <div className={styles.gridOverlay} />
 
             <div className={styles.card}>
-                {/* Logo */}
                 <Link href="/" className={styles.logoWrap}>
                     <Image
                         src="/TalentMesh_page-0002-removebg-preview.png"
                         alt="TalentMesh"
-                        width={150}
-                        height={42}
+                        width={180}
+                        height={50}
                         unoptimized
+                        priority
                         className={styles.logoImg}
                     />
                 </Link>
 
-                {/* Persona Toggle */}
-                <div className={styles.personaToggle}>
-                    <div className={`${styles.toggleSlider} ${!isCandidate ? styles.toggleSliderRight : ''}`} />
-                    <button
-                        type="button"
-                        className={`${styles.toggleBtn} ${isCandidate ? styles.toggleBtnActive : ''}`}
-                        onClick={() => setPersona('candidate')}
-                    >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        Candidate
-                    </button>
-                    <button
-                        type="button"
-                        className={`${styles.toggleBtn} ${!isCandidate ? styles.toggleBtnActive : ''}`}
-                        onClick={() => setPersona('recruiter')}
-                    >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                        </svg>
-                        Recruiter
-                    </button>
-                </div>
-
-                {/* Header */}
                 <div className={styles.header}>
-                    <h1 className={styles.title}>Welcome back</h1>
-                    <p className={styles.subtitle}>
-                        {isCandidate ? 'Sign in to find your next opportunity' : 'Sign in to manage your hiring pipeline'}
-                    </p>
+                    <h1 className={styles.title}>Sign in to your account</h1>
                 </div>
 
-                {/* Social Login */}
                 <div className={styles.socialRow}>
-                    <button className={styles.socialBtn} type="button" id="google-login" onClick={handleGoogleLogin}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <button className={styles.socialBtn} type="button" onClick={() => handleOAuthLogin('google')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -157,9 +107,9 @@ export default function LoginPage() {
                         </svg>
                         Google
                     </button>
-                    <button className={styles.socialBtn} type="button" id="linkedin-login" onClick={handleLinkedInLogin}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2">
-                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                    <button className={styles.socialBtn} type="button" onClick={() => handleOAuthLogin('linkedin')}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="#0A66C2">
+                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
                         </svg>
                         LinkedIn
                     </button>
@@ -171,48 +121,45 @@ export default function LoginPage() {
                     <span className={styles.dividerLine} />
                 </div>
 
-                {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', marginBottom: '1rem', padding: '0.5rem', background: '#fef2f2', borderRadius: '8px' }}>{error}</div>}
+                {error && (
+                    <div className={styles.errorMessage}>
+                        {error}
+                        {isEmailUnconfirmed && (
+                            <Link href="/auth/resend-verification" className={styles.resendLink}>
+                                Resend email?
+                            </Link>
+                        )}
+                    </div>
+                )}
 
-                {/* Form */}
                 <form className={styles.form} onSubmit={handleSubmit}>
                     <div className={styles.fieldGroup}>
-                        <label className={styles.label} htmlFor="email">
-                            {isCandidate ? 'Email address' : 'Work email'}
-                        </label>
+                        <label className={styles.label} htmlFor="email">Email address</label>
                         <div className={styles.inputWrap}>
-                            <svg className={styles.inputIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                <polyline points="22,6 12,13 2,6" />
-                            </svg>
                             <input
                                 id="email"
                                 type="email"
-                                className={`${styles.input} ${fieldErrors.email ? styles.inputError : ''}`}
-                                placeholder={isCandidate ? 'you@email.com' : 'you@company.com'}
+                                className={styles.input}
+                                placeholder="name@company.com"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 required
                                 autoComplete="email"
                             />
                         </div>
-                        {fieldErrors.email && <span className={styles.errorText}>{fieldErrors.email}</span>}
                     </div>
 
                     <div className={styles.fieldGroup}>
                         <div className={styles.labelRow}>
                             <label className={styles.label} htmlFor="password">Password</label>
-                            <Link href="/forgot-password" className={styles.forgotLink}>Forgot?</Link>
+                            <Link href="/auth/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
                         </div>
                         <div className={styles.inputWrap}>
-                            <svg className={styles.inputIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
                             <input
                                 id="password"
                                 type={showPassword ? 'text' : 'password'}
-                                className={`${styles.input} ${fieldErrors.password ? styles.inputError : ''}`}
-                                placeholder="Enter your password"
+                                className={styles.input}
+                                placeholder="••••••••"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
@@ -222,71 +169,36 @@ export default function LoginPage() {
                                 type="button"
                                 className={styles.eyeBtn}
                                 onClick={() => setShowPassword(!showPassword)}
-                                aria-label="Toggle password visibility"
                             >
                                 {showPassword ? (
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                                         <line x1="1" y1="1" x2="23" y2="23" />
                                     </svg>
                                 ) : (
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                                         <circle cx="12" cy="12" r="3" />
                                     </svg>
                                 )}
                             </button>
                         </div>
-                        {fieldErrors.password && <span className={styles.errorText}>{fieldErrors.password}</span>}
-                    </div>
-
-                    <div className={styles.optionsRow}>
-                        <label className={styles.checkboxLabel}>
-                            <input
-                                type="checkbox"
-                                className={styles.checkbox}
-                                checked={rememberMe}
-                                onChange={e => setRememberMe(e.target.checked)}
-                            />
-                            <span className={styles.checkboxCustom}>
-                                <svg viewBox="0 0 12 10" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="1.5 5 4.5 8 10.5 2" />
-                                </svg>
-                            </span>
-                            <span className={styles.checkboxText}>Remember me</span>
-                        </label>
                     </div>
 
                     <button
                         type="submit"
                         className={styles.submitBtn}
                         disabled={isLoading}
-                        id="login-submit"
                     >
-                        {isLoading ? (
-                            <span className={styles.spinnerWrap}>
-                                <span className={styles.spinner} />
-                                Signing in...
-                            </span>
-                        ) : (
-                            'Sign In'
-                        )}
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
 
                 <p className={styles.footer}>
                     Don&apos;t have an account?{' '}
-                    <Link href="/signup" className={styles.footerLink}>Sign up free</Link>
+                    <Link href="/signup" className={styles.footerLink}>Sign up</Link>
                 </p>
             </div>
-
-            {/* Bottom terms */}
-            <p className={styles.terms}>
-                By signing in, you agree to our{' '}
-                <Link href="/terms" className={styles.termsLink}>Terms</Link>
-                {' '}&{' '}
-                <Link href="/privacy" className={styles.termsLink}>Privacy Policy</Link>
-            </p>
         </div>
     );
 }

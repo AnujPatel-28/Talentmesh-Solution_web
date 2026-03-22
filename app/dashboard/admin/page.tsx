@@ -1,186 +1,295 @@
-"use client";
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import styles from './admin.module.css';
-import AnimateOnScroll from '@/components/AnimateOnScroll';
-import { insforge } from '@/lib/insforge';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { useRouter } from 'next/navigation';
+import { insforgeAdmin } from '@/lib/insforge-admin';
+import { createClient } from '@insforge/sdk';
+import { cookies } from 'next/headers';
+import styles from './dashboard.module.css';
+import {
+    getDashboardStats,
+    getRecentApplications,
+    getFunnelStats,
+    getTopJobs,
+    getLatestUsers,
+    getActivityFeed
+} from './_actions/stats';
 
-const IC = {
-    search: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>,
-    plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
-    briefcase: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>,
-    users: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
-    shield: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>,
-    trending: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
-};
+export const dynamic = 'force-dynamic';
 
-export default function AdminPage() {
-    const { user, isLoading: authLoading } = useAuth();
-    const router = useRouter();
-    const [stats, setStats] = useState([
-        { label: 'Total Jobs', value: '0', change: 'Live', color: '#eff6ff', iconBg: 'linear-gradient(135deg, #007BFF, #2563eb)' },
-        { label: 'Candidates', value: '0', change: 'Live', color: '#f0fdf4', iconBg: 'linear-gradient(135deg, #10b981, #059669)' },
-        { label: 'Recruiters', value: '0', change: 'Live', color: '#fefce8', iconBg: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-        { label: 'Pending Actions', value: '0', change: 'Urgent', color: '#fef2f2', iconBg: 'linear-gradient(135deg, #ef4444, #dc2626)' },
+export default async function AdminDashboardPage() {
+    // 1. Fetch all data in parallel
+    const [
+        stats,
+        recentApps,
+        funnel,
+        topJobs,
+        latestUsers,
+        activity
+    ] = await Promise.all([
+        getDashboardStats().catch(() => null),
+        getRecentApplications(),
+        getFunnelStats(),
+        getTopJobs(),
+        getLatestUsers(),
+        getActivityFeed()
     ]);
-    const [pendingJobs, setPendingJobs] = useState<any[]>([]);
-    const [activities, setActivities] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (!authLoading && (!user || user.role !== 'super_admin')) {
-            router.push('/dashboard/candidate');
-            return;
-        }
+    if (!stats) return <div className={styles.error}>Error loading dashboard data. Please check connection.</div>;
 
-        async function fetchData() {
-            try {
-                // Fetch counts
-                const [{ count: jobCount }, { count: candCount }, { count: recCount }] = await Promise.all([
-                    insforge.database.from('jobs').select('*', { count: 'exact', head: true }),
-                    insforge.database.from('candidate_profiles').select('*', { count: 'exact', head: true }),
-                    insforge.database.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'recruiter')
-                ]);
+    // 2. Identify Admin
+    const cookieStore = await cookies();
+    const token = cookieStore.get('tm_access_token')?.value;
 
-                setStats(prev => [
-                    { ...prev[0], value: (jobCount || 0).toString() },
-                    { ...prev[1], value: (candCount || 0).toString() },
-                    { ...prev[2], value: (recCount || 0).toString() },
-                    { ...prev[3], value: '0' },
-                ]);
+    const userClient = createClient({
+        baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
+        anonKey: token || process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!
+    });
 
-                // Fetch pending jobs (assuming status 'pending' exists)
-                const { data: jobs } = await insforge.database
-                    .from('jobs')
-                    .select('*, company_profiles(company_name)')
-                    .limit(5); // In a real app, you'd filter by status
-                
-                setPendingJobs(jobs || []);
+    const { data: sessionData } = await userClient.auth.getCurrentSession();
+    const user = sessionData?.session?.user;
+    const adminName = user?.profile?.name || (user?.metadata as any)?.name || 'Super Admin';
+    const todayStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-                // Fetch recent activity
-                const { data: acts } = await insforge.database
-                    .from('activity')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(5);
-                setActivities(acts || []);
+    // 3. Prepare KPI Data
+    const kpiCards = [
+        { label: 'Total Candidates', value: stats.candidates.total, trend: `+${stats.candidates.trend} this week`, color: '#2563eb' },
+        { label: 'Active Jobs', value: stats.jobs.total, trend: stats.jobs.pending > 0 ? `${stats.jobs.pending} pending` : 'All approved', color: '#10b981' },
+        { label: 'Applications', value: stats.applications.total, trend: `+${stats.applications.trend} this week`, color: '#7c3aed' },
+        { label: 'Pending Approvals', value: stats.pendingApprovals.total, trend: 'Urgent', color: '#f59e0b' },
+    ];
 
-            } catch (err) {
-                console.error('Admin fetch error:', err);
-            } finally {
-                setLoading(false);
-            }
-        }
+    // 4. Funnel Logic
+    const stages = [
+        { id: 'applied', label: 'Applied' },
+        { id: 'reviewing', label: 'Reviewing' },
+        { id: 'shortlisted', label: 'Shortlisted' },
+        { id: 'interview', label: 'Interview' },
+        { id: 'offer', label: 'Offer' },
+        { id: 'hired', label: 'Hired' }
+    ];
 
-        if (user?.role === 'super_admin') fetchData();
-    }, [user, authLoading, router]);
-
-    const handleApprove = async (jobId: string) => {
-        // Logic to update job status
-        alert(`Approving job ${jobId}`);
+    const getConversion = (idx: number) => {
+        if (idx === 0 || !funnel) return null;
+        const current = funnel[stages[idx].id] || 0;
+        const prev = funnel[stages[idx - 1].id] || 0;
+        if (prev === 0) return '0%';
+        return Math.round((current / prev) * 100) + '%';
     };
 
-    if (authLoading || loading) return <div className={styles.loading}>Loading Admin controls...</div>;
-
     return (
-        <div className={styles.dash}>
-            <div className={styles.greetBanner}>
-                <h1 className={styles.greetTitle}>Admin Control Center</h1>
-                <p className={styles.greetSub}>Monitor platform activity, manage jobs, and oversee all users from one place.</p>
+        <div className={styles.container}>
+            {/* Header */}
+            <header className={styles.header}>
+                <div className={styles.headerTitle}>
+                    <h1>Good afternoon, {adminName}</h1>
+                    <p>TalentMesh Intelligence Hub · {todayStr}</p>
+                </div>
+                <div className={styles.systemStatus}>
+                    <span className={styles.statusDot}>●</span>
+                    Live Platform Status
+                </div>
+            </header>
+
+            {/* Urgent Actions Strip */}
+            {stats.pendingApprovals.total > 0 && (
+                <div className={styles.urgentStrip}>
+                    <div className={styles.urgentContent}>
+                        <div className={styles.urgentIcon}>⚡</div>
+                        <div className={styles.urgentText}>
+                            <strong>{stats.pendingApprovals.total} pending approvals require action</strong>
+                            <p>{stats.pendingApprovals.recruiters} Recruiters and {stats.pendingApprovals.jobs} Jobs are waiting for verification.</p>
+                        </div>
+                    </div>
+                    <div className={styles.urgentActions}>
+                        <Link href="/dashboard/admin/recruiters" className={styles.urgentBtn}>Manage Recruiters</Link>
+                        <Link href="/dashboard/admin/jobs" className={styles.urgentBtnPrimary}>Review Jobs</Link>
+                    </div>
+                </div>
+            )}
+
+            {/* KPI Grid */}
+            <div className={styles.kpiGrid}>
+                {kpiCards.map((kpi, i) => (
+                    <div key={i} className={styles.kpiCard}>
+                        <span className={styles.kpiLabel}>{kpi.label}</span>
+                        <div className={styles.kpiValueRow}>
+                            <span className={styles.kpiValue}>{kpi.value}</span>
+                            <span className={styles.kpiTrend} style={{ color: kpi.color }}>
+                                {kpi.trend}
+                            </span>
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            <AnimateOnScroll animation="fadeUp" delay={100}>
-                <div className={styles.stats}>
-                    {stats.map((s, i) => (
-                        <div key={i} className={styles.stat}>
-                            <div className={styles.statTop}>
-                                <span className={styles.statLabel}>{s.label}</span>
-                                <div className={styles.statBox} style={{ background: s.iconBg }}>
-                                    {i === 0 ? IC.briefcase : i === 1 ? IC.users : i === 2 ? IC.shield : IC.briefcase}
-                                </div>
+            {/* Hiring Funnel Section */}
+            <section className={styles.widgetCard}>
+                <div className={styles.sectionHeader}>
+                    <h2>Real-time Hiring Funnel</h2>
+                    <span className={styles.link}>Overall Conversion: {getConversion(5) || '0%'}</span>
+                </div>
+                <div className={styles.funnelGrid}>
+                    {stages.map((stage, i) => (
+                        <div key={stage.id} className={styles.funnelStage}>
+                            <div className={styles.funnelBox}>
+                                <span className={styles.funnelCount}>{funnel?.[stage.id] || 0}</span>
+                                <span className={styles.funnelLabel}>{stage.label}</span>
                             </div>
-                            <span className={styles.statVal}>{s.value}</span>
-                            <span className={styles.statChange}>{IC.trending} {s.change}</span>
+                            {i > 0 && (
+                                <div className={styles.conversionBadge}>
+                                    ↓ {getConversion(i)}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
-            </AnimateOnScroll>
+            </section>
 
-            <AnimateOnScroll animation="scaleUp" delay={150}>
-                <div className={styles.quickGrid}>
-                    <Link href="/dashboard/admin/jobs" className={styles.quickCard}>
-                        <div className={styles.quickIcon} style={{ background: 'linear-gradient(135deg, #007BFF, #2563eb)' }}>{IC.briefcase}</div>
-                        <span className={styles.quickLabel}>Post a Job</span>
-                        <span className={styles.quickHint}>Create job listings on behalf of recruiters</span>
-                    </Link>
-                    <Link href="/dashboard/admin/candidates" className={styles.quickCard}>
-                        <div className={styles.quickIcon} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>{IC.users}</div>
-                        <span className={styles.quickLabel}>Review Candidates</span>
-                        <span className={styles.quickHint}>Accept or reject pending applications</span>
-                    </Link>
-                    <Link href="/dashboard/admin/recruiters" className={styles.quickCard}>
-                        <div className={styles.quickIcon} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>{IC.shield}</div>
-                        <span className={styles.quickLabel}>Manage Recruiters</span>
-                        <span className={styles.quickHint}>Handle recruiter accounts and issues</span>
-                    </Link>
-                </div>
-            </AnimateOnScroll>
+            {/* Main Content Grid */}
+            <div className={styles.dashboardGrid}>
+                {/* Left Column */}
+                <div className={styles.leftCol}>
+                    <section className={styles.activityFeed}>
+                        <div className={styles.sectionHeader}>
+                            <h2>Platform Activity Feed</h2>
+                            <Link href="/dashboard/admin/audit-logs" className={styles.link}>Master Log</Link>
+                        </div>
+                        <div className={styles.feedCard}>
+                            {activity.map((log: any) => {
+                                const actor = Array.isArray(log.actor) ? log.actor[0] : log.actor;
+                                return (
+                                    <div key={log.id} className={styles.feedItem}>
+                                        <div className={styles.userRow}>
+                                            {actor?.avatar_url ? (
+                                                <img src={actor.avatar_url} className={styles.userAvatar} alt="" />
+                                            ) : (
+                                                <div className={styles.avatarPlaceholder}>
+                                                    {actor?.name?.charAt(0) || 'S'}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className={styles.feedContent}>
+                                            <p>
+                                                <strong>{actor?.name || 'System'}</strong> {log.action}
+                                            </p>
+                                            <span>
+                                                {log.table_name || 'System'} · {new Date(log.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
 
-            <AnimateOnScroll animation="fadeUp" delay={200}>
-                <div className={styles.mainGrid}>
-                    <div className={styles.leftCol}>
-                        <div className={styles.card}>
-                            <div className={styles.cardHead}>
-                                <h2 className={styles.cardTitle}>Recent Job Postings</h2>
-                                <Link href="/dashboard/admin/jobs" className={styles.viewAll}>View All</Link>
-                            </div>
-                            <table className={styles.table}>
+                    <section className={styles.widgetCard} style={{ marginTop: '2rem' }}>
+                        <div className={styles.sectionHeader}>
+                            <h2>Recent Applications</h2>
+                        </div>
+                        <div className={styles.tableWrapper}>
+                            <table className={styles.dashboardTable}>
                                 <thead>
                                     <tr>
-                                        <th>Job Title</th>
-                                        <th>Company</th>
-                                        <th>Industry</th>
-                                        <th>Applicants</th>
-                                        <th>Action</th>
+                                        <th>Candidate</th>
+                                        <th>Job</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {pendingJobs.map((j, i) => (
-                                        <tr key={i}>
-                                            <td style={{ fontWeight: 600 }}>{j.title}</td>
-                                            <td>{j.company_profiles?.company_name || 'Unknown'}</td>
-                                            <td>{j.industry}</td>
-                                            <td>{j.applicants_count || 0}</td>
-                                            <td>
-                                                <button className={styles.successBtn} onClick={() => handleApprove(j.id)}>Details</button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {recentApps.map((app: any) => {
+                                        const candidate = Array.isArray(app.candidate) ? app.candidate[0] : app.candidate;
+                                        const job = Array.isArray(app.jobs) ? app.jobs[0] : app.jobs;
+                                        return (
+                                            <tr key={app.id}>
+                                                <td>{candidate?.name}</td>
+                                                <td>{job?.title}</td>
+                                                <td>
+                                                    <span className={`${styles.statusPill} ${styles['status-' + app.status]}`}>
+                                                        {app.status}
+                                                    </span>
+                                                </td>
+                                                <td>{new Date(app.applied_at).toLocaleDateString()}</td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </section>
+                </div>
 
-                    <div className={styles.rightCol}>
-                        <div className={styles.card}>
-                            <div className={styles.cardHead}>
-                                <h2 className={styles.cardTitle}>Recent Activity</h2>
-                            </div>
-                            {activities.map((a, i) => (
-                                <div key={i} className={styles.actItem}>
-                                    <div className={styles.actDot} style={{ background: '#3b82f6' }} />
-                                    <div className={styles.actBody}>
-                                        <span className={styles.actText}>{a.description}</span>
-                                        <span className={styles.actTime}>{new Date(a.created_at).toLocaleDateString()}</span>
+                {/* Right Column */}
+                <div className={styles.rightCol}>
+                    <section className={styles.widgetCard}>
+                        <div className={styles.sectionHeader}>
+                            <h2>Top Performing Jobs</h2>
+                        </div>
+                        <div className={styles.adminLogs}>
+                            {topJobs.map((job: any) => (
+                                <div key={job.id} className={styles.logItem}>
+                                    <div className={styles.logDot} style={{ background: '#2563eb' }} />
+                                    <div className={styles.logBody}>
+                                        <p><strong>{job.title}</strong> at {job.company_name}</p>
+                                        <span>{job.applications?.[0]?.count || 0} applications this month</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
+
+                    <section className={styles.widgetCard} style={{ marginTop: '2rem' }}>
+                        <div className={styles.sectionHeader}>
+                            <h2>Latest Registrations</h2>
+                        </div>
+                        <div className={styles.adminLogs}>
+                            {[...latestUsers.candidates, ...latestUsers.recruiters]
+                                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                .slice(0, 8)
+                                .map((u: any) => (
+                                    <div key={u.id} className={styles.logItem}>
+                                        <div className={styles.userRow}>
+                                            {u.avatar_url ? (
+                                                <img src={u.avatar_url} className={styles.userAvatar} alt="" />
+                                            ) : (
+                                                <div className={styles.avatarPlaceholder}>
+                                                    {u.name.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className={styles.logBody}>
+                                            <p><strong>{u.name}</strong> joined as {u.role || 'candidate'}</p>
+                                            <span>{new Date(u.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </section>
+
+                    <section className={styles.widgetCard} style={{ marginTop: '2rem' }}>
+                        <div className={styles.sectionHeader}>
+                            <h2>Quick Actions</h2>
+                        </div>
+                        <div className={styles.quickActions}>
+                            <Link href="/dashboard/admin/recruiters" className={styles.actionBtn}>
+                                <span className={styles.actionIcon}>👥</span>
+                                <span>Recruiters</span>
+                            </Link>
+                            <Link href="/dashboard/admin/jobs" className={styles.actionBtn}>
+                                <span className={styles.actionIcon}>📋</span>
+                                <span>All Jobs</span>
+                            </Link>
+                            <Link href="/dashboard/admin/audit-logs" className={styles.actionBtn}>
+                                <span className={styles.actionIcon}>🔍</span>
+                                <span>Audit logs</span>
+                            </Link>
+                            <Link href="/dashboard/admin/settings" className={styles.actionBtn}>
+                                <span className={styles.actionIcon}>⚙️</span>
+                                <span>Settings</span>
+                            </Link>
+                        </div>
+                    </section>
                 </div>
-            </AnimateOnScroll>
+            </div>
         </div>
     );
 }

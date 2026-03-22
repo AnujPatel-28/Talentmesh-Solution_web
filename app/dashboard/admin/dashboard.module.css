@@ -1,0 +1,474 @@
+.container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.error {
+    padding: 3rem;
+    text-align: center;
+    color: #ef4444;
+    background: #fef2f2;
+    border-radius: 16px;
+    font-weight: 600;
+}
+
+.leftCol {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.rightCol {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.headerTitle h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.25rem;
+}
+
+.headerTitle p {
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.systemStatus {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    padding: 0.5rem 1rem;
+    background: white;
+    border-radius: 99px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.statusDot {
+    color: #22c55e;
+}
+
+/* Urgent Actions Strip */
+.urgentStrip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fffbeb;
+    border-radius: 16px;
+    padding: 1.25rem 2rem;
+    border: 1px solid #fef3c7;
+}
+
+.urgentContent {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.urgentIcon {
+    font-size: 1.5rem;
+}
+
+.urgentText strong {
+    display: block;
+    color: #92400e;
+    font-size: 1rem;
+}
+
+.urgentText p {
+    color: #b45309;
+    font-size: 0.85rem;
+}
+
+.urgentActions {
+    display: flex;
+    gap: 1rem;
+}
+
+.urgentBtn {
+    padding: 0.5rem 1rem;
+    color: #b45309;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.urgentBtnPrimary {
+    padding: 0.5rem 1.25rem;
+    background: #f59e0b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+/* KPI Grid */
+.kpiGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.25rem;
+}
+
+.kpiCard {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.kpiCard:hover {
+    transform: translateY(-4px);
+}
+
+.kpiLabel {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kpiValueRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.kpiValue {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.kpiTrend {
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+/* Main Dashboard Grid */
+.dashboardGrid {
+    display: grid;
+    grid-template-columns: 60% 40%;
+    gap: 2rem;
+}
+
+.sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.sectionHeader h2 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.link {
+    font-size: 0.85rem;
+    color: #2557a7;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+/* Activity Feed */
+.feedCard {
+    background: white;
+    border-radius: 20px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.feedItem {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.feedItem:last-child {
+    border-bottom: none;
+}
+
+.feedIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.feedContent p {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.2rem;
+}
+
+.feedContent span {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+/* Quick Actions */
+.rightColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.widgetCard {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.quickActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.actionBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    text-decoration: none;
+    color: #334155;
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.actionBtn:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #2563eb;
+    transform: scale(1.02);
+}
+
+.actionIcon {
+    font-size: 1.2rem;
+}
+
+/* Admin Logs */
+.adminLogs {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.logItem {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.logDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+    margin-top: 0.4rem;
+}
+
+.logBody p {
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.logBody span {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.empty {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    text-align: center;
+    padding: 1rem;
+}
+
+/* Hiring Funnel */
+.funnelGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.funnelStage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.funnelBox {
+    width: 100%;
+    padding: 1rem 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.funnelBox:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.funnelCount {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.funnelLabel {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.conversionBadge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #10b981;
+    background: #f0fdf4;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+    margin-top: -0.5rem;
+    z-index: 10;
+}
+
+/* Dashboard Tables */
+.tableWrapper {
+    margin-top: 1rem;
+    overflow-x: auto;
+}
+
+.dashboardTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.dashboardTable th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    color: #64748b;
+    font-weight: 700;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.dashboardTable td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+
+.statusPill {
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.status-applied { background: #eff6ff; color: #3b82f6; }
+.status-reviewing { background: #fef3c7; color: #d97706; }
+.status-shortlisted { background: #f0fdf4; color: #10b981; }
+.status-interview { background: #fae8ff; color: #a21caf; }
+.status-offer { background: #dcfce7; color: #15803d; }
+.status-hired { background: #dbeafe; color: #1d4ed8; }
+
+.userRow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.userAvatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatarPlaceholder {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #3b82f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+}
+
+@media (max-width: 1280px) {
+    .kpiGrid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1024px) {
+    .dashboardGrid {
+        grid-template-columns: 1fr;
+    }
+    
+    .funnelGrid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+}

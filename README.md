@@ -155,21 +155,69 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 
 ---
 
-## 🛡️ Manual Admin Creation
+## 🔐 Creating the First Super Admin
 
-For security reasons, admin accounts cannot be created via the signup form.
+There are three ways to set up the initial admin account.
 
-1. **InsForge Dashboard**: Go to [Authentication → Users](https://console.insforge.com).
-2. **Create User**: Add a new user with their email and password.
-3. **Environment Variables**: Ensure the admin's email is added to the `ADMIN_EMAILS` comma-separated list in `.env.local`.
-4. **User Metadata**: In the InsForge Dashboard, set the user's metadata to:
+### METHOD 1 — Using the seed script (Fastest for Developers)
+
+1. Set the following environment variables in your `.env.local`:
+   ```bash
+   NEXT_PUBLIC_INSFORGE_URL=your-project-url
+   NEXT_PUBLIC_INSFORGE_ANON_KEY=your-anon-key
+   ADMIN_EMAIL=admin@talentmesh.ai
+   ADMIN_PASSWORD=YourSecurePassword123
+   ADMIN_NAME=Super Admin
+   ```
+2. Run the creation script:
+   ```bash
+   npm run create-admin
+   ```
+3. Add the email to the `ADMIN_EMAILS` whitelist in `.env.local`:
+   ```bash
+   ADMIN_EMAILS=admin@talentmesh.ai
+   ```
+4. Log in at: [/admin/login](/admin/login)
+
+### METHOD 2 — Using the Invite Link (Production / Non-Developers)
+
+1. Generate a secure invite token (UUID):
+   ```bash
+   node -e "console.log(require('crypto').randomUUID())"
+   ```
+2. Add the token to your `.env.local` or production environment:
+   ```bash
+   ADMIN_INVITE_TOKEN=your-generated-uuid
+   ```
+3. Share the private setup link:
+   `https://yourdomain.com/admin/setup?token=your-generated-uuid`
+4. Complete the form on the setup page.
+5. Add the new admin's email to the `ADMIN_EMAILS` environment variable.
+6. Redeploy or restart the server to apply the whitelist change.
+7. Log in at: [/admin/login](/admin/login)
+
+### METHOD 3 — Manual InsForge Dashboard
+
+1. Navigate to the **InsForge Dashboard** → **Authentication** → **Users**.
+2. Click **Create User** and enter the Email and Password.
+3. Once created, click on the user and set the **user_metadata** to:
    ```json
    {
      "role": "admin",
-     "name": "Admin Full Name"
+     "name": "Admin Name"
    }
    ```
-5. **Direct Entry**: Alternatively, manually insert a row into the `profiles` table with `role = 'admin'`.
+4. Add the email to the `ADMIN_EMAILS` whitelist in your environment variables.
+5. Redeploy/Restart the server.
+6. Log in at: [/admin/login](/admin/login)
+
+---
+
+### 🛠️ Admin Reference
+
+- **Admin Login**: [/admin/login](/admin/login)
+- **Admin Dashboard**: [/dashboard/admin](/dashboard/admin)
+- **Security Warning**: NEVER commit `ADMIN_INVITE_TOKEN` or `ADMIN_EMAILS` to version control. Always use environment variables for these sensitive values.
 
 ---
 
@@ -177,12 +225,12 @@ For security reasons, admin accounts cannot be created via the signup form.
 
 | Feature | Status |
 |---------|--------|
-| Login UI | ✅ Complete |
-| Signup UI (multi-step) | ✅ Complete |
-| Forgot Password UI | ✅ Complete |
-| Auth flow (backend) | 🚧 Coming Soon |
-| Admin auth (separate) | 🚧 Planned |
-| Route protection | 🚧 Planned |
+| Login / Signup UI | ✅ Complete |
+| Admin Auth Flow | ✅ Complete |
+| Role-based Redirects | ✅ Complete |
+| Password Reset Flow | ✅ Complete |
+| Route Protection | ✅ Complete |
+| Admin Email Whitelist | ✅ Complete |
 
 ---
 

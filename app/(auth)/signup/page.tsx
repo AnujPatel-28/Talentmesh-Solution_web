@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, UserRole } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { UserRole } from '@/types/auth';
 import { insforge } from '@/lib/insforge';
 import { signupSchema } from '@/lib/validation/auth';
 import styles from './signup.module.css';
@@ -155,7 +156,8 @@ export default function SignupPage() {
                 id: userId,
                 email: formData.email,
                 name: `${formData.firstName} ${formData.lastName}`,
-                role: userRole as any
+                role: userRole as any,
+                avatar_url: null
             });
 
             // Redirect based on role

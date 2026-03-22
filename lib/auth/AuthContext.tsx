@@ -4,26 +4,17 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter } from 'next/navigation';
 import { insforge } from '@/lib/insforge';
 
-export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'super_admin';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  avatar_url?: string;
-  company_id?: string;
-  created_at?: string;
-}
+import { User, UserRole } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string; user?: User | null }>;
   signUp: (email: string, password: string, role: UserRole, name: string) => Promise<{ error?: string; requireEmailVerification?: boolean }>;
   signOut: () => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
   login: (token: string, user: User) => void;
 }
 
@@ -34,17 +25,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const fetchProfile = useCallback(async (userId: string, email: string): Promise<User | null> => {
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const fetchProfile = useCallback(async (userId: string, email: string, metadata?: Record<string, any>): Promise<User | null> => {
     try {
       const { data: profile, error } = await insforge.database
         .from('profiles')
-        .select('name, role, avatar_url, company_id, created_at')
+        .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error.message);
-        return null;
+      if (error || !profile) {
+        // Fallback: create profile if it doesn't exist
+        const fallbackRole = (metadata?.role as UserRole) || 'candidate';
+        const fallbackName = email.split('@')[0];
+        
+        const { data: newProfile, error: insertError } = await insforge.database
+          .from('profiles')
+          .insert({
+            id: userId,
+            email,
+            role: fallbackRole,
+            name: fallbackName
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating fallback profile:', insertError.message);
+          return null;
+        }
+
+        return {
+          id: userId,
+          email,
+          role: newProfile.role as UserRole,
+          name: newProfile.name || fallbackName,
+          avatar_url: newProfile.avatar_url || null,
+        };
       }
 
       return {
@@ -52,9 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         role: (profile?.role as UserRole) || 'candidate',
         name: profile?.name || '',
-        avatar_url: profile?.avatar_url,
+        avatar_url: profile?.avatar_url || null,
         company_id: profile?.company_id,
         created_at: profile?.created_at,
+        mfa_enabled: profile?.mfa_enabled || false,
+        password_set_at: profile?.password_set_at,
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -67,25 +87,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: { session } } = await insforge.auth.getCurrentSession();
       if (session?.user) {
-        const fullUser = await fetchProfile(session.user.id, session.user.email!);
-        setUser(fullUser);
+        const fullUser = await fetchProfile(session.user.id, session.user.email!, session.user.metadata || undefined);
+        if (fullUser) {
+          // Sync cookies for middleware
+          // First clear any existing session cookies to avoid duplicates
+          document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          
+          document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
+          document.cookie = `tm_role=${fullUser.role}; path=/; max-age=3600; SameSite=Lax`;
+          setUser(fullUser);
+          return fullUser;
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
+      return null;
     } catch (err) {
       console.error('Refresh user error:', err);
       setUser(null);
+      return null;
     } finally {
       setIsLoading(false);
     }
   }, [fetchProfile]);
 
   useEffect(() => {
-    // 1. Initial session check
     refreshUser();
-
-    // 2. Note: onAuthStateChange is not supported in this SDK version.
-    // We rely on manual refreshes in signIn/signUp/signOut.
   }, [refreshUser]);
 
   const signIn = async (email: string, password: string) => {
@@ -93,7 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await insforge.auth.signInWithPassword({ email, password });
 
       if (error) {
-        // Handle common InsForge/Supabase error codes
         let message = error.message;
         if (message.includes('Invalid login credentials')) {
           message = 'Invalid email or password. Please try again.';
@@ -103,8 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: message };
       }
 
-      await refreshUser();
-      return {};
+      const newUser = await refreshUser();
+      return { user: newUser };
     } catch (err) {
       return { error: 'An unexpected error occurred during sign in.' };
     }
@@ -122,7 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: error.message };
       }
 
-      // If user is created and they have a profile, we can update it with the role
       if (data?.user) {
         await insforge.database
           .from('profiles')
@@ -138,22 +166,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    const roleBeforeSignOut = user?.role;
     await insforge.auth.signOut();
+    
     document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    
     setUser(null);
-    router.push('/');
+    if (roleBeforeSignOut === 'admin' || roleBeforeSignOut === 'super_admin') {
+      router.push('/login');
+    } else {
+      router.push('/login');
+    }
   };
 
-  const login = useCallback((token: string, user: User) => {
-    // Set cookies for middleware
+  const login = useCallback((token: string, authUser: User) => {
+    // First clear any existing session cookies to avoid duplicates
+    document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    
     document.cookie = `tm_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
-    document.cookie = `tm_role=${user.role}; path=/; max-age=3600; SameSite=Lax`;
-    setUser(user);
+    document.cookie = `tm_role=${authUser.role}; path=/; max-age=3600; SameSite=Lax`;
+    setUser(authUser);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut, logout: signOut, refreshUser, login }}>
+    <AuthContext.Provider value={{ user, isAdmin, isLoading, signIn, signUp, signOut, logout: signOut, refreshUser, login }}>
       {children}
     </AuthContext.Provider>
   );

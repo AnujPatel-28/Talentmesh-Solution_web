@@ -1,8 +1,12 @@
 'use client';
-import React from 'react';
-import { useParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getJobById } from '../../../../browse-jobs/jobsData';
+import { getJobById, type Job } from '@/lib/api/jobs';
+import { checkAlreadyApplied, type ApplicationStatus } from '@/lib/api/applications';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { insforge } from '@/lib/insforge';
+import ApplyModal from '@/components/candidate/ApplyModal';
 import styles from '../../../../browse-jobs/[id]/jobDetail.module.css';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
@@ -10,7 +14,7 @@ const Ico = {
     Location: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>,
     Briefcase: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /></svg>,
     Sparkle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915Z" /></svg>,
-    Heart: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>,
+    Heart: ({ filled }: { filled?: boolean }) => <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>,
     Share: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>,
     Clock: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
     ArrowR: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-7-7 7 7-7 7" /></svg>,
@@ -22,12 +26,81 @@ const Ico = {
     Award: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></svg>,
 };
 
-const BENEFIT_ICONS = ['💰', '🏖️', '📚', '💎', '🩺'];
+const formatSalary = (min: number | null, max: number | null, currency: string = 'INR') => {
+    if (!min && !max) return 'Competitive';
+    const symbol = currency === 'USD' ? '$' : '₹';
+    const kMin = min ? `${(min / 1000).toFixed(0)}K` : '';
+    const kMax = max ? `${(max / 1000).toFixed(0)}K` : '';
+    if (kMin && kMax) return `${symbol}${kMin}–${symbol}${kMax}`;
+    return kMin ? `${symbol}${kMin}+` : `${symbol}${kMax}`;
+};
+
+const formatExperience = (min: number | null, max: number | null) => {
+    if (min === null && max === null) return 'Not specified';
+    if (min !== null && max !== null) return `${min}–${max} years`;
+    return min !== null ? `${min}+ years` : `Up to ${max} years`;
+};
 
 export default function DashboardJobDetailPage() {
     const params = useParams();
-    const jobId = Number(params.id);
-    const job = getJobById(jobId);
+    const router = useRouter();
+    const { user } = useAuth();
+    const jobId = params.id as string;
+
+    const [job, setJob] = useState<Job | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [appStatus, setAppStatus] = useState<ApplicationStatus | null>(null);
+    const [isSaved, setIsSaved] = useState(false);
+    const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [jobData, status] = await Promise.all([
+                getJobById(jobId),
+                checkAlreadyApplied(jobId)
+            ]);
+            setJob(jobData);
+            setAppStatus(status);
+
+            if (user) {
+                const { data } = await insforge.database
+                    .from('saved_jobs')
+                    .select('id')
+                    .eq('job_id', jobId)
+                    .eq('candidate_id', user.id)
+                    .maybeSingle();
+                setIsSaved(!!data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch job data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (jobId) fetchData();
+    }, [jobId, user]);
+
+    const handleToggleSave = async () => {
+        if (!user) return router.push('/auth/login');
+        try {
+            if (isSaved) {
+                await insforge.database.from('saved_jobs').delete().eq('job_id', jobId).eq('candidate_id', user.id);
+                setIsSaved(false);
+            } else {
+                await insforge.database.from('saved_jobs').insert({ job_id: jobId, candidate_id: user.id });
+                setIsSaved(true);
+            }
+        } catch (err) {
+            console.error('Save toggle failed:', err);
+        }
+    };
+
+    if (loading) {
+        return <div style={{ padding: '80px 0', textAlign: 'center' }}>Loading job details...</div>;
+    }
 
     if (!job) {
         return (
@@ -39,11 +112,10 @@ export default function DashboardJobDetailPage() {
         );
     }
 
-    const matchColor = '#10b981'; // Always green for dashboard
+    const brandColor = '#3b82f6'; // Fallback blue
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '-0.5rem' }}>
-
             {/* Breadcrumb */}
             <nav style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                 <Link href="/dashboard/candidate" style={{ color: '#475569', textDecoration: 'none' }}>Dashboard</Link>
@@ -65,104 +137,131 @@ export default function DashboardJobDetailPage() {
             }}>
                 <div style={{
                     position: 'absolute', top: 0, right: 0, width: '400px', height: '100%',
-                    background: `linear-gradient(90deg, transparent, ${job.color}10)`,
+                    background: `linear-gradient(90deg, transparent, ${brandColor}10)`,
                     clipPath: 'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)'
                 }} />
 
                 <div style={{ display: 'flex', gap: '1.5rem', position: 'relative', zIndex: 2, alignItems: 'center' }}>
                     <div style={{
                         width: '80px', height: '80px', borderRadius: '16px',
-                        background: job.color + '15', color: job.color,
+                        background: brandColor + '15', color: brandColor,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '2rem', fontWeight: 800, flexShrink: 0,
-                        border: `1px solid ${job.color}30`
+                        border: `1px solid ${brandColor}30`, overflow: 'hidden'
                     }}>
-                        {job.logo || job.company[0]}
+                        {job.companies?.logo_url ? (
+                            <img src={job.companies.logo_url} alt={job.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            job.companies?.name[0]
+                        )}
                     </div>
 
                     <div style={{ flex: 1 }}>
                         <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>{job.title}</h1>
                         <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', flexWrap: 'wrap', color: '#475569', fontSize: '0.9rem', fontWeight: 500 }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ico.Building /> {job.company}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ico.Building /> {job.companies?.name}</span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ico.Location /> {job.location}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ico.Clock /> {job.posted}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ico.Clock /> Posted {new Date(job.created_at).toLocaleDateString()}</span>
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
-                        <button style={{
-                            background: 'var(--primary-blue)', color: 'white', border: 'none',
-                            padding: '0.8rem 2rem', borderRadius: '12px', fontSize: '1rem',
-                            fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                            boxShadow: '0 4px 14px rgba(0, 123, 255, 0.35)',
-                            transition: 'transform 0.2s, box-shadow 0.2s'
-                        }}>
-                            Apply Now
-                        </button>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>300+ people applied</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                                onClick={handleToggleSave}
+                                style={{
+                                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px',
+                                    width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', color: isSaved ? '#ef4444' : '#94a3b8'
+                                }}
+                            >
+                                <Ico.Heart filled={isSaved} />
+                            </button>
+                            {appStatus ? (
+                                <span className={styles.matchBadge} style={{ background: '#f0fdf4', color: '#10b981', padding: '0.8rem 1.5rem', borderRadius: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Ico.Check /> {appStatus.charAt(0).toUpperCase() + appStatus.slice(1)}
+                                </span>
+                            ) : (
+                                <button 
+                                    onClick={() => setIsApplyModalOpen(true)}
+                                    style={{
+                                        background: 'var(--primary-blue)', color: 'white', border: 'none',
+                                        padding: '0.8rem 2rem', borderRadius: '12px', fontSize: '1rem',
+                                        fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                                        boxShadow: '0 4px 14px rgba(0, 123, 255, 0.35)',
+                                        transition: 'transform 0.2s, box-shadow 0.2s'
+                                    }}
+                                >
+                                    Apply Now
+                                </button>
+                            )}
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>{job.applications_count || 0} people applied</span>
                     </div>
                 </div>
             </div>
 
             {/* ── Body ── */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1.5rem' }}>
-
                 {/* Main Content */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
                     {/* Description */}
                     <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
                         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Ico.Briefcase /> About this Role
+                            <Ico.Briefcase /> Job Description
                         </h2>
-                        <p style={{ color: '#475569', lineHeight: 1.7, fontSize: '0.95rem' }}>{job.description}</p>
-                    </div>
-
-                    {/* Responsibilities */}
-                    <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Ico.Check /> Key Responsibilities
-                        </h2>
-                        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {job.responsibilities.map((r, i) => (
-                                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', color: '#475569', fontSize: '0.95rem', lineHeight: 1.6 }}>
-                                    <span style={{ color: 'var(--primary-blue)', marginTop: 2 }}><Ico.Check /></span>
-                                    {r}
-                                </li>
-                            ))}
-                        </ul>
+                        <div style={{ color: '#475569', lineHeight: 1.7, fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
+                            {job.description}
+                        </div>
                     </div>
 
                     {/* Requirements */}
-                    <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Ico.Star /> Requirements
-                        </h2>
-                        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {job.requirements.map((r, i) => (
-                                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', color: '#475569', fontSize: '0.95rem', lineHeight: 1.6 }}>
-                                    <span style={{ color: 'var(--primary-blue)', marginTop: 2 }}><Ico.Check /></span>
-                                    {r}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    {Array.isArray(job.requirements) && job.requirements.length > 0 && (
+                        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Ico.Star /> Requirements
+                            </h2>
+                            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {job.requirements.map((r, i) => (
+                                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', color: '#475569', fontSize: '0.95rem', lineHeight: 1.6 }}>
+                                        <span style={{ color: 'var(--primary-blue)', marginTop: 2, flexShrink: 0 }}><Ico.Check /></span>
+                                        {r}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Skills */}
+                    {Array.isArray(job.skills_required) && job.skills_required.length > 0 && (
+                        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Ico.Award /> Skills Required
+                            </h2>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                {job.skills_required.map((s) => (
+                                    <span key={s} style={{ background: '#f1f5f9', color: '#475569', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600 }}>
+                                        {s}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Sidebar */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                    {/* Match Panel */}
+                    {/* Match Panel (Mock Score) */}
                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', padding: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                             <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#166534', margin: 0 }}><Ico.Sparkle /> AI Match Score</h3>
-                            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#166534' }}>{job.match}%</span>
+                            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#166534' }}>85%</span>
                         </div>
                         <div style={{ width: '100%', height: '8px', background: '#dcfce7', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ width: `${job.match}%`, height: '100%', background: '#166534', borderRadius: '4px' }} />
+                            <div style={{ width: `85%`, height: '100%', background: '#166534', borderRadius: '4px' }} />
                         </div>
                         <p style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '1rem', lineHeight: 1.5, fontWeight: 500 }}>
-                            Your profile is a strong match. Your React and TypeScript skills perfectly align with the core requirements.
+                            Your profile is a strong match. Your skills perfectly align with the core requirements of this role.
                         </p>
                     </div>
 
@@ -176,20 +275,29 @@ export default function DashboardJobDetailPage() {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Salary /> Salary</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{job.salary}</span>
+                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{formatSalary(job.salary_min, job.salary_max, job.currency)}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Star /> Experience</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{job.exp}</span>
+                                <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Award /> Experience</span>
+                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{formatExperience(job.experience_min, job.experience_max)}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Location /> Work Policy</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{job.type}</span>
+                                <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Building /> Department</span>
+                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{job.department || 'N/A'}</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <ApplyModal 
+                isOpen={isApplyModalOpen}
+                onClose={() => setIsApplyModalOpen(false)}
+                jobId={job.id}
+                jobTitle={job.title}
+                companyName={job.companies?.name || 'Company'}
+                onSuccess={() => setAppStatus('applied')}
+            />
         </div>
     );
 }

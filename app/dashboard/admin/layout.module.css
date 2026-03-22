@@ -1,0 +1,212 @@
+.container {
+    display: flex;
+    min-height: 100vh;
+    background: #f3f2f1;
+}
+
+.sidebar {
+    width: 280px;
+    background: #0f172a;
+    color: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    border-top: 2px solid #f59e0b;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    z-index: 100;
+}
+
+.sidebarTop {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.logoRow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
+.portalBadge {
+    background: #f59e0b;
+    color: #0f172a;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.adminCard {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    background: #f59e0b;
+    color: #0f172a;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.1rem;
+}
+
+.adminInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.adminName {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.roleBadge {
+    color: #f59e0b;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mfaStatusActive {
+    color: #10b981;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.mfaStatusPending {
+    color: #f59e0b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.navSection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sectionTitle {
+    color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.25rem;
+    padding-left: 0.75rem;
+}
+
+.navLink {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.navLink:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f59e0b;
+}
+
+.navLinkActive {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    font-weight: 700;
+}
+
+.navIcon {
+    opacity: 0.8;
+}
+
+.navLinkActive .navIcon {
+    opacity: 1;
+}
+
+.badge {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+}
+
+.badgeAmber {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.sidebarBottom {
+    padding: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.signOutBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.signOutBtn:hover {
+    background: #fef2f2;
+    color: #ef4444;
+    border-color: #fecaca;
+}
+
+.lastLogin {
+    font-size: 0.7rem;
+    color: #475569;
+    text-align: center;
+}
+
+.main {
+    flex: 1;
+    overflow-x: hidden;
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        display: none;
+    }
+}

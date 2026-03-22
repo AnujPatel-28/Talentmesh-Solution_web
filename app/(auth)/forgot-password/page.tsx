@@ -2,12 +2,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { insforge } from '@/lib/insforge';
 import { forgotPasswordSchema } from '@/lib/validation/auth';
 import styles from './forgot.module.css';
 
 export default function ForgotPasswordPage() {
+    const router = useRouter();
+    const [step, setStep] = useState<'email' | 'code'>('email');
     const [email, setEmail] = useState('');
+    const [code, setCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [sent, setSent] = useState(false);
     const [error, setError] = useState('');
@@ -38,8 +42,42 @@ export default function ForgotPasswordPage() {
             }
 
             setSent(true);
+            setStep('code');
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        if (code.length !== 6) {
+            setError('Please enter a valid 6-digit code.');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const { data, error: verifyError } = await insforge.auth.exchangeResetPasswordToken({
+                email,
+                code,
+            });
+
+            if (verifyError) {
+                setError(verifyError.message);
+                setIsLoading(false);
+                return;
+            }
+
+            if (data?.token) {
+                router.push(`/reset-password?token=${data.token}&email=${encodeURIComponent(email)}`);
+            }
+        } catch (err: any) {
+            setError(err.message || 'Verification failed. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -65,7 +103,7 @@ export default function ForgotPasswordPage() {
                     />
                 </Link>
 
-                {!sent ? (
+                {step === 'email' ? (
                     <>
                         <div className={styles.header}>
                             <div className={styles.iconCircle}>
@@ -81,7 +119,7 @@ export default function ForgotPasswordPage() {
                         </div>
 
                         <form className={styles.form} onSubmit={handleSubmit}>
-                            {error && <div style={{ color: '#ef4444', fontSize: '0.82rem', textAlign: 'center', marginBottom: '0.5rem', padding: '0.6rem', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' }}>{error}</div>}
+                            {error && <div className={styles.errorAlert}>{error}</div>}
                             
                             <div className={styles.fieldGroup}>
                                 <label className={styles.label} htmlFor="reset-email">Email address</label>
@@ -118,18 +156,68 @@ export default function ForgotPasswordPage() {
                         </form>
                     </>
                 ) : (
-                    <div className={styles.successState}>
-                        <div className={styles.successIcon}>
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                            </svg>
+                    <>
+                        <div className={styles.successState}>
+                            <div className={styles.successIcon}>
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+                            <h1 className={styles.title}>Check your email</h1>
+                            <p className={styles.subtitle}>
+                                We&apos;ve sent a 6-digit code to <br/>
+                                <strong style={{ color: 'var(--primary-blue)' }}>{email}</strong>
+                            </p>
                         </div>
-                        <h1 className={styles.title}>Check your email</h1>
-                        <p className={styles.subtitle}>
-                            We&apos;ve sent a reset link to <br/>
-                            <strong style={{ color: 'var(--primary-blue)' }}>{email}</strong>
-                        </p>
-                    </div>
+
+                        <form className={styles.form} onSubmit={handleVerifyCode}>
+                            {error && <div className={styles.errorAlert}>{error}</div>}
+                            
+                            <div className={styles.fieldGroup}>
+                                <label className={styles.label} htmlFor="reset-code">Verification Code</label>
+                                <div className={styles.inputWrap}>
+                                    <svg className={styles.inputIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                    </svg>
+                                    <input
+                                        id="reset-code"
+                                        type="text"
+                                        className={styles.input}
+                                        placeholder="Enter 6-digit code"
+                                        value={code}
+                                        onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        required
+                                        maxLength={6}
+                                        pattern="[0-9]*"
+                                        inputMode="numeric"
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className={styles.submitBtn}
+                                disabled={isLoading || code.length !== 6}
+                            >
+                                {isLoading ? (
+                                    <span className={styles.spinnerWrap}>
+                                        <span className={styles.spinner} />
+                                        Verifying...
+                                    </span>
+                                ) : 'Verify Code'}
+                            </button>
+
+                            <button 
+                                type="button" 
+                                className={styles.backLink} 
+                                style={{ background: 'none', border: 'none', padding: 0, marginTop: '0.5rem', fontSize: '0.82rem' }}
+                                onClick={() => setStep('email')}
+                            >
+                                Try a different email
+                            </button>
+                        </form>
+                    </>
                 )}
 
                 <p className={styles.backLine}>

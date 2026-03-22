@@ -1,95 +1,129 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { insforge } from '@/lib/insforge';
-import { insforgeAdmin } from '@/lib/insforge-admin';
+import { createClient } from '@insforge/sdk'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// Helper: check if email is in admin whitelist
+function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false
+  const list = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0)
+  return list.includes(email.toLowerCase())
+}
+
+// Helper: get InsForge client for edge runtime
+function getInsforge(request: NextRequest) {
+  return createClient({
+    baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
+    anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
+    storage: {
+      // Edge runtime compatible storage using cookies
+      getItem: (key: string) => request.cookies.get(key)?.value ?? null,
+      setItem: () => {},
+      removeItem: () => {}
+    }
+  })
+}
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname } = request.nextUrl
+  const insforge = getInsforge(request)
 
-  // Read auth state safely from cookies
-  const token = request.cookies.get('tm_access_token')?.value;
-  const role = request.cookies.get('tm_role')?.value;
-  const isAuthenticated = !!token;
+  // ── Get session ──────────────────────────────────────────────
+  const { data: { session } } = await insforge.auth.getCurrentSession()
+  const user = session?.user
+  const role = user?.metadata?.role as string | undefined
 
-  // Protected routes
-  const isAdminRoute = pathname.startsWith('/dashboard/admin');
-  const isRecruiterRoute = pathname.startsWith('/dashboard/recruiter');
-  const isCandidateRoute = pathname.startsWith('/dashboard/candidate');
-  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding');
-  const isAuthRoute = pathname === '/login' || pathname === '/signup';
-
-  if (!isAuthenticated && isProtectedRoute) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  // ── REDIRECT ALREADY-LOGGED-IN USERS AWAY FROM AUTH PAGES ───
+  if (user && ['/login', '/signup', '/auth/forgot-password'].includes(pathname)) {
+    const dest = role === 'super_admin' ? '/dashboard/admin'
+               : role === 'recruiter' ? '/dashboard/recruiter'
+               : '/dashboard/candidate'
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
-  if (isAuthenticated && isAuthRoute) {
-    if (role === 'admin' || role === 'super_admin') return NextResponse.redirect(new URL('/dashboard/admin', request.url));
-    if (role === 'recruiter') return NextResponse.redirect(new URL('/dashboard/recruiter', request.url));
-    return NextResponse.redirect(new URL('/dashboard/candidate', request.url));
-  }
-
-  // Deep verification for critical routes
-  if (isAuthenticated && (isAdminRoute || isRecruiterRoute)) {
-    try {
-      // 1. Get user from session
-      const { data: { session } } = await insforge.auth.getCurrentSession();
-      const user = session?.user;
-
-      if (!user) {
-        // Token invalid or expired
-        console.error('[Middleware] Session invalid');
-        const response = NextResponse.redirect(new URL('/login', request.url));
-        response.cookies.delete('tm_access_token');
-        response.cookies.delete('tm_role');
-        return response;
-      }
-
-      // 2. PART A: Admin Verification
-      if (isAdminRoute) {
-        const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-        if (!adminEmails.includes(user.email?.toLowerCase() || '')) {
-          console.warn(`[Middleware] Unauthorized admin access attempt by ${user.email}`);
-          return NextResponse.redirect(new URL('/unauthorized', request.url));
-        }
-      }
-
-      // 3. PART B: Recruiter Approval Gate
-      if (isRecruiterRoute && !pathname.includes('/pending-approval')) {
-        // Fallback to regular client if admin client is not available (RLS is currently disabled anyway)
-        const client = insforgeAdmin || insforge;
-        const { data: recruiterProfile } = await client.database
-          .from('recruiter_profiles')
-          .select('is_approved')
-          .eq('id', user.id)
-          .single();
-
-        if (!recruiterProfile?.is_approved) {
-          console.log(`[Middleware] Recruiter ${user.email} not approved, redirecting to pending-approval`);
-          return NextResponse.redirect(new URL('/dashboard/recruiter/pending-approval', request.url));
-        }
-      }
-    } catch (err) {
-      console.error('[Middleware] Error during verification:', err);
-      // Fail open to public if error, or fail closed? Usually fail closed for security.
+  // ── PROTECT ALL DASHBOARD ROUTES ─────────────────────────────
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding')) {
+    if (!session) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
     }
   }
 
-  // Basic Cross-role block (fast check using cookies)
-  if (isAuthenticated && pathname.startsWith('/dashboard')) {
-      if (pathname === '/dashboard') {
-          if (role === 'super_admin' || role === 'admin') return NextResponse.redirect(new URL('/dashboard/admin', request.url));
-          if (role === 'recruiter') return NextResponse.redirect(new URL('/dashboard/recruiter', request.url));
-          return NextResponse.redirect(new URL('/dashboard/candidate', request.url));
-      }
+  // ── SUPER ADMIN ROUTES (/dashboard/admin) ────────────────────
+  if (pathname.startsWith('/dashboard/admin')) {
+    // Check 1: must be logged in
+    if (!user) return NextResponse.redirect(new URL('/login', request.url))
 
-      if (isAdminRoute && role !== 'admin' && role !== 'super_admin') return NextResponse.redirect(new URL('/unauthorized', request.url));
-      if (isRecruiterRoute && role !== 'recruiter') return NextResponse.redirect(new URL('/unauthorized', request.url));
-      if (isCandidateRoute && role !== 'candidate') return NextResponse.redirect(new URL('/unauthorized', request.url));
+    // Check 2: role must be super_admin
+    if (role !== 'super_admin') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+
+    // Check 3: email must be in whitelist
+    if (!isAdminEmail(user.email ?? '')) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+
+    // Check 4: MFA required — check mfa_verified session cookie
+    // After successful TOTP verification, our /api/mfa/verify route sets
+    // an httpOnly 'mfa_verified' cookie. If it's absent, redirect to verify.
+    const mfaVerified = request.cookies.get('mfa_verified')?.value === 'true'
+    if (!mfaVerified) {
+      return NextResponse.redirect(new URL('/auth/mfa-verify', request.url))
+    }
   }
 
-  return NextResponse.next();
+  // ── RECRUITER ROUTES (/dashboard/recruiter) ──────────────────
+  if (pathname.startsWith('/dashboard/recruiter')) {
+    if (!user) return NextResponse.redirect(new URL('/login', request.url))
+    if (!['recruiter', 'super_admin'].includes(role ?? '')) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+    // Note: is_approved check is done in the page Server Component, not middleware
+    // (avoids extra DB call on every request)
+  }
+
+  // ── CANDIDATE ROUTES (/dashboard/candidate) ──────────────────
+  if (pathname.startsWith('/dashboard/candidate')) {
+    if (!user) return NextResponse.redirect(new URL('/login', request.url))
+    if (role === 'super_admin' || role === 'recruiter') {
+      return NextResponse.redirect(new URL('/dashboard/' + (role === 'super_admin' ? 'admin' : 'recruiter'), request.url))
+    }
+  }
+
+  // ── ROOT /dashboard → ROLE-BASED REDIRECT ────────────────────
+  if (pathname === '/dashboard') {
+    if (!user) return NextResponse.redirect(new URL('/login', request.url))
+    const dest = role === 'super_admin' ? '/dashboard/admin'
+               : role === 'recruiter' ? '/dashboard/recruiter'
+               : '/dashboard/candidate'
+    return NextResponse.redirect(new URL(dest, request.url))
+  }
+
+  // ── AUTH SETUP PAGES ─────────────────────────────────────────
+  // /auth/setup-mfa: only for authenticated users
+  if (pathname === '/auth/setup-mfa' && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+  // /auth/mfa-verify: only for users who have completed password login
+  if (pathname === '/auth/mfa-verify' && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding/:path*', '/login', '/signup'],
-};
+  matcher: [
+    '/dashboard/:path*',
+    '/onboarding/:path*',
+    '/login',
+    '/signup',
+    '/auth/forgot-password',
+    '/auth/setup-mfa',
+    '/auth/mfa-verify',
+  ]
+}

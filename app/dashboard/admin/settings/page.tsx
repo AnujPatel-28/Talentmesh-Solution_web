@@ -1,8 +1,68 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../admin.module.css';
+import { insforge } from '@/lib/insforge';
+import { sendAdminInvite, revokeInvite } from './actions';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export default function AdminSettingsPage() {
+    const { user } = useAuth();
+    const [admins, setAdmins] = useState<any[]>([]);
+    const [invites, setInvites] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [isInviting, setIsInviting] = useState(false);
+    const [msg, setMsg] = useState({ text: '', type: '' });
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        // 1. Fetch active admins from profiles
+        const { data: adminProfiles } = await insforge.database
+            .from('profiles')
+            .select('*')
+            .in('role', ['admin', 'super_admin']);
+        setAdmins(adminProfiles || []);
+
+        // 2. Fetch pending invites
+        const { data: pendingInvites } = await insforge.database
+            .from('admin_invites')
+            .select('*');
+        setInvites(pendingInvites || []);
+        setIsLoading(false);
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const handleInvite = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inviteEmail) return;
+        setIsInviting(true);
+        setMsg({ text: '', type: '' });
+
+        const formData = new FormData();
+        formData.append('email', inviteEmail);
+        formData.append('adminId', user?.id || '');
+
+        const res = await sendAdminInvite(formData);
+        if (res.success) {
+            setMsg({ text: `Invitation sent to ${inviteEmail}.`, type: 'success' });
+            setInviteEmail('');
+            fetchData();
+        } else {
+            setMsg({ text: res.error || 'Failed to send invite', type: 'error' });
+        }
+        setIsInviting(false);
+    };
+
+    const handleRevoke = async (email: string) => {
+        const res = await revokeInvite(email, user?.id || '');
+        if (res.success) {
+            fetchData();
+        }
+    };
+
     return (
         <div className={styles.dash}>
             <div className={styles.pageHead}>
@@ -12,87 +72,143 @@ export default function AdminSettingsPage() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                {/* Profile */}
-                <div className={styles.card}>
-                    <h3 className={styles.cardTitle}>Admin Profile</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Full Name</label>
-                            <input defaultValue="Admin User" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: '1.5rem', alignItems: 'start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {/* Admin Team Management */}
+                    <div className={styles.card}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 className={styles.cardTitle}>Admin Team</h3>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: '#f1f5f9', padding: '0.2rem 0.6rem', borderRadius: 10, color: '#475569' }}>
+                                {admins.length} ACTIVE
+                            </span>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Email</label>
-                            <input defaultValue="admin@talentmesh.ai" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #f1f5f9' }}>
+                                        <th style={{ padding: '0.75rem 0.5rem', color: '#64748b', fontWeight: 600 }}>Name</th>
+                                        <th style={{ padding: '0.75rem 0.5rem', color: '#64748b', fontWeight: 600 }}>Email</th>
+                                        <th style={{ padding: '0.75rem 0.5rem', color: '#64748b', fontWeight: 600 }}>Joined</th>
+                                        <th style={{ padding: '0.75rem 0.5rem', color: '#64748b', fontWeight: 600 }}>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {admins.map((adm) => (
+                                        <tr key={adm.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                            <td style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>{adm.name || 'Admin'}</td>
+                                            <td style={{ padding: '0.75rem 0.5rem', color: '#64748b' }}>{adm.email}</td>
+                                            <td style={{ padding: '0.75rem 0.5rem', color: '#64748b' }}>
+                                                {adm.created_at ? new Date(adm.created_at).toLocaleDateString() : 'N/A'}
+                                            </td>
+                                            <td style={{ padding: '0.75rem 0.5rem' }}>
+                                                <span style={{ 
+                                                    padding: '0.2rem 0.5rem', 
+                                                    borderRadius: 4, 
+                                                    fontSize: '0.7rem', 
+                                                    fontWeight: 700,
+                                                    background: adm.role === 'super_admin' ? '#f5f3ff' : '#eff6ff',
+                                                    color: adm.role === 'super_admin' ? '#7c3aed' : '#2563eb'
+                                                }}>
+                                                    {adm.role.toUpperCase()}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                        <button className={styles.primaryBtn} style={{ alignSelf: 'flex-start' }}>Save Changes</button>
                     </div>
+
+                    {/* Pending Invites */}
+                    {invites.length > 0 && (
+                        <div className={styles.card}>
+                            <h3 className={styles.cardTitle}>Pending Invitations</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                                {invites.map((inv) => (
+                                    <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: '#f8fafc', borderRadius: 12, border: '1px solid #f1f5f9' }}>
+                                        <div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{inv.email}</div>
+                                            <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                                                Expires: {new Date(inv.expires_at).toLocaleString()}
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleRevoke(inv.email)}
+                                            style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                        >
+                                            Revoke
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Platform */}
-                <div className={styles.card}>
-                    <h3 className={styles.cardTitle}>Platform Settings</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                        {[
-                            { label: 'Auto-approve Recruiters', desc: 'New recruiters join without admin review', on: false },
-                            { label: 'Auto-approve Jobs', desc: 'Jobs go live immediately after posting', on: true },
-                            { label: 'Email Notifications', desc: 'Receive alerts for platform activity', on: true },
-                            { label: 'Maintenance Mode', desc: 'Temporarily disable platform access', on: false },
-                        ].map((s, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: i < 3 ? '1px solid #f1f5f9' : 'none' }}>
-                                <div>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>{s.label}</div>
-                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{s.desc}</div>
-                                </div>
-                                <div style={{
-                                    width: 44, height: 24, borderRadius: 12, cursor: 'pointer',
-                                    background: s.on ? 'var(--primary-blue)' : '#e2e8f0',
-                                    position: 'relative', transition: 'all 0.2s'
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {/* Invite New Admin Form */}
+                    <div className={styles.card}>
+                        <h3 className={styles.cardTitle}>Invite New Admin</h3>
+                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                            They will receive an email to set their own password.
+                        </p>
+                        
+                        <form onSubmit={handleInvite} style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>Email Address</label>
+                                <input 
+                                    type="email" 
+                                    placeholder="admin@talentmesh.ai"
+                                    value={inviteEmail}
+                                    onChange={e => setInviteEmail(e.target.value)}
+                                    required
+                                    style={{ padding: '0.65rem 0.9rem', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: '0.85rem', outline: 'none' }} 
+                                />
+                            </div>
+
+                            {msg.text && (
+                                <div style={{ 
+                                    padding: '0.6rem 0.8rem', 
+                                    borderRadius: 10, 
+                                    fontSize: '0.78rem', 
+                                    background: msg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                    color: msg.type === 'success' ? '#166534' : '#b91c1c',
+                                    border: `1px solid ${msg.type === 'success' ? '#dcfce7' : '#fee2e2'}`
                                 }}>
-                                    <div style={{
-                                        width: 18, height: 18, borderRadius: '50%', background: 'white',
-                                        position: 'absolute', top: 3, left: s.on ? 23 : 3,
-                                        transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
-                                    }} />
+                                    {msg.text}
+                                </div>
+                            )}
+
+                            <button 
+                                type="submit" 
+                                disabled={isInviting}
+                                className={styles.primaryBtn} 
+                                style={{ width: '100%', padding: '0.7rem' }}
+                            >
+                                {isInviting ? 'Sending...' : 'Send Invitation'}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Security Info */}
+                    <div className={styles.card}>
+                        <h3 className={styles.cardTitle}>Security & Access</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.8rem' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <div style={{ fontSize: '1.2rem' }}>🛡️</div>
+                                <div>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>Whitelist Mandatory</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Admins must also be whitelisted in the environment variables to access the dashboard.</div>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Security */}
-                <div className={styles.card}>
-                    <h3 className={styles.cardTitle}>Security</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Change Password</label>
-                            <input type="password" placeholder="New password" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Confirm Password</label>
-                            <input type="password" placeholder="Confirm password" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
-                        </div>
-                        <button className={styles.primaryBtn} style={{ alignSelf: 'flex-start' }}>Update Password</button>
-                    </div>
-                </div>
-
-                {/* Danger Zone */}
-                <div className={styles.card} style={{ borderColor: '#fecaca' }}>
-                    <h3 className={styles.cardTitle} style={{ color: '#dc2626' }}>Danger Zone</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>Reset Platform Data</div>
-                                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Clear all test or demo data from the platform</div>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <div style={{ fontSize: '1.2rem' }}>🕒</div>
+                                <div>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>Limited Validity</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Invitation links expire after 48 hours for security reasons.</div>
+                                </div>
                             </div>
-                            <button className={styles.dangerBtn}>Reset</button>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>Export All Data</div>
-                                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Download a full backup of platform data</div>
-                            </div>
-                            <button className={styles.secondaryBtn} style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}>Export</button>
                         </div>
                     </div>
                 </div>

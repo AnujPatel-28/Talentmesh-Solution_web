@@ -1462,3 +1462,265 @@
         flex-direction: column;
     }
 }
+
+/* Profile Edit & Strength Styles */
+.avatarImg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatarOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.profileAvatar:hover .avatarOverlay {
+    opacity: 1;
+}
+
+.uploadProgressSmall {
+    width: 100%;
+    height: 4px;
+    background: #eef0f2;
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+
+.uploadProgress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #eef0f2;
+}
+
+.progressFill {
+    height: 100%;
+    background: var(--primary-blue);
+    transition: width 0.3s ease;
+}
+
+.saveBtnFull {
+    width: 100%;
+    padding: 0.6rem;
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+.saveBtnFull:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ringSvg {
+    width: 100px;
+    height: 100px;
+    transform: rotate(-90deg);
+}
+
+.ringBg {
+    fill: none;
+    stroke: #f1f5f9;
+    stroke-width: 8;
+}
+
+.ringBar {
+    fill: none;
+    stroke: var(--primary-blue);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.strengthMissing {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.5rem 0;
+    width: 100%;
+}
+
+.strengthMissing button {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #64748b;
+    font-size: 0.68rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.strengthMissing button:hover {
+    color: var(--primary-blue);
+    text-decoration: underline;
+}
+
+.toggleOn {
+    background: #10b981 !important;
+}
+
+.toggleOn .toggleDot {
+    right: 2px;
+}
+
+.in {
+    border: 1px solid #eef0f2;
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    width: 100%;
+    outline-color: var(--primary-blue);
+}
+
+.editGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.field label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.field input, .field textarea {
+    padding: 0.55rem;
+    border: 1px solid #eef0f2;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    outline-color: var(--primary-blue);
+}
+
+.fieldFull {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.fieldFull label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.fieldFull textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.inputError {
+    border-color: #ef4444 !important;
+}
+
+.errorText {
+    font-size: 0.68rem;
+    color: #ef4444;
+    margin-top: 0.1rem;
+}
+
+.skillsTagEditor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.skillChip {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #eff6ff;
+    color: var(--primary-blue);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.skillChip button {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 0;
+    cursor: pointer;
+    padding: 0;
+}
+
+.tagInput {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    border: 1px solid #eef0f2;
+    border-radius: 8px;
+    min-height: 42px;
+}
+
+.tagInput input {
+    border: none !important;
+    padding: 0 !important;
+    flex: 1;
+    min-width: 120px;
+}
+
+.loading {
+    padding: 2rem;
+    text-align: center;
+    color: #64748b;
+}
+
+.error {
+    padding: 2rem;
+    text-align: center;
+    color: #ef4444;
+}
+
+.readRow {
+    display: flex;
+    gap: 2rem;
+    padding: 0.5rem 0;
+}
+
+.readItem {
+    display: flex;
+    flex-direction: column;
+}
+
+.readItem strong {
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.readItem span {
+    font-size: 0.72rem;
+    color: #64748b;
+}

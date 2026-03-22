@@ -91,9 +91,19 @@ const SUPER_ADMIN_NAV: NavItem[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user: authUser, signOut, isLoading } = useAuth();
+    const { user: authUser, isAdmin, signOut, isLoading } = useAuth();
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+
+    const handleSignOut = async () => {
+        setIsSigningOut(true);
+        try {
+            await signOut();
+        } finally {
+            setIsSigningOut(false);
+        }
+    };
 
     const isSuperAdmin = pathname.startsWith('/dashboard/admin');
     const isRecruiter = pathname.startsWith('/dashboard/recruiter');
@@ -129,18 +139,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return null;
     }
 
+    // NEW: Allow dedicated branches to fully control their own shell
+    const isAdminBranch = pathname.startsWith('/dashboard/admin');
+    const isRecruiterBranch = pathname.startsWith('/dashboard/recruiter');
+
+    if (isAdminBranch || isRecruiterBranch) {
+        return <>{children}</>;
+    }
+
     return (
         <div className={styles.shell}>
+            {isAdmin && <div className={styles.adminAccent} />}
             {/* Sidebar */}
             <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}>
-                <div className={styles.sidebarHead}>
+                <div className={`${styles.sidebarHead} ${isAdmin ? styles.adminSidebarHead : ''}`}>
                     <Link href="/" className={styles.brand}>
                         {collapsed ? (
                             <span className={styles.brandIcon}>
                                 <Image src="/TalentMesh_Logo-removebg-preview.png" alt="Icon" width={32} height={32} unoptimized />
                             </span>
                         ) : (
-                            <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={140} height={38} style={{ objectFit: 'contain' }} unoptimized />
+                            isAdmin ? (
+                                <div className={styles.adminPortalHeader}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                    </svg>
+                                    <span style={{ fontSize: '1.1rem', letterSpacing: '-0.01em' }}>Admin Portal</span>
+                                </div>
+                            ) : (
+                                <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={140} height={38} style={{ objectFit: 'contain' }} unoptimized />
+                            )
                         )}
                     </Link>
                 </div>
@@ -171,30 +199,63 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 <div className={styles.sidebarFoot}>
                     <Link
-                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : '/dashboard/candidate/settings'}
+                        href={isAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : '/dashboard/candidate/settings'}
                         className={styles.navLink}
                         onClick={() => setMobileOpen(false)}
                     >
                         <span className={styles.navIcon}>{Icons.settings}</span>
                         {!collapsed && <span className={styles.navLabel}>Settings</span>}
                     </Link>
-                    <button onClick={signOut} className={`${styles.navLink} ${styles.logoutBtn}`}>
-                        <span className={styles.navIcon}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                            </svg>
-                        </span>
-                        {!collapsed && <span className={styles.navLabel}>Logout</span>}
-                    </button>
-                    <div className={styles.userCard}>
-                        <div className={styles.userAvatar}>{user.initials}</div>
-                        {!collapsed && (
-                            <div className={styles.userMeta}>
-                                <span className={styles.userName}>{user.name}</span>
-                                <span className={styles.userEmail}>{user.email}</span>
-                            </div>
-                        )}
-                    </div>
+                    
+                    {!isAdmin && (
+                        <button onClick={handleSignOut} disabled={isSigningOut} className={`${styles.navLink} ${styles.logoutBtn}`}>
+                            <span className={styles.navIcon}>
+                                {isSigningOut ? (
+                                    <div className={styles.spinnerSmall} />
+                                ) : (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                                    </svg>
+                                )}
+                            </span>
+                            {!collapsed && <span className={styles.navLabel}>{isSigningOut ? 'Signing out...' : 'Logout'}</span>}
+                        </button>
+                    )}
+
+                    {isAdmin ? (
+                        <div className={styles.adminMiniCard}>
+                             {!collapsed && (
+                                <div className={styles.adminMiniCardInner}>
+                                   <div className={`${styles.userAvatar} ${styles.adminAvatar}`}>{user.initials}</div>
+                                   <div className={styles.userMeta}>
+                                       <span className={styles.userName}>{user.name}</span>
+                                       <span className={styles.userEmail}>{user.email}</span>
+                                   </div>
+                                   <div className={styles.lockIcon}>
+                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                   </div>
+                                </div>
+                             )}
+                             <button 
+                                onClick={handleSignOut} 
+                                disabled={isSigningOut} 
+                                className={styles.adminSignOutBtn}
+                                style={{ display: collapsed ? 'flex' : 'block', justifyContent: 'center' }}
+                             >
+                                {isSigningOut ? '...' : collapsed ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg> : 'Sign Out'}
+                             </button>
+                        </div>
+                    ) : (
+                        <div className={styles.userCard}>
+                            <div className={styles.userAvatar}>{user.initials}</div>
+                            {!collapsed && (
+                                <div className={styles.userMeta}>
+                                    <span className={styles.userName}>{user.name}</span>
+                                    <span className={styles.userEmail}>{user.email}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </aside>
 
@@ -210,6 +271,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </button>
                     <h1 className={styles.pageTitle}>{pageTitle}</h1>
                     <div className={styles.topRight}>
+                        {isAdmin && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>{user.name}</span>
+                                    <span className={styles.adminBadge}>Admin</span>
+                                </div>
+                                <button 
+                                    onClick={handleSignOut} 
+                                    disabled={isSigningOut} 
+                                    className={`${styles.topSignOut} ${isAdmin ? styles.topSignOutAdmin : ''}`}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                                    </svg>
+                                    {isSigningOut ? 'Signing out...' : 'Sign Out'}
+                                </button>
+                            </div>
+                        )}
                         <div className={styles.searchBox}>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                             <input className={styles.searchInput} placeholder="Search jobs, skills..." />
@@ -218,7 +297,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
                             <span className={styles.notifDot} />
                         </button>
-                        <div className={styles.topAvatar}>{user.initials}</div>
+                        <div className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : ''}`}>{user.initials}</div>
                     </div>
                 </header>
                 <div className={styles.content}>{children}</div>

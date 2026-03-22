@@ -1,6 +1,10 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from '../candidate.module.css';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { getMyProfile, updateProfile, updateCandidateProfile, calculateProfileStrength, UserProfile, CandidateProfile } from '@/lib/api/profile';
+import { uploadAvatar, uploadResume } from '@/lib/api/storage';
+import { validateCandidateProfile } from '@/lib/validation/candidate';
 
 /* ─── Icons ─── */
 const IC = {
@@ -17,46 +21,235 @@ const IC = {
     phone: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>,
     link: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>,
     check: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
+    camera: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>,
+    trash: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>,
 };
 
 export default function ProfilePage() {
+    const { user } = useAuth();
+    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+    const resumeInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const data = await getMyProfile();
+            setProfile(prev => {
+                if (!prev || !isEditing) return data;
+                // Preserve local changes while updating metadata (like strength/urls)
+                return {
+                    ...data,
+                    name: prev.name,
+                    phone: prev.phone,
+                    location: prev.location,
+                    bio: prev.bio,
+                    candidate_profiles: data.candidate_profiles ? {
+                        ...data.candidate_profiles,
+                        headline: prev.candidate_profiles?.headline || data.candidate_profiles.headline,
+                        skills: prev.candidate_profiles?.skills || data.candidate_profiles.skills,
+                        experience_years: prev.candidate_profiles?.experience_years ?? data.candidate_profiles.experience_years,
+                    } : undefined
+                };
+            });
+        } catch (error) {
+            console.error('Failed to fetch profile:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!profile) return;
+        setIsSaving(true);
+        setErrors({});
+
+        // Merge profiles and candidate_profiles for validation
+        const validationData = {
+            name: profile.name,
+            phone: profile.phone,
+            location: profile.location,
+            bio: profile.bio,
+            ...profile.candidate_profiles
+        };
+
+        const result = validateCandidateProfile(validationData);
+        if (!result.success) {
+            setErrors(result.errors || {});
+            setIsSaving(false);
+            return;
+        }
+
+        try {
+            // Update profiles
+            await updateProfile({
+                name: profile.name,
+                phone: profile.phone,
+                location: profile.location,
+                bio: profile.bio,
+            });
+
+            // Update candidate_profiles
+            if (profile.candidate_profiles) {
+                await updateCandidateProfile(profile.candidate_profiles);
+            }
+
+            // Refresh data
+            await fetchProfile();
+            setIsEditing(false);
+            alert('Profile updated successfully!');
+        } catch (error: any) {
+            alert('Failed to save profile: ' + error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'resume') => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+
+        setUploadProgress(prev => ({ ...prev, [type]: 10 }));
+
+        try {
+            let url = '';
+            if (type === 'avatar') {
+                url = await uploadAvatar(file, user.id);
+                setProfile(prev => prev ? { ...prev, avatar_url: url } : null);
+                await updateProfile({ avatar_url: url });
+            } else {
+                url = await uploadResume(file, user.id);
+                setProfile(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        candidate_profiles: prev.candidate_profiles ? { ...prev.candidate_profiles, resume_url: url } : undefined
+                    };
+                });
+                await updateCandidateProfile({ resume_url: url });
+            }
+            setUploadProgress(prev => ({ ...prev, [type]: 100 }));
+            await fetchProfile(); // Refresh for strength update
+            setTimeout(() => setUploadProgress(prev => ({ ...prev, [type]: 0 })), 2000);
+        } catch (error: any) {
+            alert(error.message);
+            setUploadProgress(prev => ({ ...prev, [type]: 0 }));
+        }
+    };
+
+    if (isLoading) return <div className={styles.loading}>Loading profile...</div>;
+    if (!profile) return <div className={styles.error}>Profile not found.</div>;
+
+    const cp = profile.candidate_profiles;
+    const strength = cp?.profile_strength || 0;
+
     return (
         <div className={styles.profilePage}>
             {/* Left Sidebar */}
             <div className={styles.profileSidebar}>
                 <div className={styles.profileCard}>
-                    <div className={styles.profileAvatar}>
-                        SJ
+                    <div
+                        className={styles.profileAvatar}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => avatarInputRef.current?.click()}
+                    >
+                        {profile.avatar_url ? (
+                            <img src={profile.avatar_url} alt={profile.name} className={styles.avatarImg} />
+                        ) : (
+                            profile.name.split(' ').map(n => n[0]).join('')
+                        )}
+                        <div className={styles.avatarOverlay}>{IC.camera}</div>
                         <span className={styles.onlineDot} />
+                        <input
+                            type="file"
+                            ref={avatarInputRef}
+                            style={{ display: 'none' }}
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'avatar')}
+                        />
                     </div>
-                    <span className={styles.profileName}>Sarah Jenkins</span>
-                    <span className={styles.profileRole}>Senior UX Designer</span>
-                    <span className={styles.profileLoc}>{IC.mapPin} San Francisco, CA</span>
+                    {uploadProgress.avatar > 0 && uploadProgress.avatar < 100 && (
+                        <div className={styles.uploadProgressSmall}>
+                            <div className={styles.progressFill} style={{ width: `${uploadProgress.avatar}%` }} />
+                        </div>
+                    )}
+                    <span className={styles.profileName}>{profile.name}</span>
+                    <span className={styles.profileRole}>{cp?.headline || 'Add a headline'}</span>
+                    <span className={styles.profileLoc}>{IC.mapPin} {profile.location || 'Location not set'}</span>
+
                     <div className={styles.profileTags}>
-                        <span className={styles.tag}>Figma</span>
-                        <span className={styles.tag}>Prototyping</span>
-                        <span className={styles.tag}>User Research</span>
+                        {cp?.skills?.slice(0, 5).map(skill => (
+                            <span key={skill} className={styles.tag}>{skill}</span>
+                        ))}
                     </div>
-                    <button className={styles.editProfileBtn}>{IC.edit} Edit Profile</button>
+
+                    <button
+                        className={styles.editProfileBtn}
+                        onClick={() => setIsEditing(!isEditing)}
+                    >
+                        {isEditing ? 'Cancel Edit' : <>{IC.edit} Edit Profile</>}
+                    </button>
+                    {isEditing && (
+                        <button
+                            className={styles.saveBtnFull}
+                            onClick={handleSave}
+                            disabled={isSaving}
+                        >
+                            {isSaving ? 'Saving...' : 'Save All Changes'}
+                        </button>
+                    )}
                 </div>
 
                 <div className={styles.scoreCard}>
                     <div className={styles.scoreHeader}>
-                        <span className={styles.scoreTitle}>AI Profile Score</span>
-                        <span className={styles.scoreBadge}>Top 5%</span>
+                        <span className={styles.scoreTitle}>Profile Strength</span>
+                        <span className={styles.scoreBadge}>
+                            {strength < 30 ? 'Basic' : strength < 70 ? 'Intermediate' : 'Expert'}
+                        </span>
                     </div>
                     <div className={styles.scoreRing}>
-                        <div className={styles.scoreRingFill} />
-                        <span className={styles.scoreNum}>85</span>
-                        <span className={styles.scoreSub}>SCORE</span>
+                        <svg className={styles.ringSvg} viewBox="0 0 100 100">
+                            <circle className={styles.ringBg} cx="50" cy="50" r="45" />
+                            <circle
+                                className={styles.ringBar}
+                                cx="50" cy="50" r="45"
+                                style={{ strokeDashoffset: 283 - (283 * strength) / 100 }}
+                            />
+                        </svg>
+                        <span className={styles.scoreNum}>{strength}%</span>
                     </div>
-                    <span className={styles.scoreText}>Your profile is highly optimized for UX design roles.</span>
+                    <span className={styles.scoreText}>
+                        {strength < 100 ? 'Complete your profile to stand out to recruiters.' : 'Your profile is 100% complete!'}
+                    </span>
+
+                    <div className={styles.strengthMissing}>
+                        {!profile.bio && <button onClick={() => setIsEditing(true)}>• Add a bio</button>}
+                        {!cp?.resume_url && <button onClick={() => resumeInputRef.current?.click()}>• Upload resume</button>}
+                        {(cp?.skills?.length || 0) < 3 && <button onClick={() => setIsEditing(true)}>• Add more skills</button>}
+                    </div>
+
                     <div className={styles.openToggle}>
                         <div>
                             <span className={styles.openLabel}>Open to Work</span>
                             <span className={styles.openHint}>Visible to recruiters</span>
                         </div>
-                        <button className={styles.toggleSwitch}>
+                        <button
+                            className={`${styles.toggleSwitch} ${cp?.is_visible ? styles.toggleOn : ''}`}
+                            onClick={async () => {
+                                const newVal = !cp?.is_visible;
+                                await updateCandidateProfile({ is_visible: newVal });
+                                fetchProfile();
+                            }}
+                        >
                             <span className={styles.toggleDot} />
                         </button>
                     </div>
@@ -68,21 +261,22 @@ export default function ProfilePage() {
                         <span className={styles.contactIcon}>{IC.mail}</span>
                         <div className={styles.contactMeta}>
                             <span className={styles.contactLabel}>Email</span>
-                            <span className={styles.contactValue}>sarah.j@example.com</span>
+                            <span className={styles.contactValue}>{profile.email}</span>
                         </div>
                     </div>
                     <div className={styles.contactItem}>
                         <span className={styles.contactIcon}>{IC.phone}</span>
                         <div className={styles.contactMeta}>
                             <span className={styles.contactLabel}>Phone</span>
-                            <span className={styles.contactValue}>+1 (555) 123-4567</span>
-                        </div>
-                    </div>
-                    <div className={styles.contactItem}>
-                        <span className={styles.contactIcon}>{IC.link}</span>
-                        <div className={styles.contactMeta}>
-                            <span className={styles.contactLabel}>Website</span>
-                            <a href="#" className={styles.contactLink}>sarahux.design</a>
+                            {isEditing ? (
+                                <input
+                                    className={styles.in}
+                                    value={profile.phone || ''}
+                                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                                />
+                            ) : (
+                                <span className={styles.contactValue}>{profile.phone || 'Not set'}</span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -91,92 +285,170 @@ export default function ProfilePage() {
             {/* Main Content */}
             <div className={styles.profileMain}>
                 <div className={styles.profileActions}>
-                    <div className={styles.profileActionCard}>
+                    <div className={styles.profileActionCard} onClick={() => resumeInputRef.current?.click()}>
                         <div>
                             <div className={styles.profileActionLabel}>{IC.file} Resume</div>
-                            <div className={styles.profileActionHint}>Last updated 2 days ago</div>
-                        </div>
-                        <span style={{ color: 'var(--primary-blue)' }}>{IC.download}</span>
-                    </div>
-                    <div className={styles.profileActionCard}>
-                        <div>
-                            <div className={styles.profileActionLabel}>{IC.monitor} Portfolio</div>
-                            <div className={styles.profileActionHint}>View case studies</div>
-                        </div>
-                        <span style={{ color: 'var(--primary-blue)' }}>{IC.extLink}</span>
-                    </div>
-                </div>
-
-                {/* Experience */}
-                <div className={styles.profileSection}>
-                    <div className={styles.sectionHead}>
-                        <h2 className={styles.sectionTitle}>{IC.briefcase} Experience</h2>
-                        <button className={styles.addBtn}>+ Add</button>
-                    </div>
-                    {[
-                        { title: 'Senior Product Designer', company: 'TechFlow Systems', period: 'Jan 2021 - Present · 3 yrs 2 mos', desc: 'Leading the design system initiative and overseeing product design for the enterprise dashboard. Collaborated with PMs and engineering to reduce user churn by 15%.', tags: ['Design Systems', 'Leadership'] },
-                        { title: 'UX Designer', company: 'Creative Pulse Agency', period: 'Jun 2018 - Dec 2020 · 2 yrs 7 mos', desc: 'Designed mobile and web applications for fintech clients. Conducted user research and usability testing sessions.', tags: ['Mobile Design', 'Wireframing'] },
-                    ].map((exp, i) => (
-                        <div key={i} className={styles.expItem}>
-                            <div className={styles.expIcon}>{exp.company[0]}</div>
-                            <div className={styles.expBody}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span className={styles.expTitle}>{exp.title}</span>
-                                    <span style={{ color: '#94a3b8', cursor: 'pointer' }}>{IC.edit}</span>
-                                </div>
-                                <span className={styles.expCompany}>{exp.company}</span>
-                                <span className={styles.kanbanExtra}>{exp.period}</span>
-                                <p className={styles.expDesc}>{exp.desc}</p>
-                                <div className={styles.expTags}>
-                                    {exp.tags.map(t => <span key={t} className={styles.tag}>{t}</span>)}
-                                </div>
+                            <div className={styles.profileActionHint}>
+                                {cp?.resume_url ? 'Click to update resume' : 'Not uploaded yet'}
                             </div>
                         </div>
-                    ))}
+                        {cp?.resume_url && (
+                            <a
+                                href={cp.resume_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={styles.actionIcon}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {IC.extLink}
+                            </a>
+                        )}
+                        <input
+                            type="file"
+                            ref={resumeInputRef}
+                            style={{ display: 'none' }}
+                            accept=".pdf"
+                            onChange={(e) => handleFileUpload(e, 'resume')}
+                        />
+                    </div>
+                    {uploadProgress.resume > 0 && (
+                        <div className={styles.uploadProgress}>
+                            <div className={styles.progressFill} style={{ width: `${uploadProgress.resume}%` }} />
+                        </div>
+                    )}
                 </div>
 
-                {/* Education */}
+                {/* Personal Info Edit Section */}
+                {isEditing && (
+                    <div className={styles.profileSection}>
+                        <h2 className={styles.sectionTitle}>Personal Details</h2>
+                        <div className={styles.editGrid}>
+                            <div className={styles.field}>
+                                <label>Display Name</label>
+                                <input
+                                    value={profile.name}
+                                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                    className={errors.name ? styles.inputError : ''}
+                                />
+                                {errors.name && <span className={styles.errorText}>{errors.name}</span>}
+                            </div>
+                            <div className={styles.field}>
+                                <label>Headline</label>
+                                <input
+                                    value={cp?.headline || ''}
+                                    onChange={(e) => setProfile({ ...profile, candidate_profiles: { ...cp!, headline: e.target.value } })}
+                                    placeholder="e.g. Senior Product Designer"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <label>Location</label>
+                                <input
+                                    value={profile.location || ''}
+                                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
+                                    placeholder="e.g. London, UK"
+                                />
+                            </div>
+                            <div className={styles.fieldFull}>
+                                <label>Bio</label>
+                                <textarea
+                                    value={profile.bio || ''}
+                                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                                    placeholder="Tell recruiters about yourself..."
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Professional Info */}
                 <div className={styles.profileSection}>
                     <div className={styles.sectionHead}>
-                        <h2 className={styles.sectionTitle}>{IC.graduationCap} Education</h2>
-                        <button className={styles.addBtn}>+ Add</button>
+                        <h2 className={styles.sectionTitle}>{IC.briefcase} Professional Info</h2>
                     </div>
-                    <div className={styles.expItem}>
-                        <div className={styles.expIcon} style={{ fontSize: '0.9rem' }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
-                        </div>
-                        <div className={styles.expBody}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span className={styles.expTitle}>California College of the Arts</span>
-                                <span style={{ color: '#94a3b8', cursor: 'pointer' }}>{IC.edit}</span>
+                    {isEditing ? (
+                        <div className={styles.editGrid}>
+                            <div className={styles.field}>
+                                <label>Years of Experience</label>
+                                <input
+                                    type="number"
+                                    value={cp?.experience_years || 0}
+                                    onChange={(e) => setProfile({ ...profile, candidate_profiles: { ...cp!, experience_years: parseInt(e.target.value) } })}
+                                />
                             </div>
-                            <span className={styles.expCompany}>Bachelor of Fine Arts - Interaction Design</span>
-                            <span className={styles.kanbanExtra}>2014 - 2018</span>
                         </div>
-                    </div>
+                    ) : (
+                        <div className={styles.readRow}>
+                            <div className={styles.readItem}>
+                                <strong>{cp?.experience_years || 0}</strong>
+                                <span>Years Experience</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Skills */}
+                {/* Skills Section */}
                 <div className={styles.profileSection}>
                     <div className={styles.sectionHead}>
                         <h2 className={styles.sectionTitle}>{IC.target} Skills</h2>
-                        <button className={styles.addBtn}>+ Add</button>
                     </div>
-                    <div className={styles.skillsGrid}>
-                        <div className={styles.skillGroup}>
-                            <span className={styles.skillGroupTitle}>TOP SKILLS</span>
-                            <div className={styles.skillTags}>
-                                {['UI/UX Design', 'Prototyping', 'Wireframing', 'Figma'].map(s => (
-                                    <span key={s} className={styles.skillTag}>{s} {IC.check}</span>
+                    <div className={styles.skillsTagEditor}>
+                        {cp?.skills?.map(skill => (
+                            <span key={skill} className={styles.skillChip}>
+                                {skill}
+                                {isEditing && (
+                                    <button onClick={() => {
+                                        const newSkills = cp.skills?.filter(s => s !== skill);
+                                        setProfile({ ...profile, candidate_profiles: { ...cp, skills: newSkills } });
+                                    }}>×</button>
+                                )}
+                            </span>
+                        ))}
+                        {isEditing && (
+                            <input
+                                placeholder="Add a skill + press Enter"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const input = e.target as HTMLInputElement;
+                                        const val = input.value.trim();
+                                        if (val && !cp?.skills?.includes(val)) {
+                                            const newSkills = [...(cp?.skills || []), val];
+                                            setProfile({ ...profile, candidate_profiles: { ...cp!, skills: newSkills } });
+                                            input.value = '';
+                                        }
+                                    }
+                                }}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* Job Preferences */}
+                <div className={styles.profileSection}>
+                    <h2 className={styles.sectionTitle}>Job Preferences</h2>
+                    <div className={styles.editGrid}>
+                        <div className={styles.fieldFull}>
+                            <label>Preferred Locations</label>
+                            <div className={styles.tagInput}>
+                                {cp?.preferred_locations?.map(loc => (
+                                    <span key={loc} className={styles.skillChip}>
+                                        {loc}
+                                        {isEditing && <button onClick={() => {
+                                            const newLocs = cp.preferred_locations?.filter(l => l !== loc);
+                                            setProfile({ ...profile, candidate_profiles: { ...cp, preferred_locations: newLocs } });
+                                        }}>×</button>}
+                                    </span>
                                 ))}
-                            </div>
-                        </div>
-                        <div className={styles.skillGroup}>
-                            <span className={styles.skillGroupTitle}>TOOLS & TECHNOLOGIES</span>
-                            <div className={styles.skillTags}>
-                                {['Adobe XD', 'Sketch', 'HTML/CSS', 'Jira', 'Notion'].map(s => (
-                                    <span key={s} className={styles.toolTag}>{s}</span>
-                                ))}
+                                {isEditing && <input onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const i = e.target as HTMLInputElement;
+                                        const v = i.value.trim();
+                                        if (v) {
+                                            const n = [...(cp?.preferred_locations || []), v];
+                                            setProfile({ ...profile, candidate_profiles: { ...cp!, preferred_locations: n } });
+                                            i.value = '';
+                                        }
+                                    }
+                                }} />}
                             </div>
                         </div>
                     </div>

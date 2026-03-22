@@ -413,3 +413,126 @@
         padding: 0.75rem;
     }
 }
+
+/* ── Admin Theme Enhancements ── */
+.adminAccent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #f59e0b;
+    z-index: 100;
+}
+
+.adminBadge {
+    font-size: 0.55rem;
+    font-weight: 800;
+    background: #f59e0b;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(245, 158, 11, 0.25);
+    vertical-align: middle;
+}
+
+.adminAvatar {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+    border: 1px solid rgba(245, 158, 11, 0.2) !important;
+}
+
+.topSignOut {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #e8ecf0;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.topSignOut:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
+.topSignOutAdmin:hover:not(:disabled) {
+    background: rgba(245, 158, 11, 0.08);
+    color: #92400e;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.topSignOut:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.adminMiniCard {
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    border-radius: 12px;
+    padding: 10px;
+    margin-top: 12px;
+}
+
+.adminMiniCardInner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.adminSignOutBtn {
+    width: 100%;
+    padding: 6px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(245, 158, 11, 0.1);
+    color: #92400e;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.adminSignOutBtn:hover {
+    background: #f59e0b;
+    color: white;
+}
+
+.lockIcon {
+    color: #f59e0b;
+    margin-left: auto;
+}
+
+.adminPortalHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f59e0b;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.spinnerSmall {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
