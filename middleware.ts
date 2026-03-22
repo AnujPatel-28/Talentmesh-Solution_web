@@ -14,15 +14,11 @@ function isAdminEmail(email: string | null | undefined): boolean {
 
 // Helper: get InsForge client for edge runtime
 function getInsforge(request: NextRequest) {
+  const token = request.cookies.get('tm_access_token')?.value
   return createClient({
     baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
     anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
-    storage: {
-      // Edge runtime compatible storage using cookies
-      getItem: (key: string) => request.cookies.get(key)?.value ?? null,
-      setItem: () => {},
-      removeItem: () => {}
-    }
+    edgeFunctionToken: token, // This authenticates the SDK requests automatically using the header
   })
 }
 
@@ -31,9 +27,12 @@ export async function middleware(request: NextRequest) {
   const insforge = getInsforge(request)
 
   // ── Get session ──────────────────────────────────────────────
-  const { data: { session } } = await insforge.auth.getCurrentSession()
-  const user = session?.user
-  const role = user?.metadata?.role as string | undefined
+  // We use getCurrentUser() because edgeFunctionToken verifies directly via headers
+  const { data: { user } } = await insforge.auth.getCurrentUser()
+  const role = request.cookies.get('tm_role')?.value || (user?.metadata?.role as string | undefined)
+  
+  // For backwards compatibility with the existing code checking `session` below
+  const session = user ? { user } : null
 
   // ── REDIRECT ALREADY-LOGGED-IN USERS AWAY FROM AUTH PAGES ───
   if (user && ['/login', '/signup', '/auth/forgot-password'].includes(pathname)) {

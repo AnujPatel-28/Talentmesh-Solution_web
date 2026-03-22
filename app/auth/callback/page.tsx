@@ -64,15 +64,37 @@ function AuthCallbackContent() {
 
       const finalRole = existingProfile?.role || defaultRole || 'candidate';
 
-      await insforge.database
+      const { error: upsertError } = await insforge.database
         .from('profiles')
-        .update({
+        .upsert([{
+          id: user.id,
+          email: user.email,
           name: realName,
           avatar_url: avatarUrl,
           role: finalRole,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+        }]);
+
+      if (upsertError) {
+        // Handle orphaned profile unique constraint failures (when user deleted in Auth but not Public.Profiles)
+        if (upsertError.message.includes('duplicate key') || upsertError.message.includes('unique constraint')) {
+          console.log('Resolving orphaned profile conflict for:', user.email);
+          await insforge.database.from('profiles').delete().eq('email', user.email);
+          
+          await insforge.database
+            .from('profiles')
+            .upsert([{
+              id: user.id,
+              email: user.email,
+              name: realName,
+              avatar_url: avatarUrl,
+              role: finalRole,
+              updated_at: new Date().toISOString(),
+            }]);
+        } else {
+          console.error('Profile Creation Error:', upsertError.message);
+        }
+      }
 
       // Set cookies immediately for middleware
       // First clear any existing session cookies to avoid duplicates

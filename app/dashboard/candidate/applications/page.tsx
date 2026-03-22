@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { getMyApplications, withdrawApplication, type Application, type ApplicationStatus } from '@/lib/api/applications';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
-import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
+import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
 import styles from '../candidate.module.css';
 

@@ -42,12 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         const { data: newProfile, error: insertError } = await insforge.database
           .from('profiles')
-          .insert({
+          .insert([{
             id: userId,
             email,
             role: fallbackRole,
             name: fallbackName
-          })
+          }])
           .select()
           .single();
 
@@ -99,14 +99,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(fullUser);
           return fullUser;
         } else {
+          // Clear cookies to break infinite redirect loops if profile is orphaned/missing
+          document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
           setUser(null);
         }
       } else {
+        document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         setUser(null);
       }
       return null;
     } catch (err) {
       console.error('Refresh user error:', err);
+      document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       setUser(null);
       return null;
     } finally {
