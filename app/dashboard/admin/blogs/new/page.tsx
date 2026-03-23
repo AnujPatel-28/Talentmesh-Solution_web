@@ -20,7 +20,7 @@ export default function NewBlogPage() {
     });
 
     useEffect(() => {
-        if (!authLoading && (!user || user.role !== 'super_admin')) {
+        if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'super_admin'))) {
             router.push('/dashboard/candidate');
         }
     }, [user, authLoading, router]);

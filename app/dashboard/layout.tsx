@@ -130,23 +130,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, []);
 
     React.useEffect(() => {
-        if (!isLoading && !authUser) {
+        const isDedicatedBranch = pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/recruiter');
+
+        if (!isDedicatedBranch && !isLoading && !authUser) {
             router.push('/login');
         }
-    }, [isLoading, authUser, router]);
+    }, [isLoading, authUser, router, pathname]);
 
-    if (isLoading) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+    const isAdminBranch = pathname.startsWith('/dashboard/admin');
+    const isRecruiterBranch = pathname.startsWith('/dashboard/recruiter');
+
+    if (isLoading && !isAdminBranch && !isRecruiterBranch) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
         <div style={{ width: 40, height: 40, border: '4px solid #e2e8f0', borderTopColor: '#007BFF', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>;
 
-    if (!authUser) {
+    if (!authUser && !isAdminBranch && !isRecruiterBranch) {
         return null;
     }
-
-    // NEW: Allow dedicated branches to fully control their own shell
-    const isAdminBranch = pathname.startsWith('/dashboard/admin');
-    const isRecruiterBranch = pathname.startsWith('/dashboard/recruiter');
 
     if (isAdminBranch || isRecruiterBranch) {
         return <>{children}</>;

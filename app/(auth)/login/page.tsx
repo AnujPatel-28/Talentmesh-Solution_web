@@ -8,6 +8,12 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import styles from './login.module.css';
 
+// Admin email list from .env — updateable via NEXT_PUBLIC_ADMIN_EMAILS
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
 export default function LoginPage() {
     const router = useRouter();
     const { signIn } = useAuth();
@@ -18,6 +24,9 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
+
+    // Detect admin email as the user types
+    const isAdminEmail = ADMIN_EMAILS.includes(email.trim().toLowerCase());
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -51,8 +60,17 @@ export default function LoginPage() {
                 return;
             }
 
-            // 3. Success - Let middleware handle redirect
-            router.refresh();
+            // 3. Success — let middleware redirect to the right dashboard based on role.
+            // router.refresh() re-requests the current page (/login); the middleware
+            // sees the authenticated user and redirects to /dashboard/{role}.
+            const resolvedRole = result.user?.role;
+            const destination = isAdminEmail || resolvedRole === 'admin' || resolvedRole === 'super_admin'
+                ? '/dashboard/admin'
+                : resolvedRole === 'recruiter'
+                    ? '/dashboard/recruiter'
+                    : '/dashboard/candidate';
+
+            window.location.assign(destination);
             
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
@@ -134,7 +152,25 @@ export default function LoginPage() {
 
                 <form className={styles.form} onSubmit={handleSubmit}>
                     <div className={styles.fieldGroup}>
-                        <label className={styles.label} htmlFor="email">Email address</label>
+                        <div className={styles.labelRow}>
+                            <label className={styles.label} htmlFor="email">Email address</label>
+                            {/* Show admin badge when admin email is detected */}
+                            {isAdminEmail && (
+                                <span style={{
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    color: '#6366f1',
+                                    background: 'rgba(99,102,241,0.08)',
+                                    border: '1px solid rgba(99,102,241,0.2)',
+                                    borderRadius: '100px',
+                                    padding: '2px 8px',
+                                    letterSpacing: '0.04em',
+                                    textTransform: 'uppercase',
+                                }}>
+                                    Admin Account
+                                </span>
+                            )}
+                        </div>
                         <div className={styles.inputWrap}>
                             <input
                                 id="email"
@@ -152,7 +188,13 @@ export default function LoginPage() {
                     <div className={styles.fieldGroup}>
                         <div className={styles.labelRow}>
                             <label className={styles.label} htmlFor="password">Password</label>
-                            <Link href="/auth/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
+                            {/* Dynamically route admin emails to the admin forgot-password page */}
+                            <Link
+                                href={isAdminEmail ? '/admin/forgot-password' : '/auth/forgot-password'}
+                                className={styles.forgotLink}
+                            >
+                                Forgot password?
+                            </Link>
                         </div>
                         <div className={styles.inputWrap}>
                             <input

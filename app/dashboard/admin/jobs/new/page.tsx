@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function NewAdminJobPage() {
     const user = await getServerUser();
     
-    if (!user || user.role !== 'super_admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
         redirect('/dashboard/candidate');
     }
 

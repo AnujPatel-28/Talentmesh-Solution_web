@@ -19,7 +19,7 @@ export default function AdminBlogsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!authLoading && (!user || user.role !== 'super_admin')) {
+        if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'super_admin'))) {
             router.push('/dashboard/candidate');
             return;
         }
@@ -38,7 +38,7 @@ export default function AdminBlogsPage() {
             }
         }
 
-        if (user?.role === 'super_admin') fetchBlogs();
+        if (user?.role === 'admin' || user?.role === 'super_admin') fetchBlogs();
     }, [user, authLoading, router]);
 
     const handleStatusUpdate = async (blogId: string, newStatus: string) => {
