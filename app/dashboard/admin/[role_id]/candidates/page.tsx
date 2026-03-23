@@ -72,7 +72,7 @@ export default function AdminCandidatesPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (!user || user.role !== 'super_admin') {
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
         router.push('/dashboard/candidate');
         return;
       }

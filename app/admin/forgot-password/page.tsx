@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { insforge } from '@/lib/insforge';
-import { isAdminEmail } from '@/lib/admin/token';
+import { useRouter } from 'next/navigation';
 import styles from '../login/admin-login.module.css';
 
 export default function AdminForgotPasswordPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -19,28 +19,21 @@ export default function AdminForgotPasswordPage() {
     setMessage('');
 
     try {
-      // 1. Static whitelist check
-      if (!isAdminEmail(email)) {
-        // We still show success for security, but we don't call the API
-        setTimeout(() => {
-          setMessage('Reset link sent. Check your email.');
-          setIsLoading(false);
-        }, 1000);
-        return;
-      }
-
-      // 2. Request reset
-      const { error: resetError } = await insforge.auth.sendResetPasswordEmail({
-        email
+      // POST to the server-side API route — admin emails are NEVER checked client-side
+      const res = await fetch('/api/admin/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      if (resetError) {
-        setError(resetError.message);
-      } else {
-        setMessage('Reset link sent. Check your email.');
+      if (!res.ok) {
+        throw new Error('Server error. Please try again.');
       }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+
+      // Redirect to enter the OTP code
+      router.push(`/admin/reset-password?email=${encodeURIComponent(email.trim())}`);
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -74,61 +67,64 @@ export default function AdminForgotPasswordPage() {
           </div>
 
           {error && <div className={styles.error}>{error}</div>}
-          {message && (
-             <div style={{ 
-               background: 'rgba(16, 185, 129, 0.1)', 
-               border: '1px solid rgba(16, 185, 129, 0.2)', 
-               color: '#10b981', 
-               fontSize: '13px', 
-               padding: '10px 14px', 
-               borderRadius: '10px', 
-               marginBottom: '20px', 
-               textAlign: 'center' 
-             }}>
-               {message}
-             </div>
+
+          {message ? (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              color: '#6ee7b7',
+              fontSize: '0.83rem',
+              padding: '12px 16px',
+              borderRadius: '10px',
+              marginBottom: '8px',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}>
+              {message}
+            </div>
+          ) : (
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="email">Admin Email Address</label>
+                <div className={styles.inputWrap}>
+                  <input
+                    id="email"
+                    type="email"
+                    className={styles.input}
+                    placeholder="admin@talentmesh.ai"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className={styles.submitBtn}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <span className={styles.spinner} />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Link'
+                )}
+              </button>
+            </form>
           )}
 
-          <form className={styles.form} onSubmit={handleSubmit}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="email">Email Address</label>
-              <div className={styles.inputWrap}>
-                <input
-                  id="email"
-                  type="email"
-                  className={styles.input}
-                  placeholder="admin@talentmesh.ai"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading || !!message}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className={styles.submitBtn}
-              disabled={isLoading || !!message}
-            >
-              {isLoading ? (
-                <>
-                  <span className={styles.spinner} />
-                  Processing...
-                </>
-              ) : (
-                'Send Reset Link'
-              )}
-            </button>
-          </form>
-
           <div className={styles.footer}>
-            <Link href="/admin/login" className={styles.backLink}>
+            <Link href="/login" className={styles.backLink}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12" />
                 <polyline points="12 19 5 12 12 5" />
               </svg>
-              Back to Admin Login
+              Back to Login
             </Link>
           </div>
         </div>

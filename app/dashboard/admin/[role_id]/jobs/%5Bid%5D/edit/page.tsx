@@ -13,7 +13,7 @@ interface EditAdminJobPageProps {
 export default async function EditAdminJobPage({ params }: EditAdminJobPageProps) {
     const user = await getServerUser();
     
-    if (!user || user.role !== 'super_admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
         redirect('/dashboard/candidate');
     }
 

@@ -69,8 +69,10 @@ export default function JobsPage() {
         try {
             const apps = await getMyApplications();
             setAppliedIds(new Set(apps.map(a => a.job_id)));
-        } catch (err) {
-            console.error('Failed to fetch applications:', err);
+        } catch (err: any) {
+            // Silently fail - badge won't show but jobs still load
+            // This handles JWT expiry / token errors gracefully
+            console.warn('Could not fetch applied IDs (non-critical):', err?.message);
         }
     };
 

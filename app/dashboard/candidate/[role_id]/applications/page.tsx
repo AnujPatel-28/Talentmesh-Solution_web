@@ -51,22 +51,24 @@ export default function ApplicationsPage() {
         if (user) {
             fetchData();
             
-            const channel = (insforge as any).channel(`candidate-apps-${user.id}`)
-                .on('postgres_changes', { 
-                    event: 'UPDATE', 
-                    schema: 'public', 
-                    table: 'applications',
-                    filter: `candidate_id=eq.${user.id}`
-                }, (payload: { new: Application }) => {
-                    if (payload.new) {
-                        const updatedApp = payload.new;
-                        setApplications(prev => prev.map(app => app.id === updatedApp.id ? { ...app, ...updatedApp } : app));
-                        setToast({ message: `Your application status has been updated to ${updatedApp.status}`, type: 'info' });
-                    }
-                })
-                .subscribe();
+            const channelName = `candidate-apps-${user.id}`;
+            insforge.realtime.connect().catch(console.error);
+            insforge.realtime.subscribe(channelName).catch(console.error);
+            
+            const handleUpdate = (payload: any) => {
+                const updatedApp = payload?.new || payload;
+                if (updatedApp && updatedApp.id && updatedApp.status) {
+                    setApplications(prev => prev.map(app => app.id === updatedApp.id ? { ...app, ...updatedApp } : app));
+                    setToast({ message: `Your application status has been updated to ${updatedApp.status}`, type: 'info' });
+                }
+            };
+            
+            insforge.realtime.on('postgres_changes', handleUpdate);
+            insforge.realtime.on('UPDATE', handleUpdate);
 
-            return () => { channel.unsubscribe(); };
+            return () => { 
+                insforge.realtime.unsubscribe(channelName);
+            };
         }
     }, [user]);
 
