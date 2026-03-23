@@ -94,7 +94,7 @@ export default function CandidateDocuments() {
                 .eq('id', user.id);
 
             setUploadProgress(100);
-            router.push('/dashboard/candidate');
+            router.push(`/dashboard/candidate/${user.role_id || ''}`);
         } catch (err: any) {
             console.error('Error finishing onboarding:', err);
             alert(`Failed to complete onboarding: ${err.message}`);

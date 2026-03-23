@@ -19,7 +19,7 @@ const IC = {
 import { getApprovedJobs, type Job } from '@/lib/api/jobs';
 import { getMyApplications, checkAlreadyApplied, type ApplicationStatus } from '@/lib/api/applications';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
+import { formatDistanceToNow } from 'date-fns';
 
 /** ─── Helpers ─── */
 const formatSalary = (min: number | null, max: number | null, currency: string = 'INR') => {

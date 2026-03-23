@@ -152,7 +152,7 @@ export default function LoginPage() {
                     <div className={styles.fieldGroup}>
                         <div className={styles.labelRow}>
                             <label className={styles.label} htmlFor="password">Password</label>
-                            <Link href="/auth/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
+                            <Link href="/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
                         </div>
                         <div className={styles.inputWrap}>
                             <input
@@ -194,10 +194,17 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <p className={styles.footer}>
-                    Don&apos;t have an account?{' '}
-                    <Link href="/signup" className={styles.footerLink}>Sign up</Link>
-                </p>
+                <div className={styles.footer}>
+                    <p>
+                        Don&apos;t have an account?{' '}
+                        <Link href="/signup" className={styles.footerLink}>Sign up</Link>
+                    </p>
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem' }}>
+                        <Link href="/admin/login" className={styles.footerLink} style={{ opacity: 0.7 }}>
+                            Admin Portal Access
+                        </Link>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -14,15 +14,11 @@ function isAdminEmail(email: string | null | undefined): boolean {
 
 // Helper: get InsForge client for edge runtime
 function getInsforge(request: NextRequest) {
+  const token = request.cookies.get('tm_access_token')?.value
   return createClient({
     baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
     anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
-    storage: {
-      // Edge runtime compatible storage using cookies
-      getItem: (key: string) => request.cookies.get(key)?.value ?? null,
-      setItem: () => {},
-      removeItem: () => {}
-    }
+    edgeFunctionToken: token, // This authenticates the SDK requests automatically using the header
   })
 }
 
@@ -31,15 +27,26 @@ export async function middleware(request: NextRequest) {
   const insforge = getInsforge(request)
 
   // ── Get session ──────────────────────────────────────────────
-  const { data: { session } } = await insforge.auth.getCurrentSession()
-  const user = session?.user
-  const role = user?.metadata?.role as string | undefined
+  // We use getCurrentUser() because edgeFunctionToken verifies directly via headers
+  const { data: { user } } = await insforge.auth.getCurrentUser()
+  const role = request.cookies.get('tm_role')?.value || (user?.metadata?.role as string | undefined)
+  const roleId = request.cookies.get('tm_role_id')?.value || ''
+  
+  // For backwards compatibility with the existing code checking `session` below
+  const session = user ? { user } : null
 
   // ── REDIRECT ALREADY-LOGGED-IN USERS AWAY FROM AUTH PAGES ───
-  if (user && ['/login', '/signup', '/auth/forgot-password'].includes(pathname)) {
-    const dest = role === 'super_admin' ? '/dashboard/admin'
-               : role === 'recruiter' ? '/dashboard/recruiter'
-               : '/dashboard/candidate'
+  if (user && ['/login', '/signup', '/forgot-password', '/admin/login'].includes(pathname)) {
+    // Only redirect admins to admin dashboard if they are on /admin/login
+    if (pathname === '/admin/login' && (role === 'super_admin' || role === 'admin')) {
+        const dest = `/dashboard/admin/${roleId}`;
+        return NextResponse.redirect(new URL(dest, request.url));
+    }
+    
+    // Normal auth redirect for other pages
+    const dest = role === 'super_admin' ? `/dashboard/admin/${roleId}`
+               : role === 'recruiter' ? `/dashboard/recruiter/${roleId}`
+               : `/dashboard/candidate/${roleId}`
     return NextResponse.redirect(new URL(dest, request.url))
   }
 
@@ -53,7 +60,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── SUPER ADMIN ROUTES (/dashboard/admin) ────────────────────
-  if (pathname.startsWith('/dashboard/admin')) {
+  if (pathname.includes('/dashboard/admin')) {
     // Check 1: must be logged in
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
 
@@ -77,7 +84,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── RECRUITER ROUTES (/dashboard/recruiter) ──────────────────
-  if (pathname.startsWith('/dashboard/recruiter')) {
+  if (pathname.includes('/dashboard/recruiter')) {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
     if (!['recruiter', 'super_admin'].includes(role ?? '')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url))
@@ -87,19 +94,20 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── CANDIDATE ROUTES (/dashboard/candidate) ──────────────────
-  if (pathname.startsWith('/dashboard/candidate')) {
+  if (pathname.includes('/dashboard/candidate')) {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
     if (role === 'super_admin' || role === 'recruiter') {
-      return NextResponse.redirect(new URL('/dashboard/' + (role === 'super_admin' ? 'admin' : 'recruiter'), request.url))
+      const dest = role === 'super_admin' ? `/dashboard/admin/${roleId}` : `/dashboard/recruiter/${roleId}`;
+      return NextResponse.redirect(new URL(dest, request.url))
     }
   }
 
   // ── ROOT /dashboard → ROLE-BASED REDIRECT ────────────────────
   if (pathname === '/dashboard') {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
-    const dest = role === 'super_admin' ? '/dashboard/admin'
-               : role === 'recruiter' ? '/dashboard/recruiter'
-               : '/dashboard/candidate'
+    const dest = role === 'super_admin' ? `/dashboard/admin/${roleId}`
+               : role === 'recruiter' ? `/dashboard/recruiter/${roleId}`
+               : `/dashboard/candidate/${roleId}`
     return NextResponse.redirect(new URL(dest, request.url))
   }
 
@@ -122,7 +130,8 @@ export const config = {
     '/onboarding/:path*',
     '/login',
     '/signup',
-    '/auth/forgot-password',
+    '/forgot-password',
+    '/admin/login',
     '/auth/setup-mfa',
     '/auth/mfa-verify',
   ]

@@ -130,6 +130,10 @@ export default function SignupPage() {
             const userId = data.user.id;
             const userRole = role === 'job_seeker' ? 'candidate' : 'recruiter';
 
+            // Generate role-specific ID
+            const prefix = userRole === 'recruiter' ? 'recr' : 'cand';
+            const roleId = `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
+
             // Create profile
             const { error: profileError } = await insforge.database
                 .from('profiles')
@@ -137,6 +141,7 @@ export default function SignupPage() {
                     id: userId,
                     email: formData.email,
                     role: userRole,
+                    role_id: roleId,
                     name: `${formData.firstName} ${formData.lastName}`
                 }]);
 
@@ -162,7 +167,7 @@ export default function SignupPage() {
 
             // Redirect based on role
             if (userRole === 'candidate') {
-                router.push('/onboarding/candidate/skills');
+                router.push('/onboarding/candidate/interests');
             } else {
                 router.push('/onboarding/recruiter/setup');
             }

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import styles from './candidate.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { insforge } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 /* ─── Inline SVG icons ─── */
 const IC = {
@@ -25,7 +26,9 @@ const IC = {
     moreH: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>,
 };
 
-export default function CandidateHome() {
+export default function CandidateHome({ params }: { params: { role_id: string } }) {
+    const { role_id } = React.use(params as any) as any || {}; // Handle async params
+    const { user: authUser } = useAuth();
     const [profile, setProfile] = useState<any>(null);
     const [jobs, setJobs] = useState<any[]>([]);
     const [activity, setActivity] = useState<any[]>([]);
@@ -68,7 +71,7 @@ export default function CandidateHome() {
 
     if (loading) return <div className={styles.dash}><p style={{ color: 'white', padding: '2rem' }}>Loading Dashboard...</p></div>;
 
-    const userName = profile?.name || 'Sarah';
+    const userName = authUser?.name || profile?.name || authUser?.email?.split('@')[0] || 'User';
 
     return (
         <div className={styles.dash}>

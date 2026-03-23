@@ -15,7 +15,8 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({ params }: { params: { role_id: string } }) {
+    const { role_id } = await params;
     // 1. Fetch all data in parallel
     const [
         stats,
@@ -100,8 +101,8 @@ export default async function AdminDashboardPage() {
                         </div>
                     </div>
                     <div className={styles.urgentActions}>
-                        <Link href="/dashboard/admin/recruiters" className={styles.urgentBtn}>Manage Recruiters</Link>
-                        <Link href="/dashboard/admin/jobs" className={styles.urgentBtnPrimary}>Review Jobs</Link>
+                        <Link href={`/dashboard/admin/${role_id}/recruiters`} className={styles.urgentBtn}>Manage Recruiters</Link>
+                        <Link href={`/dashboard/admin/${role_id}/jobs`} className={styles.urgentBtnPrimary}>Review Jobs</Link>
                     </div>
                 </div>
             )}
@@ -151,7 +152,7 @@ export default async function AdminDashboardPage() {
                     <section className={styles.activityFeed}>
                         <div className={styles.sectionHeader}>
                             <h2>Platform Activity Feed</h2>
-                            <Link href="/dashboard/admin/audit-logs" className={styles.link}>Master Log</Link>
+                            <Link href={`/dashboard/admin/${role_id}/audit-logs`} className={styles.link}>Master Log</Link>
                         </div>
                         <div className={styles.feedCard}>
                             {activity.map((log: any) => {
@@ -270,19 +271,19 @@ export default async function AdminDashboardPage() {
                             <h2>Quick Actions</h2>
                         </div>
                         <div className={styles.quickActions}>
-                            <Link href="/dashboard/admin/recruiters" className={styles.actionBtn}>
+                            <Link href={`/dashboard/admin/${role_id}/recruiters`} className={styles.actionBtn}>
                                 <span className={styles.actionIcon}>👥</span>
                                 <span>Recruiters</span>
                             </Link>
-                            <Link href="/dashboard/admin/jobs" className={styles.actionBtn}>
+                            <Link href={`/dashboard/admin/${role_id}/jobs`} className={styles.actionBtn}>
                                 <span className={styles.actionIcon}>📋</span>
                                 <span>All Jobs</span>
                             </Link>
-                            <Link href="/dashboard/admin/audit-logs" className={styles.actionBtn}>
+                            <Link href={`/dashboard/admin/${role_id}/audit-logs`} className={styles.actionBtn}>
                                 <span className={styles.actionIcon}>🔍</span>
                                 <span>Audit logs</span>
                             </Link>
-                            <Link href="/dashboard/admin/settings" className={styles.actionBtn}>
+                            <Link href={`/dashboard/admin/${role_id}/settings`} className={styles.actionBtn}>
                                 <span className={styles.actionIcon}>⚙️</span>
                                 <span>Settings</span>
                             </Link>

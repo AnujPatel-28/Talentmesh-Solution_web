@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import styles from './recruiter.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { insforge } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 /* ─── Icons ─── */
 const IC = {
@@ -16,7 +17,9 @@ const IC = {
     plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
 };
 
-export default function RecruiterHome() {
+export default function RecruiterHome({ params }: { params: { role_id: string } }) {
+    const { role_id } = React.use(params as any) as any || {};
+    const { user: authUser } = useAuth();
     const [jobs, setJobs] = useState<any[]>([]);
     const [candidates, setCandidates] = useState<any[]>([]);
     const [interviews, setInterviews] = useState<any[]>([]);
@@ -31,7 +34,7 @@ export default function RecruiterHome() {
                     .from('jobs')
                     .select('*')
                     .order('created_at', { ascending: false });
-                
+
                 const openJobs = jobData || [];
                 setJobs(openJobs);
 
@@ -73,7 +76,7 @@ export default function RecruiterHome() {
     return (
         <div className={styles.dash}>
             <div className={styles.greet}>
-                <h1 className={styles.greetTitle}>Welcome back, Harper!</h1>
+                <h1 className={styles.greetTitle}>Welcome back, {authUser?.name || authUser?.email?.split('@')[0] || 'Recruiter'}!</h1>
                 <p className={styles.greetSub}>Here&apos;s your hiring pipeline overview.</p>
             </div>
 
