@@ -107,20 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const isSuperAdmin = pathname.includes('/dashboard/admin');
     const isRecruiter = pathname.includes('/dashboard/recruiter');
-    const roleId = authUser?.role_id || '';
-
-    const getDynamicNav = (items: NavItem[], base: string) => {
-        return items.map(item => ({
-            ...item,
-            href: item.href.replace(base, `${base}/${roleId}`)
-        }));
-    };
-
-    const navItems = isSuperAdmin 
-        ? getDynamicNav(SUPER_ADMIN_NAV, '/dashboard/admin') 
-        : isRecruiter 
-            ? getDynamicNav(RECRUITER_NAV, '/dashboard/recruiter') 
-            : getDynamicNav(CANDIDATE_NAV, '/dashboard/candidate');
+    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV : isRecruiter ? RECRUITER_NAV : CANDIDATE_NAV;
 
     const user = {
         name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
@@ -130,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const pageTitle = (() => {
         const seg = pathname.split('/').pop();
-        if (seg === roleId || seg === 'candidate' || seg === 'recruiter' || seg === 'admin') return 'Dashboard';
+        if (seg === 'candidate' || seg === 'recruiter' || seg === 'admin') return 'Dashboard';
         return seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : 'Dashboard';
     })();
 
@@ -218,7 +205,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 <div className={styles.sidebarFoot}>
                     <Link
-                        href={isSuperAdmin ? `/dashboard/admin/${roleId}/settings` : isRecruiter ? `/dashboard/recruiter/${roleId}/settings` : `/dashboard/candidate/${roleId}/settings`}
+                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : '/dashboard/candidate/settings'}
                         className={styles.navLink}
                         onClick={() => setMobileOpen(false)}
                     >

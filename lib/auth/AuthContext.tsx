@@ -1,10 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { insforge } from '@/lib/insforge';
+import React, { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { User, UserRole } from '@/types/auth';
+import { insforge } from '@/lib/insforge';
+import type { User, UserRole } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -20,7 +19,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function isAdminEmail(email: string): boolean {
+function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) {
+    return false;
+  }
+
   const envEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
     .split(',')
     .map((value) => value.trim().toLowerCase())
@@ -37,25 +40,51 @@ function normalizeRole(role: UserRole, email: string): UserRole {
   return role;
 }
 
+const USER_STORAGE_KEY = 'tm_user';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const clearAuthCookies = useCallback(() => {
     document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'tm_admin_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(USER_STORAGE_KEY);
+    }
   }, []);
 
-  const syncAuthCookies = useCallback((token: string, role: UserRole) => {
+  const syncAuthCookies = useCallback((token: string, authUser: Pick<User, 'role' | 'email'>) => {
     clearAuthCookies();
     document.cookie = `tm_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
-    document.cookie = `tm_role=${role}; path=/; max-age=3600; SameSite=Lax`;
+    document.cookie = `tm_role=${authUser.role}; path=/; max-age=3600; SameSite=Lax`;
+
+    if (authUser.role === 'admin' || authUser.role === 'super_admin' || isAdminEmail(authUser.email)) {
+      document.cookie = 'tm_admin_access=true; path=/; max-age=3600; SameSite=Lax';
+    }
   }, [clearAuthCookies]);
 
-  const fetchProfile = useCallback(async (userId: string, email: string, metadata?: Record<string, any>): Promise<User | null> => {
+  const cacheUser = useCallback((authUser: User | null) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (!authUser) {
+      window.sessionStorage.removeItem(USER_STORAGE_KEY);
+      return;
+    }
+
+    window.sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authUser));
+  }, []);
+
+  const fetchProfile = useCallback(async (
+    userId: string,
+    email: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<User | null> => {
     try {
       const { data: profile, error } = await insforge.database
         .from('profiles')
@@ -64,58 +93,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error || !profile) {
-        // Fallback: create profile if it doesn't exist
         const fallbackRole = normalizeRole(((metadata?.role as UserRole) || 'candidate'), email);
         const fallbackName = email.split('@')[0];
 
-        // Generate virtual role-specific ID
-        const prefix = fallbackRole === 'super_admin' ? 'admin' : fallbackRole === 'recruiter' ? 'recr' : 'cand';
-        const virtualRoleId = `${prefix}_${userId.slice(0, 8)}`;
-
         try {
-          const { data: newProfile, error: insertError } = await insforge.database
+          const { data: createdProfile, error: insertError } = await insforge.database
             .from('profiles')
             .insert([{
               id: userId,
               email,
               role: fallbackRole,
-              // role_id: virtualRoleId, // Skip if column doesn't exist
-              name: fallbackName
+              name: fallbackName,
             }])
             .select()
             .single();
 
-          if (!insertError) {
+          if (!insertError && createdProfile) {
             return {
               id: userId,
               email,
-              role: newProfile.role as UserRole,
-              role_id: newProfile.role_id || virtualRoleId,
-              name: newProfile.name || fallbackName,
-              avatar_url: newProfile.avatar_url || null,
+              role: normalizeRole(createdProfile.role as UserRole, email),
+              name: createdProfile.name || fallbackName,
+              avatar_url: createdProfile.avatar_url || null,
+              company_id: createdProfile.company_id,
+              created_at: createdProfile.created_at,
+              mfa_enabled: createdProfile.mfa_enabled || false,
+              password_set_at: createdProfile.password_set_at,
             };
           }
-        } catch (e) { }
+        } catch {
+          // Fall through to a minimal in-memory user object.
+        }
 
         return {
           id: userId,
           email,
-          role: newProfile.role as UserRole,
-          name: newProfile.name || fallbackName,
-          avatar_url: newProfile.avatar_url || null,
+          role: fallbackRole,
+          name: fallbackName,
+          avatar_url: null,
         };
       }
 
       return {
         id: userId,
         email,
-        role: (profile?.role as UserRole) || 'candidate',
-        name: profile?.name || '',
-        avatar_url: profile?.avatar_url || null,
-        company_id: profile?.company_id,
-        created_at: profile?.created_at,
-        mfa_enabled: profile?.mfa_enabled || false,
-        password_set_at: profile?.password_set_at,
+        role: normalizeRole(((profile.role as UserRole) || 'candidate'), email),
+        name: profile.name || '',
+        avatar_url: profile.avatar_url || null,
+        company_id: profile.company_id,
+        created_at: profile.created_at,
+        mfa_enabled: profile.mfa_enabled || false,
+        password_set_at: profile.password_set_at,
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -125,46 +153,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     setIsLoading(true);
-    try {
-      const { data: { session } } = await insforge.auth.getCurrentSession();
-      if (session?.user) {
-        const fullUser = await fetchProfile(session.user.id, session.user.email!, session.user.metadata || undefined);
-        if (fullUser) {
-          // Sync cookies for middleware
-          // First clear any existing session cookies to avoid duplicates
-          document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
-          document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
-          document.cookie = `tm_role=${fullUser.role}; path=/; max-age=3600; SameSite=Lax`;
-          setUser(fullUser);
-          return fullUser;
-        } else {
-          // Clear cookies to break infinite redirect loops if profile is orphaned/missing
-          document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          setUser(null);
+    try {
+      const response = await fetch('/api/auth/session', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        if (user) {
+          return user;
         }
-      } else {
-        document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+
+        clearAuthCookies();
+        setUser(null);
+        return null;
+      }
+
+      const payload = await response.json();
+      const resolvedUser = (payload?.user || null) as User | null;
+
+      if (!resolvedUser) {
+        if (user) {
+          return user;
+        }
+
+        clearAuthCookies();
         setUser(null);
         return null;
       }
 
       document.cookie = `tm_role=${resolvedUser.role}; path=/; max-age=3600; SameSite=Lax`;
+      if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin' || isAdminEmail(resolvedUser.email)) {
+        document.cookie = 'tm_admin_access=true; path=/; max-age=3600; SameSite=Lax';
+      }
+
       setUser(resolvedUser);
+      cacheUser(resolvedUser);
       return resolvedUser;
     } catch (err) {
-      console.error('Refresh user error:', err);
-      document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      if (user) {
+        return user;
+      }
+
+      if (!(err instanceof TypeError && err.message === 'Failed to fetch')) {
+        console.error('Refresh user error:', err);
+      }
+
+      clearAuthCookies();
       setUser(null);
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, [clearAuthCookies]);
+  }, [cacheUser, clearAuthCookies, user]);
+
+  useEffect(() => {
+    try {
+      const cached = window.sessionStorage.getItem(USER_STORAGE_KEY);
+      if (cached) {
+        setUser(JSON.parse(cached) as User);
+      }
+    } catch {
+      window.sessionStorage.removeItem(USER_STORAGE_KEY);
+    }
+  }, []);
 
   useEffect(() => {
     refreshUser();
@@ -189,15 +242,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const fullUser = await fetchProfile(data.user.id, data.user.email, data.user.metadata || undefined);
-
       if (!fullUser) {
         return { error: 'Signed in, but failed to load your profile.' };
       }
 
-      syncAuthCookies(data.accessToken, fullUser.role);
+      syncAuthCookies(data.accessToken, fullUser);
       setUser(fullUser);
+      cacheUser(fullUser);
       return { user: fullUser };
-    } catch (err) {
+    } catch {
       return { error: 'An unexpected error occurred during sign in.' };
     }
   };
@@ -223,32 +276,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       await refreshUser();
       return { requireEmailVerification: data?.requireEmailVerification };
-    } catch (err) {
+    } catch {
       return { error: 'An unexpected error occurred during sign up.' };
     }
   };
 
   const signOut = async () => {
     await insforge.auth.signOut();
-
-    document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
+    clearAuthCookies();
     setUser(null);
-
-    // Replace history so the browser back button can't revive a protected dashboard view.
     window.location.replace('/login');
   };
 
   const login = useCallback((token: string, authUser: User) => {
-    // First clear any existing session cookies to avoid duplicates
-    document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
-    document.cookie = `tm_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
-    document.cookie = `tm_role=${authUser.role}; path=/; max-age=3600; SameSite=Lax`;
+    syncAuthCookies(token, authUser);
     setUser(authUser);
-  }, [syncAuthCookies]);
+    cacheUser(authUser);
+  }, [cacheUser, syncAuthCookies]);
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, isLoading, signIn, signUp, signOut, logout: signOut, refreshUser, login }}>

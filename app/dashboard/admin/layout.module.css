@@ -1,0 +1,163 @@
+.container {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  background: #f4f7fb;
+}
+
+.sidebar {
+  border-right: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #0f172a 0%, #16233a 100%);
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 18px;
+  gap: 24px;
+}
+
+.sidebarTop {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.portalBadge {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.adminCard {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  color: #fff;
+  font-weight: 700;
+}
+
+.adminInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adminName {
+  font-weight: 700;
+}
+
+.roleBadge,
+.mfaStatus {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.navSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  padding: 0 10px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.navLink:hover,
+.navLinkActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.navIcon {
+  display: inline-flex;
+}
+
+.navLabel {
+  flex: 1;
+  font-weight: 500;
+}
+
+.badge {
+  min-width: 28px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  text-align: center;
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+}
+
+.badgeAmber {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+}
+
+.sidebarBottom {
+  margin-top: auto;
+}
+
+.signOutBtn {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: #ef4444;
+  color: #fff;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.main {
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+}

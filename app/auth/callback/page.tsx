@@ -112,11 +112,9 @@ function AuthCallbackContent() {
 
       document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
       document.cookie = `tm_role=${finalRole}; path=/; max-age=3600; SameSite=Lax`;
-      document.cookie = `tm_role_id=${roleId}; path=/; max-age=3600; SameSite=Lax`;
-
       // Redirect based on the final role
       if (finalRole === 'admin' || finalRole === 'super_admin') {
-        router.push(`/dashboard/admin/${roleId}`);
+        router.replace('/dashboard/admin');
       } else if (finalRole === 'recruiter') {
         router.push('/onboarding/recruiter/setup');
       } else {
@@ -160,4 +158,3 @@ export default function AuthCallback() {
 function split_part(str: string, delim: string, idx: number): string {
   return (str ?? '').split(delim)[idx - 1] ?? '';
 }
-

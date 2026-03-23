@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
     // If already logged in as admin, redirect to dashboard
     useEffect(() => {
         if (!authLoading && user && (user.role === 'super_admin' || user.role === 'admin')) {
-            router.push(`/dashboard/admin/${user.role_id}`);
+            router.replace('/dashboard/admin');
         }
     }, [user, authLoading, router]);
 
@@ -57,9 +57,9 @@ export default function AdminLoginPage() {
                 return;
             }
 
-            // 4. Success - Direct Redirect
+            // 4. Success - send admins to the canonical dashboard route
             if (result.user) {
-                router.push(`/dashboard/admin/${result.user.role_id}`);
+                window.location.replace('/dashboard/admin');
             }
             
         } catch (err: any) {

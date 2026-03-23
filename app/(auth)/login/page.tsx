@@ -188,17 +188,13 @@ export default function LoginPage() {
                     <div className={styles.fieldGroup}>
                         <div className={styles.labelRow}>
                             <label className={styles.label} htmlFor="password">Password</label>
-<<<<<<< HEAD
-                            <Link href="/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
-=======
                             {/* Dynamically route admin emails to the admin forgot-password page */}
                             <Link
-                                href={isAdminEmail ? '/admin/forgot-password' : '/auth/forgot-password'}
+                                href={isAdminEmail ? '/admin/forgot-password' : '/forgot-password'}
                                 className={styles.forgotLink}
                             >
                                 Forgot password?
                             </Link>
->>>>>>> 04ac0dec89ba27ffdf447ffa504124b6e2c58b6c
                         </div>
                         <div className={styles.inputWrap}>
                             <input
