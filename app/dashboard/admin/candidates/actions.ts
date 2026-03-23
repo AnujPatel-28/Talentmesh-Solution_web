@@ -7,10 +7,10 @@ import {
 } from '@/lib/api/admin';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/admin/audit';
-import { getCurrentUser } from '@/lib/insforge';
+import { getServerUser } from '@/lib/server-auth';
 
 export async function updateStatusAction(id: string, status: string, notes?: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await updateApplicationStatus(id, status, notes);
     
@@ -33,7 +33,7 @@ export async function updateStatusAction(id: string, status: string, notes?: str
 }
 
 export async function shortlistAction(id: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await shortlistApplication(id);
     
@@ -55,7 +55,7 @@ export async function shortlistAction(id: string) {
 }
 
 export async function rejectAction(id: string, reason: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await rejectApplication(id, reason);
     

@@ -1,8 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { insforgeAdmin } from '@/lib/insforge-admin';
-import { createClient } from '@insforge/sdk';
-import { cookies } from 'next/headers';
+import { getServerUser } from '@/lib/server-auth';
 import styles from './dashboard.module.css';
 import {
     getDashboardStats,
@@ -36,17 +34,8 @@ export default async function AdminDashboardPage() {
     if (!stats) return <div className={styles.error}>Error loading dashboard data. Please check connection.</div>;
 
     // 2. Identify Admin
-    const cookieStore = await cookies();
-    const token = cookieStore.get('tm_access_token')?.value;
-
-    const userClient = createClient({
-        baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
-        anonKey: token || process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!
-    });
-
-    const { data: sessionData } = await userClient.auth.getCurrentSession();
-    const user = sessionData?.session?.user;
-    const adminName = user?.profile?.name || (user?.metadata as any)?.name || 'Super Admin';
+    const user = await getServerUser();
+    const adminName = user?.name || user?.email?.split('@')[0] || 'Admin';
     const todayStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
     // 3. Prepare KPI Data

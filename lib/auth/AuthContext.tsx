@@ -211,17 +211,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const roleBeforeSignOut = user?.role;
     await insforge.auth.signOut();
     
     clearAuthCookies();
     
     setUser(null);
-    if (roleBeforeSignOut === 'admin' || roleBeforeSignOut === 'super_admin') {
-      router.push('/login');
-    } else {
-      router.push('/login');
-    }
+
+    // Replace history so the browser back button can't revive a protected dashboard view.
+    window.location.replace('/login');
   };
 
   const login = useCallback((token: string, authUser: User) => {

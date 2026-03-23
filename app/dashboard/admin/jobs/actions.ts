@@ -11,10 +11,10 @@ import {
 } from '@/lib/api/admin';
 import { revalidatePath } from 'next/cache';
 import { logAction } from '@/lib/admin/audit';
-import { getCurrentUser } from '@/lib/insforge';
+import { getServerUser } from '@/lib/server-auth';
 
 export async function approveJobAction(id: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await approveJob(id);
     if (user) {
@@ -33,7 +33,7 @@ export async function approveJobAction(id: string) {
 }
 
 export async function pauseJobAction(id: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await pauseJob(id);
     if (user) {
@@ -52,7 +52,7 @@ export async function pauseJobAction(id: string) {
 }
 
 export async function closeJobAction(id: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await closeJob(id);
     if (user) {
@@ -71,7 +71,7 @@ export async function closeJobAction(id: string) {
 }
 
 export async function deleteJobAction(id: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await deleteJob(id);
     if (user) {
@@ -91,7 +91,7 @@ export async function deleteJobAction(id: string) {
 }
 
 export async function rejectJobAction(id: string, reason: string) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     await rejectJob(id, reason);
     if (user) {
@@ -111,7 +111,7 @@ export async function rejectJobAction(id: string, reason: string) {
 }
 
 export async function createJobAction(formData: any) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     const data = await createAdminJob(formData);
     if (user && data) {
@@ -131,7 +131,7 @@ export async function createJobAction(formData: any) {
 }
 
 export async function updateJobAction(id: string, formData: any) {
-  const user = await getCurrentUser();
+  const user = await getServerUser();
   try {
     const data = await updateAdminJob(id, formData);
     if (user) {

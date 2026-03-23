@@ -1,7 +1,7 @@
 import React from 'react';
 import { getAllCompanies, getAdminJobById } from '@/lib/api/admin';
 import AdminJobForm from '../../AdminJobForm';
-import { getServerUser } from '@/lib/insforge';
+import { getServerUser } from '@/lib/server-auth';
 import { redirect, notFound } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
