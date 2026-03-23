@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
 import styles from '../../onboarding.module.css';
 
 export default function RecruiterDocuments() {
+    const { user } = useAuth();
     const [logo, setLogo] = useState<File | null>(null);
     const [doc, setDoc] = useState<File | null>(null);
     const [website, setWebsite] = useState('');
@@ -16,7 +18,7 @@ export default function RecruiterDocuments() {
         setIsLoading(true);
         setTimeout(() => {
             setIsLoading(false);
-            router.push('/dashboard/recruiter');
+            router.push(`/dashboard/recruiter/${user?.role_id || ''}`);
         }, 1500);
     };
 
@@ -105,7 +107,7 @@ export default function RecruiterDocuments() {
             </div>
 
             <p className={styles.skipLink}>
-                <button className={styles.skipBtn} onClick={() => router.push('/dashboard/recruiter')}>Skip for now</button>
+                <button className={styles.skipBtn} onClick={() => router.push(`/dashboard/recruiter/${user?.role_id || ''}`)}>Skip for now</button>
             </p>
         </div>
     );

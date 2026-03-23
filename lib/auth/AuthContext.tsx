@@ -67,38 +67,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fallback: create profile if it doesn't exist
         const fallbackRole = normalizeRole(((metadata?.role as UserRole) || 'candidate'), email);
         const fallbackName = email.split('@')[0];
-        
-        const { data: newProfile, error: insertError } = await insforge.database
-          .from('profiles')
-          .insert([{
-            id: userId,
-            email,
-            role: fallbackRole,
-            name: fallbackName
-          }])
-          .select()
-          .single();
 
-        if (insertError) {
-          console.error('Error creating fallback profile:', insertError.message);
-          return null;
-        }
+        // Generate virtual role-specific ID
+        const prefix = fallbackRole === 'super_admin' ? 'admin' : fallbackRole === 'recruiter' ? 'recr' : 'cand';
+        const virtualRoleId = `${prefix}_${userId.slice(0, 8)}`;
+
+        try {
+          const { data: newProfile, error: insertError } = await insforge.database
+            .from('profiles')
+            .insert([{
+              id: userId,
+              email,
+              role: fallbackRole,
+              // role_id: virtualRoleId, // Skip if column doesn't exist
+              name: fallbackName
+            }])
+            .select()
+            .single();
+
+          if (!insertError) {
+            return {
+              id: userId,
+              email,
+              role: newProfile.role as UserRole,
+              role_id: newProfile.role_id || virtualRoleId,
+              name: newProfile.name || fallbackName,
+              avatar_url: newProfile.avatar_url || null,
+            };
+          }
+        } catch (e) { }
 
         return {
           id: userId,
           email,
-          role: normalizeRole(newProfile.role as UserRole, email),
+          role: newProfile.role as UserRole,
           name: newProfile.name || fallbackName,
           avatar_url: newProfile.avatar_url || null,
         };
       }
 
-      const resolvedRole = normalizeRole(((profile?.role as UserRole) || 'candidate'), email);
-
       return {
         id: userId,
         email,
-        role: resolvedRole,
+        role: (profile?.role as UserRole) || 'candidate',
         name: profile?.name || '',
         avatar_url: profile?.avatar_url || null,
         company_id: profile?.company_id,
@@ -115,22 +126,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/session', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const { data: { session } } = await insforge.auth.getCurrentSession();
+      if (session?.user) {
+        const fullUser = await fetchProfile(session.user.id, session.user.email!, session.user.metadata || undefined);
+        if (fullUser) {
+          // Sync cookies for middleware
+          // First clear any existing session cookies to avoid duplicates
+          document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
-      if (!response.ok) {
-        clearAuthCookies();
-        setUser(null);
-        return null;
-      }
-
-      const payload = await response.json();
-      const resolvedUser = (payload?.user || null) as User | null;
-
-      if (!resolvedUser) {
-        clearAuthCookies();
+          document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
+          document.cookie = `tm_role=${fullUser.role}; path=/; max-age=3600; SameSite=Lax`;
+          setUser(fullUser);
+          return fullUser;
+        } else {
+          // Clear cookies to break infinite redirect loops if profile is orphaned/missing
+          document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          setUser(null);
+        }
+      } else {
+        document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         setUser(null);
         return null;
       }
@@ -140,7 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return resolvedUser;
     } catch (err) {
       console.error('Refresh user error:', err);
-      clearAuthCookies();
+      document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       setUser(null);
       return null;
     } finally {
@@ -212,9 +230,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await insforge.auth.signOut();
-    
-    clearAuthCookies();
-    
+
+    document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+
     setUser(null);
 
     // Replace history so the browser back button can't revive a protected dashboard view.
@@ -222,7 +241,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = useCallback((token: string, authUser: User) => {
-    syncAuthCookies(token, authUser.role);
+    // First clear any existing session cookies to avoid duplicates
+    document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+
+    document.cookie = `tm_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
+    document.cookie = `tm_role=${authUser.role}; path=/; max-age=3600; SameSite=Lax`;
     setUser(authUser);
   }, [syncAuthCookies]);
 

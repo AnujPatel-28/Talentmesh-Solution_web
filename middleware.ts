@@ -38,6 +38,11 @@ export async function middleware(request: NextRequest) {
   // ── Get session ──────────────────────────────────────────────
   // We use getCurrentUser() because edgeFunctionToken verifies directly via headers
   const { data: { user } } = await insforge.auth.getCurrentUser()
+<<<<<<< HEAD
+  const role = request.cookies.get('tm_role')?.value || (user?.metadata?.role as string | undefined)
+  const roleId = request.cookies.get('tm_role_id')?.value || ''
+=======
+>>>>>>> 04ac0dec89ba27ffdf447ffa504124b6e2c58b6c
   
   // Role resolution: prefer the fast cookie, fall back to DB if missing
   let role: string | undefined = request.cookies.get('tm_role')?.value ||
@@ -65,12 +70,26 @@ export async function middleware(request: NextRequest) {
   const session = user ? { user } : null
 
   // ── REDIRECT ALREADY-LOGGED-IN USERS AWAY FROM AUTH PAGES ───
+<<<<<<< HEAD
+  if (user && ['/login', '/signup', '/forgot-password', '/admin/login'].includes(pathname)) {
+    // Only redirect admins to admin dashboard if they are on /admin/login
+    if (pathname === '/admin/login' && (role === 'super_admin' || role === 'admin')) {
+        const dest = `/dashboard/admin/${roleId}`;
+        return NextResponse.redirect(new URL(dest, request.url));
+    }
+    
+    // Normal auth redirect for other pages
+    const dest = role === 'super_admin' ? `/dashboard/admin/${roleId}`
+               : role === 'recruiter' ? `/dashboard/recruiter/${roleId}`
+               : `/dashboard/candidate/${roleId}`
+=======
   if (user && ['/login', '/signup', '/auth/forgot-password'].includes(pathname)) {
     console.log(`[Middleware DEBUG] User is logged in. Email: ${user.email}, Role: ${role}, Pathname: ${pathname}`);
     const dest = ['super_admin', 'admin'].includes(role || '') ? '/dashboard/admin'
                : role === 'recruiter' ? '/dashboard/recruiter'
                : '/dashboard/candidate'
     console.log(`[Middleware DEBUG] Redirecting authenticated user away from auth page to: ${dest}`);
+>>>>>>> 04ac0dec89ba27ffdf447ffa504124b6e2c58b6c
     return NextResponse.redirect(new URL(dest, request.url))
   }
 
@@ -91,9 +110,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── SUPER ADMIN ROUTES (/dashboard/admin) ────────────────────
+<<<<<<< HEAD
+  if (pathname.includes('/dashboard/admin')) {
+=======
   if (pathname.startsWith('/dashboard/admin')) {
     console.log(`[Middleware DEBUG] Incoming request to /dashboard/admin. User: ${user?.email}, Role: ${role}`);
     
+>>>>>>> 04ac0dec89ba27ffdf447ffa504124b6e2c58b6c
     // Check 1: must be logged in
     if (!user) {
       console.log(`[Middleware DEBUG] Rejecting: Not logged in`);
@@ -127,7 +150,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── RECRUITER ROUTES (/dashboard/recruiter) ──────────────────
-  if (pathname.startsWith('/dashboard/recruiter')) {
+  if (pathname.includes('/dashboard/recruiter')) {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
     if (!['recruiter', 'super_admin'].includes(role ?? '')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url))
@@ -137,19 +160,31 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── CANDIDATE ROUTES (/dashboard/candidate) ──────────────────
-  if (pathname.startsWith('/dashboard/candidate')) {
+  if (pathname.includes('/dashboard/candidate')) {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
+<<<<<<< HEAD
+    if (role === 'super_admin' || role === 'recruiter') {
+      const dest = role === 'super_admin' ? `/dashboard/admin/${roleId}` : `/dashboard/recruiter/${roleId}`;
+      return NextResponse.redirect(new URL(dest, request.url))
+=======
     if (['super_admin', 'admin', 'recruiter'].includes(role || '')) {
       return NextResponse.redirect(new URL('/dashboard/' + (['super_admin', 'admin'].includes(role || '') ? 'admin' : 'recruiter'), request.url))
+>>>>>>> 04ac0dec89ba27ffdf447ffa504124b6e2c58b6c
     }
   }
 
   // ── ROOT /dashboard → ROLE-BASED REDIRECT ────────────────────
   if (pathname === '/dashboard') {
     if (!user) return NextResponse.redirect(new URL('/login', request.url))
+<<<<<<< HEAD
+    const dest = role === 'super_admin' ? `/dashboard/admin/${roleId}`
+               : role === 'recruiter' ? `/dashboard/recruiter/${roleId}`
+               : `/dashboard/candidate/${roleId}`
+=======
     const dest = ['super_admin', 'admin'].includes(role || '') ? '/dashboard/admin'
                : role === 'recruiter' ? '/dashboard/recruiter'
                : '/dashboard/candidate'
+>>>>>>> 04ac0dec89ba27ffdf447ffa504124b6e2c58b6c
     return NextResponse.redirect(new URL(dest, request.url))
   }
 
@@ -172,7 +207,8 @@ export const config = {
     '/onboarding/:path*',
     '/login',
     '/signup',
-    '/auth/forgot-password',
+    '/forgot-password',
+    '/admin/login',
     '/auth/setup-mfa',
     '/auth/mfa-verify',
     '/admin/forgot-password',

@@ -84,7 +84,7 @@ export default function DashboardJobDetailPage() {
     }, [jobId, user]);
 
     const handleToggleSave = async () => {
-        if (!user) return router.push('/auth/login');
+        if (!user) return router.push('/login');
         try {
             if (isSaved) {
                 await insforge.database.from('saved_jobs').delete().eq('job_id', jobId).eq('candidate_id', user.id);
@@ -167,7 +167,7 @@ export default function DashboardJobDetailPage() {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button 
+                            <button
                                 onClick={handleToggleSave}
                                 style={{
                                     background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px',
@@ -182,7 +182,7 @@ export default function DashboardJobDetailPage() {
                                     <Ico.Check /> {appStatus.charAt(0).toUpperCase() + appStatus.slice(1)}
                                 </span>
                             ) : (
-                                <button 
+                                <button
                                     onClick={() => setIsApplyModalOpen(true)}
                                     style={{
                                         background: 'var(--primary-blue)', color: 'white', border: 'none',
@@ -290,7 +290,7 @@ export default function DashboardJobDetailPage() {
                 </div>
             </div>
 
-            <ApplyModal 
+            <ApplyModal
                 isOpen={isApplyModalOpen}
                 onClose={() => setIsApplyModalOpen(false)}
                 jobId={job.id}

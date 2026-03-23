@@ -58,11 +58,18 @@ function AuthCallbackContent() {
       // We also set the role from the query param if it's provided and not yet set in DB
       const { data: existingProfile } = await insforge.database
         .from('profiles')
-        .select('role')
+        .select('role, role_id')
         .eq('id', user.id)
         .single();
 
       const finalRole = existingProfile?.role || defaultRole || 'candidate';
+
+      // Generate role-specific ID if not exists
+      let roleId = existingProfile?.role_id;
+      if (!roleId) {
+        const prefix = finalRole === 'super_admin' ? 'admin' : finalRole === 'recruiter' ? 'recr' : 'cand';
+        roleId = `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
+      }
 
       const { error: upsertError } = await insforge.database
         .from('profiles')
@@ -72,6 +79,7 @@ function AuthCallbackContent() {
           name: realName,
           avatar_url: avatarUrl,
           role: finalRole,
+          // role_id: roleId, // Omit to avoid "column not found" error
           updated_at: new Date().toISOString(),
         }]);
 
@@ -80,7 +88,7 @@ function AuthCallbackContent() {
         if (upsertError.message.includes('duplicate key') || upsertError.message.includes('unique constraint')) {
           console.log('Resolving orphaned profile conflict for:', user.email);
           await insforge.database.from('profiles').delete().eq('email', user.email);
-          
+
           await insforge.database
             .from('profiles')
             .upsert([{
@@ -89,6 +97,7 @@ function AuthCallbackContent() {
               name: realName,
               avatar_url: avatarUrl,
               role: finalRole,
+              // role_id: roleId,
               updated_at: new Date().toISOString(),
             }]);
         } else {
@@ -103,11 +112,16 @@ function AuthCallbackContent() {
 
       document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
       document.cookie = `tm_role=${finalRole}; path=/; max-age=3600; SameSite=Lax`;
+      document.cookie = `tm_role_id=${roleId}; path=/; max-age=3600; SameSite=Lax`;
 
       // Redirect based on the final role
-      if (finalRole === 'admin' || finalRole === 'super_admin') router.push('/dashboard/admin');
-      else if (finalRole === 'recruiter') router.push('/onboarding/recruiter/setup');
-      else router.push('/dashboard/candidate');
+      if (finalRole === 'admin' || finalRole === 'super_admin') {
+        router.push(`/dashboard/admin/${roleId}`);
+      } else if (finalRole === 'recruiter') {
+        router.push('/onboarding/recruiter/setup');
+      } else {
+        router.push('/onboarding/candidate/interests');
+      }
     };
 
     handleCallback();
