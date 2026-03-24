@@ -118,7 +118,7 @@ function AuthCallbackContent() {
       } else if (finalRole === 'recruiter') {
         router.push('/onboarding/recruiter/setup');
       } else {
-        router.push('/onboarding/candidate/interests');
+        router.push('/onboarding/candidate');
       }
     };
 

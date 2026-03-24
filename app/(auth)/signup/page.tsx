@@ -103,7 +103,7 @@ export default function SignupPage() {
 
             // 5. Success! Redirection
             if (userRole === 'candidate') {
-                router.push('/onboarding/candidate/skills');
+                router.push('/onboarding/candidate');
             } else {
                 router.push('/onboarding/recruiter/setup');
             }
@@ -167,7 +167,7 @@ export default function SignupPage() {
 
             // Redirect based on role
             if (userRole === 'candidate') {
-                router.push('/onboarding/candidate/interests');
+                router.push('/onboarding/candidate');
             } else {
                 router.push('/onboarding/recruiter/setup');
             }

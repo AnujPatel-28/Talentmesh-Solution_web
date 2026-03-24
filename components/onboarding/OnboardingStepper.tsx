@@ -4,18 +4,18 @@ import styles from '../../app/onboarding/onboarding.module.css';
 
 interface OnboardingStepperProps {
     currentStep: 1 | 2 | 3;
+    steps?: [string, string, string];
 }
 
-export function OnboardingStepper({ currentStep }: OnboardingStepperProps) {
-    const steps = [
-        { id: 1, label: 'Skills' },
-        { id: 2, label: 'Interests' },
-        { id: 3, label: 'Documents' },
-    ];
+export function OnboardingStepper({ currentStep, steps = ['Skills', 'Interests', 'Documents'] }: OnboardingStepperProps) {
+    const items = steps.map((label, index) => ({
+        id: (index + 1) as 1 | 2 | 3,
+        label,
+    }));
 
     return (
         <div className={styles.stepper}>
-            {steps.map((step, index) => (
+            {items.map((step, index) => (
                 <React.Fragment key={step.id}>
                     <span 
                         className={`
@@ -30,9 +30,9 @@ export function OnboardingStepper({ currentStep }: OnboardingStepperProps) {
                             </svg>
                         ) : (
                             step.id
-                        )}
-                    </span>
-                    {index < steps.length - 1 && (
+                            )}
+                        </span>
+                    {index < items.length - 1 && (
                         <span 
                             className={`
                                 ${styles.stepLine} 
