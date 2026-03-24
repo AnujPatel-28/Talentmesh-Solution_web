@@ -1,40 +1,214 @@
 "use client";
-import React from 'react';
-import styles from '../candidate.module.css';
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import styles from './messages.module.css';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useMessages } from '@/lib/hooks/useMessages';
+import { getConversations, type Conversation } from '@/lib/api/messages';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function MessagesPage() {
-    const convos = [
-        { name: 'Rachel Kim', role: 'HR Manager at Google', lastMsg: "We'd love to schedule a follow-up interview...", time: '2h ago', unread: true },
-        { name: 'David Martinez', role: 'Recruiter at Spotify', lastMsg: 'Your application has been shortlisted for the next round.', time: 'Yesterday', unread: true },
-        { name: 'Ananya Sharma', role: 'Talent Lead at Razorpay', lastMsg: 'Thanks for your interest in the Frontend role!', time: '2 days ago', unread: false },
-        { name: 'James Chen', role: 'CTO at TechFlow', lastMsg: 'Great portfolio! Would you be available for a chat?', time: '3 days ago', unread: false },
-        { name: 'Lisa Park', role: 'Recruiter at Netflix', lastMsg: 'Your profile looks like a great fit for our team.', time: '1 week ago', unread: false },
-    ];
+    const { user } = useAuth();
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
+    const [loadingConvos, setLoadingConvos] = useState(true);
+    const [messageText, setMessageText] = useState('');
+    const [isSending, setIsSending] = useState(false);
+
+    const { messages, loading: loadingMessages, sendMessage } = useMessages(selectedConvoId);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const loadConversations = async () => {
+        if (!user) return;
+        try {
+            const data = await getConversations(user.id);
+            setConversations(data);
+        } catch (err) {
+            console.error('Error loading conversations:', err);
+        } finally {
+            setLoadingConvos(false);
+        }
+    };
+
+    useEffect(() => {
+        if (user) {
+            loadConversations();
+        }
+    }, [user]);
+
+    // Auto scroll to bottom
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSend = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!messageText.trim() || isSending || !selectedConvoId) return;
+
+        setIsSending(true);
+        try {
+            await sendMessage(messageText);
+            setMessageText('');
+            // Refresh conversation list to show new last message
+            loadConversations();
+        } catch (err) {
+            console.error('Failed to send message:', err);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
+    const selectedConvo = useMemo(() =>
+        conversations.find(c => c.partner_id === selectedConvoId),
+        [conversations, selectedConvoId]);
+
+    if (!user) {
+        return (
+            <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>🔒</div>
+                <h3>Access Denied</h3>
+                <p>Please log in to view your messages.</p>
+            </div>
+        );
+    }
 
     return (
-        <div className={styles.dash}>
-            <div className={styles.greet}>
-                <h1 className={styles.greetTitle}>Messages</h1>
-                <p className={styles.greetSub}>Your conversations with recruiters and hiring managers.</p>
-            </div>
-            <div className={styles.card}>
-                {convos.map((c, i) => (
-                    <div key={i} className={styles.actItem} style={{ cursor: 'pointer', padding: '0.75rem 0.65rem', borderRadius: 8 }}>
-                        <div className={styles.jobIcon} style={{ background: '#eff6ff', color: 'var(--primary-blue)', fontSize: '0.75rem', fontWeight: 700 }}>
-                            {c.name.split(' ').map(n => n[0]).join('')}
+        <div className={styles.container}>
+            {/* Sidebar */}
+            <div className={styles.sidebar}>
+                <div className={styles.sidebarHeader}>
+                    <h2>Messages</h2>
+                </div>
+                <div className={styles.convoList}>
+                    {loadingConvos ? (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                            <div className={styles.typing}>Loading conversations...</div>
                         </div>
-                        <div className={styles.actContent} style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.82rem', fontWeight: c.unread ? 700 : 500, color: '#0f172a' }}>{c.name}</span>
-                                <span style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{c.time}</span>
+                    ) : conversations.length === 0 ? (
+                        <div className={styles.emptyState}>
+                            <p>No messages yet. Apply to jobs to start a conversation with recruiters!</p>
+                        </div>
+                    ) : (
+                        conversations.map(convo => (
+                            <div
+                                key={convo.partner_id}
+                                className={`${styles.convoItem} ${selectedConvoId === convo.partner_id ? styles.convoItemActive : ''}`}
+                                onClick={() => setSelectedConvoId(convo.partner_id)}
+                            >
+                                <div className={styles.avatar}>
+                                    {convo.partner_avatar ? (
+                                        <img src={convo.partner_avatar} alt={convo.partner_name} />
+                                    ) : (
+                                        convo.partner_name[0].toUpperCase()
+                                    )}
+                                </div>
+                                <div className={styles.convoInfo}>
+                                    <div className={styles.convoTop}>
+                                        <span className={styles.convoName}>{convo.partner_name}</span>
+                                        <span className={styles.convoTime}>
+                                            {formatDistanceToNow(new Date(convo.last_message_time), { addSuffix: true })}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span className={styles.convoPreview}>{convo.last_message}</span>
+                                        {convo.unread_count > 0 && (
+                                            <span className={styles.unreadBadge}>{convo.unread_count}</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>{c.role}</span>
-                            <span style={{ fontSize: '0.72rem', color: c.unread ? '#0f172a' : '#94a3b8', fontWeight: c.unread ? 600 : 400, marginTop: 2 }}>{c.lastMsg}</span>
-                        </div>
-                        {c.unread && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary-blue)', flexShrink: 0 }} />}
-                    </div>
-                ))}
+                        ))
+                    )}
+                </div>
             </div>
+
+            {/* Chat Area */}
+            <div className={styles.chatArea}>
+                {selectedConvoId ? (
+                    <>
+                        <div className={styles.chatHeader}>
+                            <div className={styles.avatar}>
+                                {selectedConvo?.partner_avatar ? (
+                                    <img src={selectedConvo.partner_avatar} alt={selectedConvo.partner_name} />
+                                ) : (
+                                    selectedConvo?.partner_name?.[0]?.toUpperCase() || '?'
+                                )}
+                            </div>
+                            <span className={styles.chatPartnerName}>{selectedConvo?.partner_name}</span>
+                        </div>
+
+                        <div className={styles.messagesList} ref={scrollRef}>
+                            {loadingMessages ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                                    <div className={styles.typing}>Updating thread...</div>
+                                </div>
+                            ) : messages.length === 0 ? (
+                                <div className={styles.emptyState}>
+                                    <p>Start a conversation with {selectedConvo?.partner_name}</p>
+                                </div>
+                            ) : (
+                                messages.map(msg => {
+                                    const isOwn = msg.sender_id === user.id;
+                                    return (
+                                        <div key={msg.id} className={`${styles.messageRow} ${isOwn ? styles.messageRowOwn : ''}`}>
+                                            <div className={`${styles.bubble} ${isOwn ? styles.bubbleOwn : styles.bubbleTheirs}`}>
+                                                {msg.content}
+                                                <span className={`${styles.messageTime} ${isOwn ? styles.messageTimeOwn : ''}`}>
+                                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        <div className={styles.inputArea}>
+                            <form onSubmit={handleSend} className={styles.inputWrapper}>
+                                <textarea
+                                    className={styles.textarea}
+                                    placeholder="Type your message..."
+                                    value={messageText}
+                                    onChange={(e) => setMessageText(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    rows={1}
+                                    disabled={isSending}
+                                />
+                                <button type="submit" className={styles.sendBtn} disabled={!messageText.trim() || isSending}>
+                                    {isSending ? (
+                                        <div style={{ width: 12, height: 12, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                    ) : (
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                        </svg>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+                    </>
+                ) : (
+                    <div className={styles.emptyState}>
+                        <div className={styles.emptyIcon}>💬</div>
+                        <h3>TalentMesh Connect</h3>
+                        <p>Select a recruiter or job contact to view messages and coordinate interviews.</p>
+                    </div>
+                )}
+            </div>
+            <style jsx>{`
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }
