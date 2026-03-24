@@ -1,0 +1,273 @@
+.container {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: calc(100vh - 160px);
+    background: white;
+    border: 1px solid #eef0f2;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    border-right: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    background: #fafbfc;
+}
+
+.sidebarHeader {
+    padding: 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sidebarHeader h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.convoList {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.convoItem {
+    padding: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.convoItem:hover {
+    background: #f1f5f9;
+}
+
+.convoItemActive {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6; /* Hardcoded blue for safety */
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.convoInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.convoTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.convoName {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.convoTime {
+    font-size: 0.65rem;
+    color: #94a3b8;
+}
+
+.convoPreview {
+    font-size: 0.75rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.unreadBadge {
+    background: #3b82f6;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* Chat Thread */
+.chatArea {
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+.chatHeader {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.chatPartnerName {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.messagesList {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: #fcfdfe;
+}
+
+.messageRow {
+    display: flex;
+    width: 100%;
+}
+
+.messageRowOwn {
+    justify-content: flex-end;
+}
+
+.bubble {
+    max-width: 70%;
+    padding: 0.75rem 1rem;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    position: relative;
+}
+
+.bubbleTheirs {
+    background: #f1f5f9;
+    color: #1e293b;
+    border-bottom-left-radius: 4px;
+}
+
+.bubbleOwn {
+    background: #3b82f6;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.messageTime {
+    font-size: 0.62rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    display: block;
+}
+
+.messageTimeOwn {
+    color: rgba(255, 255, 255, 0.7);
+    text-align: right;
+}
+
+/* Input Area */
+.inputArea {
+    padding: 1.25rem;
+    border-top: 1px solid #f1f5f9;
+    background: white;
+}
+
+.inputWrapper {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s;
+}
+
+.inputWrapper:focus-within {
+    border-color: #3b82f6;
+}
+
+.textarea {
+    flex: 1;
+    border: none;
+    background: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: #0f172a;
+    padding: 0.35rem 0;
+    max-height: 120px;
+    min-height: 24px;
+}
+
+.sendBtn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.sendBtn:hover {
+    transform: scale(1.05);
+}
+
+.sendBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.emptyState {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    text-align: center;
+    padding: 2rem;
+}
+
+.emptyIcon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.typing {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-style: italic;
+    margin-bottom: 0.5rem;
+    padding-left: 1.5rem;
+}
