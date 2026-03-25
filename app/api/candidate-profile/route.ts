@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-
+import { withApi } from '@/lib/api/handler';
 import {
   applyResumeAutofill,
   calculateCandidateProfileStrength,
@@ -8,23 +8,9 @@ import {
   type CandidateSettingsBundle,
 } from '@/lib/candidate-profile';
 import { getServerInsforgeClient } from '@/lib/server-insforge';
+import { candidateProfileSchema } from '@/lib/validation/candidate-profile';
 
-type CandidateLookup = {
-  record: Record<string, unknown> | null;
-  key: 'user_id' | 'id';
-};
-
-type AuthenticatedContext = {
-  insforge: NonNullable<Awaited<ReturnType<typeof getServerInsforgeClient>>>;
-  user: {
-    id: string;
-    email?: string | null;
-  };
-};
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function isUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_REGEX.test(value);
 }
@@ -39,88 +25,18 @@ function getNullableStringValue(record: Record<string, unknown> | null, key: str
   return typeof value === 'string' && value ? value : null;
 }
 
-async function getAuthenticatedContext() {
-  const insforge = await getServerInsforgeClient();
+async function findCandidateProfile(insforge: any, userId: string) {
+  const byUserId = await insforge.database.from('candidate_profiles').select('*').eq('user_id', userId).single();
+  if (!byUserId.error) return { record: byUserId.data, key: 'user_id' };
 
-  if (!insforge) {
-    return {
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    };
-  }
-
-  const { data: userData, error } = await insforge.auth.getCurrentUser();
-  if (error || !userData?.user) {
-    return {
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    };
-  }
-
-  const userId = userData.user.id;
-  if (!isUuid(userId)) {
-    return {
-      error: NextResponse.json(
-        { error: 'Authenticated user is missing a valid UUID.' },
-        { status: 401 },
-      ),
-    };
-  }
-
-  return {
-    context: {
-      insforge,
-      user: {
-        id: userId,
-        email: userData.user.email,
-      },
-    } satisfies AuthenticatedContext,
-  };
-}
-
-async function findCandidateProfile(
-  insforge: NonNullable<Awaited<ReturnType<typeof getServerInsforgeClient>>>,
-  userId: string,
-): Promise<CandidateLookup> {
-  if (!userId) {
-    throw new Error('Cannot query candidate profile without a valid authenticated user ID.');
-  }
-
-  const byUserId = await insforge.database
-    .from('candidate_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .limit(1);
-
-  if (!byUserId.error) {
-    return { record: byUserId.data?.[0] ?? null, key: 'user_id' };
-  }
-
-  const byId = await insforge.database
-    .from('candidate_profiles')
-    .select('*')
-    .eq('id', userId)
-    .limit(1);
-
-  if (byId.error) {
-    throw new Error(byId.error.message);
-  }
-
-  return { record: byId.data?.[0] ?? null, key: 'id' };
+  const byId = await insforge.database.from('candidate_profiles').select('*').eq('id', userId).single();
+  return { record: byId.data || null, key: 'id' };
 }
 
 function buildResponse(profileRow: Record<string, unknown>, candidateRow: Record<string, unknown> | null): CandidateSettingsBundle {
-  const fallbackJobType =
-    typeof candidateRow?.job_type === 'string'
-      ? candidateRow.job_type
-      : Array.isArray(candidateRow?.job_types) && candidateRow.job_types.length > 0
-        ? String(candidateRow.job_types[0])
-        : candidateRow?.open_to_remote === true
-          ? 'Remote'
-          : '';
-
   const normalizedCandidate = normalizeCandidateProfile({
     ...getDefaultCandidateProfile(),
     ...candidateRow,
-    job_type: fallbackJobType,
   });
 
   return {
@@ -136,196 +52,84 @@ function buildResponse(profileRow: Record<string, unknown>, candidateRow: Record
   };
 }
 
-async function syncResumeAutofill(
-  insforge: NonNullable<Awaited<ReturnType<typeof getServerInsforgeClient>>>,
-  userId: string,
-  lookup: CandidateLookup,
-  bundle: CandidateSettingsBundle,
-) {
-  const autofilled = applyResumeAutofill(bundle.candidateProfile);
-  const shouldPersist =
-    autofilled.headline !== bundle.candidateProfile.headline ||
-    autofilled.skills.join('|') !== bundle.candidateProfile.skills.join('|');
+export const GET = withApi(
+  { requireAuth: true },
+  async (req, { user }) => {
+    const insforge = await getServerInsforgeClient();
+    if (!insforge) return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
 
-  if (!shouldPersist) {
-    return bundle;
-  }
-
-  const nextStrength = calculateCandidateProfileStrength(bundle.profile, autofilled);
-  const payload: Record<string, unknown> = {
-    headline: autofilled.headline,
-    skills: autofilled.skills,
-    profile_strength: nextStrength,
-  };
-
-  if (lookup.record) {
-    await insforge.database
-      .from('candidate_profiles')
-      .update(payload)
-      .eq(lookup.key, userId);
-  }
-
-  return {
-    ...bundle,
-    candidateProfile: {
-      ...autofilled,
-      profile_strength: nextStrength,
-    },
-  };
-}
-
-export async function GET() {
-  try {
-    const auth = await getAuthenticatedContext();
-    if (auth.error) {
-      return auth.error;
-    }
-
-    const { insforge, user } = auth.context;
-    const { data: profileRow, error: profileError } = await insforge.database
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profileRow) {
-      return NextResponse.json({ error: profileError?.message ?? 'Profile not found' }, { status: 404 });
-    }
+    const { data: profileRow } = await insforge.database.from('profiles').select('*').eq('id', user.id).single();
+    if (!profileRow) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
     const lookup = await findCandidateProfile(insforge, user.id);
     const bundle = buildResponse(profileRow, lookup.record);
-    const completedBundle = await syncResumeAutofill(insforge, user.id, lookup, bundle);
+    
+    // Sync resume autofill if needed
+    const autofilled = applyResumeAutofill(bundle.candidateProfile);
+    if (autofilled.headline !== bundle.candidateProfile.headline) {
+        const nextStrength = calculateCandidateProfileStrength(bundle.profile, autofilled);
+        await insforge.database.from('candidate_profiles').update({
+            headline: autofilled.headline,
+            skills: autofilled.skills,
+            profile_strength: nextStrength
+        }).eq(lookup.key, user.id);
+        bundle.candidateProfile = { ...autofilled, profile_strength: nextStrength };
+    }
 
-    return NextResponse.json(completedBundle);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(bundle);
   }
-}
+);
 
-export async function PUT(request: Request) {
-  try {
-    const auth = await getAuthenticatedContext();
-    if (auth.error) {
-      return auth.error;
-    }
+export const PUT = withApi(
+  { 
+    schema: { body: candidateProfileSchema },
+    requireAuth: true,
+    auditLog: true
+  },
+  async (req, { body, user }) => {
+    const insforge = await getServerInsforgeClient();
+    if (!insforge) return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
 
-    const body = await request.json() as {
-      profile?: Partial<CandidateSettingsBundle['profile']>;
-      candidateProfile?: Partial<CandidateSettingsBundle['candidateProfile']>;
-    };
-    const profileInput = body?.profile ?? {};
-    const candidateInput = body?.candidateProfile ?? {};
-
-    const { insforge, user } = auth.context;
-    const { data: profileRow, error: profileError } = await insforge.database
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profileRow) {
-      return NextResponse.json({ error: profileError?.message ?? 'Profile not found' }, { status: 404 });
-    }
+    const { data: profileRow } = await insforge.database.from('profiles').select('*').eq('id', user.id).single();
+    if (!profileRow) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
     const lookup = await findCandidateProfile(insforge, user.id);
     const existingBundle = buildResponse(profileRow, lookup.record);
 
     const nextProfile = {
-      name: typeof profileInput.name === 'string' ? profileInput.name.trim() : existingBundle.profile.name,
-      phone: typeof profileInput.phone === 'string' ? profileInput.phone.trim() : existingBundle.profile.phone,
-      location: typeof profileInput.location === 'string' ? profileInput.location.trim() : existingBundle.profile.location,
+      name: body.profile?.name?.trim() || existingBundle.profile.name,
+      phone: body.profile?.phone?.trim() || existingBundle.profile.phone,
+      location: body.profile?.location?.trim() || existingBundle.profile.location,
     };
 
     const mergedCandidate = applyResumeAutofill(normalizeCandidateProfile({
       ...existingBundle.candidateProfile,
-      ...candidateInput,
+      ...body.candidateProfile,
     }));
 
-    const profileStrength = calculateCandidateProfileStrength(
-      {
-        name: nextProfile.name,
-        phone: nextProfile.phone,
-        location: nextProfile.location,
-      },
-      mergedCandidate,
-    );
+    const profileStrength = calculateCandidateProfileStrength(nextProfile, mergedCandidate);
 
-    const { error: updateProfileError } = await insforge.database
-      .from('profiles')
-      .update(nextProfile)
-      .eq('id', user.id);
+    // Update profile
+    const { error: profileError } = await insforge.database.from('profiles').update(nextProfile).eq('id', user.id);
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
 
-    if (updateProfileError) {
-      return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
-    }
-
-    const candidatePayload: Record<string, unknown> = {
-      headline: mergedCandidate.headline,
-      skills: mergedCandidate.skills,
-      experience_years: mergedCandidate.experience_years,
-      education: mergedCandidate.education,
-      resume_url: mergedCandidate.resume_url,
-      salary_min: mergedCandidate.salary_min,
-      salary_max: mergedCandidate.salary_max,
-      preferred_locations: mergedCandidate.preferred_locations,
-      job_type: mergedCandidate.job_type,
-      profile_strength: profileStrength,
+    const candidatePayload = {
+      ...mergedCandidate,
+      profile_strength: profileStrength
     };
 
-    if (!isUuid(user.id)) {
-      return NextResponse.json(
-        { error: 'Cannot save onboarding data without a valid authenticated user UUID.' },
-        { status: 400 },
-      );
-    }
-
-    let saveCandidateError: { message: string } | null = null;
-
     if (lookup.record) {
-      const { error } = await insforge.database
-        .from('candidate_profiles')
-        .update(candidatePayload)
-        .eq(lookup.key, user.id);
-      saveCandidateError = error;
+      await insforge.database.from('candidate_profiles').update(candidatePayload).eq(lookup.key, user.id);
     } else {
-      const insertPayload =
-        lookup.key === 'user_id'
-          ? { user_id: user.id, ...candidatePayload }
-          : { id: user.id, ...candidatePayload };
-
-      if (
-        ('user_id' in insertPayload && !isUuid(insertPayload.user_id)) ||
-        ('id' in insertPayload && !isUuid(insertPayload.id))
-      ) {
-        return NextResponse.json(
-          { error: 'Refusing to insert candidate profile without a valid authenticated UUID.' },
-          { status: 400 },
-        );
-      }
-
-      const { error } = await insforge.database
-        .from('candidate_profiles')
-        .insert([insertPayload]);
-      saveCandidateError = error;
-    }
-
-    if (saveCandidateError) {
-      return NextResponse.json({ error: saveCandidateError.message }, { status: 400 });
+      await insforge.database.from('candidate_profiles').insert([{
+        [lookup.key]: user.id,
+        ...candidatePayload
+      }]);
     }
 
     return NextResponse.json({
-      profile: {
-        ...existingBundle.profile,
-        ...nextProfile,
-      },
-      candidateProfile: {
-        ...mergedCandidate,
-        profile_strength: profileStrength,
-      },
+      profile: { ...existingBundle.profile, ...nextProfile },
+      candidateProfile: { ...mergedCandidate, profile_strength: profileStrength }
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unexpected error';
-    return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+);

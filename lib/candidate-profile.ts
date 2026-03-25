@@ -4,6 +4,9 @@ export interface CandidateProfileFormData {
   experience_years: number | null;
   education: string;
   resume_url: string;
+  linkedin_url: string;
+  github_url: string;
+  portfolio_url: string;
   salary_min: number | null;
   salary_max: number | null;
   preferred_locations: string[];
@@ -126,6 +129,9 @@ export function getDefaultCandidateProfile(): CandidateProfileFormData {
     experience_years: null,
     education: '',
     resume_url: '',
+    linkedin_url: '',
+    github_url: '',
+    portfolio_url: '',
     salary_min: null,
     salary_max: null,
     preferred_locations: [],
@@ -144,17 +150,12 @@ export function calculateCandidateProfileStrength(
   if (isFilled(profile.phone)) score += 10;
   if (isFilled(profile.location)) score += 10;
 
-  if (sanitizeStringArray(candidateProfile.skills).length > 0) score += 20;
-  if (candidateProfile.experience_years !== null && candidateProfile.experience_years !== undefined) score += 20;
+  if (sanitizeStringArray(candidateProfile.skills).length >= 3) score += 20;
+  if (candidateProfile.experience_years !== null && candidateProfile.experience_years !== undefined) score += 15;
 
-  if (isFilled(candidateProfile.resume_url)) score += 15;
-
-  if (candidateProfile.salary_min !== null && candidateProfile.salary_min !== undefined) score += 5;
-  if (candidateProfile.salary_max !== null && candidateProfile.salary_max !== undefined) score += 5;
-
-  const hasPreferenceTarget =
-    sanitizeStringArray(candidateProfile.preferred_locations).length > 0 || isFilled(candidateProfile.job_type);
-  if (hasPreferenceTarget) score += 5;
+  if (isFilled(candidateProfile.resume_url)) score += 20;
+  if (isFilled(candidateProfile.linkedin_url)) score += 10;
+  if (isFilled(candidateProfile.headline)) score += 15;
 
   return Math.min(score, 100);
 }
@@ -205,6 +206,9 @@ export function normalizeCandidateProfile(input: Partial<CandidateProfileFormDat
     experience_years: sanitizeOptionalNumber(input.experience_years),
     education: typeof input.education === 'string' ? input.education.trim() : '',
     resume_url: typeof input.resume_url === 'string' ? input.resume_url.trim() : '',
+    linkedin_url: typeof input.linkedin_url === 'string' ? input.linkedin_url.trim() : '',
+    github_url: typeof input.github_url === 'string' ? input.github_url.trim() : '',
+    portfolio_url: typeof input.portfolio_url === 'string' ? input.portfolio_url.trim() : '',
     salary_min: sanitizeOptionalNumber(input.salary_min),
     salary_max: sanitizeOptionalNumber(input.salary_max),
     preferred_locations: sanitizeStringArray(input.preferred_locations),
