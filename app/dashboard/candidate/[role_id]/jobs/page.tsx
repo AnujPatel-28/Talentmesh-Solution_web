@@ -17,7 +17,7 @@ const IC = {
 };
 
 import { getApprovedJobs, type Job } from '@/lib/api/jobs';
-import { getMyApplications, checkAlreadyApplied, type ApplicationStatus } from '@/lib/api/applications';
+import { getMyApplications } from '@/lib/api/applications';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -132,7 +132,7 @@ export default function JobsPage() {
         setLocation('');
     };
 
-    const typeOptions = ['Full-time', 'Contract', 'Remote', 'Internship'];
+    const typeOptions = ['Full-Time', 'Contract', 'Remote', 'Internship'];
 
     if (error) {
         return (

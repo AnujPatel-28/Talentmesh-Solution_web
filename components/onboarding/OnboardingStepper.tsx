@@ -3,13 +3,13 @@ import React from 'react';
 import styles from '../../app/onboarding/onboarding.module.css';
 
 interface OnboardingStepperProps {
-    currentStep: 1 | 2 | 3;
-    steps?: [string, string, string];
+    currentStep: number;
+    steps?: string[];
 }
 
 export function OnboardingStepper({ currentStep, steps = ['Skills', 'Interests', 'Documents'] }: OnboardingStepperProps) {
     const items = steps.map((label, index) => ({
-        id: (index + 1) as 1 | 2 | 3,
+        id: index + 1,
         label,
     }));
 

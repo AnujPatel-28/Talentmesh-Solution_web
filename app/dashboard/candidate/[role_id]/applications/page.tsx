@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { getMyApplications, withdrawApplication, type Application, type ApplicationStatus } from '@/lib/api/applications';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { insforge } from '@/lib/insforge';
 import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
 import styles from '../candidate.module.css';
@@ -50,25 +49,6 @@ export default function ApplicationsPage() {
     useEffect(() => {
         if (user) {
             fetchData();
-            
-            const channelName = `candidate-apps-${user.id}`;
-            insforge.realtime.connect().catch(console.error);
-            insforge.realtime.subscribe(channelName).catch(console.error);
-            
-            const handleUpdate = (payload: any) => {
-                const updatedApp = payload?.new || payload;
-                if (updatedApp && updatedApp.id && updatedApp.status) {
-                    setApplications(prev => prev.map(app => app.id === updatedApp.id ? { ...app, ...updatedApp } : app));
-                    setToast({ message: `Your application status has been updated to ${updatedApp.status}`, type: 'info' });
-                }
-            };
-            
-            insforge.realtime.on('postgres_changes', handleUpdate);
-            insforge.realtime.on('UPDATE', handleUpdate);
-
-            return () => { 
-                insforge.realtime.unsubscribe(channelName);
-            };
         }
     }, [user]);
 

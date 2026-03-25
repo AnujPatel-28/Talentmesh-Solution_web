@@ -47,11 +47,9 @@ export default function CandidateHome({ params }: { params: { role_id: string } 
 
                 // Fetch Jobs with Company details (lowercase relation name because postgrest-js might handle it)
                 // Actually in @insforge/sdk, it's just raw PostgREST.
-                const { data: jobData } = await insforge.database
-                    .from('jobs')
-                    .select('*, company_profiles(*)')
-                    .limit(3);
-                setJobs(jobData || []);
+                const jobsResponse = await fetch('/api/jobs?limit=3', { cache: 'no-store' });
+                const jobsPayload = await jobsResponse.json();
+                setJobs(jobsPayload.jobs || []);
 
                 // Fetch Activity
                 const { data: actData } = await insforge.database

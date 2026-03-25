@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 
 import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { uploadResume } from '@/lib/api/storage';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
+import { getDefaultCandidateProfile } from '@/lib/candidate-profile';
 
 import styles from '../onboarding.module.css';
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
-const STEP_LABELS: [string, string, string] = ['Basic Info', 'Professional', 'Preferences'];
+const STEP_LABELS: [string, string, string, string] = ['Basic Info', 'Professional', 'Preferences', 'Documents'];
 const JOB_TYPES = ['Remote', 'Hybrid', 'Onsite'];
 
 const EMPTY_STATE: CandidateSettingsBundle = {
@@ -23,18 +25,7 @@ const EMPTY_STATE: CandidateSettingsBundle = {
         location: '',
         role_id: null,
     },
-    candidateProfile: {
-        headline: '',
-        skills: [],
-        experience_years: null,
-        education: '',
-        resume_url: '',
-        salary_min: null,
-        salary_max: null,
-        preferred_locations: [],
-        job_type: '',
-        profile_strength: 0,
-    },
+    candidateProfile: getDefaultCandidateProfile(),
 };
 
 function getFirstIncompleteStep(data: CandidateSettingsBundle): Step {
@@ -71,6 +62,11 @@ export default function CandidateOnboardingPage() {
                     throw new Error(payload.error || 'Failed to load onboarding data');
                 }
 
+                // Pre-fill name from AuthContext if it's missing in the profile
+                if (!payload.profile.name && user?.name) {
+                    payload.profile.name = user.name;
+                }
+                
                 setForm(payload);
                 setStep(getFirstIncompleteStep(payload));
             } catch (err) {
@@ -81,12 +77,14 @@ export default function CandidateOnboardingPage() {
             }
         };
 
-        fetchProfile();
-    }, []);
+        if (user) {
+            fetchProfile();
+        }
+    }, [user]);
 
     const canContinue = useMemo(() => {
         if (step === 1) {
-            return Boolean(form.profile.name.trim() && form.profile.phone.trim() && form.profile.location.trim());
+            return Boolean(form.profile.name?.trim() && form.profile.phone?.trim() && form.profile.location?.trim());
         }
 
         if (step === 2) {
@@ -158,39 +156,68 @@ export default function CandidateOnboardingPage() {
         );
     };
 
+    const [resume, setResume] = useState<File | null>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
+
+    const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setResume(e.target.files[0]);
+        }
+    };
+
     const handleContinue = async () => {
         if (!user?.id) {
             setError('You must be logged in before finishing setup.');
             return;
         }
 
-        if (step < 3) {
+        if (step < 4) {
             setStep((prev) => (prev + 1) as Step);
             return;
         }
 
         setIsSaving(true);
         setError('');
+        setUploadProgress(0);
 
         try {
-            const response = await fetch('/api/candidate-profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(form),
-            });
+            let finalResumeUrl = form.candidateProfile.resume_url;
 
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload.error || 'Failed to save onboarding');
+            // 1. Upload resume if selected
+            if (resume) {
+                setUploadProgress(20);
+                finalResumeUrl = await uploadResume(resume, user.id);
+                setUploadProgress(60);
             }
 
-            const roleId = payload.profile?.role_id || form.profile.role_id || user?.role_id || 'candidate';
+            // 2. Prepare payload
+            const payload = {
+                ...form,
+                candidateProfile: {
+                    ...form.candidateProfile,
+                    resume_url: finalResumeUrl,
+                }
+            };
+
+            // 3. Save to API
+            const response = await fetch('/api/candidate-profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const responseData = await response.json();
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Failed to save onboarding');
+            }
+
+            setUploadProgress(100);
+            const roleId = responseData.profile?.role_id || form.profile.role_id || user?.role_id || 'candidate';
             router.push(`/dashboard/candidate/${roleId}`);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to save onboarding';
-            setError(message);
+        } catch (err: any) {
+            setError(err.message || 'An error occurred during save');
+            setUploadProgress(0);
         } finally {
             setIsSaving(false);
         }
@@ -304,6 +331,85 @@ export default function CandidateOnboardingPage() {
                                 <option key={jobType} value={jobType}>{jobType}</option>
                             ))}
                         </select>
+                    </div>
+                </div>
+            )}
+
+            {step === 4 && (
+                <div className={styles.section}>
+                    <div className={styles.fieldGroup}>
+                        <label className={styles.label}>Resume (PDF only)</label>
+                        <input type="file" ref={fileRef} onChange={handleFile} accept=".pdf" hidden />
+                        <div
+                            className={`${styles.uploadArea} ${resume || form.candidateProfile.resume_url ? styles.uploadAreaActive : ''}`}
+                            onClick={() => fileRef.current?.click()}
+                        >
+                            {(resume || form.candidateProfile.resume_url) ? (
+                                <>
+                                    <svg className={styles.uploadIcon} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary-blue)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                                    </svg>
+                                    <span className={styles.uploadText}>{resume ? resume.name : 'Resume uploaded'}</span>
+                                    <span className={styles.uploadHint}>Click to replace</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className={styles.uploadIcon} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                                    </svg>
+                                    <span className={styles.uploadText}>Upload your resume</span>
+                                    <span className={styles.uploadHint}>Max 5MB</span>
+                                </>
+                            )}
+                        </div>
+                        {uploadProgress > 0 && uploadProgress < 100 && (
+                            <div className={styles.progressBar}>
+                                <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }} />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={styles.section}>
+                        <h3 className={styles.sectionTitle}>Online Presence</h3>
+                        <div className={styles.fieldGroup}>
+                            <label className={styles.label}>LinkedIn URL</label>
+                            <input
+                                type="url"
+                                className={styles.optionalInput}
+                                placeholder="https://linkedin.com/in/username"
+                                value={form.candidateProfile.linkedin_url}
+                                onChange={(e) => setForm({
+                                    ...form,
+                                    candidateProfile: { ...form.candidateProfile, linkedin_url: e.target.value }
+                                })}
+                            />
+                        </div>
+                        <div className={styles.fieldGroup}>
+                            <label className={styles.label}>GitHub URL</label>
+                            <input
+                                type="url"
+                                className={styles.optionalInput}
+                                placeholder="https://github.com/username"
+                                value={form.candidateProfile.github_url}
+                                onChange={(e) => setForm({
+                                    ...form,
+                                    candidateProfile: { ...form.candidateProfile, github_url: e.target.value }
+                                })}
+                            />
+                        </div>
+                        <div className={styles.fieldGroup}>
+                            <label className={styles.label}>Portfolio URL</label>
+                            <input
+                                type="url"
+                                className={styles.optionalInput}
+                                placeholder="https://yourportfolio.com"
+                                value={form.candidateProfile.portfolio_url}
+                                onChange={(e) => setForm({
+                                    ...form,
+                                    candidateProfile: { ...form.candidateProfile, portfolio_url: e.target.value }
+                                })}
+                            />
+                        </div>
                     </div>
                 </div>
             )}
