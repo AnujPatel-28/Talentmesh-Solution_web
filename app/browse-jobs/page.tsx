@@ -2,7 +2,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import styles from './jobs.module.css';
-import { insforge } from '@/lib/insforge';
 import { BlogFeed } from '@/components/sections';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -48,10 +47,12 @@ export default function BrowseJobsPage() {
     useEffect(() => {
         async function fetchJobs() {
             try {
-                const { data } = await insforge.database
-                    .from('jobs')
-                    .select('*, company_profiles(*)');
-                setJobs(data || []);
+                const response = await fetch('/api/jobs?limit=100', { cache: 'no-store' });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to fetch jobs');
+                }
+                setJobs(payload.jobs || []);
             } catch (err) {
                 console.error('Error fetching jobs:', err);
             } finally {
@@ -66,12 +67,15 @@ export default function BrowseJobsPage() {
 
     const filtered = useMemo(() => {
         return jobs.filter(j => {
-            if (search && !j.title.toLowerCase().includes(search.toLowerCase()) && !j.company_profiles?.company_name.toLowerCase().includes(search.toLowerCase())) return false;
-            if (locSearch && !j.location.toLowerCase().includes(locSearch.toLowerCase())) return false;
+            const title = j.title?.toLowerCase() || '';
+            const companyName = j.company_profiles?.company_name?.toLowerCase() || '';
+            const location = j.location?.toLowerCase() || '';
+            const department = j.department?.toLowerCase() || '';
+            if (search && !title.includes(search.toLowerCase()) && !companyName.includes(search.toLowerCase())) return false;
+            if (locSearch && !location.includes(locSearch.toLowerCase())) return false;
             if (jobType && j.type !== jobType) return false;
-            if (category !== 'All' && !j.department?.toLowerCase().includes(category.toLowerCase()) && !j.title.toLowerCase().includes(category.toLowerCase())) return false;
+            if (category !== 'All' && !department.includes(category.toLowerCase()) && !title.includes(category.toLowerCase())) return false;
             if (activeTypes.length && !activeTypes.includes(j.type)) return false;
-            // Industry filter (mapping department to industry for now)
             if (activeInds.length && !activeInds.includes(j.department)) return false;
             return true;
         });

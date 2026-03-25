@@ -64,8 +64,8 @@ export default function ApplyModal({
             }, 2000);
         } else {
             setError(result.error || 'An unexpected error occurred.');
-            setLoading(false);
         }
+        setLoading(false);
     };
 
     return (

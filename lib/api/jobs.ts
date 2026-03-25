@@ -56,62 +56,49 @@ export interface Job {
  * Fetches approved and active jobs with pagination and filters.
  */
 export async function getApprovedJobs(filters: JobFilters = {}): Promise<Job[]> {
-  const { search, type, location, page = 0 } = filters;
-  const start = page * 20;
-  const end = (page + 1) * 20 - 1;
+  const params = new URLSearchParams({
+    page: String(filters.page || 0),
+    limit: '20',
+  });
 
-  let query = insforge.database
-    .from('jobs')
-    .select('*, companies(name, logo_url, industry)')
-    .eq('is_approved', true)
-    .eq('status', 'active');
-
-  if (search) {
-    query = query.filter('fts', '@@', `plainto_tsquery('${search}')`);
+  if (filters.search) {
+    params.set('search', filters.search);
+  }
+  if (filters.type) {
+    params.set('type', filters.type);
+  }
+  if (filters.location) {
+    params.set('location', filters.location);
   }
 
-  if (type) {
-    query = query.eq('type', type);
+  const response = await fetch(`/api/jobs?${params.toString()}`, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Failed to fetch jobs');
   }
 
-  if (location) {
-    query = query.eq('location', location);
-  }
-
-  const { data, error } = await query
-    .order('created_at', { ascending: false })
-    .range(start, end);
-
-  if (error) {
-    throw new Error(`Failed to fetch jobs: ${error.message}`);
-  }
-
-  return data as unknown as Job[];
+  return (payload.jobs || []) as Job[];
 }
 
 /**
  * Fetches a single job by ID and increments its views count.
  */
 export async function getJobById(id: string): Promise<Job> {
-  const { data, error } = await insforge.database
-    .from('jobs')
-    .select('*, companies(*)')
-    .eq('id', id)
-    .single();
+  const response = await fetch(`/api/jobs/${id}`, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  const payload = await response.json();
 
-  if (error || !data) {
-    throw new Error(`Job not found: ${error?.message || 'Unknown error'}`);
+  if (!response.ok || !payload.job) {
+    throw new Error(payload.error || 'Job not found');
   }
 
-  // Fire and forget increment view count
-  insforge.database.from('jobs')
-    .update({ views_count: (data.views_count || 0) + 1 })
-    .eq('id', id)
-    .then(({ error: incError }) => {
-      if (incError) console.error('Failed to increment view count:', incError.message);
-    });
-
-  return data as unknown as Job;
+  return payload.job as Job;
 }
 
 /**

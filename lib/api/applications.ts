@@ -1,13 +1,11 @@
-import { insforge } from '@/lib/insforge';
-
-export type ApplicationStatus = 
-  | 'applied' 
-  | 'reviewing' 
-  | 'shortlisted' 
-  | 'interview' 
-  | 'offer' 
-  | 'accepted' 
-  | 'rejected' 
+export type ApplicationStatus =
+  | 'applied'
+  | 'reviewing'
+  | 'shortlisted'
+  | 'interview'
+  | 'offer'
+  | 'accepted'
+  | 'rejected'
   | 'withdrawn';
 
 export interface Application {
@@ -27,99 +25,73 @@ export interface Application {
     currency: string;
     companies: {
       name: string;
-      logo_url: string;
+      logo_url: string | null;
     };
   };
 }
 
-/**
- * Submits a new job application.
- * Handles duplicate application error (PG error 23505).
- */
 export async function applyToJob(jobId: string, coverLetter?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { session } } = await insforge.auth.getCurrentSession();
-    if (!session?.user) {
-      throw new Error('You must be logged in to apply for a job.');
-    }
+    const response = await fetch('/api/candidate/applications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ jobId, coverLetter }),
+    });
+    const payload = await response.json();
 
-    const { error } = await insforge.database
-      .from('applications')
-      .insert({
-        job_id: jobId,
-        candidate_id: session.user.id,
-        cover_letter: coverLetter,
-        status: 'applied'
-      });
-
-    if (error) {
-      if (error.code === '23505') {
-        return { success: false, error: 'You have already applied for this job.' };
-      }
-      throw new Error(`Application failed: ${error.message}`);
+    if (!response.ok) {
+      return { success: false, error: payload.error || 'Application failed.' };
     }
 
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: err.message || 'Application failed.' };
   }
 }
 
-/**
- * Fetches the current user's job applications.
- */
 export async function getMyApplications(): Promise<Application[]> {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) {
-    throw new Error('User not authenticated.');
+  const response = await fetch('/api/candidate/applications', {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Failed to fetch applications.');
   }
 
-  const { data, error } = await insforge.database
-    .from('applications')
-    .select('*, jobs(title, location, type, salary_min, salary_max, currency, companies(name, logo_url))')
-    .eq('candidate_id', session.user.id)
-    .order('applied_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to fetch applications: ${error.message}`);
-  }
-
-  return data as unknown as Application[];
+  return (payload.applications || []) as Application[];
 }
 
-/**
- * Withdraws a specific job application.
- */
 export async function withdrawApplication(id: string): Promise<void> {
-  const { error } = await insforge.database
-    .from('applications')
-    .update({ status: 'withdrawn' })
-    .eq('id', id);
+  const response = await fetch(`/api/candidate/applications/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ status: 'withdrawn' }),
+  });
+  const payload = await response.json();
 
-  if (error) {
-    throw new Error(`Failed to withdraw application: ${error.message}`);
+  if (!response.ok) {
+    throw new Error(payload.error || 'Failed to withdraw application.');
   }
 }
 
-/**
- * Checks if the user has already applied for a specific job.
- * Returns the status if applied, null otherwise.
- */
 export async function checkAlreadyApplied(jobId: string): Promise<ApplicationStatus | null> {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) return null;
+  const response = await fetch(`/api/candidate/applications?jobId=${encodeURIComponent(jobId)}`, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
 
-  const { data, error } = await insforge.database
-    .from('applications')
-    .select('status')
-    .eq('job_id', jobId)
-    .eq('candidate_id', session.user.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Error checking application status:', error.message);
+  if (response.status === 401 || response.status === 403) {
     return null;
   }
 
-  return data?.status as ApplicationStatus || null;
+  const payload = await response.json();
+  if (!response.ok) {
+    return null;
+  }
+
+  return (payload.status as ApplicationStatus | null) || null;
 }

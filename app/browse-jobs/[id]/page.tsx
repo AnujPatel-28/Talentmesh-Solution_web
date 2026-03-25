@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from './jobDetail.module.css';
-import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { BlogFeed } from '@/components/sections';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { applyToJob, checkAlreadyApplied } from '@/lib/api/applications';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const Ico = {
@@ -39,21 +39,16 @@ export default function JobDetailPage() {
     useEffect(() => {
         async function fetchJob() {
             try {
-                const { data } = await insforge.database
-                    .from('jobs')
-                    .select('*, company_profiles(*)')
-                    .eq('id', jobId)
-                    .single();
-                setJob(data);
+                const response = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to fetch job');
+                }
+                setJob(payload.job);
 
                 if (user) {
-                    const { data: app } = await insforge.database
-                        .from('applications')
-                        .select('id')
-                        .eq('job_id', jobId)
-                        .eq('candidate_id', user.id)
-                        .single();
-                    if (app) setApplied(true);
+                    const status = await checkAlreadyApplied(jobId);
+                    if (status) setApplied(true);
                 }
             } catch (err) {
                 console.error('Error fetching job:', err);
@@ -65,25 +60,16 @@ export default function JobDetailPage() {
     }, [jobId, user]);
 
     const handleApply = async () => {
-        if (!user) return;
+        if (!user) {
+            window.location.href = '/login';
+            return;
+        }
         setIsApplying(true);
         try {
-            const { error: appError } = await insforge.database
-                .from('applications')
-                .insert([{
-                    job_id: jobId,
-                    candidate_id: user.id,
-                    status: 'applied'
-                }]);
-            
-            if (appError) throw appError;
-
-            // Log activity
-            await insforge.database.from('activity').insert([{
-                user_id: user.id,
-                description: `Applied to ${job.title} at ${job.company_profiles?.company_name}`,
-                type: 'application'
-            }]);
+            const result = await applyToJob(jobId);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to apply.');
+            }
 
             setApplied(true);
             alert('Application sent successfully!');
