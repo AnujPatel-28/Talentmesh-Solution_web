@@ -1,4 +1,5 @@
 import { insforgeAdmin } from '@/lib/insforge-admin';
+import { insforge as publicClient } from '@/lib/insforge';
 import type { BlogFilterInput, CreateBlogInput, UpdateBlogInput } from '@/lib/validation/blogs';
 
 type BlogRecord = {
@@ -89,7 +90,7 @@ function serializeBlog(record: BlogRecord) {
 }
 
 export async function listPublicBlogs(filters: Partial<BlogFilterInput> = {}) {
-  const client = requireAdminClient();
+  const client = insforgeAdmin || publicClient;
   const page = filters.page || 0;
   const limit = filters.limit || 20;
   const start = page * limit;
@@ -97,7 +98,7 @@ export async function listPublicBlogs(filters: Partial<BlogFilterInput> = {}) {
 
   let query = client.database
     .from('blog')
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id')
     .eq('status', 'published')
     .order('created_at', { ascending: false });
 
@@ -111,6 +112,7 @@ export async function listPublicBlogs(filters: Partial<BlogFilterInput> = {}) {
 
   const { data, error } = await query.range(start, end);
   if (error) {
+    console.error('SERVER-SIDE BLOG FETCH ERROR:', error);
     throw new Error(`Failed to fetch blogs: ${error.message}`);
   }
 
@@ -118,10 +120,10 @@ export async function listPublicBlogs(filters: Partial<BlogFilterInput> = {}) {
 }
 
 export async function getPublicBlogBySlug(slug: string) {
-  const client = requireAdminClient();
+  const client = insforgeAdmin || publicClient;
   const { data, error } = await client.database
     .from('blog')
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .eq('slug', slug)
     .eq('status', 'published')
     .single();
@@ -142,7 +144,7 @@ export async function listAdminBlogs(filters: Partial<BlogFilterInput> = {}) {
 
   let query = client.database
     .from('blog')
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .order('created_at', { ascending: false });
 
   if (filters.search) {
@@ -169,7 +171,7 @@ export async function getAdminBlog(id: string) {
   const client = requireAdminClient();
   const { data, error } = await client.database
     .from('blog')
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .eq('id', id)
     .single();
 
@@ -194,7 +196,7 @@ export async function createAdminBlog(input: CreateBlogInput, adminId: string) {
   const { data, error } = await client.database
     .from('blog')
     .insert(payload)
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .single();
 
   if (error || !data) {
@@ -219,7 +221,7 @@ export async function updateAdminBlog(id: string, input: UpdateBlogInput) {
     .from('blog')
     .update(payload)
     .eq('id', id)
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .single();
 
   if (error || !data) {
@@ -241,7 +243,7 @@ export async function setAdminBlogState(id: string, action: 'publish' | 'unpubli
     .from('blog')
     .update(stateMap[action])
     .eq('id', id)
-    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, updated_at, author_id, author:profiles(name)')
+    .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .single();
 
   if (error || !data) {

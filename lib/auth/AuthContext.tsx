@@ -204,9 +204,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.sessionStorage.removeItem(USER_STORAGE_KEY);
     }
 
-    // Only auto-refresh if we have a cached user (meaning same tab/session)
-    // This honors "Tab-wise store" and "logout when tab closed"
-    if (hasLoadedCached) {
+    // Auto-refresh if we have a cached user OR a matching access cookie.
+    // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
+    const hasAccessToken = document.cookie.includes('tm_access_token');
+    
+    if (hasLoadedCached || hasAccessToken) {
       refreshUser();
     } else {
       setIsLoading(false);

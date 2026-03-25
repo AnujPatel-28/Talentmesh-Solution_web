@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper';
@@ -42,7 +42,7 @@ function getFirstIncompleteStep(data: CandidateSettingsBundle): Step {
 
 export default function CandidateOnboardingPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, isLoading: authLoading } = useAuth();
 
     const [step, setStep] = useState<Step>(1);
     const [form, setForm] = useState<CandidateSettingsBundle>(EMPTY_STATE);
@@ -53,6 +53,13 @@ export default function CandidateOnboardingPage() {
     const [locationInput, setLocationInput] = useState('');
 
     useEffect(() => {
+        if (authLoading) return;
+
+        if (!user) {
+            router.replace('/login?redirect=/onboarding/candidate');
+            return;
+        }
+
         const fetchProfile = async () => {
             try {
                 const response = await fetch('/api/candidate-profile', { cache: 'no-store' });
@@ -77,10 +84,8 @@ export default function CandidateOnboardingPage() {
             }
         };
 
-        if (user) {
-            fetchProfile();
-        }
-    }, [user]);
+        fetchProfile();
+    }, [user, authLoading, router]);
 
     const canContinue = useMemo(() => {
         if (step === 1) {
@@ -223,7 +228,7 @@ export default function CandidateOnboardingPage() {
         }
     };
 
-    if (isLoading) {
+    if (authLoading || isLoading) {
         return <div className={styles.card}>Loading onboarding...</div>;
     }
 
@@ -419,7 +424,7 @@ export default function CandidateOnboardingPage() {
                     Back
                 </button>
                 <button className={styles.nextBtn} onClick={handleContinue} disabled={!canContinue || isSaving} type="button">
-                    {step === 3 ? (isSaving ? 'Saving...' : 'Finish Setup') : 'Continue'}
+                    {step === 4 ? (isSaving ? 'Saving...' : 'Finish Setup') : 'Continue'}
                 </button>
             </div>
         </div>

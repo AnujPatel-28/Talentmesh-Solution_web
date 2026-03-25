@@ -112,13 +112,13 @@ function AuthCallbackContent() {
 
       document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
       document.cookie = `tm_role=${finalRole}; path=/; max-age=3600; SameSite=Lax`;
-      // Redirect based on the final role
+      // Use full page redirect to ensure AuthContext picks up new cookies/session
       if (finalRole === 'admin' || finalRole === 'super_admin') {
-        router.replace('/dashboard/admin');
+        window.location.assign('/dashboard/admin');
       } else if (finalRole === 'recruiter') {
-        router.push('/onboarding/recruiter/setup');
+        window.location.assign('/onboarding/recruiter/setup');
       } else {
-        router.push('/onboarding/candidate');
+        window.location.assign('/onboarding/candidate');
       }
     };
 
