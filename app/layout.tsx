@@ -15,7 +15,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "TalentMesh | #1 AI-Driven Recruitment & Matching Platform",
+    default: "TalentMesh | Next-Gen AI Recruitment & Smart Matching",
     template: "%s | TalentMesh - Modern AI Hiring"
   },
   description: "Experience the future of hiring with TalentMesh. Our AI-powered platform connects top tech talent with world-class companies using advanced skill-matching algorithms. Hire faster, smarter, and more efficiently.",
@@ -38,7 +38,20 @@ export const metadata: Metadata = {
     google: "https://talentmeshsolutions.com",
   },
   icons: {
-    icon: '/TalentMesh White Logo.png',
+    icon: [
+      { url: '/icon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    title: 'Talentmesh',
+    statusBarStyle: 'default',
+    capable: true,
   },
 };
 
