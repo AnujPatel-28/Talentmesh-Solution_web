@@ -5,10 +5,13 @@
 .dash {
     display: flex;
     flex-direction: column;
-    gap: 1.15rem;
+    gap: clamp(1rem, 2vw, 1.5rem);
+    padding: 0 clamp(0.5rem, 2vw, 0);
 }
 
-.greet {}
+.greet {
+    margin-bottom: 0.5rem;
+}
 
 .greetTitle {
     font-size: 1.35rem;
@@ -26,8 +29,8 @@
 /* Stats */
 .stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 100%, 260px), 1fr));
+    gap: clamp(0.5rem, 1.5vw, 1rem);
 }
 
 .stat {
@@ -107,10 +110,10 @@
     background: #ffffff;
     border: 1px solid #eef0f2;
     border-radius: 12px;
-    padding: 1.1rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
 }
 
 .cardHead {

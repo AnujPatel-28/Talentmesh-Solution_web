@@ -22,6 +22,7 @@ export default function RecruiterLayoutClient({ children }: { children: React.Re
     const { user, signOut } = useAuth();
     const [permissions, setPermissions] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     useEffect(() => {
         if (user?.id) {
@@ -51,15 +52,36 @@ export default function RecruiterLayoutClient({ children }: { children: React.Re
 
     return (
         <div className={styles.shell}>
-            <aside className={styles.sidebar}>
+            {/* Mobile Top Bar */}
+            <header className={styles.mobileTopbar}>
+                <Image src="/TalentMesh_Logo-removebg-preview.png" alt="TalentMesh" width={32} height={32} unoptimized />
+                <button className={styles.hamburger} onClick={() => setIsMenuOpen(true)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+            </header>
+
+            {/* Overlay */}
+            {isMenuOpen && <div className={styles.overlay} onClick={() => setIsMenuOpen(false)} />}
+
+            <aside className={`${styles.sidebar} ${isMenuOpen ? styles.sidebarOpen : ''}`}>
                 <div className={styles.sidebarHead}>
                     <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={140} height={38} unoptimized />
+                    <button className={styles.closeBtn} onClick={() => setIsMenuOpen(false)}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
                 </div>
                 <nav className={styles.nav}>
                     {navItems.filter(i => i.show).map(item => {
                         const active = pathname === item.href;
                         return (
-                            <Link key={item.href} href={item.href} className={`${styles.navLink} ${active ? styles.navLinkActive : ''}`}>
+                            <Link 
+                                key={item.href} 
+                                href={item.href} 
+                                className={`${styles.navLink} ${active ? styles.navLinkActive : ''}`}
+                                onClick={() => setIsMenuOpen(false)}
+                            >
                                 <span className={styles.navIcon}>{item.icon}</span>
                                 <span className={styles.navLabel}>{item.label}</span>
                             </Link>

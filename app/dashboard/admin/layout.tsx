@@ -44,6 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [counts, setCounts] = useState<Counts>({ candidates: 0, recruiters: 0, jobs: 0 });
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -111,11 +112,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className={styles.container}>
-      <aside className={styles.sidebar}>
+      {/* Mobile Top Bar */}
+      <header className={styles.mobileHeader}>
+        <div className={styles.logoRow}>
+          <Image src="/TalentMesh_Logo-removebg-preview.png" alt="TalentMesh" width={32} height={32} unoptimized />
+          <span className={styles.portalBadge}>Admin Portal</span>
+        </div>
+        <button className={styles.hamburger} onClick={() => setIsMenuOpen(true)} aria-label="Open menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      </header>
+
+      {/* Overlay */}
+      {isMenuOpen && <div className={styles.overlay} onClick={() => setIsMenuOpen(false)} />}
+
+      <aside className={`${styles.sidebar} ${isMenuOpen ? styles.sidebarOpen : ""}`}>
         <div className={styles.sidebarTop}>
           <div className={styles.logoRow}>
             <Image src="/TalentMesh_Logo-removebg-preview.png" alt="TalentMesh" width={32} height={32} unoptimized />
             <span className={styles.portalBadge}>Admin Portal</span>
+            <button className={styles.closeBtn} onClick={() => setIsMenuOpen(false)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
           </div>
 
           <div className={styles.adminCard}>
@@ -135,7 +155,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {section.items.map((item) => {
                 const active = pathname === item.href;
                 return (
-                  <Link key={item.href} href={item.href} className={`${styles.navLink} ${active ? styles.navLinkActive : ""}`}>
+                  <Link 
+                    key={item.href} 
+                    href={item.href} 
+                    className={`${styles.navLink} ${active ? styles.navLinkActive : ""}`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     <span className={styles.navIcon}>{item.icon}</span>
                     <span className={styles.navLabel}>{item.label}</span>
                     {"badge" in item && item.badge ? (
