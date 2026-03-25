@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import styles from '../login/admin-login.module.css';
+import styles from '@/app/(auth)/login/login.module.css';
 
 export default function AdminForgotPasswordPage() {
   const router = useRouter();

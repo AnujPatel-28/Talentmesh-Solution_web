@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { validateAdminToken } from '@/lib/admin/token';
 import AdminSetupForm from './AdminSetupForm';
-import styles from '../login/admin-login.module.css';
+import styles from '@/app/(auth)/login/login.module.css';
 import Image from 'next/image';
 import Link from 'next/link';
 

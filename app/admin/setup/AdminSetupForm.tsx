@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { insforge } from '@/lib/insforge';
-import styles from '../login/admin-login.module.css';
+import styles from '@/app/(auth)/login/login.module.css';
 
 export default function AdminSetupForm() {
   const [fullName, setFullName] = useState('');

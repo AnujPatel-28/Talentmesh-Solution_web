@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { insforge } from '@/lib/insforge';
-import styles from '../login/admin-login.module.css';
+import styles from '@/app/(auth)/login/login.module.css';
 
 function ResetPasswordForm() {
   const router = useRouter();

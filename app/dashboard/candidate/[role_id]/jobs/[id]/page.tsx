@@ -7,7 +7,7 @@ import { checkAlreadyApplied, type ApplicationStatus } from '@/lib/api/applicati
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import ApplyModal from '@/components/candidate/ApplyModal';
-import styles from '../../../../browse-jobs/[id]/jobDetail.module.css';
+import styles from '@/app/browse-jobs/[id]/jobDetail.module.css';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const Ico = {
