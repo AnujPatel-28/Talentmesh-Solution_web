@@ -1,0 +1,303 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.9rem;
+  color: #0f172a;
+}
+
+.subtitle {
+  margin: 0.5rem 0 0;
+  color: #64748b;
+  max-width: 760px;
+  line-height: 1.6;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.statCard {
+  padding: 1rem 1.1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.statCard span {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.statCard strong {
+  font-size: 1.8rem;
+  color: #0f172a;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.25rem;
+}
+
+.listPanel,
+.formPanel {
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+}
+
+.toolbar {
+  padding: 1rem;
+  border-bottom: 1px solid #eef2f7;
+  display: grid;
+  grid-template-columns: 1fr 180px 120px;
+  gap: 0.75rem;
+}
+
+.listBody {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-height: 980px;
+  overflow: auto;
+}
+
+.postCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.postHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.postTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.postMeta {
+  margin: 0.3rem 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.postExcerpt {
+  margin: 0;
+  color: #475569;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.formHeader {
+  padding: 1.1rem 1.1rem 0;
+}
+
+.formHeader h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.formHeader p {
+  margin: 0.45rem 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.form {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.field span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.input,
+.select,
+.textarea,
+.textareaSmall,
+.searchInput {
+  width: 100%;
+  border: 1px solid #d7e1ec;
+  border-radius: 12px;
+  padding: 0.82rem 0.9rem;
+  font: inherit;
+  color: #0f172a;
+  background: #fff;
+}
+
+.textarea,
+.textareaSmall {
+  resize: vertical;
+}
+
+.textarea {
+  min-height: 320px;
+}
+
+.textareaSmall {
+  min-height: 120px;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.actions,
+.formActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.formActions {
+  justify-content: flex-end;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: #2563eb;
+  color: #fff;
+}
+
+.secondaryButton {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.deleteButton {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  text-transform: capitalize;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.status_published {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status_draft {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status_archived,
+.status_deleted {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.errorBanner,
+.successBanner,
+.emptyState {
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
+  font-weight: 600;
+}
+
+.errorBanner {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.successBanner {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.emptyState {
+  background: #f8fafc;
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-width: 1180px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .stats,
+  .twoColumn,
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+}
