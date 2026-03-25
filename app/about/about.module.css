@@ -13,7 +13,7 @@
 /* ── Stats Strip ── */
 .statsStrip {
     background: linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 50%, #081428 100%);
-    padding: 5rem 2rem;
+    padding: clamp(3rem, 10vh, 5rem) 16px;
     color: #ffffff;
     position: relative;
     overflow: hidden;
@@ -74,7 +74,7 @@
 
 /* ── Our Story (Split Layout) ── */
 .storySection {
-    padding: 8rem 2rem;
+    padding: clamp(4rem, 12vh, 8rem) 16px;
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -226,8 +226,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4rem;
-    min-height: 300px;
+    padding: clamp(2rem, 5vw, 4rem);
+    min-height: 240px;
     position: relative;
     overflow: hidden;
 }

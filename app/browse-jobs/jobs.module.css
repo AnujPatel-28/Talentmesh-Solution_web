@@ -9,7 +9,7 @@
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
 .hero {
     background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--alice-blue, #E3F2FD), var(--light-ice-blue, #F0F7FF));
-    padding: 56px 0 48px;
+    padding: clamp(40px, 8vh, 56px) 16px clamp(32px, 6vh, 48px);
     border-bottom: 1px solid var(--sky-blue, #90CAF9);
 }
 
@@ -145,8 +145,8 @@
 /* ─── Body Layout ────────────────────────────────────────────────────────────── */
 .body {
     display: flex;
-    gap: 28px;
-    padding: 32px 0 60px;
+    gap: clamp(16px, 3vw, 28px);
+    padding: clamp(24px, 5vh, 32px) 16px 60px;
     align-items: flex-start;
 }
 
@@ -696,6 +696,11 @@
 
 /* ─── Responsive ────────────────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
+    .body {
+        flex-direction: column;
+        padding-top: 24px;
+    }
+
     .sidebar {
         position: fixed;
         left: 0;
@@ -708,6 +713,7 @@
         overflow-y: auto;
         width: 280px;
         min-width: 280px;
+        box-shadow: 20px 0 60px rgba(0, 0, 0, 0.2);
     }
 
     .sidebarOpen {
@@ -720,12 +726,32 @@
 
     .mobileFilterBtn {
         display: flex;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .main {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .heroTitle {
+        font-size: 2rem;
+    }
+
+    .searchCard {
+        margin-top: 24px;
+    }
+
+    .jobGrid {
+        grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 640px) {
     .hero {
-        padding: 40px 0 32px;
+        padding: 40px 16px 32px;
     }
 
     .searchCard {
@@ -745,8 +771,23 @@
     .searchBtn {
         width: 100%;
         justify-content: center;
+        height: 54px;
     }
 
+    .popularTags {
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        scrollbar-width: none;
+    }
+
+    .popularTags::-webkit-scrollbar {
+        display: none;
+    }
+
+    .popularLabel {
+        display: none;
+    }
     .jobGrid {
         grid-template-columns: 1fr;
     }

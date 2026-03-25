@@ -6,7 +6,7 @@
 /* Hero */
 .hero {
     background: var(--deep-navy);
-    padding: 10rem 0 8rem;
+    padding: clamp(6rem, 15vh, 10rem) 16px clamp(4rem, 10vh, 8rem);
     position: relative;
     overflow: hidden;
 }
@@ -114,7 +114,7 @@
 .statsGrid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    padding: 4rem 0;
+    padding: clamp(2rem, 5vh, 4rem) 16px;
     gap: 2rem;
 }
 
@@ -171,7 +171,7 @@
 
 /* How It Works */
 .howSection {
-    padding: 8rem 0;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
 }
 
 .stepsGrid {
@@ -226,7 +226,7 @@
 
 /* Benefits */
 .benefitsSection {
-    padding: 8rem 0;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
     background: var(--light-ice-blue);
 }
 
@@ -269,7 +269,7 @@
 
 /* Testimonials */
 .testimonialsSection {
-    padding: 8rem 0;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
     background: var(--deep-navy);
 }
 
@@ -346,13 +346,13 @@
 
 /* CTA */
 .ctaSection {
-    padding: 8rem 0;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
 }
 
 .ctaCard {
     background: var(--gradient-premium);
-    border-radius: 40px;
-    padding: 8rem 4rem;
+    border-radius: clamp(24px, 5vw, 40px);
+    padding: clamp(4rem, 12vh, 8rem) clamp(1.5rem, 5vw, 4rem);
     text-align: center;
     color: #fff;
 }

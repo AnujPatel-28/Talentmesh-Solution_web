@@ -10,7 +10,7 @@
 
 /* ── Culture Section ── */
 .cultureSection {
-    padding: 8rem 2rem;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
 }
 
 .cultureGrid {
@@ -200,7 +200,7 @@
 
 /* ── Open Positions Section ── */
 .positionsSection {
-    padding: 8rem 2rem;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     position: relative;
     overflow: hidden;
@@ -238,7 +238,7 @@
 
 /* ── Benefits Section ── */
 .benefitsSection {
-    padding: 8rem 2rem;
+    padding: clamp(4rem, 10vh, 8rem) 16px;
 }
 
 .benefitsGrid {

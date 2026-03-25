@@ -16,7 +16,7 @@
     font-weight: 800;
     color: white;
     text-align: center;
-    margin: 64px 0 12px;
+    margin: clamp(48px, 10vh, 64px) 16px 12px;
     letter-spacing: -0.02em;
 }
 
@@ -70,7 +70,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 28px 0;
+    padding: clamp(24px, 5vh, 28px) 16px;
     gap: 0;
 }
 
@@ -102,12 +102,12 @@
 
 /* ─── Cards Section ── */
 .cardsSection {
-    padding: 52px 0 72px;
+    padding: clamp(32px, 6vh, 52px) 16px 72px;
 }
 
 .cardsGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(clamp(280px, 100%, 360px), 1fr));
     gap: 24px;
 }
 

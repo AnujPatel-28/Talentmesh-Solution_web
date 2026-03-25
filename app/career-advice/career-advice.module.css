@@ -8,7 +8,7 @@
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
 .hero {
     background: linear-gradient(135deg, var(--alice-blue, #E3F2FD) 0%, var(--light-ice-blue, #F0F7FF) 100%);
-    padding: 60px 0 52px;
+    padding: clamp(48px, 10vh, 60px) 16px clamp(40px, 8vh, 52px);
     text-align: center;
     border-bottom: 1px solid var(--sky-blue, #90CAF9);
 }
@@ -48,7 +48,7 @@
 
 /* ─── Form Section ───────────────────────────────────────────────────────────── */
 .formSection {
-    padding: 48px 0;
+    padding: clamp(32px, 6vh, 48px) 16px;
 }
 
 .formLayout {
@@ -63,7 +63,7 @@
     background: white;
     border-radius: 24px;
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
-    padding: 40px;
+    padding: clamp(24px, 5vw, 40px);
 }
 
 .formTitle {
@@ -341,7 +341,7 @@
 /* ─── How It Works ───────────────────────────────────────────────────────────── */
 .howSection {
     background: var(--light-ice-blue, #F0F7FF);
-    padding: 64px 0;
+    padding: clamp(48px, 8vh, 64px) 16px;
 }
 
 .sectionTitle {
@@ -405,7 +405,7 @@
 /* ─── Trust Section ──────────────────────────────────────────────────────────── */
 .trustSection {
     background: white;
-    padding: 64px 0 0;
+    padding: clamp(48px, 8vh, 64px) 16px 0;
 }
 
 .testiGrid {
@@ -475,7 +475,7 @@
 /* Stats bar */
 .statsBar {
     background: var(--ocean-deep, #1565C0);
-    padding: 40px 48px;
+    padding: clamp(32px, 6vh, 48px) clamp(24px, 5vw, 48px);
     display: flex;
     align-items: center;
     justify-content: center;
