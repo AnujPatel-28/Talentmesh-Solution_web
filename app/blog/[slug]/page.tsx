@@ -4,8 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from '../blog.module.css';
-import { insforge } from '@/lib/insforge';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { SafeBlogContent } from '@/components/blog/SafeBlogContent';
 
 const IconArrowLeft = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -29,25 +29,23 @@ export default function BlogDetailPage() {
     useEffect(() => {
         async function fetchPost() {
             try {
-                const { data, error } = await insforge.database
-                    .from('blog')
-                    .select('*, author:profiles(name)')
-                    .eq('slug', slug)
-                    .single();
-                
-                if (error || !data) throw new Error('Not found');
+                const [postResponse, relatedResponse] = await Promise.all([
+                    fetch(`/api/blogs/${slug}`, { cache: 'no-store' }),
+                    fetch('/api/blogs?limit=12', { cache: 'no-store' }),
+                ]);
+                const postPayload = await postResponse.json();
+                const relatedPayload = await relatedResponse.json();
 
-                setPost(data);
+                if (!postResponse.ok || !postPayload.blog) {
+                    throw new Error('Not found');
+                }
 
-                // Fetch Related
-                const { data: rel } = await insforge.database
-                    .from('blog')
-                    .select('*')
-                    .eq('status', 'published')
-                    .neq('id', data.id)
-                    .eq('category', data.category)
-                    .limit(3);
-                setRelated(rel || []);
+                setPost(postPayload.blog);
+                setRelated(
+                    (relatedPayload.blogs || [])
+                        .filter((entry: any) => entry.id !== postPayload.blog.id && entry.category === postPayload.blog.category)
+                        .slice(0, 3),
+                );
             } catch (err) {
                 console.error(err);
                 router.push('/blog');
@@ -69,21 +67,19 @@ export default function BlogDetailPage() {
 
     return (
         <main style={{ background: '#fff', minHeight: '100vh', paddingBottom: '6rem' }}>
-            {/* Header / Back */}
             <div className="premium-container" style={{ paddingTop: '2rem' }}>
                 <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#64748b', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}>
                     <IconArrowLeft /> Back to Blog
                 </button>
             </div>
 
-            {/* Article Content */}
             <article>
                 <header className="premium-container" style={{ marginTop: '3rem', textAlign: 'center' }}>
                     <AnimateOnScroll animation="fadeUp">
                         <span style={{ color: 'var(--primary-blue)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             {post.category}
                         </span>
-                        <h1 style={{ fontSize: '3.5rem', fontWeight: 800, marginTop: '1rem', color: '#0f172a', lineHeight: '1.2', maxWidth: '900px', margin: '1rem auto' }}>
+                        <h1 style={{ fontSize: '3.5rem', fontWeight: 800, color: '#0f172a', lineHeight: '1.2', maxWidth: '900px', margin: '1rem auto' }}>
                             {post.title}
                         </h1>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '2rem', color: '#64748b', fontSize: '0.9rem' }}>
@@ -91,8 +87,8 @@ export default function BlogDetailPage() {
                                 {post.author?.name?.charAt(0) || 'A'}
                             </div>
                             <div style={{ textAlign: 'left' }}>
-                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{post.author?.name || 'Talentmesh Editorial'}</div>
-                                <div>{new Date(post.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} • 5 min read</div>
+                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{post.author?.name || 'TalentMesh Editorial'}</div>
+                                <div>{new Date(post.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })} · {post.read_minutes || 5} min read</div>
                             </div>
                         </div>
                     </AnimateOnScroll>
@@ -101,10 +97,10 @@ export default function BlogDetailPage() {
                 <AnimateOnScroll animation="fadeUp" delay={100}>
                     <div className="premium-container" style={{ marginTop: '4rem' }}>
                         <div style={{ position: 'relative', width: '100%', height: '500px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-                            <Image 
-                                src={post.cover_image || "/images/tech-office.jpg"} 
-                                alt={post.title} 
-                                fill 
+                            <Image
+                                src={post.cover_image || "/images/tech-office.jpg"}
+                                alt={post.title}
+                                fill
                                 style={{ objectFit: 'cover' }}
                                 priority
                             />
@@ -114,14 +110,13 @@ export default function BlogDetailPage() {
 
                 <div className="premium-container" style={{ marginTop: '5rem', maxWidth: '800px' }}>
                     <AnimateOnScroll animation="fadeUp" delay={200}>
-                        <div style={{ fontSize: '1.25rem', color: '#334155', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-inter)' }}>
-                            {post.content}
+                        <div style={{ fontSize: '1.15rem', color: '#334155', lineHeight: '1.8', fontFamily: 'var(--font-inter)' }}>
+                            <SafeBlogContent content={post.content || ''} />
                         </div>
                     </AnimateOnScroll>
                 </div>
             </article>
 
-            {/* Related Posts */}
             {related.length > 0 && (
                 <section style={{ marginTop: '10rem', background: '#f8fafc', padding: '6rem 0' }}>
                     <div className="premium-container">
@@ -151,7 +146,6 @@ export default function BlogDetailPage() {
                 </section>
             )}
 
-            {/* Newsletter Shortcut */}
             <div className="premium-container" style={{ marginTop: '8rem' }}>
                 <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e40af 100%)', borderRadius: '32px', padding: '4rem', textAlign: 'center', color: '#fff' }}>
                     <h2 style={{ fontSize: '2.5rem', fontWeight: 800 }}>Enjoyed this article?</h2>

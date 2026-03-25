@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { insforge } from '@/lib/insforge';
 import styles from './JobListings.module.css'; // Reusing similar grid styles if possible, or sections.module.css
 
 interface BlogPost {
@@ -28,13 +27,12 @@ export const BlogFeed = () => {
     useEffect(() => {
         async function fetchPosts() {
             try {
-                const { data } = await insforge.database
-                    .from('blog')
-                    .select('*')
-                    .eq('status', 'published')
-                    .order('created_at', { ascending: false })
-                    .limit(3);
-                setPosts(data || []);
+                const response = await fetch('/api/blogs?limit=3', { cache: 'no-store' });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to fetch posts');
+                }
+                setPosts(payload.blogs || []);
             } catch (err) {
                 console.error('Blog feed error:', err);
             } finally {

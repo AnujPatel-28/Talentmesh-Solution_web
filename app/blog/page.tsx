@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './blog.module.css';
-import { insforge } from '@/lib/insforge';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 const IconSparkle = () => (
@@ -18,7 +17,7 @@ const IconArrowRight = () => (
     </svg>
 );
 
-const CATEGORIES = ["All", "Technology", "Culture", "Career Advice", "Engineering", "Product"];
+const CATEGORIES = ["All", "Technology", "Culture", "Career Advice", "Engineering", "Product", "AI Recruitment"];
 
 export default function BlogPage() {
     const [posts, setPosts] = useState<any[]>([]);
@@ -29,12 +28,12 @@ export default function BlogPage() {
     useEffect(() => {
         async function fetchPosts() {
             try {
-                const { data } = await insforge.database
-                    .from('blog')
-                    .select('*')
-                    .eq('status', 'published')
-                    .order('created_at', { ascending: false });
-                setPosts(data || []);
+                const response = await fetch('/api/blogs?limit=100', { cache: 'no-store' });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Failed to fetch posts');
+                }
+                setPosts(payload.blogs || []);
             } catch (err) {
                 console.error('Fetch posts error:', err);
             } finally {
