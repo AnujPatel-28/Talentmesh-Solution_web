@@ -39,7 +39,7 @@ const stringArrayField = z
       .filter(Boolean);
   });
 
-const jobBaseSchema = z.object({
+const jobFieldsSchema = z.object({
   company_id: z.string().min(1, 'Company is required'),
   recruiter_id: z.string().min(1).optional(),
   title: z.string().min(3, 'Title must be at least 3 characters').max(120, 'Title must be less than 120 characters'),
@@ -56,28 +56,29 @@ const jobBaseSchema = z.object({
   department: z.string().max(80, 'Department must be less than 80 characters').nullable().optional(),
   status: z.enum(JOB_STATUS_VALUES).optional(),
   is_approved: z.boolean().optional(),
-}).refine((data) => {
-  if (data.salary_min === null || data.salary_min === undefined || data.salary_max === null || data.salary_max === undefined) {
-    return true;
-  }
-
-  return data.salary_max >= data.salary_min;
-}, {
-  message: 'Maximum salary must be greater than or equal to minimum salary',
-  path: ['salary_max'],
-}).refine((data) => {
-  if (data.experience_min === null || data.experience_min === undefined || data.experience_max === null || data.experience_max === undefined) {
-    return true;
-  }
-
-  return data.experience_max >= data.experience_min;
-}, {
-  message: 'Maximum experience must be greater than or equal to minimum experience',
-  path: ['experience_max'],
 });
 
-export const createJobSchema = jobBaseSchema;
-export const updateJobSchema = jobBaseSchema.partial();
+const applyJobRefinements = (schema: z.ZodType<any, any, any>) => 
+  schema.refine((data) => {
+    if (data.salary_min === null || data.salary_min === undefined || data.salary_max === null || data.salary_max === undefined) {
+      return true;
+    }
+    return data.salary_max >= data.salary_min;
+  }, {
+    message: 'Maximum salary must be greater than or equal to minimum salary',
+    path: ['salary_max'],
+  }).refine((data) => {
+    if (data.experience_min === null || data.experience_min === undefined || data.experience_max === null || data.experience_max === undefined) {
+      return true;
+    }
+    return data.experience_max >= data.experience_min;
+  }, {
+    message: 'Maximum experience must be greater than or equal to minimum experience',
+    path: ['experience_max'],
+  });
+
+export const createJobSchema = applyJobRefinements(jobFieldsSchema);
+export const updateJobSchema = applyJobRefinements(jobFieldsSchema.partial());
 
 export const jobFilterSchema = z.object({
   search: z.string().trim().optional(),

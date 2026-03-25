@@ -20,7 +20,7 @@ async function testApiSecurity() {
     } else {
         console.log('❌ FAIL: Expected 400 with validation error');
     }
-  } catch (e) {
+  } catch (e: any) {
     console.log('Error:', e.message);
   }
 
@@ -35,7 +35,7 @@ async function testApiSecurity() {
     } else {
         console.log('❌ FAIL: Admin route should be protected');
     }
-  } catch (e) {
+  } catch (e: any) {
     console.log('Error:', e.message);
   }
 
@@ -54,7 +54,7 @@ async function testApiSecurity() {
     } else {
         console.log('❌ FAIL: Should have failed auth or validation');
     }
-  } catch (e) {
+  } catch (e: any) {
     console.log('Error:', e.message);
   }
 

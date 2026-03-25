@@ -60,7 +60,21 @@ export async function listCandidateApplications() {
     throw new Error(`Failed to fetch applications: ${error.message}`);
   }
 
-  return (data || []) as CandidateApplicationRecord[];
+  // Handle Supabase's return of singular joins as arrays
+  const mapped = (data || []).map((app: any) => {
+    const rawJob = Array.isArray(app.jobs) ? app.jobs[0] : app.jobs;
+    const mappedJob = rawJob ? {
+        ...rawJob,
+        companies: Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies
+    } : null;
+
+    return {
+      ...app,
+      jobs: mappedJob,
+    };
+  });
+
+  return mapped as unknown as CandidateApplicationRecord[];
 }
 
 export async function getCandidateApplicationStatus(jobId: string) {
@@ -147,7 +161,19 @@ export async function createCandidateApplication(input: CreateApplicationInput) 
       created_at: now,
     });
 
-  return data as CandidateApplicationRecord;
+  // Handle Supabase's return of singular joins as arrays
+  const rawJob = Array.isArray(data.jobs) ? data.jobs[0] : data.jobs;
+  const mappedJob = rawJob ? {
+    ...rawJob,
+    companies: Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies
+  } : null;
+  
+  const mapped = {
+    ...data,
+    jobs: mappedJob,
+  };
+
+  return mapped as unknown as CandidateApplicationRecord;
 }
 
 export async function withdrawCandidateApplication(applicationId: string) {
