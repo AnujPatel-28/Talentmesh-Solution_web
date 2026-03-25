@@ -241,11 +241,6 @@ export default function LoginPage() {
                         Don&apos;t have an account?{' '}
                         <Link href="/signup" className={styles.footerLink}>Sign up</Link>
                     </p>
-                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem' }}>
-                        <Link href="/admin/login" className={styles.footerLink} style={{ opacity: 0.7 }}>
-                            Admin Portal Access
-                        </Link>
-                    </div>
                 </div>
             </div>
         </div>

@@ -20,20 +20,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) {
-    return false;
-  }
-
-  const envEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+  if (!email) return false;
+  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
     .split(',')
-    .map((value) => value.trim().toLowerCase())
+    .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-
-  return envEmails.includes(email.trim().toLowerCase());
+  return adminEmails.includes(email.trim().toLowerCase());
 }
 
 function normalizeRole(role: UserRole, email: string): UserRole {
-  if (isAdminEmail(email) && role !== 'admin' && role !== 'super_admin') {
+  if (isAdminEmail(email)) {
     return 'admin';
   }
 
@@ -59,11 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const syncAuthCookies = useCallback((token: string, authUser: Pick<User, 'role' | 'email'>) => {
     clearAuthCookies();
-    document.cookie = `tm_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
-    document.cookie = `tm_role=${authUser.role}; path=/; max-age=3600; SameSite=Lax`;
+    document.cookie = `tm_access_token=${token}; path=/; SameSite=Lax`;
+    document.cookie = `tm_role=${authUser.role}; path=/; SameSite=Lax`;
 
     if (authUser.role === 'admin' || authUser.role === 'super_admin' || isAdminEmail(authUser.email)) {
-      document.cookie = 'tm_admin_access=true; path=/; max-age=3600; SameSite=Lax';
+      document.cookie = 'tm_admin_access=true; path=/; SameSite=Lax';
     }
   }, [clearAuthCookies]);
 
@@ -161,10 +157,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        if (user) {
-          return user;
-        }
-
         clearAuthCookies();
         setUser(null);
         return null;
@@ -174,28 +166,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const resolvedUser = (payload?.user || null) as User | null;
 
       if (!resolvedUser) {
-        if (user) {
-          return user;
-        }
-
         clearAuthCookies();
         setUser(null);
         return null;
       }
 
-      document.cookie = `tm_role=${resolvedUser.role}; path=/; max-age=3600; SameSite=Lax`;
+      document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax`;
       if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin' || isAdminEmail(resolvedUser.email)) {
-        document.cookie = 'tm_admin_access=true; path=/; max-age=3600; SameSite=Lax';
+        document.cookie = 'tm_admin_access=true; path=/; SameSite=Lax';
       }
 
       setUser(resolvedUser);
       cacheUser(resolvedUser);
       return resolvedUser;
     } catch (err) {
-      if (user) {
-        return user;
-      }
-
       if (!(err instanceof TypeError && err.message === 'Failed to fetch')) {
         console.error('Refresh user error:', err);
       }
@@ -206,21 +190,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [cacheUser, clearAuthCookies, user]);
+  }, [cacheUser, clearAuthCookies]);
 
   useEffect(() => {
+    let hasLoadedCached = false;
     try {
       const cached = window.sessionStorage.getItem(USER_STORAGE_KEY);
       if (cached) {
         setUser(JSON.parse(cached) as User);
+        hasLoadedCached = true;
       }
     } catch {
       window.sessionStorage.removeItem(USER_STORAGE_KEY);
     }
-  }, []);
 
-  useEffect(() => {
-    refreshUser();
+    // Only auto-refresh if we have a cached user (meaning same tab/session)
+    // This honors "Tab-wise store" and "logout when tab closed"
+    if (hasLoadedCached) {
+      refreshUser();
+    } else {
+      setIsLoading(false);
+    }
   }, [refreshUser]);
 
   const signIn = async (email: string, password: string) => {
@@ -283,6 +273,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await insforge.auth.signOut();
+    await fetch('/api/auth/session', {
+      method: 'DELETE',
+      credentials: 'include',
+    }).catch(() => undefined);
     clearAuthCookies();
     setUser(null);
     window.location.replace('/login');

@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { insforge } from '@/lib/insforge';
 import styles from './setup-mfa.module.css';
 
 export default function SetupMFAPage() {
     const router = useRouter();
-    const { user } = useAuth();
     
     const [step, setStep] = useState<'enroll' | 'verify' | 'backup'>('enroll');
     const [factorId, setFactorId] = useState('');
@@ -79,21 +75,17 @@ export default function SetupMFAPage() {
     };
 
     const generateBackupCodes = async () => {
-        const codes = Array.from({ length: 8 }, () => 
-            Math.random().toString(36).substring(2, 10).toUpperCase()
-        );
-        setBackupCodes(codes);
-        
-        // Save to DB
-        const { error: saveError } = await insforge.database
-            .from('admin_backup_codes')
-            .insert(codes.map(c => ({
-                admin_id: user?.id,
-                code_hash: c,
-                used: false
-            })));
-        
-        if (saveError) console.error('Failed to save backup codes:', saveError);
+        const res = await fetch('/api/mfa/backup-codes', {
+            method: 'POST',
+            credentials: 'include',
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to generate backup codes');
+        }
+
+        setBackupCodes(data.codes || []);
     };
 
     if (isLoading) {

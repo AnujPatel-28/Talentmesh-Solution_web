@@ -5,11 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { logAction } from '@/lib/admin/audit';
-import { insforge } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './mfa-verify.module.css';
 
 export default function MFAVerifyPage() {
     const router = useRouter();
+    const { user } = useAuth();
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -28,17 +29,12 @@ export default function MFAVerifyPage() {
         setError('');
 
         try {
-            // Call our custom MFA verify API route
             const res = await fetch('/api/mfa/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: val }),
             });
-            const data = await res.json();
-
-            // Get current user for logging
-            const { data: sessionData } = await insforge.auth.getCurrentSession();
-            const user = sessionData?.session?.user;
+            const payload = await res.json();
 
             if (!res.ok) {
                 if (user) {
@@ -51,9 +47,9 @@ export default function MFAVerifyPage() {
                 const newAttempts = attempts + 1;
                 setAttempts(newAttempts);
                 if (newAttempts >= 5) {
-                    setError('Too many failed attempts. Account locked for 15 minutes.');
+                    setError(payload.error || 'Too many failed attempts. Account locked for 15 minutes.');
                 } else {
-                    setError(`Incorrect code. ${5 - newAttempts} attempts remaining.`);
+                    setError(payload.error || `Incorrect code. ${5 - newAttempts} attempts remaining.`);
                 }
                 setCode('');
                 return;
@@ -68,16 +64,9 @@ export default function MFAVerifyPage() {
                 });
             }
 
-            // Determine destination based on profile role
-            const { data: profile } = await insforge.database
-                .from('profiles')
-                .select('role')
-                .eq('id', user?.id)
-                .single();
-
-            const role = profile?.role;
-            const dest = role === 'super_admin' ? '/dashboard/admin' 
-                       : role === 'recruiter' ? '/dashboard/recruiter' 
+            const dest = user?.role === 'super_admin' || user?.role === 'admin'
+                       ? '/dashboard/admin'
+                       : user?.role === 'recruiter' ? '/dashboard/recruiter' 
                        : '/dashboard/candidate';
             router.push(dest);
         } catch (err: any) {

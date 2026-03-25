@@ -1,57 +1,52 @@
-import { createClient } from '@insforge/sdk';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { withApi } from '@/lib/api/handler';
+import {
+  createServerSessionClient,
+  getSessionCookieOptions,
+} from '@/lib/auth/server-auth';
 
-function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
+export const dynamic = 'force-dynamic';
 
-  const envEmails = process.env.ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
-  return envEmails
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(email.toLowerCase());
-}
-
-export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('tm_access_token')?.value;
-
-  if (!token) {
-    return NextResponse.json({ user: null }, { status: 401 });
+export const GET = withApi(
+  { requireAuth: true },
+  async (req, { user }) => {
+    // RequiresMfa is calculated based on user role and profile in withApi's getServerUser which calls resolveSessionFromToken
+    // But getServerUser actually returns the User type, not AuthenticatedSession.
+    // Let's check session.requiresMfa logic.
+    
+    return NextResponse.json({
+        user,
+        requiresMfa: user.role === 'admin' || user.role === 'super_admin' ? user.mfa_enabled : false
+    });
   }
+);
 
-  const insforge = createClient({
-    baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
-    anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
-    edgeFunctionToken: token,
-  });
+export const DELETE = withApi(
+  { requireAuth: false, auditLog: true },
+  async (req) => {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('tm_access_token')?.value;
+    const response = NextResponse.json({ success: true });
+    const cookieOptions = getSessionCookieOptions();
 
-  const { data: { user }, error: userError } = await insforge.auth.getCurrentUser();
+    if (token) {
+      try {
+        const insforge = createServerSessionClient(token);
+        await insforge.auth.signOut();
+      } catch {
+        // Clearing cookies below is enough to end the local session.
+      }
+    }
 
-  if (userError || !user) {
-    return NextResponse.json({ user: null }, { status: 401 });
+    // Force deletion with both maxAge: 0 and expires: ancient date for maximum browser compatibility
+    const clearOptions = { ...cookieOptions, maxAge: 0, expires: new Date(0) };
+
+    response.cookies.set('tm_access_token', '', clearOptions);
+    response.cookies.set('tm_role', '', clearOptions);
+    response.cookies.set('tm_admin_access', '', clearOptions);
+    response.cookies.set('mfa_verified', '', clearOptions);
+
+    return response;
   }
-
-  const { data: profile } = await insforge.database
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  const role = profile?.role || (isAdminEmail(user.email) ? 'admin' : 'candidate');
-
-  return NextResponse.json({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: profile?.name || user.email?.split('@')[0] || '',
-      role: isAdminEmail(user.email) && !['admin', 'super_admin'].includes(role) ? 'admin' : role,
-      avatar_url: profile?.avatar_url || null,
-      company_id: profile?.company_id,
-      created_at: profile?.created_at,
-      mfa_enabled: profile?.mfa_enabled || false,
-      password_set_at: profile?.password_set_at,
-    },
-  });
-}
+);
