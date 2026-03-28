@@ -10,30 +10,40 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // 1. Trigger a session refresh to pick up the OAuth tokens
-      const { data: { session } } = await insforge.auth.getCurrentSession();
+      try {
+        // 1. Trigger a session refresh to pick up the OAuth tokens
+        const { data: session, error } = await insforge.auth.refreshSession();
+        
+        if (error) {
+          console.error('Session retrieval error:', error.message);
+          router.push('/login?error=session_fetch_failed');
+          return;
+        }
 
-      if (!session) {
-        // Fallback if session is missing after a short delay
-        setTimeout(async () => {
-          const { data: { session: retrySession } } = await insforge.auth.getCurrentSession();
-          if (!retrySession) {
-            router.push('/login');
-          } else {
-            processSession(retrySession);
-          }
-        }, 1000);
-        return;
+        if (!session) {
+          // Fallback if session is missing after a short delay
+          setTimeout(async () => {
+            const { data: retrySession } = await insforge.auth.refreshSession();
+            if (!retrySession) {
+              router.push('/login?error=no_session');
+            } else {
+              processSession(retrySession);
+            }
+          }, 1500);
+          return;
+        }
+
+        processSession(session);
+      } catch (err) {
+        console.error('Unexpected callback error:', err);
+        router.push('/login?error=callback_error');
       }
-
-      processSession(session);
     };
 
     const processSession = async (session: { user: any; accessToken: string }) => {
       const user = session.user;
 
       // Extract metadata provided by the provider (Google/LinkedIn)
-      // InsForge maps provider-specific data to user.profile and user.metadata
       const profileInfo = user.profile || {};
       const metadataInfo = user.metadata || {};
       const identityData = user.identities?.[0]?.identity_data || {};
@@ -44,7 +54,7 @@ function AuthCallbackContent() {
         metadataInfo.name ||
         identityData.full_name ||
         identityData.name ||
-        split_part(user.email, '@', 1);
+        (user.email ?? '').split('@')[0] || 'User';
 
       const avatarUrl =
         profileInfo.avatar_url ||
@@ -54,11 +64,10 @@ function AuthCallbackContent() {
         identityData.picture ||
         null;
 
-      // Update the profile row with the latest data from the provider
-      // We also set the role from the query param if it's provided and not yet set in DB
+      // Fetch existing profile to determine role and onboarding status
       const { data: existingProfile } = await insforge.database
         .from('profiles')
-        .select('role, role_id')
+        .select('role, role_id, completed_onboarding')
         .eq('id', user.id)
         .single();
 
@@ -71,7 +80,8 @@ function AuthCallbackContent() {
         roleId = `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
       }
 
-      const { error: upsertError } = await insforge.database
+      // Upsert profile
+      const { error: profileError } = await insforge.database
         .from('profiles')
         .upsert([{
           id: user.id,
@@ -79,44 +89,51 @@ function AuthCallbackContent() {
           name: realName,
           avatar_url: avatarUrl,
           role: finalRole,
-          // role_id: roleId, // Omit to avoid "column not found" error
+          role_id: roleId,
+          completed_onboarding: existingProfile?.completed_onboarding ?? false,
           updated_at: new Date().toISOString(),
         }]);
 
-      if (upsertError) {
-        // Handle orphaned profile unique constraint failures (when user deleted in Auth but not Public.Profiles)
-        if (upsertError.message.includes('duplicate key') || upsertError.message.includes('unique constraint')) {
-          console.log('Resolving orphaned profile conflict for:', user.email);
-          await insforge.database.from('profiles').delete().eq('email', user.email);
-
-          await insforge.database
-            .from('profiles')
-            .upsert([{
-              id: user.id,
-              email: user.email,
-              name: realName,
-              avatar_url: avatarUrl,
-              role: finalRole,
-              // role_id: roleId,
-              updated_at: new Date().toISOString(),
-            }]);
-        } else {
-          console.error('Profile Creation Error:', upsertError.message);
-        }
+      if (profileError) {
+        console.error('Profile save error:', profileError.message);
       }
 
-      // Set cookies immediately for middleware
-      // First clear any existing session cookies to avoid duplicates
+      // Ensure candidate profile exists
+      if (finalRole === 'candidate') {
+        await insforge.database
+          .from('candidate_profiles')
+          .upsert([{ id: user.id }]);
+      }
+
+      // Set cookies for middleware
       document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
       document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
       document.cookie = `tm_role=${finalRole}; path=/; max-age=3600; SameSite=Lax`;
-      // Use full page redirect to ensure AuthContext picks up new cookies/session
+
+      if (finalRole === 'admin' || finalRole === 'super_admin') {
+        document.cookie = 'tm_admin_access=true; path=/; max-age=3600; SameSite=Lax';
+      }
+
+      // --- Role-based routing ---
       if (finalRole === 'admin' || finalRole === 'super_admin') {
         window.location.assign('/dashboard/admin');
-      } else if (finalRole === 'recruiter') {
-        window.location.assign('/onboarding/recruiter/setup');
+        return;
+      }
+
+      if (finalRole === 'recruiter') {
+        if (existingProfile?.completed_onboarding) {
+          window.location.assign('/dashboard/recruiter');
+        } else {
+          window.location.assign('/onboarding/recruiter/setup');
+        }
+        return;
+      }
+
+      // For candidates: check onboarding
+      if (existingProfile?.completed_onboarding) {
+        const dashboardRoleId = existingProfile?.role_id || roleId;
+        window.location.assign(`/dashboard/candidate/${dashboardRoleId}`);
       } else {
         window.location.assign('/onboarding/candidate');
       }
@@ -153,8 +170,4 @@ export default function AuthCallback() {
       <AuthCallbackContent />
     </Suspense>
   );
-}
-
-function split_part(str: string, delim: string, idx: number): string {
-  return (str ?? '').split(delim)[idx - 1] ?? '';
 }

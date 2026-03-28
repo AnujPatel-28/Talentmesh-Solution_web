@@ -95,11 +95,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data: createdProfile, error: insertError } = await insforge.database
             .from('profiles')
+            /* changed this .insert([{
+              id: userId,
+              email,
+              role: fallbackRole,
+              name: fallbackName,
+            }])*/
             .insert([{
               id: userId,
               email,
               role: fallbackRole,
               name: fallbackName,
+              completed_onboarding: false,
             }])
             .select()
             .single();
@@ -207,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Auto-refresh if we have a cached user OR a matching access cookie.
     // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
     const hasAccessToken = document.cookie.includes('tm_access_token');
-    
+
     if (hasLoadedCached || hasAccessToken) {
       refreshUser();
     } else {
@@ -260,13 +267,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data?.user) {
-        await insforge.database
+        const { error: profileError } = await insforge.database
           .from('profiles')
-          .update({ role })
-          .eq('id', data.user.id);
+          .insert([{
+            id: data.user.id,
+            email: data.user.email,
+            role,
+            name,
+            completed_onboarding: false,
+          }]);
+
+        if (profileError) {
+          return { error: profileError.message };
+        }
       }
 
-      await refreshUser();
+      // If we got an access token (email verification not required), set up the session
+      if (data?.accessToken && data?.user) {
+        const fullUser = await fetchProfile(data.user.id, data.user.email, data.user.metadata as Record<string, unknown> || undefined);
+        if (fullUser) {
+          syncAuthCookies(data.accessToken, fullUser);
+          setUser(fullUser);
+          cacheUser(fullUser);
+        }
+      }
+
       return { requireEmailVerification: data?.requireEmailVerification };
     } catch {
       return { error: 'An unexpected error occurred during sign up.' };

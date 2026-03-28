@@ -76,6 +76,7 @@ export function createServerSessionClient(accessToken: string) {
     baseUrl: requireEnv('NEXT_PUBLIC_INSFORGE_URL'),
     anonKey: requireEnv('NEXT_PUBLIC_INSFORGE_ANON_KEY'),
     edgeFunctionToken: accessToken,
+    isServerMode: true,
   });
 }
 
@@ -104,10 +105,9 @@ function mapProfileToUser(userId: string, email: string, profile: ProfileRecord 
 
 export async function resolveSessionFromToken(accessToken: string): Promise<AuthenticatedSession | null> {
   const insforge = createServerSessionClient(accessToken);
-  const {
-    data: { user: authUser },
-    error: userError,
-  } = await insforge.auth.getCurrentUser();
+  const response = await insforge.auth.getCurrentUser();
+  const authUser = response.data?.user;
+  const userError = response.error;
 
   if (userError || !authUser?.id || !authUser.email) {
     return null;

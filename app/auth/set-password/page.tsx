@@ -36,9 +36,10 @@ export default function SetPasswordPage() {
     // 1. Initial Session Check (Invite creates a session)
     useEffect(() => {
         const checkSession = async () => {
-            const { data: { session } } = await insforge.auth.getCurrentSession();
+            const { data: sessionData } = await insforge.auth.refreshSession();
+            const sessionUser = sessionData?.user;
 
-            if (!session?.user) {
+            if (!sessionUser) {
                 setSessionStatus('expired');
                 setIsLoading(false);
                 return;
@@ -46,8 +47,8 @@ export default function SetPasswordPage() {
 
             setSessionStatus('active');
             // Try to get name from metadata
-            const metadata = (session.user.metadata || {}) as any;
-            setName(metadata.name || session.user.email?.split('@')[0] || '');
+            const metadata = (sessionUser.metadata || {}) as any;
+            setName(metadata.name || sessionUser.email?.split('@')[0] || '');
             setIsLoading(false);
         };
         checkSession();
@@ -82,10 +83,11 @@ export default function SetPasswordPage() {
         setIsSubmitting(true);
 
         try {
-            const sessionRes = await insforge.auth.getCurrentSession();
-            const session = sessionRes.data?.session;
+            const { data: sessionData } = await insforge.auth.refreshSession();
+            const accessToken = sessionData?.accessToken;
+            const sessionUser = sessionData?.user;
             
-            if (!session) {
+            if (!sessionUser || !accessToken) {
                 throw new Error("Your session has expired or is invalid. Please try clicking the invite link again.");
             }
 
@@ -93,7 +95,7 @@ export default function SetPasswordPage() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_INSFORGE_URL}/auth/v1/user`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Authorization': `Bearer ${accessToken}`,
                     'apikey': process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
                     'Content-Type': 'application/json'
                 },
@@ -115,7 +117,7 @@ export default function SetPasswordPage() {
                     name,
                     password_set_at: new Date().toISOString()
                 })
-                .eq('id', user?.id || session.user.id);
+                .eq('id', user?.id || sessionUser.id);
 
             if (profileError) throw profileError;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -17,20 +17,110 @@ const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
 export default function LoginPage() {
     const router = useRouter();
     const { signIn } = useAuth();
-    
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
+    const [showVerification, setShowVerification] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [resendCooldown, setResendCooldown] = useState(0);
+
+    // Resend cooldown timer
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [resendCooldown]);
+
+    const handleResendCode = useCallback(async () => {
+        if (resendCooldown > 0 || !email) return;
+        try {
+            await insforge.auth.resendVerificationEmail({ email });
+            setResendCooldown(60);
+            setShowVerification(true);
+            setError('');
+        } catch {
+            setError('Failed to resend verification code. Please try again.');
+        }
+    }, [email, resendCooldown]);
+
+    const handleVerifyFromLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const { data, error: verifyError } = await insforge.auth.verifyEmail({
+                email,
+                otp,
+            });
+
+            if (verifyError) {
+                setError(verifyError.message || 'Invalid verification code.');
+                setIsLoading(false);
+                return;
+            }
+
+            if (!data?.user) {
+                setError('Verification failed. Please try again.');
+                setIsLoading(false);
+                return;
+            }
+
+            // Email verified! Now sign in automatically
+            setIsEmailUnconfirmed(false);
+            setShowVerification(false);
+            setOtp('');
+
+            // Auto-login after verification
+            const result = await signIn(email, password);
+            if (result.error) {
+                setError(result.error);
+                setIsLoading(false);
+                return;
+            }
+
+            // Redirect based on profile
+            const res = await fetch('/api/candidate-profile');
+            const profileData = await res.json();
+            const profile = profileData?.profile;
+
+            if (!profile) {
+                // New admin — no candidate profile, redirect to admin dashboard
+                if (isAdminEmail) {
+                    router.push('/dashboard/admin');
+                } else {
+                    router.push('/onboarding/candidate');
+                }
+                return;
+            }
+
+            const isAdminRole = isAdminEmail || profile.role === 'admin' || profile.role === 'super_admin';
+
+            if (isAdminRole) {
+                router.push('/dashboard/admin');
+            } else if (profile.role === 'recruiter') {
+                router.push('/dashboard/recruiter');
+            } else if (!profile.completed_onboarding) {
+                router.push('/onboarding/candidate');
+            } else {
+                router.push(`/dashboard/candidate/${profile.id}`);
+            }
+        } catch (err: any) {
+            setError(err.message || 'Verification failed.');
+            setIsLoading(false);
+        }
+    };
 
     // Detect admin email as the user types
     const isAdminEmail = ADMIN_EMAILS.includes(email.trim().toLowerCase());
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // 1. Basic Validation
         if (!email || !password) {
             setError('Email and password are required');
@@ -63,15 +153,38 @@ export default function LoginPage() {
             // 3. Success — let middleware redirect to the right dashboard based on role.
             // router.refresh() re-requests the current page (/login); the middleware
             // sees the authenticated user and redirects to /dashboard/{role}.
-            const resolvedRole = result.user?.role;
-            const destination = isAdminEmail || resolvedRole === 'admin' || resolvedRole === 'super_admin'
-                ? '/dashboard/admin'
-                : resolvedRole === 'recruiter'
-                    ? '/dashboard/recruiter'
-                    : '/dashboard/candidate';
+            // 🔥 STEP 1 — Fetch profile
+            const res = await fetch('/api/candidate-profile');
+            const data = await res.json();
 
-            window.location.assign(destination);
-            
+            if (!data?.profile) {
+                if (isAdminEmail) {
+                    router.push('/dashboard/admin');
+                    return;
+                }
+                setError('Profile not found');
+                setIsLoading(false);
+                return;
+            }
+
+            const profile = data.profile;
+            const isAdminRole = isAdminEmail || profile.role === 'admin' || profile.role === 'super_admin';
+
+            console.log(`Login successful. User role: ${profile.role}. Redirecting...`);
+
+            // 🔥 STEP 2 — Redirect logic with safety delay for cookie persistence
+            const destination = isAdminRole 
+                ? '/dashboard/admin' 
+                : profile.role === 'recruiter'
+                ? (profile.completed_onboarding ? '/dashboard/recruiter' : '/onboarding/recruiter/setup')
+                : (profile.completed_onboarding ? `/dashboard/candidate/${profile.id}` : '/onboarding/candidate');
+
+            setTimeout(() => {
+                window.location.href = destination;
+            }, 150);
+
+
+
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
             setIsLoading(false);
@@ -142,12 +255,80 @@ export default function LoginPage() {
                 {error && (
                     <div className={styles.errorMessage}>
                         {error}
-                        {isEmailUnconfirmed && (
-                            <Link href="/auth/resend-verification" className={styles.resendLink}>
-                                Resend email?
-                            </Link>
+                        {isEmailUnconfirmed && !showVerification && (
+                            <button
+                                type="button"
+                                onClick={handleResendCode}
+                                disabled={resendCooldown > 0}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: resendCooldown > 0 ? '#9ca3af' : '#6366f1',
+                                    cursor: resendCooldown > 0 ? 'default' : 'pointer',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    textDecoration: resendCooldown > 0 ? 'none' : 'underline',
+                                    marginLeft: '6px',
+                                    padding: 0,
+                                }}
+                            >
+                                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend verification code'}
+                            </button>
                         )}
                     </div>
+                )}
+
+                {/* Inline OTP verification for unverified users */}
+                {showVerification && (
+                    <form onSubmit={handleVerifyFromLogin} style={{ marginBottom: '1rem' }}>
+                        <div style={{
+                            background: 'rgba(99,102,241,0.06)',
+                            border: '1px solid rgba(99,102,241,0.15)',
+                            borderRadius: '12px',
+                            padding: '1.25rem',
+                        }}>
+                            <p style={{ fontSize: '0.82rem', color: '#4b5563', marginBottom: '0.75rem', textAlign: 'center' }}>
+                                Enter the 6-digit code sent to <strong>{email}</strong>
+                            </p>
+                            <input
+                                type="text"
+                                className={styles.input}
+                                placeholder="123456"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                maxLength={6}
+                                disabled={isLoading}
+                                style={{ textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}
+                                autoFocus
+                            />
+                            <button
+                                type="submit"
+                                className={styles.submitBtn}
+                                disabled={isLoading || otp.length < 6}
+                                style={{ width: '100%', marginBottom: '0.5rem' }}
+                            >
+                                {isLoading ? 'Verifying...' : 'Verify & Sign In'}
+                            </button>
+                            <div style={{ textAlign: 'center' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleResendCode}
+                                    disabled={resendCooldown > 0}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: resendCooldown > 0 ? '#9ca3af' : '#6366f1',
+                                        cursor: resendCooldown > 0 ? 'default' : 'pointer',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 500,
+                                        textDecoration: resendCooldown > 0 ? 'none' : 'underline',
+                                    }}
+                                >
+                                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                 )}
 
                 <form className={styles.form} onSubmit={handleSubmit}>
@@ -240,6 +421,31 @@ export default function LoginPage() {
                     <p>
                         Don&apos;t have an account?{' '}
                         <Link href="/signup" className={styles.footerLink}>Sign up</Link>
+                    </p>
+                    <p style={{ marginTop: '0.75rem' }}>
+                        Need to verify your account?{' '}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (!email) {
+                                    setError('Please enter your email address above first to verify your account.');
+                                    document.getElementById('email')?.focus();
+                                    return;
+                                }
+                                setError('');
+                                setIsEmailUnconfirmed(true);
+                                if (resendCooldown <= 0) {
+                                    handleResendCode();
+                                } else {
+                                    setShowVerification(true);
+                                }
+                            }}
+                            className={styles.footerLink}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit' }}
+                        >
+                            Verify email
+                        </button>
                     </p>
                 </div>
             </div>
