@@ -1,0 +1,178 @@
+.page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: inherit;
+  color: #0f172a;
+}
+
+.hero {
+  margin-bottom: 2.5rem;
+}
+
+.eyebrow {
+  font-size: 0.825rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #3b82f6;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.75rem;
+  line-height: 1.1;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 1.1rem;
+  max-width: 600px;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.card {
+  background: white;
+  padding: 2rem;
+  border-radius: 24px;
+  border: 1px solid #eef2f6;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 0.5rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9375rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.primaryButton {
+  background: #3b82f6;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+}
+
+.featureList {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 16px;
+}
+
+.featureInfo strong {
+  display: block;
+  font-size: 0.9375rem;
+  margin-bottom: 0.125rem;
+}
+
+.featureInfo span {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Toggle Switch */
+.toggle {
+  width: 44px;
+  height: 24px;
+  background: #cbd5e1;
+  border-radius: 100px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleOn {
+  background: #10b981;
+}
+
+.toggleKnob {
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+}
+
+.toggleOn .toggleKnob {
+  transform: translateX(20px);
+}
+
+.dangerCard {
+  border-color: #fee2e2;
+  background: #fffcfc;
+}
+
+.dangerTitle {
+  color: #dc2626;
+}
+
+.warningBox {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  color: #991b1b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .settingsGrid {
+    grid-template-columns: 1fr;
+  }
+}

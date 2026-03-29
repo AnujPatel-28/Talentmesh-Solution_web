@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withApi } from '@/lib/api/handler';
-import { getAllCandidates } from '@/lib/api/admin';
+import { getAllRecruiters } from '@/lib/api/admin';
 
 export const GET = withApi(
   {
@@ -14,7 +14,7 @@ export const GET = withApi(
       status: searchParams.get('status') as any || 'all',
     };
     
-    const candidates = await getAllCandidates(filters);
-    return NextResponse.json({ candidates });
+    const recruiters = await getAllRecruiters(filters);
+    return NextResponse.json({ recruiters });
   }
 );

@@ -1,7 +1,17 @@
 import { z } from 'zod';
 
 const BLOG_STATUS_VALUES = ['draft', 'published', 'archived', 'deleted'] as const;
-const BLOG_CATEGORY_VALUES = ['Technology', 'Culture', 'Career Advice', 'Engineering', 'Product', 'AI Recruitment'] as const;
+const BLOG_CATEGORY_VALUES = [
+  'General',
+  'Technology',
+  'Career Advice',
+  'AI & Recruitment',
+  'Success Stories',
+  'Product Updates',
+  'Culture',
+  'Engineering',
+  'Product'
+] as const;
 
 const normalizeCategory = (value: unknown) => {
   if (typeof value !== 'string') {
@@ -15,6 +25,7 @@ const normalizeCategory = (value: unknown) => {
 
 export const blogBaseSchema = z.object({
   title: z.string().min(6, 'Title must be at least 6 characters').max(180, 'Title must be less than 180 characters'),
+  slug: z.string().min(3, 'Slug must be at least 3 characters').max(200, 'Slug must be less than 200 characters').optional(),
   excerpt: z.string().min(20, 'Excerpt must be at least 20 characters').max(320, 'Excerpt must be less than 320 characters'),
   content: z.string().min(80, 'Content must be at least 80 characters').max(30000, 'Content must be less than 30000 characters'),
   category: z.preprocess(normalizeCategory, z.enum(BLOG_CATEGORY_VALUES)),

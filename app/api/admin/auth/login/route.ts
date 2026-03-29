@@ -29,6 +29,14 @@ export async function POST(request: NextRequest) {
   const { data, error } = await insforge.auth.signInWithPassword({ email, password });
 
   if (error || !data?.accessToken || !data.user?.id || !data.user.email) {
+    // Check for unverified email specifically
+    if (error?.message?.includes('Email not confirmed') || error?.message?.includes('email_not_confirmed')) {
+      return NextResponse.json(
+        { error: 'Please verify your email address before logging in.', requiresVerification: true },
+        { status: 403 },
+      );
+    }
+
     const message = error?.message?.includes('Invalid login credentials')
       ? 'Invalid email or password. Please try again.'
       : error?.message || 'Unable to sign in.';

@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
         }
     } as any);
 
-    const { data: { session } } = await insforge.auth.getCurrentSession();
-    const user = session?.user;
+    const { data: sessionData } = await insforge.auth.refreshSession();
+    const user = sessionData?.user;
     
     if (!user || (user.metadata as any)?.role !== 'super_admin') {
         return new NextResponse('Unauthorized: Admin access required', { status: 401 });
@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
 
-    let query = insforgeAdmin.database
+    let query = insforgeAdmin!
+        .database
         .from('audit_logs')
         .select(`
             id,

@@ -1,8 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from './jobs.module.css';
+import { JobCard } from '@/components/jobs/JobCard';
+import { AdminHeader } from '../_components/AdminHeader';
+import { AdminStatCard } from '../_components/AdminStatCard';
+import { AdminInput, AdminSelect, AdminButton } from '../_components/AdminForm';
 
 type CompanyOption = {
   id: string;
@@ -56,7 +59,7 @@ const defaultFormState: JobFormState = {
   description: '',
   requirements: '',
   skills_required: '',
-  type: 'Full-Time',
+  type: 'full-time',
   location: '',
   salary_min: '',
   salary_max: '',
@@ -67,21 +70,33 @@ const defaultFormState: JobFormState = {
   status: 'active',
 };
 
-const typeOptions = ['Full-Time', 'Part-Time', 'Contract', 'Freelance', 'Internship', 'Remote'];
-const statusOptions = ['all', 'active', 'draft', 'paused', 'closed', 'deleted'];
+const typeOptions = [
+  { label: 'Full-Time', value: 'full-time' },
+  { label: 'Part-Time', value: 'part-time' },
+  { label: 'Contract', value: 'contract' },
+  { label: 'Freelance', value: 'freelance' },
+  { label: 'Internship', value: 'internship' },
+  { label: 'Remote', value: 'remote' },
+  { label: 'Hybrid', value: 'hybrid' }
+];
+
+const statusOptions = [
+  { label: 'Active', value: 'active' },
+  { label: 'Draft', value: 'draft' },
+  { label: 'Paused', value: 'paused' },
+  { label: 'Closed', value: 'closed' },
+  { label: 'Reported', value: 'reported' }
+];
 
 function toFormState(job?: AdminJob | null): JobFormState {
-  if (!job) {
-    return defaultFormState;
-  }
-
+  if (!job) return defaultFormState;
   return {
     company_id: job.company_id || '',
     title: job.title || '',
     description: job.description || '',
     requirements: (job.requirements || []).join('\n'),
     skills_required: (job.skills_required || []).join('\n'),
-    type: job.type || 'Full-Time',
+    type: (job.type || 'full-time').toLowerCase(),
     location: job.location || '',
     salary_min: job.salary_min?.toString() || '',
     salary_max: job.salary_max?.toString() || '',
@@ -97,52 +112,86 @@ export default function AdminJobsPage() {
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedJob, setSelectedJob] = useState<AdminJob | null>(null);
+  const [previewJob, setPreviewJob] = useState<AdminJob | null>(null);
   const [form, setForm] = useState<JobFormState>(defaultFormState);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
   const summary = useMemo(() => ({
-    total: jobs.length,
-    active: jobs.filter((job) => job.status === 'active').length,
-    drafts: jobs.filter((job) => job.status === 'draft').length,
-    paused: jobs.filter((job) => job.status === 'paused').length,
-  }), [jobs]);
+    total: totalCount,
+    active: jobs.filter(j => j.status === 'active').length,
+    pending: jobs.filter(j => !j.is_approved).length,
+  }), [jobs, totalCount]);
 
-  const fetchJobs = async (currentSearch = search, currentStatus = status) => {
+  const fetchJobs = useCallback(async (p = page, s = filterStatus, q = search) => {
     setLoading(true);
-    setError('');
-
     try {
       const params = new URLSearchParams({
         includeMeta: 'true',
-        search: currentSearch,
-        status: currentStatus,
-        page: '0',
-        limit: '50',
+        search: q,
+        status: s,
+        page: p.toString(),
+        limit: '20',
       });
-      const response = await fetch(`/api/admin/jobs?${params.toString()}`, { credentials: 'include' });
-      const payload = await response.json();
+      const res = await fetch(`/api/admin/jobs?${params.toString()}`);
+      const payload = await res.json();
 
-      if (!response.ok) {
-        throw new Error(payload.error || 'Failed to load jobs');
+      if (res.ok) {
+        setJobs(payload.data || []);
+        setTotalCount(payload.pagination.total);
+        setTotalPages(payload.pagination.totalPages);
+        if (payload.companies) setCompanies(payload.companies);
       }
+    } catch (err) {
+      setError('Failed to load jobs');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterStatus, search]);
 
-      setJobs(payload.jobs || []);
-      setCompanies(payload.companies || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load jobs');
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAction = async (action: 'approve' | 'reject' | 'delete') => {
+    if (selectedIds.size === 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/jobs/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+      });
+      if (res.ok) {
+        setSuccess(`Successfully ${action}d ${selectedIds.size} jobs`);
+        setSelectedIds(new Set());
+        fetchJobs();
+      }
+    } catch (err) {
+      setError('Bulk action failed');
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchJobs();
-  }, []);
 
   const resetForm = () => {
     setSelectedJob(null);
@@ -151,327 +200,372 @@ export default function AdminJobsPage() {
     setError('');
   };
 
-  const handleSearchSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    fetchJobs(search, status);
-  };
-
-  const handleChange = (field: keyof JobFormState, value: string) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
-  };
-
   const handleEdit = (job: AdminJob) => {
     setSelectedJob(job);
     setForm(toFormState(job));
-    setSuccess('');
-    setError('');
+    setPreviewJob(null);
   };
 
-  const handleSave = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[Job Creation] Submission triggered');
     setSaving(true);
     setError('');
     setSuccess('');
-
-    const payload = {
-      ...form,
-      salary_min: form.salary_min ? Number(form.salary_min) : null,
-      salary_max: form.salary_max ? Number(form.salary_max) : null,
-      experience_min: form.experience_min ? Number(form.experience_min) : null,
-      experience_max: form.experience_max ? Number(form.experience_max) : null,
-    };
-
     try {
-      const response = await fetch(selectedJob ? `/api/admin/jobs/${selectedJob.id}` : '/api/admin/jobs', {
-        method: selectedJob ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save job');
+      // 1. Client-side Pre-flight Validation
+      if (!form.company_id) {
+        setError('Hiring Portfolio (Company) is mandatory for platform injection.');
+        setSaving(false);
+        return;
       }
 
-      setSelectedJob(null);
-      setForm(defaultFormState);
-      setSuccess(selectedJob ? 'Job updated successfully.' : 'Job created successfully.');
-      await fetchJobs();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save job');
+      if (!form.title.trim()) {
+        setError('Professional Title is required.');
+        setSaving(false);
+        return;
+      }
+
+      if (!form.location.trim()) {
+        setError('Geographical Cluster (Location) is required.');
+        setSaving(false);
+        return;
+      }
+
+      if (form.description.length < 50) {
+        setError(`Insufficient Briefing: Description must be at least 50 characters (Current: ${form.description.length}).`);
+        setSaving(false);
+        return;
+      }
+
+      const payload: any = {
+        ...form,
+        requirements: form.requirements.split('\n').filter(r => r.trim()),
+        skills_required: form.skills_required.split('\n').filter(s => s.trim()),
+      };
+
+      // Clean up optional numerical fields: only include if they have a value
+      if (form.salary_min) payload.salary_min = Number(form.salary_min);
+      else delete payload.salary_min;
+
+      if (form.salary_max) payload.salary_max = Number(form.salary_max);
+      else delete payload.salary_max;
+
+      if (form.experience_min) payload.experience_min = Number(form.experience_min);
+      else delete payload.experience_min;
+
+      if (form.experience_max) payload.experience_max = Number(form.experience_max);
+      else delete payload.experience_max;
+
+      console.log('[Job Creation] Payload ready:', payload);
+
+      const res = await fetch(selectedJob ? `/api/admin/jobs/${selectedJob.id}` : '/api/admin/jobs', {
+        method: selectedJob ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        console.log('[Job Creation] Success');
+        setSuccess('Job successfully injected into the ecosystem');
+        resetForm();
+        fetchJobs();
+      } else {
+        const result = await res.json();
+        console.error('[Job Creation] API Error:', result);
+        if (result.details) {
+          const detailMsgs = Object.entries(result.details)
+            .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(', ')}`)
+            .join(' | ');
+          setError(`Validation Failed: ${detailMsgs}`);
+        } else {
+          setError(result.error || 'Failed to save job');
+        }
+      }
+    } catch (err) {
+      console.error('[Job Creation] Critical error:', err);
+      setError('A critical connectivity error occurred during injection.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAction = async (jobId: string, action: 'publish' | 'unpublish' | 'close' | 'delete') => {
-    setError('');
-    setSuccess('');
-
-    const actionLabels = {
-      publish: 'published',
-      unpublish: 'unpublished',
-      close: 'closed',
-      delete: 'deleted',
-    } as const;
-
-    try {
-      const response = await fetch(`/api/admin/jobs/${jobId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ action }),
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || `Failed to ${action} job`);
-      }
-
-      setSuccess(`Job ${actionLabels[action]} successfully.`);
-      await fetchJobs();
-    } catch (err: any) {
-      setError(err.message || `Failed to ${action} job`);
-    }
+  const handleChange = (field: keyof JobFormState, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   return (
     <section className={styles.page}>
-      <div className={styles.hero}>
-        <div>
-          <p className={styles.eyebrow}>Super Admin Jobs</p>
-          <h1 className={styles.title}>Create, control, and publish every TalentMesh role.</h1>
-          <p className={styles.subtitle}>This panel drives the live jobs visible on your public career pages and candidate search experience.</p>
-        </div>
-        <button className={styles.secondaryButton} onClick={resetForm}>
-          New Job
-        </button>
-      </div>
+      <AdminHeader
+        title="Jobs Registry"
+        eyebrow="TalentMesh Cloud Platform"
+        subtitle="Manage, moderate, and deploy employment opportunities across the global ecosystem."
+        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard/admin' }, { label: 'Jobs' }]}
+        actions={
+          <>
+            <AdminButton variant="secondary" onClick={() => { }}>Export Data</AdminButton>
+            <AdminButton onClick={resetForm}>Create Live Role</AdminButton>
+          </>
+        }
+      />
 
       <div className={styles.stats}>
-        <StatCard label="Total Jobs" value={summary.total} />
-        <StatCard label="Active" value={summary.active} />
-        <StatCard label="Drafts" value={summary.drafts} />
-        <StatCard label="Paused" value={summary.paused} />
+        <AdminStatCard label="Total Listings" value={totalCount} color="indigo" />
+        <AdminStatCard label="Pending Review" value={summary.pending} color="amber" />
+        <AdminStatCard label="Active Now" value={summary.active} color="emerald" />
+        <AdminStatCard label="Flagged" value={jobs.filter(j => j.status === 'reported').length} color="rose" />
       </div>
-
-      {(error || success) && (
-        <div className={error ? styles.errorBanner : styles.successBanner}>
-          {error || success}
-        </div>
-      )}
 
       <div className={styles.grid}>
         <div className={styles.listPanel}>
-          <form className={styles.toolbar} onSubmit={handleSearchSubmit}>
-            <input
-              className={styles.searchInput}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search jobs by title or description"
-            />
-            <select
-              className={styles.select}
-              value={status}
-              onChange={(event) => {
-                const nextStatus = event.target.value;
-                setStatus(nextStatus);
-                fetchJobs(search, nextStatus);
-              }}
-            >
-              {statusOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'all' ? 'All statuses' : option}
-                </option>
-              ))}
+          <div className={styles.toolbar}>
+            <div className={styles.searchContainer} style={{ flex: 1 }}>
+              <input
+                className={styles.searchInput}
+                placeholder="Search by title, location..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && fetchJobs(0)}
+              />
+            </div>
+            <select className={styles.select} style={{ width: '160px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <option value="all">All Status</option>
+              {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
-            <button type="submit" className={styles.primaryButton}>
-              Refresh
-            </button>
-          </form>
+            <AdminButton onClick={() => fetchJobs(0)}>Apply</AdminButton>
+          </div>
 
           <div className={styles.listBody}>
-            {loading ? (
-              <div className={styles.emptyState}>Loading jobs...</div>
-            ) : jobs.length === 0 ? (
-              <div className={styles.emptyState}>No jobs match the current filters.</div>
-            ) : (
-              jobs.map((job) => (
-                <article key={job.id} className={styles.jobCard}>
-                  <div className={styles.jobCardHeader}>
-                    <div>
-                      <h2 className={styles.jobTitle}>{job.title}</h2>
-                      <p className={styles.jobMeta}>
-                        {(job.companies?.name || 'Unknown company')} · {job.location} · {job.type}
-                      </p>
+            {loading ? <div className={styles.emptyState}>Syncing registry...</div> :
+              jobs.length === 0 ? <div className={styles.emptyState}>No roles match your search.</div> : (
+                jobs.map(job => (
+                  <article key={job.id}
+                    className={`${styles.jobCard} ${previewJob?.id === job.id ? styles.cardActive : ''}`}
+                    onClick={() => setPreviewJob(job)}
+                  >
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div
+                        onClick={(e) => toggleSelect(job.id, e)}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '6px',
+                          border: '2px solid #cbd5e1',
+                          backgroundColor: selectedIds.has(job.id) ? '#2563eb' : 'transparent',
+                          borderColor: selectedIds.has(job.id) ? '#2563eb' : '#cbd5e1',
+                          display: 'grid',
+                          placeItems: 'center',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {selectedIds.has(job.id) && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div className={styles.jobCardHeader}>
+                          <h2 className={styles.jobTitle}>{job.title}</h2>
+                          <span className={`${styles.statusBadge} ${styles[`status_${job.status}`]}`}>
+                            {job.status}
+                          </span>
+                        </div>
+                        <p className={styles.jobMeta}>{(job as any).companies?.name} • {job.location} • {job.type}</p>
+                      </div>
                     </div>
-                    <span className={`${styles.statusBadge} ${styles[`status_${job.status}`] || ''}`}>
-                      {job.status}
-                    </span>
-                  </div>
-
-                  <p className={styles.jobDescription}>{job.description}</p>
-
-                  <div className={styles.jobFooter}>
-                    <span>{job.salary}</span>
-                    <span>{job.is_approved ? 'Published' : 'Not published'}</span>
-                  </div>
-
-                  <div className={styles.actions}>
-                    <button className={styles.secondaryButton} onClick={() => handleEdit(job)}>
-                      Edit
-                    </button>
-                    {job.status !== 'active' ? (
-                      <button className={styles.primaryButton} onClick={() => handleAction(job.id, 'publish')}>
-                        Publish
-                      </button>
-                    ) : (
-                      <button className={styles.secondaryButton} onClick={() => handleAction(job.id, 'unpublish')}>
-                        Unpublish
-                      </button>
-                    )}
-                    <button className={styles.secondaryButton} onClick={() => handleAction(job.id, 'close')}>
-                      Close
-                    </button>
-                    <button className={styles.deleteButton} onClick={() => handleAction(job.id, 'delete')}>
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
+                  </article>
+                ))
+              )}
           </div>
         </div>
 
         <div className={styles.formPanel}>
           <div className={styles.formHeader}>
-            <h2>{selectedJob ? 'Edit Job' : 'Create Job'}</h2>
-            <p>{selectedJob ? 'Update the selected role and republish when ready.' : 'New jobs created here can go live immediately or stay in draft.'}</p>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+              {selectedJob ? 'Refine Listing' : 'Platform Injection'}
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+              Directly curate global employment data points.
+            </p>
+          </div>
+
+          <div style={{ padding: '0 1.1rem' }}>
+            {error && (
+              <div className={styles.errorBanner} style={{ marginTop: '1rem' }}>
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className={styles.successBanner} style={{ marginTop: '1rem' }}>
+                {success}
+              </div>
+            )}
           </div>
 
           <form className={styles.form} onSubmit={handleSave}>
-            <label className={styles.field}>
-              <span>Company</span>
-              <select
-                className={styles.select}
-                value={form.company_id}
-                onChange={(event) => handleChange('company_id', event.target.value)}
-                required
-              >
-                <option value="">Select a company</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <AdminSelect
+              label="Hiring Portfolio (Company)"
+              options={[
+                { label: 'Select a company...', value: '' },
+                ...companies.map(c => ({ label: c.name, value: c.id }))
+              ]}
+              value={form.company_id}
+              onChange={e => handleChange('company_id', e.target.value)}
+            />
 
-            <label className={styles.field}>
-              <span>Job Title</span>
-              <input className={styles.input} value={form.title} onChange={(event) => handleChange('title', event.target.value)} required />
-            </label>
+            <AdminInput
+              label="Professional Title"
+              value={form.title}
+              onChange={e => handleChange('title', e.target.value)}
+              placeholder="e.g. Lead Dev-Ops Architect"
+            />
 
-            <div className={styles.twoColumn}>
-              <label className={styles.field}>
-                <span>Type</span>
-                <select className={styles.select} value={form.type} onChange={(event) => handleChange('type', event.target.value)}>
-                  {typeOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={styles.field}>
-                <span>Status</span>
-                <select className={styles.select} value={form.status} onChange={(event) => handleChange('status', event.target.value)}>
-                  {statusOptions.filter((option) => option !== 'all').map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <AdminSelect
+                label="Contract Modality"
+                options={typeOptions}
+                value={form.type}
+                onChange={e => handleChange('type', e.target.value)}
+              />
+              <AdminSelect
+                label="System Status"
+                options={statusOptions}
+                value={form.status}
+                onChange={e => handleChange('status', e.target.value)}
+              />
             </div>
 
-            <div className={styles.twoColumn}>
-              <label className={styles.field}>
-                <span>Location</span>
-                <input className={styles.input} value={form.location} onChange={(event) => handleChange('location', event.target.value)} required />
-              </label>
-              <label className={styles.field}>
-                <span>Department</span>
-                <input className={styles.input} value={form.department} onChange={(event) => handleChange('department', event.target.value)} />
-              </label>
+            <AdminInput
+              label="Geographical Cluster"
+              value={form.location}
+              onChange={e => handleChange('location', e.target.value)}
+              placeholder="City, Country or 'Remote'"
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <AdminInput
+                label="Salary Min"
+                type="number"
+                value={form.salary_min}
+                onChange={e => handleChange('salary_min', e.target.value)}
+                placeholder="e.g. 800000"
+              />
+              <AdminInput
+                label="Salary Max"
+                type="number"
+                value={form.salary_max}
+                onChange={e => handleChange('salary_max', e.target.value)}
+                placeholder="e.g. 1200000"
+              />
+              <AdminSelect
+                label="Currency"
+                options={[{ label: 'INR', value: 'INR' }, { label: 'USD', value: 'USD' }]}
+                value={form.currency}
+                onChange={e => handleChange('currency', e.target.value)}
+              />
             </div>
 
-            <label className={styles.field}>
-              <span>Description</span>
-              <textarea className={styles.textarea} value={form.description} onChange={(event) => handleChange('description', event.target.value)} required />
-            </label>
-
-            <div className={styles.twoColumn}>
-              <label className={styles.field}>
-                <span>Requirements</span>
-                <textarea className={styles.textareaSmall} value={form.requirements} onChange={(event) => handleChange('requirements', event.target.value)} placeholder="One requirement per line" />
-              </label>
-              <label className={styles.field}>
-                <span>Skills</span>
-                <textarea className={styles.textareaSmall} value={form.skills_required} onChange={(event) => handleChange('skills_required', event.target.value)} placeholder="One skill per line" />
-              </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <AdminInput
+                label="Exp Min (Years)"
+                type="number"
+                value={form.experience_min}
+                onChange={e => handleChange('experience_min', e.target.value)}
+                placeholder="0"
+              />
+              <AdminInput
+                label="Exp Max (Years)"
+                type="number"
+                value={form.experience_max}
+                onChange={e => handleChange('experience_max', e.target.value)}
+                placeholder="5"
+              />
+              <AdminInput
+                label="Department"
+                value={form.department}
+                onChange={e => handleChange('department', e.target.value)}
+                placeholder="e.g. Engineering"
+              />
             </div>
 
-            <div className={styles.threeColumn}>
-              <label className={styles.field}>
-                <span>Salary Min</span>
-                <input className={styles.input} type="number" value={form.salary_min} onChange={(event) => handleChange('salary_min', event.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Salary Max</span>
-                <input className={styles.input} type="number" value={form.salary_max} onChange={(event) => handleChange('salary_max', event.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Currency</span>
-                <select className={styles.select} value={form.currency} onChange={(event) => handleChange('currency', event.target.value)}>
-                  <option value="INR">INR</option>
-                  <option value="USD">USD</option>
-                </select>
-              </label>
+            <div className={styles.field}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label className={styles.label}>Detailed Briefing</label>
+                <span style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600,
+                  color: (form.description?.length || 0) < 50 ? '#ef4444' : '#10b981' 
+                }}>
+                  {form.description?.length || 0} / 50 characters min
+                </span>
+              </div>
+              <textarea
+                className={styles.textarea}
+                style={{ 
+                  minHeight: '160px',
+                  borderColor: (form.description?.length || 0) > 0 && (form.description?.length || 0) < 50 ? '#ef4444' : ''
+                }}
+                value={form.description}
+                onChange={e => handleChange('description', e.target.value)}
+                placeholder="Describe the role, impact, and ecosystem context (min. 50 characters)..."
+              />
+              {(form.description?.length || 0) > 0 && (form.description?.length || 0) < 50 && (
+                <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px' }}>
+                  Brief needs at least 50 characters to satisfy platform standards.
+                </p>
+              )}
             </div>
 
-            <div className={styles.twoColumn}>
-              <label className={styles.field}>
-                <span>Experience Min</span>
-                <input className={styles.input} type="number" value={form.experience_min} onChange={(event) => handleChange('experience_min', event.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Experience Max</span>
-                <input className={styles.input} type="number" value={form.experience_max} onChange={(event) => handleChange('experience_max', event.target.value)} />
-              </label>
+            <div className={styles.field}>
+              <label className={styles.label}>Requirements (one per line)</label>
+              <textarea
+                className={styles.textareaSmall}
+                value={form.requirements}
+                onChange={e => handleChange('requirements', e.target.value)}
+                placeholder="e.g. 5+ years experience in Node.js"
+              />
             </div>
 
-            <div className={styles.formActions}>
-              <button type="button" className={styles.secondaryButton} onClick={resetForm}>
-                Clear
-              </button>
-              <button type="submit" className={styles.primaryButton} disabled={saving}>
-                {saving ? 'Saving...' : selectedJob ? 'Update Job' : 'Create Job'}
-              </button>
+            <div className={styles.field}>
+              <label className={styles.label}>Required Skills (one per line)</label>
+              <textarea
+                className={styles.textareaSmall}
+                value={form.skills_required}
+                onChange={e => handleChange('skills_required', e.target.value)}
+                placeholder="e.g. TypeScript, AWS, Redis"
+              />
+            </div>
+
+            <div className={styles.formActions} style={{ marginTop: '24px' }}>
+              <AdminButton variant="secondary" type="button" onClick={resetForm}>Reset</AdminButton>
+              <AdminButton type="submit" isLoading={saving}>
+                {selectedJob ? 'Update Ecosystem' : 'Inject Listing'}
+              </AdminButton>
             </div>
           </form>
         </div>
       </div>
-    </section>
-  );
-}
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className={styles.statCard}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+      {previewJob && (
+        <div className={styles.drawerOverlay} onClick={() => setPreviewJob(null)}>
+          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
+            <div className={styles.drawerHeader}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Role Intelligence</h2>
+              <button className={styles.drawerClose} onClick={() => setPreviewJob(null)}>×</button>
+            </div>
+            <div className={styles.drawerContent}>
+              <JobCard job={previewJob} showActions={false} />
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <AdminButton style={{ flex: 1 }} onClick={() => handleEdit(previewJob)}>Moderate Listing</AdminButton>
+                <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Purge</AdminButton>
+              </div>
+              <div style={{ marginTop: '32px' }}>
+                <h3 style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Full Description</h3>
+                <div style={{ fontSize: '0.95rem', lineHeight: '1.8', color: '#334155', whiteSpace: 'pre-wrap' }}>
+                  {previewJob.description}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

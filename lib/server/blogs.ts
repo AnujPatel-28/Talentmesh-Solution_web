@@ -184,18 +184,25 @@ export async function getAdminBlog(id: string) {
 
 export async function createAdminBlog(input: CreateBlogInput, adminId: string) {
   const client = requireAdminClient();
-  const slug = await ensureUniqueSlug(input.title);
+  
+  // Use user-provided slug if available, otherwise generate one
+  const slug = input.slug 
+    ? input.slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+    : await ensureUniqueSlug(input.title);
+
   const payload = {
     ...input,
     slug,
+    excerpt: input.excerpt || '',
+    category: input.category || 'General',
     cover_image: input.cover_image || null,
-    author_id: input.author_id || adminId,
+    author_id: adminId,
     status: input.status || 'draft',
   };
 
   const { data, error } = await client.database
     .from('blog')
-    .insert(payload)
+    .insert([payload])
     .select('id, title, slug, excerpt, content, category, cover_image, status, created_at, author_id, author:profiles(name)')
     .single();
 
@@ -211,9 +218,11 @@ export async function updateAdminBlog(id: string, input: UpdateBlogInput) {
   const payload: Record<string, unknown> = {
     ...input,
     cover_image: input.cover_image === '' ? null : input.cover_image,
+    updated_at: new Date().toISOString(),
   };
 
-  if (input.title) {
+  // Only auto-generate slug IF title is changed AND no slug is provided in the input
+  if (input.title && !input.slug) {
     payload.slug = await ensureUniqueSlug(input.title, id);
   }
 

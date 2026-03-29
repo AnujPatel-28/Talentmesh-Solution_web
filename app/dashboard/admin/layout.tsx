@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,12 +21,6 @@ const Icons = {
   signOut: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>,
 };
 
-type Counts = {
-  candidates: number;
-  recruiters: number;
-  jobs: number;
-};
-
 type NavItem = {
   label: string;
   href: string;
@@ -43,40 +37,38 @@ type NavSection = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const [counts, setCounts] = useState<Counts>({ candidates: 0, recruiters: 0, jobs: 0 });
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [counts, setCounts] = useState({ candidates: 0, recruiters: 0, jobs: 0 });
 
   useEffect(() => {
-    let mounted = true;
-
     async function fetchCounts() {
-      const [{ count: candidates }, { count: recruiters }, { count: jobs }] = await Promise.all([
+      const [
+        { count: candidates },
+        { count: recruiters },
+        { count: jobs }
+      ] = await Promise.all([
         insforge.database.from("candidate_profiles").select("*", { count: "exact", head: true }),
         insforge.database.from("recruiter_profiles").select("*", { count: "exact", head: true }).eq("is_approved", false),
         insforge.database.from("jobs").select("*", { count: "exact", head: true }).eq("status", "active"),
       ]);
 
-      if (mounted) {
-        setCounts({
-          candidates: candidates || 0,
-          recruiters: recruiters || 0,
-          jobs: jobs || 0,
-        });
-      }
+      setCounts({
+        candidates: candidates || 0,
+        recruiters: recruiters || 0,
+        jobs: jobs || 0,
+      });
     }
-
-    fetchCounts().catch(() => {
-      if (mounted) {
-        setCounts({ candidates: 0, recruiters: 0, jobs: 0 });
-      }
-    });
-
-    return () => {
-      mounted = false;
-    };
+    fetchCounts().catch(console.error);
   }, []);
 
-  const initials = (user?.name?.split(" ").map((part) => part[0]).join("") || "A").toUpperCase();
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
+
+  const adminInitials = user?.name
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase()
+    : user?.email?.[0].toUpperCase() || 'A';
+
   const navSections: NavSection[] = [
     {
       title: "Overview",
@@ -112,59 +104,77 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className={styles.container}>
-      {/* Mobile Top Bar */}
-      <header className={styles.mobileHeader}>
-        <div className={styles.logoRow}>
-          <Image src="/TalentMesh_Logo-removebg-preview.png" alt="TalentMesh" width={32} height={32} unoptimized />
-          <span className={styles.portalBadge}>Admin Portal</span>
-        </div>
-        <button className={styles.hamburger} onClick={() => setIsMenuOpen(true)} aria-label="Open menu">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
-      </header>
+      {/* Sidebar Overlay (Mobile) */}
+      {isMobileOpen && <div className={styles.overlay} onClick={() => setIsMobileOpen(false)} />}
 
-      {/* Overlay */}
-      {isMenuOpen && <div className={styles.overlay} onClick={() => setIsMenuOpen(false)} />}
-
-      <aside className={`${styles.sidebar} ${isMenuOpen ? styles.sidebarOpen : ""}`}>
+      {/* Sidebar */}
+      <aside className={`
+        ${styles.sidebar} 
+        ${!isSidebarOpen ? styles.sidebarCollapsed : ''} 
+        ${isMobileOpen ? styles.sidebarOpen : ''}
+      `}>
         <div className={styles.sidebarTop}>
           <div className={styles.logoRow}>
-            <Image src="/TalentMesh_Logo-removebg-preview.png" alt="TalentMesh" width={32} height={32} unoptimized />
-            <span className={styles.portalBadge}>Admin Portal</span>
-            <button className={styles.closeBtn} onClick={() => setIsMenuOpen(false)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <Link href="/" className={styles.brandLink}>
+              {!isSidebarOpen && !isMobileOpen ? (
+                <div className={styles.logoWrapper}>
+                  <Image
+                    src="/TalentMesh_Logo-removebg-preview.png"
+                    alt="TalentMesh Icon"
+                    width={32}
+                    height={32}
+                    className={styles.brandIconWhite}
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <Image
+                  src="/TalentMesh_page-0002-removebg-preview.png"
+                  alt="TalentMesh"
+                  width={240}
+                  height={48}
+                  className={styles.brandLogoContent}
+                  style={{ objectFit: 'contain' }}
+                  unoptimized
+                />
+              )}
+            </Link>
+            <button className={styles.closeBtn} onClick={() => setIsMobileOpen(false)}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
 
-          <div className={styles.adminCard}>
-            <div className={styles.avatar}>{initials}</div>
-            <div className={styles.adminInfo}>
-              <span className={styles.adminName}>{user?.name || "Admin"}</span>
-              <div className={styles.roleBadge}>Admin</div>
-              <span className={styles.mfaStatus}>Secure session active</span>
+          {(isSidebarOpen || isMobileOpen) && (
+            <div className={styles.adminCard}>
+              <div className={styles.avatar}>{adminInitials}</div>
+              <div className={styles.adminInfo}>
+                <span className={styles.adminName}>{user?.name || "Admin"}</span>
+                <span className={styles.roleBadge}>Super Administrator</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <nav className={styles.nav}>
           {navSections.map((section) => (
             <div key={section.title} className={styles.navSection}>
-              <span className={styles.sectionTitle}>{section.title}</span>
+              {(isSidebarOpen || isMobileOpen) && <span className={styles.sectionTitle}>{section.title}</span>}
               {section.items.map((item) => {
                 const active = pathname === item.href;
                 return (
-                  <Link 
-                    key={item.href} 
-                    href={item.href} 
+                  <Link
+                    key={item.href}
+                    href={item.href}
                     className={`${styles.navLink} ${active ? styles.navLinkActive : ""}`}
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => setIsMobileOpen(false)}
+                    title={!isSidebarOpen ? item.label : undefined}
                   >
                     <span className={styles.navIcon}>{item.icon}</span>
-                    <span className={styles.navLabel}>{item.label}</span>
-                    {"badge" in item && item.badge ? (
-                      <span className={`${styles.badge} ${item.badgeColor === "amber" ? styles.badgeAmber : ""}`}>{item.badge}</span>
+                    {(isSidebarOpen || isMobileOpen) && <span className={styles.navLabel}>{item.label}</span>}
+                    {(isSidebarOpen || isMobileOpen) && item.badge ? (
+                      <span className={`${styles.badge} ${item.badgeColor === "amber" ? styles.badgeAmber : ""}`}>
+                        {item.badge}
+                      </span>
                     ) : null}
                   </Link>
                 );
@@ -174,14 +184,53 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         <div className={styles.sidebarBottom}>
-          <button onClick={() => signOut()} className={styles.signOutBtn}>
+          <button className={styles.signOutBtn} onClick={() => signOut()}>
             <span className={styles.navIcon}>{Icons.signOut}</span>
-            Sign Out
+            {(isSidebarOpen || isMobileOpen) && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
-      <main className={styles.main}>{children}</main>
+      {/* Content Area */}
+      <main className={styles.main}>
+        {/* Top Bar - Responsive */}
+        <div className={styles.topBar}>
+          <div className={styles.topBarLeft}>
+            <button className={styles.hamburger} onClick={toggleSidebar}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            </button>
+            <button className={styles.hamburgerMobile} onClick={toggleMobile}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            </button>
+            <div className={styles.searchContainer}>
+              <input
+                type="text"
+                placeholder="Search..."
+                className={styles.topSearch}
+              />
+              <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+            </div>
+          </div>
+
+          <div className={styles.topBarRight}>
+            <button className={styles.iconBtn}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+            </button>
+            <div className={styles.divider} />
+            <div className={styles.userProfile}>
+              <div className={styles.userAvatar}>{adminInitials}</div>
+              <div className={styles.userDetails}>
+                <div className={styles.userName}>{user?.name || "Admin"}</div>
+                <div className={styles.userRole}>Super Admin</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.content}>
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

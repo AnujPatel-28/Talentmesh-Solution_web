@@ -160,3 +160,133 @@
   color: #64748b;
   font-size: 1.1rem;
 }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.pageButton {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pageActive {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.modal {
+  background: white;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: modalUp 0.3s ease-out;
+}
+
+@keyframes modalUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.modalContent {
+  padding: 2rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.coverLetterBox {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.modalFooter {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  background: #f8fafc;
+}
+
+.viewBtn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}

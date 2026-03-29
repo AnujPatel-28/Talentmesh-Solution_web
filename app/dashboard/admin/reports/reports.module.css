@@ -1,0 +1,171 @@
+.page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: inherit;
+  color: #0f172a;
+}
+
+.hero {
+  margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.eyebrow {
+  font-size: 0.825rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #3b82f6;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.75rem;
+  line-height: 1.1;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 1.1rem;
+  max-width: 600px;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.metricCard {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 20px;
+  border: 1px solid #eef2f6;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.metricLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.metricValue {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.chartCard {
+  background: white;
+  padding: 2rem;
+  border-radius: 24px;
+  border: 1px solid #eef2f6;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.chartTitle {
+  font-size: 1.125rem;
+  font-weight: 800;
+  margin-bottom: 2rem;
+  color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chartContainer {
+  height: 300px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Funnel Styles */
+.funnelWrapper {
+  width: 100%;
+  padding: 0 2rem;
+}
+
+.funnelStep {
+  height: 48px;
+  margin-bottom: 8px;
+  background: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: transform 0.2s;
+}
+
+.funnelStep:hover {
+  transform: translateX(4px);
+}
+
+.funnelLabel {
+  opacity: 0.9;
+}
+
+/* Skill distribution */
+.skillBar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.skillName {
+  width: 100px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.barTrack {
+  flex: 1;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 100px;
+}
+
+.skillCount {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  width: 30px;
+}
+
+@media (max-width: 1024px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withApi } from '@/lib/api/handler';
-import { getAllCandidates } from '@/lib/api/admin';
+import { getAuditLogs } from '@/lib/api/admin';
 
 export const GET = withApi(
   {
@@ -11,10 +11,9 @@ export const GET = withApi(
     const filters = {
       page: parseInt(searchParams.get('page') || '0'),
       search: searchParams.get('search') || undefined,
-      status: searchParams.get('status') as any || 'all',
     };
     
-    const candidates = await getAllCandidates(filters);
-    return NextResponse.json({ candidates });
+    const logs = await getAuditLogs(filters);
+    return NextResponse.json({ logs });
   }
 );
