@@ -19,17 +19,18 @@ export async function logAction(params: {
     const userAgent = headersList.get('user-agent') ?? 'unknown';
 
     try {
-        await insforgeAdmin.database.from('audit_logs').insert({
+        await insforgeAdmin.database.from('audit_logs').insert([{
             actor_id: params.adminId,
             action: params.action,
             table_name: params.tableName,
             record_id: params.recordId,
-            old_data: params.oldData ? params.oldData : null,
-            new_data: params.newData ? params.newData : null,
+            old_data: params.oldData || null,
+            new_data: params.newData || null,
             ip_address: ip,
             user_agent: userAgent,
-            status: params.status || 'success'
-        });
+            status: params.status || 'success',
+            created_at: new Date().toISOString()
+        }]);
     } catch (error) {
         console.error('Failed to log admin action:', error);
     }
