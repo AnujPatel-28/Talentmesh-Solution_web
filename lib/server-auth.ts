@@ -26,9 +26,12 @@ export async function getServerUser(): Promise<User | null> {
     baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
     anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
     edgeFunctionToken: token,
+    isServerMode: true,
   });
 
-  const { data: { user }, error: userError } = await insforge.auth.getCurrentUser();
+  const response = await insforge.auth.getCurrentUser();
+  const user = response.data?.user;
+  const userError = response.error;
 
   if (userError || !user) return null;
 
@@ -38,7 +41,9 @@ export async function getServerUser(): Promise<User | null> {
     .eq('id', user.id)
     .single();
 
-  const role = profile?.role || (isAdminEmail(user.email) ? 'admin' : 'candidate');
+  // Favor DB profile role, then Auth Metadata role, then email match, then candidate
+  const authMetadataRole = (user.metadata as any)?.role;
+  const role = profile?.role || authMetadataRole || (isAdminEmail(user.email) ? 'admin' : 'candidate');
 
   return {
     id: user.id,

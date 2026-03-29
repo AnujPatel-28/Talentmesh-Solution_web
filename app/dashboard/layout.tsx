@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { SearchProvider, useSearch } from '@/context/SearchContext';
+import SearchOverlay from '@/components/candidate/SearchOverlay';
 import styles from './dashboard-layout.module.css';
 
 /* ─── SVG Icon Components ─── */
@@ -63,12 +65,12 @@ const Icons = {
 /* ─── Nav Definitions ─── */
 interface NavItem { label: string; href: string; icon: React.ReactNode; badge?: number }
 
-const CANDIDATE_NAV: NavItem[] = [
-    { label: 'Home', href: '/dashboard/candidate', icon: Icons.home },
-    { label: 'Jobs', href: '/dashboard/candidate/jobs', icon: Icons.briefcase },
-    { label: 'Applications', href: '/dashboard/candidate/applications', icon: Icons.clipboard, badge: 5 },
-    { label: 'Messages', href: '/dashboard/candidate/messages', icon: Icons.messageSquare, badge: 3 },
-    { label: 'Analytics', href: '/dashboard/candidate/analytics', icon: Icons.barChart },
+const getCandidateNav = (role_id: string): NavItem[] => [
+    { label: 'Home', href: `/dashboard/candidate/${role_id}`, icon: Icons.home },
+    { label: 'Jobs', href: `/dashboard/candidate/${role_id}/jobs`, icon: Icons.briefcase },
+    { label: 'Applications', href: `/dashboard/candidate/${role_id}/applications`, icon: Icons.clipboard, badge: 5 },
+    { label: 'Messages', href: `/dashboard/candidate/${role_id}/messages`, icon: Icons.messageSquare, badge: 3 },
+    { label: 'Analytics', href: `/dashboard/candidate/${role_id}/analytics`, icon: Icons.barChart },
 ];
 
 const RECRUITER_NAV: NavItem[] = [
@@ -89,9 +91,18 @@ const SUPER_ADMIN_NAV: NavItem[] = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <SearchProvider>
+            <DashboardLayoutInner>{children}</DashboardLayoutInner>
+        </SearchProvider>
+    );
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const { user: authUser, isAdmin, signOut, isLoading } = useAuth();
+    const { openSearch } = useSearch();
     const [isSigningOut, setIsSigningOut] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -107,7 +118,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const isSuperAdmin = pathname.includes('/dashboard/admin');
     const isRecruiter = pathname.includes('/dashboard/recruiter');
-    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV : isRecruiter ? RECRUITER_NAV : CANDIDATE_NAV;
+    const roleId = authUser?.id || '';
+    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV : isRecruiter ? RECRUITER_NAV : getCandidateNav(roleId);
 
     const user = {
         name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
@@ -116,9 +128,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
 
     const pageTitle = (() => {
-        const seg = pathname.split('/').pop();
-        if (seg === 'candidate' || seg === 'recruiter' || seg === 'admin') return 'Dashboard';
-        return seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : 'Dashboard';
+        const segments = pathname.split('/').filter(Boolean);
+        const last = segments[segments.length - 1];
+        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+        if (!last || isUUID(last)) {
+            const prev = segments[segments.length - 2];
+            if (!prev || prev === 'candidate' || prev === 'recruiter' || prev === 'admin') return 'Dashboard';
+            return prev.charAt(0).toUpperCase() + prev.slice(1);
+        }
+
+        if (last === 'candidate' || last === 'recruiter' || last === 'admin') return 'Dashboard';
+        return last.charAt(0).toUpperCase() + last.slice(1);
     })();
 
     const handleToggle = useCallback(() => {
@@ -155,6 +176,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <div className={styles.shell}>
+            <SearchOverlay />
             {isAdmin && <div className={styles.adminAccent} />}
             {/* Sidebar */}
             <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}>
@@ -205,7 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 <div className={styles.sidebarFoot}>
                     <Link
-                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : '/dashboard/candidate/settings'}
+                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : `/dashboard/candidate/${roleId}/settings`}
                         className={styles.navLink}
                         onClick={() => setMobileOpen(false)}
                     >
@@ -295,9 +317,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 </button>
                             </div>
                         )}
-                        <div className={styles.searchBox}>
+                        <div className={styles.searchBox} onClick={openSearch} style={{ cursor: 'pointer' }}>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-                            <input className={styles.searchInput} placeholder="Search jobs, skills..." />
+                            <span style={{ color: '#94a3b8', fontSize: '0.85rem', userSelect: 'none' }}>Search jobs, skills...</span>
                         </div>
                         <button className={styles.notifBtn} aria-label="Notifications">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>

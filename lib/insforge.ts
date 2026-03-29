@@ -13,6 +13,7 @@ if (!supabaseAnonKey) {
 }
 
 // Client containing the anon key, safe for both client and server pages
+//changing this line 
 export const insforge = createClient({
   baseUrl: supabaseUrl,
   anonKey: supabaseAnonKey,
@@ -22,12 +23,12 @@ export const insforge = createClient({
  * Helper to fetch the current active session
  */
 export async function getSession() {
-  const { data, error } = await insforge.auth.getCurrentSession();
+  const { data, error } = await insforge.auth.refreshSession();
   if (error) {
     console.error('Error fetching session:', error.message);
     return null;
   }
-  return data?.session || null;
+  return data || null;
 }
 
 /**

@@ -15,5 +15,6 @@ export async function getServerInsforgeClient() {
     baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
     anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
     edgeFunctionToken: token,
+    isServerMode: true,
   });
 }

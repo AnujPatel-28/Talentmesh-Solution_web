@@ -14,7 +14,7 @@ interface MiddlewareUser {
   role_id?: string | null;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('tm_access_token')?.value;
   const mfaVerified = request.cookies.get('mfa_verified')?.value === 'true';
@@ -22,13 +22,13 @@ export async function middleware(request: NextRequest) {
   let user: MiddlewareUser | null = null;
   let role = request.cookies.get('tm_role')?.value;
   let mfaEnabled = false;
+  let completedOnboarding = false;
 
   if (token) {
     try {
       const insforge = createServerSessionClient(token);
-      const {
-        data: { user: currentUser },
-      } = await insforge.auth.getCurrentUser();
+      const res = await insforge.auth.getCurrentUser();
+      const currentUser = res.data?.user;
 
       if (currentUser) {
         user = {
@@ -39,12 +39,13 @@ export async function middleware(request: NextRequest) {
 
         const { data: profile } = await insforge.database
           .from('profiles')
-          .select('role, mfa_enabled, role_id')
+          .select('role, mfa_enabled, role_id,completed_onboarding')
           .eq('id', user.id)
           .single();
 
         if (profile) {
           user.role_id = profile.role_id as string | null;
+          completedOnboarding = profile.completed_onboarding === true;
         }
 
         role = normalizeRole(
@@ -87,15 +88,25 @@ export async function middleware(request: NextRequest) {
     }
 
     // Onboarding Redirection Logic
-    const isCandidate = role === 'candidate';
-    const isRecruiter = role === 'recruiter';
-    const hasRoleId = user.role_id || user.metadata?.role_id; // Check if user has a custom role_id set
+   // const isCandidate = role === 'candidate';
+    //const isRecruiter = role === 'recruiter';
+    //const hasRoleId = user.role_id || user.metadata?.role_id; // Check if user has a custom role_id set
     
     // For now, let's use the presence of role_id as the indicator of completed onboarding
     // since both Candidate and Recruiter onboarding flows eventually set it.
-    if ((isCandidate || isRecruiter) && !hasRoleId && !pathname.startsWith('/onboarding')) {
-      const dest = isCandidate ? '/onboarding/candidate' : '/onboarding/recruiter/setup';
-      return NextResponse.redirect(new URL(dest, request.url));
+   // if ((isCandidate || isRecruiter) && !hasRoleId && !pathname.startsWith('/onboarding')) {
+     // const dest = isCandidate ? '/onboarding/candidate' : '/onboarding/recruiter/setup';
+     // return NextResponse.redirect(new URL(dest, request.url));
+    //}
+    
+
+   // 🔥 Correct onboarding logic
+    if ((role === 'candidate' || role === 'recruiter') && !completedOnboarding && !pathname.startsWith('/onboarding')) {
+    const dest = role === 'candidate'
+      ? '/onboarding/candidate'
+     : '/onboarding/recruiter/setup';
+
+     return NextResponse.redirect(new URL(dest, request.url));
     }
   }
 

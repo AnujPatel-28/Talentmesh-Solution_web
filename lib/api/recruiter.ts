@@ -10,8 +10,9 @@ export interface RecruiterDashboardStats {
  * Fetches dashboard stats for the logged-in recruiter.
  */
 export async function getRecruiterDashboard(): Promise<RecruiterDashboardStats> {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) throw new Error('Unauthorized');
+  const { data: sessionData } = await insforge.auth.refreshSession();
+  const sessionUser = sessionData?.user;
+  if (!sessionUser) throw new Error('Unauthorized');
 
   const [
     { count: activeJobs },
@@ -20,16 +21,16 @@ export async function getRecruiterDashboard(): Promise<RecruiterDashboardStats> 
   ] = await Promise.all([
     insforge.database.from('jobs')
       .select('*', { count: 'exact', head: true })
-      .eq('recruiter_id', session.user.id)
+      .eq('recruiter_id', sessionUser.id)
       .eq('status', 'active'),
     
     insforge.database.from('applications')
       .select('*, jobs!inner(*)', { count: 'exact', head: true })
-      .eq('jobs.recruiter_id', session.user.id),
+      .eq('jobs.recruiter_id', sessionUser.id),
 
     insforge.database.from('applications')
       .select('*, jobs!inner(title), profiles!applications_candidate_id_fkey(name, email)')
-      .eq('jobs.recruiter_id', session.user.id)
+      .eq('jobs.recruiter_id', sessionUser.id)
       .order('applied_at', { ascending: false })
       .limit(5)
   ]);
@@ -75,8 +76,9 @@ export async function completeRecruiterSetup(data: {
   jobTitle: string; 
   department: string; 
 }) {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) throw new Error('Unauthorized');
+  const { data: sessionData } = await insforge.auth.refreshSession();
+  const sessionUser = sessionData?.user;
+  if (!sessionUser) throw new Error('Unauthorized');
 
   // 1. Find or create company by name
   let { data: company } = await insforge.database
@@ -100,7 +102,7 @@ export async function completeRecruiterSetup(data: {
   const { error: profileError } = await insforge.database
     .from('recruiter_profiles')
     .upsert([{
-      id: session.user.id,
+      id: sessionUser.id,
       company_id: company!.id,
       job_title: data.jobTitle,
       department: data.department,
@@ -111,7 +113,7 @@ export async function completeRecruiterSetup(data: {
 
   // 3. Activity log
   await insforge.database.from('activity').insert([{
-    user_id: session.user.id,
+    user_id: sessionUser.id,
     type: 'onboarding_complete',
     description: `Completed recruiter setup at ${data.companyName}`
   }]);

@@ -1,17 +1,28 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { insforge } from '@/lib/insforge';
 import styles from '@/app/(auth)/login/login.module.css';
 
+type Step = 'form' | 'otp' | 'success';
+
 export default function AdminSetupForm() {
+  const [step, setStep] = useState<Step>('form');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const getPasswordStrength = (pass: string) => {
     let score = 0;
@@ -47,7 +58,7 @@ export default function AdminSetupForm() {
     }
 
     try {
-      const { error: signUpError } = await insforge.auth.signUp({
+      const { error: signUpError, data } = await insforge.auth.signUp({
         email,
         password,
         name: fullName,
@@ -55,7 +66,7 @@ export default function AdminSetupForm() {
 
       if (signUpError) {
         if (signUpError.message.includes('User already registered')) {
-          setError('An account with this email already exists. Please use /admin/login');
+          setError('An account with this email already exists. Please use the login page.');
         } else {
           setError(signUpError.message);
         }
@@ -63,7 +74,16 @@ export default function AdminSetupForm() {
         return;
       }
 
-      setSuccess(true);
+      // If email verification is required, show OTP step
+      if (data?.requireEmailVerification) {
+        setStep('otp');
+        setResendCooldown(60);
+        setIsLoading(false);
+        return;
+      }
+
+      // No verification required — go straight to success
+      setStep('success');
     } catch (err: any) {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -71,7 +91,56 @@ export default function AdminSetupForm() {
     }
   };
 
-  if (success) {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const { data, error: verifyError } = await insforge.auth.verifyEmail({
+        email,
+        otp,
+      });
+
+      if (verifyError) {
+        if (verifyError.message?.includes('expired')) {
+          setError('Code has expired. Please click "Resend Code" to get a new one.');
+        } else {
+          setError(verifyError.message || 'Invalid verification code. Please try again.');
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data?.user) {
+        setError('Verification failed. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Email verified successfully — show success
+      setStep('success');
+    } catch (err: any) {
+      setError(err.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = useCallback(async () => {
+    if (resendCooldown > 0) return;
+    setError('');
+
+    try {
+      await insforge.auth.resendVerificationEmail({ email });
+      setResendCooldown(60);
+    } catch (err: any) {
+      setError('Failed to resend code. Please try again.');
+    }
+  }, [email, resendCooldown]);
+
+  // ── SUCCESS STEP ──
+  if (step === 'success') {
     return (
       <div className={styles.card}>
         <div className={styles.successCard}>
@@ -82,9 +151,9 @@ export default function AdminSetupForm() {
           </div>
           <h2 className={styles.title}>Admin Account Created!</h2>
           <p className={styles.subtitle} style={{ marginBottom: '32px' }}>
-            Check your email to confirm your account, then log in to the admin portal.
+            Your email has been verified. You can now log in to the admin portal.
           </p>
-          <Link href="/admin/login" className={styles.submitBtn}>
+          <Link href="/login" className={styles.submitBtn}>
             Go to Admin Login
           </Link>
         </div>
@@ -92,6 +161,87 @@ export default function AdminSetupForm() {
     );
   }
 
+  // ── OTP VERIFICATION STEP ──
+  if (step === 'otp') {
+    return (
+      <div className={styles.card}>
+        <div className={styles.badgeWrap}>
+          <span className={styles.badge}>Email Verification</span>
+        </div>
+
+        <div className={styles.header}>
+          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+          </div>
+          <h1 className={styles.title}>Check your email</h1>
+          <p className={styles.subtitle}>
+            We sent a 6-digit verification code to<br /><strong>{email}</strong>
+          </p>
+        </div>
+
+        {error && <div className={styles.error}>{error}</div>}
+
+        <form className={styles.form} onSubmit={handleVerifyOtp}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Verification Code</label>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="123456"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              required
+              maxLength={6}
+              disabled={isLoading}
+              style={{ textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.2rem', fontWeight: 600 }}
+              autoFocus
+            />
+          </div>
+
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={isLoading || otp.length < 6}
+          >
+            {isLoading ? (
+              <>
+                <span className={styles.spinner} />
+                Verifying...
+              </>
+            ) : (
+              'Verify & Continue'
+            )}
+          </button>
+
+          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <button
+              type="button"
+              onClick={handleResendCode}
+              disabled={resendCooldown > 0}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: resendCooldown > 0 ? '#9ca3af' : '#6366f1',
+                cursor: resendCooldown > 0 ? 'default' : 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                textDecoration: resendCooldown > 0 ? 'none' : 'underline',
+              }}
+            >
+              {resendCooldown > 0
+                ? `Resend code in ${resendCooldown}s`
+                : 'Resend Code'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // ── SIGNUP FORM STEP ──
   return (
     <div className={styles.card}>
       <div className={styles.badgeWrap}>

@@ -75,13 +75,13 @@ export const getMessages = async (currentUserId: string, otherUserId: string): P
 export const sendMessage = async (senderId: string, receiverId: string, content: string, jobId?: string) => {
   const { data, error } = await insforge.database
     .from('messages')
-    .insert({
+    .insert([{
       sender_id: senderId,
       receiver_id: receiverId,
       content,
       job_id: jobId || null,
       is_read: false
-    })
+    }])
     .select()
     .single();
 

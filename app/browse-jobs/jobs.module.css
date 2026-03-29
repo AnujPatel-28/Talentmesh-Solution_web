@@ -466,6 +466,13 @@
     opacity: 0.4;
 }
 
+.actionsBox {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
 /* Save button */
 .saveBtn {
     background: none;
@@ -482,6 +489,91 @@
 .saveBtn:hover {
     color: var(--primary-blue);
     background: var(--alice-blue);
+}
+
+.moreBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--sky-blue, #90CAF9);
+    padding: 6px;
+    border-radius: 8px;
+    line-height: 0;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.moreBtn:hover {
+    color: var(--primary-blue);
+    background: var(--alice-blue);
+}
+
+.menuWrapper {
+    position: relative;
+}
+
+.dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 200px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(144, 202, 249, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    z-index: 100;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: menuFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes menuFadeIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.menuItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+    transition: all 0.15s ease;
+    text-decoration: none;
+}
+
+.menuItem:hover {
+    background: var(--alice-blue);
+    color: var(--primary-blue);
+}
+
+.menuItem svg {
+    color: var(--medium-grey);
+    transition: color 0.15s;
+}
+
+.menuItem:hover svg {
+    color: var(--primary-blue);
+}
+
+.menuDivider {
+    height: 1px;
+    background: rgba(144, 202, 249, 0.2);
+    margin: 4px 6px;
 }
 
 .saveBtnActive {

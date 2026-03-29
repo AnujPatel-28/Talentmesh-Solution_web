@@ -4,12 +4,12 @@ import { insforge } from '@/lib/insforge';
  * Utility for uploading resumes to the 'resumes' bucket.
  * Constraints: Max 5MB, application/pdf only.
  */
-export async function uploadResume(file: File, userId: string): Promise<string> {
+/*export async function uploadResume(file: File, userId: string): Promise<string> {
   // 1. Validate file type
   if (file.type !== 'application/pdf') {
     throw new Error('Invalid file type. Only PDF resumes are accepted.');
   }
-
+ 
   // 2. Validate file size (5MB)
   const MAX_SIZE = 5 * 1024 * 1024;
   if (file.size > MAX_SIZE) {
@@ -18,9 +18,11 @@ export async function uploadResume(file: File, userId: string): Promise<string> 
 
   // 3. Upload to userId/filename.pdf
   const path = `${userId}/${Date.now()}_${file.name}`;
+  
   const { data, error } = await insforge.storage
     .from('resumes')
-    .upload(path, file);
+    .upload(path, file)
+    
 
   if (error) {
     console.error('Resume upload error:', error);
@@ -33,6 +35,74 @@ export async function uploadResume(file: File, userId: string): Promise<string> 
 
   return data.url;
 }
+*/
+/*export async function uploadResume(file: File, userId: string): Promise<string> {
+  // 1. Validate file type
+  if (file.type !== 'application/pdf') {
+    throw new Error('Only PDF resumes are accepted.');
+  }
+
+  // 2. Validate file size
+  const MAX_SIZE = 5 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    throw new Error('File too large. Max 5MB allowed.');
+  }
+
+  // 3. Generate path
+  const path = `${userId}/${Date.now()}_${file.name}`;
+
+  // 4. Ensure session
+  const { data: sessionData } = await insforge.auth.refreshSession();
+  if (!sessionData?.accessToken) {
+    throw new Error('User not authenticated');
+  }
+
+  // 5. Upload file
+  const { error } = await insforge.storage
+    .from('resumes')
+    .upload(path, file);
+
+  if (error) {
+    console.error('Upload error:', error);
+    throw new Error(error.message);
+  }
+
+  // 6. Get public URL (ONLY THIS) fixed again
+  /*const { data: publicUrlData } = insforge.storage
+    .from('resumes')
+    .getPublicUrl(path);
+
+  return publicUrlData.publicUrl;
+  // 6. Get public URL
+   const result = insforge.storage
+       .from('resumes')
+       .getPublicUrl(path);
+
+       const publicUrl = (result as any).data.publicUrl;
+
+       return publicUrl;
+}*/
+export async function uploadResume(file: File, userId: string): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('userId', userId);
+
+  const res = await fetch('/api/upload-resume', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    throw new Error(result.error || 'Upload failed');
+  }
+
+  return result.url;
+}
+
+
+
 
 /**
  * Utility for uploading profile pictures to the 'avatars' bucket.
@@ -74,34 +144,22 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
  * Constraints: Max 2MB, images + SVG.
  */
 export async function uploadCompanyLogo(file: File, companyId: string): Promise<string> {
-  // 1. Validate file type
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
-  if (!allowedTypes.includes(file.type)) {
-    throw new Error('Invalid image type. Use JPEG, PNG, WebP, or SVG.');
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('companyId', companyId);
+
+  const res = await fetch('/api/upload-logo', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    throw new Error(result.error || 'Upload failed');
   }
 
-  // 2. Validate file size (2MB)
-  const MAX_SIZE = 2 * 1024 * 1024;
-  if (file.size > MAX_SIZE) {
-    throw new Error('Logo too large. Company logo must be less than 2MB.');
-  }
-
-  // 3. Upload to companyId/filename
-  const path = `${companyId}/${Date.now()}_${file.name}`;
-  const { data, error } = await insforge.storage
-    .from('company-logos')
-    .upload(path, file);
-
-  if (error) {
-    console.error('Logo upload error:', error);
-    throw new Error(`Failed to upload logo: ${error.message}`);
-  }
-
-  if (!data?.url) {
-    throw new Error('Upload succeeded but no URL was returned.');
-  }
-
-  return data.url;
+  return result.url;
 }
 
 /**
@@ -114,4 +172,25 @@ export async function deleteFile(bucket: string, path: string): Promise<void> {
     console.error(`Delete error in ${bucket}:`, error);
     throw new Error(`Failed to delete file from ${bucket}: ${error.message}`);
   }
+}
+/**
+ * Utility for uploading blog cover images to the 'blog-images' bucket.
+ * Constraints: Max 5MB, patterns (jpeg, png, webp).
+ */
+export async function uploadBlogImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch('/api/upload-blog-image', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const result = await res.json();
+
+  if (!res.ok) {
+    throw new Error(result.error || 'Upload failed');
+  }
+
+  return result.url;
 }

@@ -134,18 +134,31 @@ export async function getAllJobs(filters: AdminFilters = {}) {
  */
 export async function getAllCandidates(filters: AdminFilters = {}) {
   if (!insforgeAdmin) throw new Error('Admin client not initialized');
-  const { page = 0 } = filters;
-  const start = page * 20;
-  const end = (page + 1) * 20 - 1;
+  const { page = 0, search } = filters;
+  const limit = 20;
+  const start = page * limit;
+  const end = (page + 1) * limit - 1;
 
-  const { data, error } = await insforgeAdmin.database
+  let query = insforgeAdmin.database
     .from('profiles')
-    .select('*, candidate_profiles(*)')
+    .select('*, candidate_profiles(*)', { count: 'exact' })
     .eq('role', 'candidate')
-    .range(start, end);
+    .order('created_at', { ascending: false });
+
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+
+  const { data, error, count } = await query.range(start, end);
 
   if (error) throw new Error(`Admin fetch failed: ${error.message}`);
-  return data;
+  return {
+    candidates: data || [],
+    total: count || 0,
+    page,
+    limit,
+    totalPages: Math.ceil((count || 0) / limit)
+  };
 }
 
 /**
@@ -153,43 +166,84 @@ export async function getAllCandidates(filters: AdminFilters = {}) {
  */
 export async function getAllRecruiters(filters: AdminFilters = {}) {
   if (!insforgeAdmin) throw new Error('Admin client not initialized');
-  const { page = 0 } = filters;
-  const start = page * 20;
-  const end = (page + 1) * 20 - 1;
+  const { page = 0, search, status } = filters;
+  const limit = 20;
+  const start = page * limit;
+  const end = (page + 1) * limit - 1;
 
-  const { data, error } = await insforgeAdmin.database
+  let query = insforgeAdmin.database
     .from('profiles')
-    .select('*, recruiter_profiles(*)')
+    .select('*, recruiter_profiles(*)', { count: 'exact' })
     .eq('role', 'recruiter')
-    .range(start, end);
+    .order('created_at', { ascending: false });
+
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+
+  if (status && status !== 'all') {
+    if (status === 'pending') {
+      // Assuming pending means not approved yet
+      query = query.eq('recruiter_profiles.is_approved', false);
+    }
+  }
+
+  const { data, error, count } = await query.range(start, end);
 
   if (error) throw new Error(`Admin fetch failed: ${error.message}`);
-  return data;
+  return {
+    recruiters: data || [],
+    total: count || 0,
+    page,
+    limit,
+    totalPages: Math.ceil((count || 0) / limit)
+  };
 }
 
 /**
- * Gets overview statistics for the admin dashboard.
+ * Gets overview statistics for the admin dashboard with trends.
  */
 export async function getPlatformStats() {
   if (!insforgeAdmin) throw new Error('Admin client not initialized');
   
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
   const [
-    { count: userCount },
-    { count: jobCount },
-    { count: appCount },
-    { count: companyCount }
+    { count: totalUsers },
+    { count: lastWeekUsers },
+    { count: totalJobs },
+    { count: lastWeekJobs },
+    { count: totalApplications },
+    { count: lastWeekApplications },
+    { count: totalCompanies },
+    { count: lastWeekCompanies }
   ] = await Promise.all([
     insforgeAdmin.database.from('profiles').select('*', { count: 'exact', head: true }),
+    insforgeAdmin.database.from('profiles').select('*', { count: 'exact', head: true }).lt('created_at', weekAgo),
     insforgeAdmin.database.from('jobs').select('*', { count: 'exact', head: true }),
+    insforgeAdmin.database.from('jobs').select('*', { count: 'exact', head: true }).lt('created_at', weekAgo),
     insforgeAdmin.database.from('applications').select('*', { count: 'exact', head: true }),
+    insforgeAdmin.database.from('applications').select('*', { count: 'exact', head: true }).lt('created_at', weekAgo),
     insforgeAdmin.database.from('companies').select('*', { count: 'exact', head: true }),
+    insforgeAdmin.database.from('companies').select('*', { count: 'exact', head: true }).lt('created_at', weekAgo),
   ]);
 
+  const calculateTrend = (total: number, lastWeek: number) => {
+    const currentWeek = total - lastWeek;
+    const prevWeek = lastWeek; // Simplified: comparing this week's growth to total before this week
+    // Better: this week (now - 7d) vs previous week (7d - 14d)
+    // But for a simple dashboard, this is often enough. 
+    // Let's do a slightly better one:
+    return currentWeek >= 10 ? 'up' : currentWeek > 0 ? 'up' : 'down';
+  };
+
   return {
-    totalUsers: userCount || 0,
-    totalJobs: jobCount || 0,
-    totalApplications: appCount || 0,
-    totalCompanies: companyCount || 0
+    users: { value: totalUsers || 0, trend: calculateTrend(totalUsers || 0, lastWeekUsers || 0) },
+    jobs: { value: totalJobs || 0, trend: calculateTrend(totalJobs || 0, lastWeekJobs || 0) },
+    applications: { value: totalApplications || 0, trend: calculateTrend(totalApplications || 0, lastWeekApplications || 0) },
+    companies: { value: totalCompanies || 0, trend: calculateTrend(totalCompanies || 0, lastWeekCompanies || 0) }
   };
 }
 
@@ -381,13 +435,13 @@ export async function shortlistApplication(id: string) {
   // Notify candidate
   await insforgeAdmin.database
     .from('notifications')
-    .insert({
+    .insert([{
       user_id: app.candidate_id,
       type: 'application_shortlisted',
       title: 'Application Shortlisted!',
       message: `Great news! You've been shortlisted for ${(app.jobs as any).title}`,
       metadata: { application_id: id }
-    });
+    }]);
 }
 
 /**
@@ -414,11 +468,36 @@ export async function rejectApplication(id: string, reason: string) {
   // Notify candidate
   await insforgeAdmin.database
     .from('notifications')
-    .insert({
+    .insert([{
       user_id: app.candidate_id,
       type: 'application_rejected',
       title: 'Application Update',
       message: `Update on your application for ${(app.jobs as any).title}. Unfortunately, we will not be moving forward at this time.`,
       metadata: { application_id: id, reason }
-    });
+    }]);
+}
+
+/**
+ * Fetches platform audit logs.
+ */
+export async function getAuditLogs(filters: AdminFilters = {}) {
+  if (!insforgeAdmin) throw new Error('Admin client not initialized');
+  const { page = 0, search } = filters;
+  const start = page * 50;
+  const end = (page + 1) * 50 - 1;
+
+  let query = insforgeAdmin.database
+    .from('audit_logs')
+    .select('*, actor:profiles!audit_logs_actor_id_fkey(name, email)')
+    .order('created_at', { ascending: false });
+
+  if (search) {
+    // Basic search on action or table_name
+    query = query.or(`action.ilike.%${search}%,table_name.ilike.%${search}%`);
+  }
+
+  const { data, error } = await query.range(start, end);
+
+  if (error) throw new Error(`Audit fetch failed: ${error.message}`);
+  return data;
 }

@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import styles from '../../onboarding.module.css';
 
 export default function RecruiterDocuments() {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [logo, setLogo] = useState<File | null>(null);
     const [doc, setDoc] = useState<File | null>(null);
     const [website, setWebsite] = useState('');
@@ -14,12 +14,22 @@ export default function RecruiterDocuments() {
     const docRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    const handleFinish = () => {
+    const handleFinish = async () => {
         setIsLoading(true);
-        setTimeout(() => {
+        try {
+            await fetch('/api/profile/complete-onboarding', { method: 'POST' });
+            
+            // 🔄 Refresh user state to sync is_onboarded
+            const updatedUser = await refreshUser();
+            
             setIsLoading(false);
-            router.push(`/dashboard/recruiter/${user?.role_id || ''}`);
-        }, 1500);
+            const dashboardId = updatedUser?.public_id || user?.public_id || user?.role_id || 'recruiter';
+            router.push(`/dashboard/recruiter/${dashboardId}`);
+        } catch {
+            setIsLoading(false);
+            // Fallback for safety
+            router.push('/dashboard/recruiter');
+        }
     };
 
     return (
@@ -96,7 +106,7 @@ export default function RecruiterDocuments() {
             </div>
 
             <div className={styles.actions}>
-                <button className={styles.backBtn} onClick={() => router.push('/onboarding/recruiter/skills')}>
+                <button className={styles.backBtn} onClick={() => router.push('/onboarding/recruiter/interests')}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
                     Back
                 </button>
@@ -107,7 +117,11 @@ export default function RecruiterDocuments() {
             </div>
 
             <p className={styles.skipLink}>
-                <button className={styles.skipBtn} onClick={() => router.push(`/dashboard/recruiter/${user?.role_id || ''}`)}>Skip for now</button>
+                <button className={styles.skipBtn} onClick={async () => {
+                    await fetch('/api/profile/complete-onboarding', { method: 'POST' });
+                    const updatedUser = await refreshUser();
+                    router.push(`/dashboard/recruiter/${updatedUser?.public_id || user?.public_id || user?.role_id || 'recruiter'}`);
+                }}>Skip for now</button>
             </p>
         </div>
     );

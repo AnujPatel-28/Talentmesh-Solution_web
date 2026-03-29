@@ -21,7 +21,7 @@ export default function DashboardRedirect() {
         } else if (user.role === 'recruiter') {
             router.replace('/dashboard/recruiter');
         } else {
-            router.replace('/dashboard/candidate');
+            router.replace(`/dashboard/candidate/${user.id}`);
         }
     }, [user, isLoading, router]);
 

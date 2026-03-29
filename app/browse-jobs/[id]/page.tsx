@@ -23,6 +23,8 @@ const Ico = {
     Globe: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>,
     Building: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="9" y1="6" x2="10" y2="6" /><line x1="14" y1="6" x2="15" y2="6" /><line x1="9" y1="10" x2="10" y2="10" /><line x1="14" y1="10" x2="15" y2="10" /><line x1="9" y1="14" x2="10" y2="14" /><line x1="14" y1="14" x2="15" y2="14" /><line x1="9" y1="18" x2="15" y2="18" /></svg>,
     Award: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></svg>,
+    More: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="19" r="1.5" /></svg>,
+    Copy: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>,
 };
 
 const BENEFIT_ICONS = ['💰', '🏖️', '📚', '💎', '🩺'];
@@ -35,6 +37,7 @@ export default function JobDetailPage() {
     const [loading, setLoading] = useState(true);
     const [isApplying, setIsApplying] = useState(false);
     const [applied, setApplied] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     useEffect(() => {
         async function fetchJob() {
@@ -57,6 +60,11 @@ export default function JobDetailPage() {
             }
         }
         fetchJob();
+
+        // Close menu on click outside
+        const closeMenu = () => setMenuOpen(false);
+        window.addEventListener('click', closeMenu);
+        return () => window.removeEventListener('click', closeMenu);
     }, [jobId, user]);
 
     const handleApply = async () => {
@@ -79,6 +87,29 @@ export default function JobDetailPage() {
         } finally {
             setIsApplying(false);
         }
+    };
+
+    const handleCopyLink = () => {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url);
+        alert('Job link synchronized to clipboard!');
+        setMenuOpen(false);
+    };
+
+    const handleShare = async () => {
+        const url = window.location.href;
+        if (navigator.share) {
+            try {
+                await navigator.share({ 
+                    title: job?.title || 'Job Opportunity', 
+                    text: `Check out this ${job?.title} position at ${job?.company_profiles?.company_name}`, 
+                    url 
+                });
+            } catch (err) { console.log('Share canceled'); }
+        } else {
+            alert(`Spread the word: ${url}`);
+        }
+        setMenuOpen(false);
     };
 
     if (loading) return <div className={styles.page}><p style={{ color: 'white', padding: '5rem', textAlign: 'center' }}>Loading Job Details...</p></div>;
@@ -150,7 +181,29 @@ export default function JobDetailPage() {
                                 ) : (
                                     <span className={styles.badge}>Recruiter View</span>
                                 )}
-                                <button className={styles.saveBtn} aria-label="Save job"><Ico.Heart /></button>
+                                <div className={styles.heroExtraActions}>
+                                    <button className={styles.saveBtn} aria-label="Save job"><Ico.Heart /></button>
+                                    <div className={styles.menuWrapper}>
+                                        <button 
+                                            className={styles.moreBtn} 
+                                            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+                                            aria-label="More actions"
+                                        >
+                                            <Ico.More />
+                                        </button>
+
+                                        {menuOpen && (
+                                            <div className={styles.dropdown} onClick={e => e.stopPropagation()}>
+                                                <button className={styles.menuItem} onClick={handleShare}>
+                                                    <Ico.Share /> Share Opportunity
+                                                </button>
+                                                <button className={styles.menuItem} onClick={handleCopyLink}>
+                                                    <Ico.Copy /> Duplicate Link
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

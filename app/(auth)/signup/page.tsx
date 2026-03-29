@@ -101,11 +101,11 @@ export default function SignupPage() {
                 return;
             }
 
-            // 5. Success! Redirection
+            // 5. Success! Redirection (full navigation to ensure cookies are sent)
             if (userRole === 'candidate') {
-                router.push('/onboarding/candidate');
+                window.location.assign('/onboarding/candidate');
             } else {
-                router.push('/onboarding/recruiter/setup');
+                window.location.assign('/onboarding/recruiter/setup');
             }
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
@@ -134,7 +134,7 @@ export default function SignupPage() {
             const prefix = userRole === 'recruiter' ? 'recr' : 'cand';
             const roleId = `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
 
-            // Create profile
+            /* Create profile :- removing this as it is not needed
             const { error: profileError } = await insforge.database
                 .from('profiles')
                 .insert([{
@@ -146,7 +146,7 @@ export default function SignupPage() {
                 }]);
 
             if (profileError) throw new Error(profileError.message);
-
+            */
             // Log activity
             await insforge.database.from('activity').insert([{
                 user_id: userId,
@@ -167,9 +167,9 @@ export default function SignupPage() {
 
             // Redirect based on role
             if (userRole === 'candidate') {
-                router.push('/onboarding/candidate');
+                window.location.assign('/onboarding/candidate');
             } else {
-                router.push('/onboarding/recruiter/setup');
+                window.location.assign('/onboarding/recruiter/setup');
             }
 
         } catch (err: any) {
@@ -377,7 +377,7 @@ export default function SignupPage() {
                                 <label className={styles.label} htmlFor="firstName">First name</label>
                                 <input
                                     id="firstName" name="firstName" type="text"
-                                    className={`${styles.input} ${fieldErrors.firstName ? styles.inputError : ''}`} 
+                                    className={`${styles.input} ${fieldErrors.firstName ? styles.inputError : ''}`}
                                     placeholder="John"
                                     value={formData.firstName} onChange={handleChange}
                                     required autoComplete="given-name"
@@ -388,7 +388,7 @@ export default function SignupPage() {
                                 <label className={styles.label} htmlFor="lastName">Last name</label>
                                 <input
                                     id="lastName" name="lastName" type="text"
-                                    className={`${styles.input} ${fieldErrors.lastName ? styles.inputError : ''}`} 
+                                    className={`${styles.input} ${fieldErrors.lastName ? styles.inputError : ''}`}
                                     placeholder="Doe"
                                     value={formData.lastName} onChange={handleChange}
                                     required autoComplete="family-name"
@@ -445,7 +445,7 @@ export default function SignupPage() {
                                 <input
                                     id="signup-password" name="password"
                                     type={showPassword ? 'text' : 'password'}
-                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.password ? styles.inputError : ''}`} 
+                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.password ? styles.inputError : ''}`}
                                     placeholder="Min. 8 characters"
                                     value={formData.password} onChange={handleChange}
                                     required autoComplete="new-password"
@@ -465,7 +465,7 @@ export default function SignupPage() {
                                 </button>
                             </div>
                             {fieldErrors.password && <span className={styles.errorText}>{fieldErrors.password}</span>}
-                            
+
                             {formData.password && (
                                 <div className={styles.strengthBar}>
                                     <div className={styles.strengthSegments}>
@@ -494,7 +494,7 @@ export default function SignupPage() {
                                 <input
                                     id="confirm-password" name="confirmPassword"
                                     type={showPassword ? 'text' : 'password'}
-                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.confirmPassword ? styles.inputError : ''}`} 
+                                    className={`${styles.input} ${styles.inputWithIcon} ${fieldErrors.confirmPassword ? styles.inputError : ''}`}
                                     placeholder="Confirm your password"
                                     value={formData.confirmPassword} onChange={handleChange}
                                     required autoComplete="new-password"

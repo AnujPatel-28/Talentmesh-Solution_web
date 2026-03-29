@@ -17,7 +17,7 @@ const IconArrowRight = () => (
     </svg>
 );
 
-const CATEGORIES = ["All", "Technology", "Culture", "Career Advice", "Engineering", "Product", "AI Recruitment"];
+const CATEGORIES = ["All", "General", "Technology", "Career Advice", "AI & Recruitment", "Success Stories", "Product Updates", "Culture"];
 
 export default function BlogPage() {
     const [posts, setPosts] = useState<any[]>([]);

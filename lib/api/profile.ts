@@ -38,15 +38,16 @@ export interface CandidateProfile {
  * Fetches the current user's profile with joined candidate details.
  */
 export async function getMyProfile(): Promise<UserProfile> {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) {
+  const { data: sessionData } = await insforge.auth.refreshSession();
+  const sessionUser = sessionData?.user;
+  if (!sessionUser) {
     throw new Error('Unauthorized');
   }
 
   const { data, error } = await insforge.database
     .from('profiles')
     .select('*, candidate_profiles(*)')
-    .eq('id', session.user.id)
+    .eq('id', sessionUser.id)
     .single();
 
   if (error) {
@@ -60,13 +61,14 @@ export async function getMyProfile(): Promise<UserProfile> {
  * Updates the base user profile (profiles table).
  */
 export async function updateProfile(data: Partial<UserProfile>): Promise<void> {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) throw new Error('Unauthorized');
+  const { data: sessionData } = await insforge.auth.refreshSession();
+  const sessionUser = sessionData?.user;
+  if (!sessionUser) throw new Error('Unauthorized');
 
   const { error } = await insforge.database
     .from('profiles')
     .update(data)
-    .eq('id', session.user.id);
+    .eq('id', sessionUser.id);
 
   if (error) {
     throw new Error(`Failed to update profile: ${error.message}`);
@@ -77,13 +79,14 @@ export async function updateProfile(data: Partial<UserProfile>): Promise<void> {
  * Updates the candidate-specific profile details.
  */
 export async function updateCandidateProfile(data: Partial<CandidateProfile>): Promise<void> {
-  const { data: { session } } = await insforge.auth.getCurrentSession();
-  if (!session?.user) throw new Error('Unauthorized');
+  const { data: sessionData } = await insforge.auth.refreshSession();
+  const sessionUser = sessionData?.user;
+  if (!sessionUser) throw new Error('Unauthorized');
 
   // Calculate new strength if relevant fields have changed
   const [{ data: current }, { data: baseProfile }] = await Promise.all([
-    insforge.database.from('candidate_profiles').select('*').eq('id', session.user.id).single(),
-    insforge.database.from('profiles').select('bio').eq('id', session.user.id).single()
+    insforge.database.from('candidate_profiles').select('*').eq('id', sessionUser.id).single(),
+    insforge.database.from('profiles').select('bio').eq('id', sessionUser.id).single()
   ]);
 
   const mergedForStrength = { ...current, ...data, bio: baseProfile?.bio };
@@ -92,7 +95,7 @@ export async function updateCandidateProfile(data: Partial<CandidateProfile>): P
   const { error } = await insforge.database
     .from('candidate_profiles')
     .update({ ...data, profile_strength: strength })
-    .eq('id', session.user.id);
+    .eq('id', sessionUser.id);
 
   if (error) {
     throw new Error(`Failed to update candidate profile: ${error.message}`);
