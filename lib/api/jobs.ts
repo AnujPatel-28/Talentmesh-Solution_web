@@ -6,6 +6,10 @@ export interface JobFilters {
   search?: string;
   type?: string;
   location?: string;
+  salary_min?: number;
+  salary_max?: number;
+  industry?: string;
+  date_posted?: string;
   page?: number;
 }
 
@@ -70,6 +74,18 @@ export async function getApprovedJobs(filters: JobFilters = {}): Promise<Job[]> 
   if (filters.location) {
     params.set('location', filters.location);
   }
+  if (filters.salary_min) {
+    params.set('salary_min', String(filters.salary_min));
+  }
+  if (filters.salary_max) {
+    params.set('salary_max', String(filters.salary_max));
+  }
+  if (filters.industry) {
+    params.set('industry', filters.industry);
+  }
+  if (filters.date_posted) {
+    params.set('date_posted', filters.date_posted);
+  }
 
   const response = await fetch(`/api/jobs?${params.toString()}`, {
     credentials: 'include',
@@ -107,11 +123,11 @@ export async function getJobById(id: string): Promise<Job> {
 export async function createJob(data: CreateJobInput): Promise<Job> {
   const { data: newJob, error } = await insforge.database
     .from('jobs')
-    .insert({
+    .insert([{
       ...data,
       status: 'draft',
       is_approved: false
-    })
+    }])
     .select()
     .single();
 

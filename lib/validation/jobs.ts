@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const JOB_TYPE_VALUES = ['Full-Time', 'Part-Time', 'Contract', 'Freelance', 'Internship', 'Remote'] as const;
+const JOB_TYPE_VALUES = ['full-time', 'part-time', 'contract', 'freelance', 'internship', 'remote', 'hybrid'] as const;
 const JOB_STATUS_VALUES = ['draft', 'active', 'paused', 'closed', 'deleted'] as const;
 const CURRENCY_VALUES = ['INR', 'USD'] as const;
 
@@ -11,16 +11,17 @@ const normalizeJobType = (value: unknown) => {
 
   const normalized = value.trim().toLowerCase();
   const typeMap: Record<string, typeof JOB_TYPE_VALUES[number]> = {
-    'full-time': 'Full-Time',
-    'full time': 'Full-Time',
-    fulltime: 'Full-Time',
-    'part-time': 'Part-Time',
-    'part time': 'Part-Time',
-    parttime: 'Part-Time',
-    contract: 'Contract',
-    freelance: 'Freelance',
-    internship: 'Internship',
-    remote: 'Remote',
+    'full-time': 'full-time',
+    'full time': 'full-time',
+    fulltime: 'full-time',
+    'part-time': 'part-time',
+    'part time': 'part-time',
+    parttime: 'part-time',
+    contract: 'contract',
+    freelance: 'freelance',
+    internship: 'internship',
+    remote: 'remote',
+    hybrid: 'hybrid',
   };
 
   return typeMap[normalized] || value;
@@ -85,6 +86,10 @@ export const jobFilterSchema = z.object({
   type: z.preprocess(normalizeJobType, z.enum(JOB_TYPE_VALUES).optional()),
   location: z.string().trim().optional(),
   status: z.enum(['all', ...JOB_STATUS_VALUES]).optional(),
+  salary_min: z.coerce.number().optional(),
+  salary_max: z.coerce.number().optional(),
+  industry: z.string().trim().optional(),
+  date_posted: z.enum(['all', '24h', '7d', '30d']).optional(),
   page: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

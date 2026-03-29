@@ -1,7 +1,10 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import Toast from '@/components/ui/Toast';
 import styles from '../candidate.module.css';
+import { useSearch } from '@/context/SearchContext';
 
 /* ─── Icons ─── */
 const IC = {
@@ -51,11 +54,15 @@ const getBrandColor = (id: string) => COLORS[id.charCodeAt(0) % COLORS.length];
 export default function JobsPage() {
 
     const { user } = useAuth();
+    const router = useRouter();
+    const params = useParams();
+    const { openSearch } = useSearch();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
 
@@ -149,32 +156,23 @@ export default function JobsPage() {
 
     return (
         <div className={styles.jobsPage}>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <div className={styles.searchRow}>
-                <div className={styles.searchBarFull}>
+                <div className={styles.searchBarFull} style={{ cursor: 'pointer' }} onClick={openSearch}>
                     {IC.search}
-                    <input 
-                        placeholder="Search job title, keyword, or company" 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+                    <span style={{ color: '#94a3b8', fontSize: '0.95rem' }}>Search by title, skills, or company...</span>
                 </div>
+                {/* Simplified filter row as it redirects to advanced search */}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {typeOptions.map(t => (
+                    {typeOptions.slice(0, 3).map(t => (
                         <button 
                             key={t}
-                            className={`${styles.filterBtn} ${type === t ? styles.filterBtnActive : ''}`}
-                            onClick={() => setType(type === t ? '' : t)}
+                            className={`${styles.filterBtn}`}
+                            onClick={() => router.push(`/dashboard/candidate/${params.role_id}/search?type=${t}`)}
                         >
                             {t}
                         </button>
                     ))}
-                    <input 
-                        className={styles.filterBtn}
-                        style={{ outline: 'none', width: '140px' }}
-                        placeholder="Location..."
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                    />
                 </div>
             </div>
 
@@ -182,7 +180,7 @@ export default function JobsPage() {
                 <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
                     {loading ? 'Finding jobs...' : `Recommended for You (${jobs.length})`}
                 </h2>
-                <Link href="/dashboard/candidate/saved" style={{ textDecoration: 'none' }}>
+                <Link href={`/dashboard/candidate/${params.role_id}/saved`} style={{ textDecoration: 'none' }}>
                     <span className={styles.matchBadge} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', background: '#f8fafc', color: '#64748b' }}>
                         {IC.bookmark} Saved Jobs
                     </span>
@@ -199,68 +197,74 @@ export default function JobsPage() {
                 <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔍</div>
                     <h3 style={{ color: '#0f172a', marginBottom: '0.5rem' }}>No jobs found</h3>
-                    <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Try adjusting your search or filters to find what you're looking for.</p>
-                    {(search || type || location) && (
-                        <button className={styles.filterBtn} onClick={clearFilters} style={{ margin: '0 auto' }}>Clear All Filters</button>
-                    )}
+                    <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Try searching to find what you're looking for.</p>
                 </div>
             ) : (
                 <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
                         {jobs.map((j) => (
-                            <Link key={j.id} href={`/dashboard/candidate/jobs/${j.id}`} style={{ textDecoration: 'none' }}>
-                                <div className={styles.jobListCard} style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1.2rem', gap: '1rem', borderRadius: 12 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        {j.companies?.logo_url ? (
-                                            <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
-                                                <img src={j.companies.logo_url} alt={j.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div key={j.id} style={{ position: 'relative' }}>
+                                <Link 
+                                    href={`/dashboard/candidate/${params.role_id}/jobs/${j.id}`} 
+                                    style={{ textDecoration: 'none', color: 'inherit' }}
+                                >
+                                    <div className={styles.jobListCard} style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '1.2rem', gap: '1rem', borderRadius: 12 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            {j.companies?.logo_url ? (
+                                                <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+                                                    <img src={j.companies.logo_url} alt={j.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                </div>
+                                            ) : (
+                                                <div className={styles.jobListIcon} style={{ background: getBrandColor(j.companies?.name || 'A') + '18', color: getBrandColor(j.companies?.name || 'A'), width: 44, height: 44, fontSize: '1rem' }}>
+                                                    {getInitials(j.companies?.name || 'Comp')}
+                                                </div>
+                                            )}
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                {appliedIds.has(j.id) ? (
+                                                    <span className={styles.matchBadge} style={{ background: '#f0fdf4', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                                        {IC.check} Applied
+                                                    </span>
+                                                ) : (
+                                                    <span className={styles.matchBadge} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>Apply Now</span>
+                                                )}
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.preventDefault(); 
+                                                        e.stopPropagation(); 
+                                                        const url = `${window.location.origin}/dashboard/candidate/${params.role_id}/jobs/${j.id}`;
+                                                        navigator.clipboard.writeText(url);
+                                                        setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+                                                    }}
+                                                    style={{ background: 'none', border: 'none', padding: '0.4rem', cursor: 'pointer', color: '#94a3b8' }}
+                                                >
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                                                </button>
                                             </div>
-                                        ) : (
-                                            <div className={styles.jobListIcon} style={{ background: getBrandColor(j.companies?.name || 'A') + '18', color: getBrandColor(j.companies?.name || 'A'), width: 44, height: 44, fontSize: '1rem' }}>
-                                                {getInitials(j.companies?.name || 'Comp')}
-                                            </div>
-                                        )}
-                                        {appliedIds.has(j.id) ? (
-                                            <span className={styles.matchBadge} style={{ background: '#f0fdf4', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                                {IC.check} Applied
-                                            </span>
-                                        ) : (
-                                            <span className={styles.matchBadge} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>Apply Now</span>
-                                        )}
-                                    </div>
+                                        </div>
 
-                                    <div className={styles.jobListBody}>
-                                        <span className={styles.jobListTitle} style={{ fontSize: '1rem' }}>{j.title}</span>
-                                        <span className={styles.jobListCompany} style={{ fontSize: '0.8rem', marginTop: 4 }}>
-                                            {j.companies?.name} · {j.location}
-                                        </span>
-                                        <div className={styles.jobListMeta} style={{ marginTop: '0.8rem', gap: '0.5rem' }}>
-                                            <span className={styles.jobListTag} style={{ background: '#f0fdf4', color: '#166534', padding: '0.3rem 0.6rem', fontSize: '0.65rem' }}>
-                                                {IC.dollar} {formatSalary(j.salary_min, j.salary_max, j.currency)}
-                                            </span>
-                                            <span className={styles.jobListTag} style={{ background: '#f8fafc', padding: '0.3rem 0.6rem', fontSize: '0.65rem' }}>
-                                                {IC.briefcase} {j.type}
+                                        <div className={styles.jobListBody}>
+                                            <span className={styles.jobListTitle} style={{ fontSize: '1rem' }}>{j.title}</span>
+                                            <span className={styles.jobListCompany} style={{ fontSize: '0.8rem', marginTop: 4 }}>
+                                                {j.companies?.name} · {j.location}
                                             </span>
                                         </div>
-                                    </div>
 
-                                    <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                            {Array.isArray((j as any).skills_required) && (j as any).skills_required.slice(0, 2).map((s: string) => (
-                                                <span key={s} className={styles.jobListTag} style={{ background: 'transparent', border: '1px solid #e2e8f0', padding: '0.15rem 0.4rem' }}>
-                                                    {s}
+                                        <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                <span className={styles.jobListTag} style={{ background: '#f0fdf4', color: '#166534', padding: '0.2rem 0.6rem', fontSize: '0.65rem' }}>
+                                                    {IC.dollar} {formatSalary(j.salary_min, j.salary_max, j.currency)}
                                                 </span>
-                                            ))}
-                                            <span className={styles.jobTime} style={{ marginLeft: 4, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                                {IC.clock} {formatDate(j.created_at)}
+                                                <span className={styles.jobTime} style={{ marginLeft: 4, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                                    {IC.clock} {formatDate(j.created_at)}
+                                                </span>
+                                            </div>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                                Details <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                                             </span>
                                         </div>
-                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-blue)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                            Details <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                                        </span>
                                     </div>
-                                </div>
-                            </Link>
+                                </Link>
+                            </div>
                         ))}
                     </div>
 

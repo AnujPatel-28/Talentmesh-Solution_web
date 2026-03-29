@@ -3,14 +3,17 @@ export interface CandidateProfileFormData {
   skills: string[];
   experience_years: number | null;
   education: string;
-  resume_url: string;
-  linkedin_url: string;
-  github_url: string;
-  portfolio_url: string;
+  resume_url: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
   salary_min: number | null;
   salary_max: number | null;
+  currency: string;
   preferred_locations: string[];
   job_type: string;
+  open_to_remote: boolean;
+  is_visible: boolean;
   profile_strength: number;
 }
 
@@ -22,6 +25,8 @@ export interface CandidateSettingsBundle {
     phone: string;
     location: string;
     role_id: string | null;
+    public_id?: string;
+    is_onboarded: boolean;
   };
   candidateProfile: CandidateProfileFormData;
 }
@@ -134,8 +139,11 @@ export function getDefaultCandidateProfile(): CandidateProfileFormData {
     portfolio_url: '',
     salary_min: null,
     salary_max: null,
+    currency: 'INR',
     preferred_locations: [],
     job_type: '',
+    open_to_remote: true,
+    is_visible: true,
     profile_strength: 0,
   };
 }
@@ -211,8 +219,11 @@ export function normalizeCandidateProfile(input: Partial<CandidateProfileFormDat
     portfolio_url: typeof input.portfolio_url === 'string' ? input.portfolio_url.trim() : '',
     salary_min: sanitizeOptionalNumber(input.salary_min),
     salary_max: sanitizeOptionalNumber(input.salary_max),
+    currency: typeof input.currency === 'string' ? input.currency.trim() : 'INR',
     preferred_locations: sanitizeStringArray(input.preferred_locations),
     job_type: typeof input.job_type === 'string' ? input.job_type.trim() : '',
+    open_to_remote: typeof input.open_to_remote === 'boolean' ? input.open_to_remote : true,
+    is_visible: typeof input.is_visible === 'boolean' ? input.is_visible : true,
     profile_strength: sanitizeOptionalNumber(input.profile_strength) ?? 0,
   };
 }

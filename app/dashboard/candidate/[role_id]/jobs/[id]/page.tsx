@@ -52,6 +52,7 @@ export default function DashboardJobDetailPage() {
     const [appStatus, setAppStatus] = useState<ApplicationStatus | null>(null);
     const [isSaved, setIsSaved] = useState(false);
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+    const [candidateProfile, setCandidateProfile] = useState<any>(null);
 
     const fetchData = async () => {
         try {
@@ -64,13 +65,30 @@ export default function DashboardJobDetailPage() {
             setAppStatus(status);
 
             if (user) {
-                const { data } = await insforge.database
-                    .from('saved_jobs')
-                    .select('id')
-                    .eq('job_id', jobId)
-                    .eq('candidate_id', user.id)
-                    .maybeSingle();
-                setIsSaved(!!data);
+                const [savedResponse, profileResponse] = await Promise.all([
+                    insforge.database
+                        .from('saved_jobs')
+                        .select('id')
+                        .eq('job_id', jobId)
+                        .eq('candidate_id', user.id)
+                        .maybeSingle(),
+                    insforge.database
+                        .from('candidate_profiles')
+                        .select('*, profiles(name, email)')
+                        .eq('id', user.id)
+                        .maybeSingle()
+                ]);
+
+                setIsSaved(!!savedResponse.data);
+
+                if (profileResponse.data) {
+                    setCandidateProfile({
+                        name: profileResponse.data.profiles?.name || user.name || 'User',
+                        email: profileResponse.data.profiles?.email || user.email || '',
+                        headline: profileResponse.data.headline,
+                        skills: profileResponse.data.skills
+                    });
+                }
             }
         } catch (err) {
             console.error('Failed to fetch job data:', err);
@@ -296,7 +314,13 @@ export default function DashboardJobDetailPage() {
                 jobId={job.id}
                 jobTitle={job.title}
                 companyName={job.companies?.name || 'Company'}
-                onSuccess={() => setAppStatus('applied')}
+                candidateProfile={candidateProfile}
+                onSuccess={(appId) => {
+                    setAppStatus('applied');
+                    if (appId) {
+                        router.push(`/dashboard/candidate/${params.role_id}/applications/${appId}/success`);
+                    }
+                }}
             />
         </div>
     );

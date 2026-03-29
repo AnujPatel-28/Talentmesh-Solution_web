@@ -24,6 +24,7 @@ const EMPTY_STATE: CandidateSettingsBundle = {
         phone: '',
         location: '',
         role_id: null,
+        is_onboarded: false,
     },
     candidateProfile: getDefaultCandidateProfile(),
 };
@@ -73,7 +74,7 @@ export default function CandidateOnboardingPage() {
                 if (!payload.profile.name && user?.name) {
                     payload.profile.name = user.name;
                 }
-                
+
                 setForm(payload);
                 setStep(getFirstIncompleteStep(payload));
             } catch (err) {
@@ -212,6 +213,11 @@ export default function CandidateOnboardingPage() {
                 body: JSON.stringify(payload),
             });
 
+            // added this code yaar for the fix 
+            // ✅ Mark onboarding as completed
+            await fetch('/api/profile/complete-onboarding', {
+                method: 'POST',
+            });
             const responseData = await response.json();
             if (!response.ok) {
                 throw new Error(responseData.error || 'Failed to save onboarding');
@@ -287,7 +293,7 @@ export default function CandidateOnboardingPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.label}>Experience (years)</label>
-                        <input type="number" className={styles.optionalInput} value={form.candidateProfile.experience_years ?? ''} onChange={(event) => updateCandidate('experience_years', event.target.value === '' ? null : Number(event.target.value))} placeholder="3" />
+                        <input type="number" min="0" className={styles.optionalInput} value={form.candidateProfile.experience_years ?? ''} onChange={(event) => updateCandidate('experience_years', event.target.value === '' ? null : Number(event.target.value))} placeholder="3" />
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.label}>Education</label>
@@ -306,11 +312,11 @@ export default function CandidateOnboardingPage() {
                     <div className={styles.salaryGrid}>
                         <div className={styles.fieldGroup}>
                             <label className={styles.label}>Salary Min</label>
-                            <input type="number" className={styles.optionalInput} value={form.candidateProfile.salary_min ?? ''} onChange={(event) => updateCandidate('salary_min', event.target.value === '' ? null : Number(event.target.value))} placeholder="50000" />
+                            <input type="number" min="0" className={styles.optionalInput} value={form.candidateProfile.salary_min ?? ''} onChange={(event) => updateCandidate('salary_min', event.target.value === '' ? null : Number(event.target.value))} placeholder="50000" />
                         </div>
                         <div className={styles.fieldGroup}>
                             <label className={styles.label}>Salary Max</label>
-                            <input type="number" className={styles.optionalInput} value={form.candidateProfile.salary_max ?? ''} onChange={(event) => updateCandidate('salary_max', event.target.value === '' ? null : Number(event.target.value))} placeholder="90000" />
+                            <input type="number" min="0" className={styles.optionalInput} value={form.candidateProfile.salary_max ?? ''} onChange={(event) => updateCandidate('salary_max', event.target.value === '' ? null : Number(event.target.value))} placeholder="90000" />
                         </div>
                     </div>
                     <div className={styles.fieldGroup}>
@@ -382,7 +388,7 @@ export default function CandidateOnboardingPage() {
                                 type="url"
                                 className={styles.optionalInput}
                                 placeholder="https://linkedin.com/in/username"
-                                value={form.candidateProfile.linkedin_url}
+                                value={form.candidateProfile.linkedin_url || ''}
                                 onChange={(e) => setForm({
                                     ...form,
                                     candidateProfile: { ...form.candidateProfile, linkedin_url: e.target.value }
@@ -395,7 +401,7 @@ export default function CandidateOnboardingPage() {
                                 type="url"
                                 className={styles.optionalInput}
                                 placeholder="https://github.com/username"
-                                value={form.candidateProfile.github_url}
+                                value={form.candidateProfile.github_url || ''}
                                 onChange={(e) => setForm({
                                     ...form,
                                     candidateProfile: { ...form.candidateProfile, github_url: e.target.value }
@@ -408,7 +414,7 @@ export default function CandidateOnboardingPage() {
                                 type="url"
                                 className={styles.optionalInput}
                                 placeholder="https://yourportfolio.com"
-                                value={form.candidateProfile.portfolio_url}
+                                value={form.candidateProfile.portfolio_url || ''}
                                 onChange={(e) => setForm({
                                     ...form,
                                     candidateProfile: { ...form.candidateProfile, portfolio_url: e.target.value }

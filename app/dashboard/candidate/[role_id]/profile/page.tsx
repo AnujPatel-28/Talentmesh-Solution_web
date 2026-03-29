@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { getMyProfile, updateProfile, updateCandidateProfile, calculateProfileStrength, UserProfile, CandidateProfile } from '@/lib/api/profile';
 import { uploadAvatar, uploadResume } from '@/lib/api/storage';
 import { validateCandidateProfile } from '@/lib/validation/candidate';
+import Toast from '@/components/ui/Toast';
 
 /* ─── Icons ─── */
 const IC = {
@@ -33,6 +34,7 @@ export default function ProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const resumeInputRef = useRef<HTMLInputElement>(null);
@@ -106,9 +108,9 @@ export default function ProfilePage() {
             // Refresh data
             await fetchProfile();
             setIsEditing(false);
-            alert('Profile updated successfully!');
+            setToast({ message: 'Profile updated successfully!', type: 'success' });
         } catch (error: any) {
-            alert('Failed to save profile: ' + error.message);
+            setToast({ message: 'Failed to save profile: ' + error.message, type: 'error' });
         } finally {
             setIsSaving(false);
         }
@@ -141,7 +143,7 @@ export default function ProfilePage() {
             await fetchProfile(); // Refresh for strength update
             setTimeout(() => setUploadProgress(prev => ({ ...prev, [type]: 0 })), 2000);
         } catch (error: any) {
-            alert(error.message);
+            setToast({ message: error.message, type: 'error' });
             setUploadProgress(prev => ({ ...prev, [type]: 0 }));
         }
     };
@@ -154,6 +156,7 @@ export default function ProfilePage() {
 
     return (
         <div className={styles.profilePage}>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             {/* Left Sidebar */}
             <div className={styles.profileSidebar}>
                 <div className={styles.profileCard}>

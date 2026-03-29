@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from './candidate.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { insforge } from '@/lib/insforge';
@@ -26,12 +27,16 @@ const IC = {
     moreH: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>,
 };
 
-export default function CandidateHome({ params }: { params: { role_id: string } }) {
-    const { role_id } = React.use(params as any) as any || {}; // Handle async params
+export default function CandidateHome({ params }: { params: Promise<{ role_id: string }> }) {
+    const { role_id } = React.use(params) || {}; // Handle async params
+    const router = useRouter();
     const { user: authUser } = useAuth();
     const [profile, setProfile] = useState<any>(null);
     const [jobs, setJobs] = useState<any[]>([]);
     const [activity, setActivity] = useState<any[]>([]);
+    const [appCount, setAppCount] = useState(0);
+    const [interviewCount, setInterviewCount] = useState(0);
+    const [nextInterview, setNextInterview] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -41,20 +46,40 @@ export default function CandidateHome({ params }: { params: { role_id: string } 
                 const { data: profileData } = await insforge.database
                     .from('candidate_profiles')
                     .select('*')
-                    .limit(1)
+                    .eq('id', role_id)
                     .single();
                 setProfile(profileData);
 
-                // Fetch Jobs with Company details (lowercase relation name because postgrest-js might handle it)
-                // Actually in @insforge/sdk, it's just raw PostgREST.
-                const jobsResponse = await fetch('/api/jobs?limit=3', { cache: 'no-store' });
-                const jobsPayload = await jobsResponse.json();
-                setJobs(jobsPayload.jobs || []);
+                // Fetch App Count
+                const { count: aCount } = await insforge.database
+                    .from('applications')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('candidate_id', role_id);
+                setAppCount(aCount || 0);
+
+                // Fetch Interview Count & Next Interview
+                const { data: interviews, count: iCount } = await insforge.database
+                    .from('interviews')
+                    .select('*, applications(jobs(title, companies(name)))')
+                    .eq('candidate_id', role_id)
+                    .order('scheduled_at', { ascending: true });
+                setInterviewCount(iCount || 0);
+                if (interviews && interviews.length > 0) setNextInterview(interviews[0]);
+
+                // Fetch Jobs with Company details
+                // Using API for complex join if needed, or direct
+                const { data: jobsData } = await insforge.database
+                    .from('jobs')
+                    .select('*, companies(name)')
+                    .eq('status', 'active')
+                    .limit(3);
+                setJobs(jobsData || []);
 
                 // Fetch Activity
                 const { data: actData } = await insforge.database
                     .from('activity')
                     .select('*')
+                    .eq('user_id', role_id)
                     .order('created_at', { ascending: false })
                     .limit(5);
                 setActivity(actData || []);
@@ -87,8 +112,8 @@ export default function CandidateHome({ params }: { params: { role_id: string } 
                             <span className={styles.statLabel}>Active Applications</span>
                             <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.send}</span>
                         </div>
-                        <span className={styles.statVal}>12</span>
-                        <span className={styles.statChange}>{IC.trending} +2 this week</span>
+                        <span className={styles.statVal}>{appCount}</span>
+                        <span className={styles.statChange}>{IC.trending} Real-time status</span>
                     </div>
                     <div className={styles.stat}>
                         <div className={styles.statTop}>
@@ -103,8 +128,10 @@ export default function CandidateHome({ params }: { params: { role_id: string } 
                             <span className={styles.statLabel}>Upcoming Interviews</span>
                             <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.cal}</span>
                         </div>
-                        <span className={styles.statVal}>2</span>
-                        <span className={styles.statHint}>Next: Today, 2:00 PM</span>
+                        <span className={styles.statVal}>{interviewCount}</span>
+                        <span className={styles.statHint}>
+                            {nextInterview ? `Next: ${new Date(nextInterview.scheduled_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'No upcoming interviews'}
+                        </span>
                     </div>
                 </div>
             </AnimateOnScroll>
@@ -121,19 +148,20 @@ export default function CandidateHome({ params }: { params: { role_id: string } 
                             </div>
                             {jobs.map((job, i) => (
                                 <div key={i} className={styles.jobCard}>
-                                    <div className={styles.jobIcon}>{job.company_profiles?.company_name?.[0] || 'J'}</div>
+                                    <div className={styles.jobIcon}>{job.companies?.name?.[0] || 'J'}</div>
                                     <div className={styles.jobBody}>
                                         <div className={styles.jobRow}>
                                             <span className={styles.jobTitle}>{job.title}</span>
-                                            <span className={styles.matchBadge}>{IC.check} {job.ai_match_rate}% Match</span>
+                                            <span className={styles.matchBadge}>{IC.check} {job.salary_max ? 'Top Tier' : 'High Match'}</span>
                                         </div>
-                                        <span className={styles.jobMeta}>{job.company_profiles?.company_name} · {job.location}</span>
+                                        <span className={styles.jobMeta}>{job.companies?.name} · {job.location}</span>
                                         <div className={styles.jobTags}>
-                                            {(job.tags || ['Design', 'Full-time']).map((t: string) => <span key={t} className={styles.tag}>{t}</span>)}
+                                            <span className={styles.tag}>{job.type}</span>
+                                            {job.salary_max && <span className={styles.tag}>₹{(job.salary_max/1000).toFixed(0)}k</span>}
                                         </div>
                                         <div className={styles.jobFoot}>
-                                            <span className={styles.jobTime}>Posted {job.posted_days} days ago</span>
-                                            <button className={styles.viewJobBtn}>View Job</button>
+                                            <span className={styles.jobTime}>Featured matching</span>
+                                            <button className={styles.viewJobBtn} onClick={() => router.push(`/dashboard/candidate/${role_id}/jobs/${job.id}`)}>View Job</button>
                                         </div>
                                     </div>
                                 </div>
@@ -164,24 +192,28 @@ export default function CandidateHome({ params }: { params: { role_id: string } 
                                 <h2 className={styles.cardTitle}>Schedule</h2>
                                 <button className={styles.moreBtn}>{IC.moreH}</button>
                             </div>
-                            <div className={styles.scheduleItem}>
-                                <div className={styles.schedBadge}>TODAY</div>
-                                <span className={styles.schedTitle}>Technical Interview</span>
-                                <span className={styles.schedMeta}>with Amazon Web Services</span>
-                                <div className={styles.schedDetails}>
-                                    <span>{IC.clock} 2:00 PM</span>
-                                    <span>{IC.monitor} Google Meet</span>
+                            {nextInterview ? (
+                                <div className={styles.scheduleItem}>
+                                    <div className={styles.schedBadge}>{new Date(nextInterview.scheduled_at) > new Date() ? 'UPCOMING' : 'TODAY'}</div>
+                                    <span className={styles.schedTitle}>{nextInterview.type.toUpperCase()} INTERVIEW</span>
+                                    <span className={styles.schedMeta}>
+                                        {nextInterview.applications?.jobs?.companies?.name || 'Company'} · {nextInterview.applications?.jobs?.title || 'Role'}
+                                    </span>
+                                    <div className={styles.schedDetails}>
+                                        <span>{IC.clock} {new Date(nextInterview.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span>{IC.monitor} Online Join</span>
+                                    </div>
+                                    {nextInterview.meeting_link && (
+                                        <a href={nextInterview.meeting_link} target="_blank" rel="noopener noreferrer" className={styles.joinBtn}>
+                                            Join Meeting
+                                        </a>
+                                    )}
                                 </div>
-                                <button className={styles.joinBtn}>Join Meeting</button>
-                            </div>
-                            <div className={styles.scheduleItem} style={{ borderLeftColor: '#94a3b8' }}>
-                                <div className={styles.schedDateBlock}>
-                                    <span className={styles.schedDay}>FRI</span>
-                                    <span className={styles.schedNum}>24</span>
+                            ) : (
+                                <div className={styles.emptyState}>
+                                    <p>No interviews scheduled</p>
                                 </div>
-                                <span className={styles.schedTitle}>Cultural Fit Chat</span>
-                                <span className={styles.schedMeta}>Netflix · 10:30 AM</span>
-                            </div>
+                            )}
                         </div>
 
                         {/* Quick Actions */}

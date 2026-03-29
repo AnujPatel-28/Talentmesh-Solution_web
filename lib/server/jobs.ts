@@ -137,7 +137,7 @@ export async function listPublicJobs(filters: Partial<JobFilterInput> = {}) {
 
   let query = client.database
     .from('jobs')
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)', { count: 'exact' })
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)', { count: 'exact' })
     .eq('is_approved', true)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
@@ -152,6 +152,33 @@ export async function listPublicJobs(filters: Partial<JobFilterInput> = {}) {
 
   if (filters.location) {
     query = query.ilike('location', `%${filters.location}%`);
+  }
+
+  if (filters.salary_min) {
+    query = query.gte('salary_min', filters.salary_min);
+  }
+
+  if (filters.salary_max) {
+    query = query.lte('salary_max', filters.salary_max);
+  }
+
+  if (filters.industry) {
+    // Note: This requires a join filter if supported by the client, 
+    // or we can use the companies relation name. 
+    // PostgREST syntax for nested filter: companies.industry.eq.value
+    query = query.filter('companies.industry', 'eq', filters.industry);
+  }
+
+  if (filters.date_posted && filters.date_posted !== 'all') {
+    const now = new Date();
+    if (filters.date_posted === '24h') {
+      now.setHours(now.getHours() - 24);
+    } else if (filters.date_posted === '7d') {
+      now.setDate(now.getDate() - 7);
+    } else if (filters.date_posted === '30d') {
+      now.setDate(now.getDate() - 30);
+    }
+    query = query.gte('created_at', now.toISOString());
   }
 
   const { data, error, count } = await query.range(start, end);
@@ -169,7 +196,7 @@ export async function getPublicJobById(id: string) {
   const client = requireAdminClient();
   const { data, error } = await client.database
     .from('jobs')
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)')
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)')
     .eq('id', id)
     .eq('is_approved', true)
     .eq('status', 'active')
@@ -191,7 +218,7 @@ export async function listAdminJobs(filters: Partial<JobFilterInput> = {}) {
 
   let query = client.database
     .from('jobs')
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)', { count: 'exact' })
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)', { count: 'exact' })
     .order('created_at', { ascending: false });
 
   if (filters.search) {
@@ -225,7 +252,7 @@ export async function getAdminJob(id: string) {
   const client = requireAdminClient();
   const { data, error } = await client.database
     .from('jobs')
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)')
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)')
     .eq('id', id)
     .single();
 
@@ -243,14 +270,14 @@ export async function createAdminJob(input: CreateJobInput, adminId: string) {
     recruiter_id: input.recruiter_id || adminId,
     requirements: input.requirements || [],
     skills_required: input.skills_required || [],
-    is_approved: input.is_approved ?? (input.status === 'draft' ? false : true),
+    is_approved: input.is_approved ?? (input.status === 'active'),
     status: input.status || 'active',
   };
 
   const { data, error } = await client.database
     .from('jobs')
-    .insert(payload)
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)')
+    .insert([payload])
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)')
     .single();
 
   if (error || !data) {
@@ -276,7 +303,7 @@ export async function updateAdminJob(id: string, input: UpdateJobInput) {
     .from('jobs')
     .update(payload)
     .eq('id', id)
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)')
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)')
     .single();
 
   if (error || !data) {
@@ -299,7 +326,7 @@ export async function setAdminJobState(id: string, action: 'publish' | 'unpublis
     .from('jobs')
     .update(stateMap[action])
     .eq('id', id)
-    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about, website)')
+    .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)')
     .single();
 
   if (error || !data) {

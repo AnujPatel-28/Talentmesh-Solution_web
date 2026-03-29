@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
 import { getMyApplications, withdrawApplication, type Application, type ApplicationStatus } from '@/lib/api/applications';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -30,6 +31,10 @@ const STATUS_MAP: Record<ApplicationStatus, { label: string, color: string, stag
 
 export default function ApplicationsPage() {
     const { user } = useAuth();
+    const params = useParams();
+    const router = useRouter();
+    const roleId = params.role_id;
+    
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'all' | 'active' | 'rejected' | 'withdrawn'>('all');
@@ -66,7 +71,9 @@ export default function ApplicationsPage() {
         return applications.filter(a => a.status === activeTab);
     }, [applications, activeTab]);
 
-    const handleWithdraw = async (id: string) => {
+    const handleWithdraw = async (id: string, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (!confirm('Are you sure you want to withdraw this application?')) return;
         
         const originalApps = [...applications];
@@ -87,7 +94,6 @@ export default function ApplicationsPage() {
         <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-            {/* Header & Stats */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>My Applications</h1>
@@ -109,7 +115,6 @@ export default function ApplicationsPage() {
                 </div>
             </div>
 
-            {/* Filters */}
             <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1px' }}>
                 {(['all', 'active', 'rejected', 'withdrawn'] as const).map(tab => (
                     <button
@@ -133,14 +138,13 @@ export default function ApplicationsPage() {
                 ))}
             </div>
 
-            {/* List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {filteredApps.length === 0 ? (
                     <div style={{ padding: '80px 0', textAlign: 'center', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📁</div>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>No applications yet</h3>
                         <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Start your journey by browsing available roles.</p>
-                        <Link href="/dashboard/candidate/jobs" style={{ background: 'var(--primary-blue)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '10px', textDecoration: 'none', fontWeight: 600 }}>Browse Jobs</Link>
+                        <Link href={`/dashboard/candidate/${roleId}/jobs`} style={{ background: 'var(--primary-blue)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '10px', textDecoration: 'none', fontWeight: 600 }}>Browse Jobs</Link>
                     </div>
                 ) : (
                     filteredApps.map(app => {
@@ -148,16 +152,22 @@ export default function ApplicationsPage() {
                         const isTerminal = ['rejected', 'withdrawn', 'accepted'].includes(app.status);
                         
                         return (
-                            <div key={app.id} style={{ 
-                                background: 'white', 
-                                border: '1px solid #e2e8f0', 
-                                borderRadius: '16px', 
-                                padding: '1.5rem',
-                                transition: 'transform 0.2s, box-shadow 0.2s',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '1.25rem'
-                            }}>
+                            <Link 
+                                key={app.id} 
+                                href={`/dashboard/candidate/${roleId}/applications/${app.id}`}
+                                style={{ 
+                                    background: 'white', 
+                                    border: '1px solid #e2e8f0', 
+                                    borderRadius: '16px', 
+                                    padding: '1.5rem',
+                                    transition: 'transform 0.2s, box-shadow 0.2s',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '1.25rem',
+                                    textDecoration: 'none',
+                                    color: 'inherit'
+                                }}
+                            >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                         <div style={{ 
@@ -183,8 +193,8 @@ export default function ApplicationsPage() {
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <span style={{ 
-                                            background: statusInfo.color + '15', 
-                                            color: statusInfo.color,
+                                            background: (statusInfo?.color || '#64748b') + '15', 
+                                            color: statusInfo?.color || '#64748b',
                                             padding: '0.4rem 0.8rem',
                                             borderRadius: '8px',
                                             fontSize: '0.75rem',
@@ -193,7 +203,7 @@ export default function ApplicationsPage() {
                                             letterSpacing: '0.02em',
                                             display: 'inline-block'
                                         }}>
-                                            {statusInfo.label}
+                                            {statusInfo?.label || 'Unknown'}
                                         </span>
                                         <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
                                             Applied {formatDistanceToNow(new Date(app.applied_at))} ago
@@ -201,7 +211,6 @@ export default function ApplicationsPage() {
                                     </div>
                                 </div>
 
-                                {/* Progress Bar */}
                                 {!isTerminal ? (
                                     <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
@@ -209,7 +218,7 @@ export default function ApplicationsPage() {
                                                 <span key={s} style={{ 
                                                     fontSize: '0.7rem', 
                                                     fontWeight: 700, 
-                                                    color: statusInfo.stage > idx ? 'var(--primary-blue)' : '#94a3b8',
+                                                    color: (statusInfo?.stage || 0) > idx ? 'var(--primary-blue)' : '#94a3b8',
                                                     textTransform: 'uppercase'
                                                 }}>{s}</span>
                                             ))}
@@ -218,7 +227,7 @@ export default function ApplicationsPage() {
                                             {[1, 2, 3, 4, 5].map(step => (
                                                 <div key={step} style={{ 
                                                     flex: 1, 
-                                                    background: statusInfo.stage >= step ? 'var(--primary-blue)' : '#e2e8f0',
+                                                    background: (statusInfo?.stage || 0) >= step ? 'var(--primary-blue)' : '#e2e8f0',
                                                     borderRadius: '4px'
                                                 }} />
                                             ))}
@@ -235,7 +244,7 @@ export default function ApplicationsPage() {
                                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                                     {['applied', 'reviewing', 'shortlisted'].includes(app.status) && (
                                         <button 
-                                            onClick={() => handleWithdraw(app.id)}
+                                            onClick={(e) => handleWithdraw(app.id, e)}
                                             style={{ 
                                                 padding: '0.6rem 1rem', borderRadius: '10px', 
                                                 background: 'white', border: '1px solid #e2e8f0',
@@ -246,16 +255,16 @@ export default function ApplicationsPage() {
                                             <IC.Withdraw /> Withdraw
                                         </button>
                                     )}
-                                    <Link href={`/dashboard/candidate/jobs/${app.job_id}`} style={{ 
+                                    <div style={{ 
                                         padding: '0.6rem 1rem', borderRadius: '10px', 
                                         background: '#f1f5f9', color: '#475569',
                                         textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
                                         display: 'flex', alignItems: 'center', gap: '0.4rem'
                                     }}>
-                                        View Job <IC.External />
-                                    </Link>
+                                        Tracking <IC.External />
+                                    </div>
                                 </div>
-                            </div>
+                            </Link>
                         );
                     })
                 )}

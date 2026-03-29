@@ -129,14 +129,14 @@ export async function createCandidateApplication(input: CreateApplicationInput) 
   const now = new Date().toISOString();
   const { data, error } = await client.database
     .from('applications')
-    .insert({
+    .insert([ {
       job_id: input.jobId,
       candidate_id: session.user.id,
       cover_letter: input.coverLetter || null,
       status: 'applied',
       applied_at: now,
       updated_at: now,
-    })
+    } ])
     .select('id, job_id, candidate_id, status, cover_letter, applied_at, updated_at, jobs(title, location, type, salary_min, salary_max, currency, companies(name, logo_url))')
     .single();
 
@@ -154,12 +154,12 @@ export async function createCandidateApplication(input: CreateApplicationInput) 
 
   await client.database
     .from('activity')
-    .insert({
+    .insert([{
       user_id: session.user.id,
       type: 'application',
       description: `Applied to ${job.title}`,
       created_at: now,
-    });
+    }]);
 
   // Handle Supabase's return of singular joins as arrays
   const rawJob = Array.isArray(data.jobs) ? data.jobs[0] : data.jobs;

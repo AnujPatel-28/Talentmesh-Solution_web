@@ -30,7 +30,7 @@ export interface Application {
   };
 }
 
-export async function applyToJob(jobId: string, coverLetter?: string): Promise<{ success: boolean; error?: string }> {
+export async function applyToJob(jobId: string, coverLetter?: string): Promise<{ success: boolean; applicationId?: string; error?: string }> {
   try {
     const response = await fetch('/api/candidate/applications', {
       method: 'POST',
@@ -44,7 +44,7 @@ export async function applyToJob(jobId: string, coverLetter?: string): Promise<{
       return { success: false, error: payload.error || 'Application failed.' };
     }
 
-    return { success: true };
+    return { success: true, applicationId: payload.application?.id };
   } catch (err: any) {
     return { success: false, error: err.message || 'Application failed.' };
   }
