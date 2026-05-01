@@ -66,7 +66,9 @@ export async function getPlatformSettings(key: string) {
     .eq('key', key)
     .single();
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 is 'no rows found'
+  // PGRST116: no rows found
+  // 42P01: relation does not exist
+  if (error && error.code !== 'PGRST116' && error.code !== '42P01') { 
     throw new Error(`Settings fetch failed: ${error.message}`);
   }
   return data?.value || null;

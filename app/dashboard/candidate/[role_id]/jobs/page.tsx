@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import Toast from '@/components/ui/Toast';
-import styles from '../candidate.module.css';
+import styles from '../../../shared-dashboard.module.css';
 import { useSearch } from '@/context/SearchContext';
 
 /* ─── Icons ─── */
@@ -188,7 +188,7 @@ export default function JobsPage() {
             </div>
 
             {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                <div className={styles.jobsListGrid}>
                     {[1, 2, 3, 4, 5, 6].map(i => (
                         <div key={i} className={styles.jobListCard} style={{ height: 200, background: '#f8fafc', border: 'none', opacity: 0.6 }} />
                     ))}
@@ -201,7 +201,7 @@ export default function JobsPage() {
                 </div>
             ) : (
                 <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                    <div className={styles.jobsListGrid}>
                         {jobs.map((j) => (
                             <div key={j.id} style={{ position: 'relative' }}>
                                 <Link 

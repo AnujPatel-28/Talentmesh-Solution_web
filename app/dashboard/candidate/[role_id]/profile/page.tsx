@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import styles from '../candidate.module.css';
+import styles from '../../../shared-dashboard.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { getMyProfile, updateProfile, updateCandidateProfile, calculateProfileStrength, UserProfile, CandidateProfile } from '@/lib/api/profile';
+import { getMyProfile, updateProfile, updateCandidateProfile, calculateProfileStrength } from '@/lib/api/profile';
+import type { UserProfile, CandidateProfile } from '@/types/user';
 import { uploadAvatar, uploadResume } from '@/lib/api/storage';
 import { validateCandidateProfile } from '@/lib/validation/candidate';
 import Toast from '@/components/ui/Toast';

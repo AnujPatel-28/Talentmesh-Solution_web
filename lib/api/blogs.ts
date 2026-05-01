@@ -15,26 +15,41 @@ export async function getAllBlogsForAdmin() {
   return data;
 }
 
-export async function getBlogBySlug(slug: string) {
-  const { data, error } = await insforge.database
-    .from('blog')
-    .select('*, profiles:author_id(name, avatar_url)')
-    .eq('slug', slug)
-    .eq('status', 'published')
-    .single();
-
-  if (error) return null;
-  return data;
+/**
+ * Helper to build a URL with query parameters for Edge Functions
+ */
+function buildUrl(slug: string, params: Record<string, any>): string {
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null)
+  );
+  const query = new URLSearchParams(cleanParams as any).toString();
+  return query ? `${slug}?${query}` : slug;
 }
 
-export async function getPublishedBlogs(limit = 10) {
-  const { data, error } = await insforge.database
-    .from('blog')
-    .select('*, profiles:author_id(name)')
-    .eq('status', 'published')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+/**
+ * Fetch a single blog post by slug via Edge Function
+ */
+export async function getBlogBySlug(slug: string) {
+  const { data, error } = await insforge.functions.invoke(`blogs-slug?slug=${slug}`, {
+    method: 'GET'
+  });
+
+  if (error) {
+    if (error.statusCode === 404) return null;
+    return null;
+  }
+  return data?.blog;
+}
+
+/**
+ * Fetch published blogs via Edge Function
+ */
+export async function getPublishedBlogs(filters: { search?: string; category?: string; page?: number; limit?: number } = {}) {
+  const { data, error } = await insforge.functions.invoke(buildUrl('blogs', filters), {
+    method: 'GET'
+  });
 
   if (error) throw new Error(error.message);
-  return data;
+  return data?.blogs || [];
 }
+

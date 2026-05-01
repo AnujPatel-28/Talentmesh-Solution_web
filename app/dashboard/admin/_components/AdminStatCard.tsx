@@ -1,70 +1,54 @@
-'use client';
-
 import React from 'react';
-import styles from '../dashboard.module.css';
 
 interface AdminStatCardProps {
   label: string;
-  value: number | string;
-  trend?: 'up' | 'down';
-  trendValue?: string;
+  value: string | number;
+  color?: 'indigo' | 'emerald' | 'rose' | 'amber';
   icon?: React.ReactNode;
-  color?: 'blue' | 'indigo' | 'emerald' | 'amber' | 'rose';
 }
 
-export function AdminStatCard({ 
-  label, 
-  value, 
-  trend, 
-  trendValue, 
-  icon,
-  color = 'blue' 
-}: AdminStatCardProps) {
-  const colorMap = {
-    blue: { bg: '#eff6ff', text: '#1d4ed8', iconBg: 'rgba(37, 99, 235, 0.1)' },
-    indigo: { bg: '#eef2ff', text: '#4338ca', iconBg: 'rgba(79, 70, 229, 0.1)' },
-    emerald: { bg: '#ecfdf5', text: '#047857', iconBg: 'rgba(16, 185, 129, 0.1)' },
-    amber: { bg: '#fffbeb', text: '#b45309', iconBg: 'rgba(245, 158, 11, 0.1)' },
-    rose: { bg: '#fff1f2', text: '#be123c', iconBg: 'rgba(225, 29, 72, 0.1)' },
-  };
+const colorMap = {
+  indigo: { bg: '#eef2ff', text: '#4f46e5', border: '#e0e7ff' },
+  emerald: { bg: '#ecfdf5', text: '#059669', border: '#d1fae5' },
+  rose: { bg: '#fff1f2', text: '#e11d48', border: '#ffe4e6' },
+  amber: { bg: '#fffbeb', text: '#d97706', border: '#fef3c7' }
+};
 
-  const theme = colorMap[color];
-
+export const AdminStatCard: React.FC<AdminStatCardProps> = ({
+  label,
+  value,
+  color = 'indigo',
+  icon
+}) => {
+  const styles = colorMap[color];
   return (
-    <div className={styles.statCard}>
-      <div className={styles.statCardHeader}>
-        <div 
-          className={styles.statIconBox}
-          style={{ 
-            backgroundColor: theme.iconBg, 
-            color: theme.text
-          }}
-        >
-          {icon || (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 21H3V3" /><path d="m21 15-5-5-5 5-5-5" />
-            </svg>
-          )}
-        </div>
-        {trend && (
-          <div className={`${styles.trend} ${trend === 'up' ? styles.trendUp : styles.trendDown}`}>
-            {trend === 'up' ? '↗' : '↘'} {trendValue && <span>{trendValue}</span>}
+    <div style={{
+      padding: '24px',
+      borderRadius: '20px',
+      backgroundColor: '#fff',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>{label}</span>
+        {icon && (
+          <div style={{ 
+            width: '36px', 
+            height: '36px', 
+            borderRadius: '10px', 
+            backgroundColor: styles.bg, 
+            color: styles.text,
+            display: 'grid', 
+            placeItems: 'center' 
+          }}>
+            {icon}
           </div>
         )}
       </div>
-      
-      <span className={styles.statLabel}>{label}</span>
-      <div className={styles.statValue}>{value}</div>
-      
-      <div className={styles.statProgressBar}>
-        <div 
-          className={styles.statProgressFill}
-          style={{ 
-            width: '60%', 
-            backgroundColor: theme.text,
-          }} 
-        />
-      </div>
+      <div style={{ fontSize: '1.875rem', fontWeight: 800, color: '#0f172a' }}>{value}</div>
     </div>
   );
-}
+};

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { insforge } from '@/lib/insforge';
-import styles from '../../../candidate.module.css';
+import styles from '../../../../../shared-dashboard.module.css';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
+import { getMyProfile } from '@/lib/api/profile';
 import styles from './login.module.css';
 
 // Admin email list from .env — updateable via NEXT_PUBLIC_ADMIN_EMAILS
@@ -84,9 +85,12 @@ export default function LoginPage() {
             }
 
             // Redirect based on profile
-            const res = await fetch('/api/candidate-profile');
-            const profileData = await res.json();
-            const profile = profileData?.profile;
+            let profile;
+            try {
+                profile = await getMyProfile();
+            } catch (err) {
+                console.error('Failed to fetch profile during auto-login:', err);
+            }
 
             if (!profile) {
                 // New admin — no candidate profile, redirect to admin dashboard
@@ -154,20 +158,30 @@ export default function LoginPage() {
             // router.refresh() re-requests the current page (/login); the middleware
             // sees the authenticated user and redirects to /dashboard/{role}.
             // 🔥 STEP 1 — Fetch profile
-            const res = await fetch('/api/candidate-profile');
-            const data = await res.json();
-
-            if (!data?.profile) {
+            let profile;
+            try {
+                profile = await getMyProfile();
+            } catch (err) {
+                console.error('Failed to fetch profile during login:', err);
                 if (isAdminEmail) {
                     router.push('/dashboard/admin');
                     return;
                 }
-                setError('Profile not found');
+                setError('Failed to load profile. Please try again.');
                 setIsLoading(false);
                 return;
             }
 
-            const profile = data.profile;
+            if (!profile) {
+                // No profile found, redirect based on admin status
+                if (isAdminEmail) {
+                    router.push('/dashboard/admin');
+                } else {
+                    router.push('/onboarding/candidate');
+                }
+                return;
+            }
+
             const isAdminRole = isAdminEmail || profile.role === 'admin' || profile.role === 'super_admin';
 
             console.log(`Login successful. User role: ${profile.role}. Redirecting...`);
@@ -182,8 +196,6 @@ export default function LoginPage() {
             setTimeout(() => {
                 window.location.href = destination;
             }, 150);
-
-
 
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
@@ -253,7 +265,7 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                    <div className={styles.errorMessage}>
+                    <div className={styles.errorMessage} data-testid="login-error" role="alert">
                         {error}
                         {isEmailUnconfirmed && !showVerification && (
                             <button

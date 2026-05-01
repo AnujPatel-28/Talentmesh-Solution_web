@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import styles from '../candidate.module.css';
+import styles from '../../../shared-dashboard.module.css';
 
 export default function AnalyticsPage() {
     return (

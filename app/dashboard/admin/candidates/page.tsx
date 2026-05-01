@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from './candidates.module.css';
+import { insforge } from '@/lib/insforge';
 
 type CandidateProfile = {
   headline?: string;
@@ -45,19 +46,21 @@ export default function AdminCandidatesPage() {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({
-        search: q,
-        page: p.toString(),
+      const { data, error: fetchError } = await insforge.functions.invoke('admin-candidates', {
+        method: 'GET',
+        queries: {
+          search: q || undefined,
+          page: p.toString(),
+          limit: '20'
+        }
       });
-      const res = await fetch(`/api/admin/candidates?${params.toString()}`);
-      const payload = await res.json();
       
-      if (res.ok) {
-        setCandidates(payload.candidates.candidates || []);
-        setTotalCount(payload.candidates.total);
-        setTotalPages(payload.candidates.totalPages);
-      } else {
-        throw new Error(payload.error);
+      if (fetchError) throw new Error(fetchError.message);
+      
+      if (data) {
+        setCandidates(data.candidates || []);
+        setTotalCount(data.total);
+        setTotalPages(Math.ceil(data.total / 20));
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load candidates');
@@ -72,12 +75,15 @@ export default function AdminCandidatesPage() {
 
   const updateCandidate = async (user: AdminCandidate, payload: Partial<AdminCandidate>) => {
     try {
-      const res = await fetch(`/api/admin/candidates/${user.id}`, {
+      const { data, error: updateError } = await insforge.functions.invoke('admin-candidates', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: payload,
+        path: `/${user.id}`
       });
-      if (res.ok) {
+      
+      if (updateError) throw new Error(updateError.message);
+
+      if (data) {
         fetchCandidates();
         if (previewUser?.id === user.id) {
           setPreviewUser({ ...user, ...payload });

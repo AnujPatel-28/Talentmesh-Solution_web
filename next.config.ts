@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
-const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || "https://z6bkhk8j.ap-southeast.insforge.app";
+const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+
+if (!insforgeUrl) {
+  console.warn('⚠️ WARNING: Missing NEXT_PUBLIC_INSFORGE_URL environment variable. API connections and images may fail.');
+}
 
 // Comprehensive Content Security Policy granting Next.js development access 
 // while explicitly clamping frame-ancestors and restricting API connections to self / InsForge.
@@ -8,9 +12,9 @@ const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' blob: data: https://*.insforge.app https://avatars.githubusercontent.com https://lh3.googleusercontent.com;
+    img-src 'self' blob: data: https://*.insforge.app https://cdn.insforge.dev https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com;
     font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self' ${insforgeUrl} wss:;
+    connect-src 'self' https://*.insforge.app ${insforgeUrl} https://api.anthropic.com wss:;
     frame-ancestors 'none';
 `;
 
@@ -18,10 +22,15 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
         hostname: "*.insforge.app",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.insforge.dev",
       },
       {
         protocol: "https",
@@ -30,6 +39,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
       },
     ],
   },

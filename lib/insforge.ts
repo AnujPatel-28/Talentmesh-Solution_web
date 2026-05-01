@@ -20,6 +20,51 @@ export const insforge = createClient({
 });
 
 /**
+ * Helper to invoke Edge Functions manually to bypass SDK URL construction bug.
+ */
+export async function invokeFunction(slug: string, options: { 
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: any;
+  headers?: Record<string, string>;
+} = {}) {
+  const { method = 'POST', body, headers = {} } = options;
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+  
+  // Use session token if available
+  let authHeader = headers['Authorization'];
+  if (!authHeader && typeof window !== 'undefined') {
+    const cookies = document.cookie.split(';').reduce((res, item) => {
+      const [k, v] = item.split('=');
+      res[k.trim()] = v;
+      return res;
+    }, {} as Record<string, string>);
+    const token = cookies['tm_access_token'];
+    if (token) {
+      authHeader = `Bearer ${token}`;
+    }
+  }
+
+  const response = await fetch(`${baseUrl}/functions/${slug}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authHeader ? { 'Authorization': authHeader } : {}),
+      'x-client-info': 'talentmesh-web',
+      ...headers
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    return { data: null, error: { message: errorData.error || response.statusText, status: response.status } };
+  }
+
+  const data = await response.json();
+  return { data, error: null };
+}
+
+/**
  * Helper to fetch the current active session
  */
 export async function getSession() {

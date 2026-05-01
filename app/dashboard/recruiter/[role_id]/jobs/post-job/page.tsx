@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../../recruiter.module.css';
+import styles from '../../../../shared-dashboard.module.css';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 

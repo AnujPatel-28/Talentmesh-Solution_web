@@ -3,11 +3,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
-import styles from './dashboard.module.css';
-import { AdminHeader } from './_components/AdminHeader';
-import { AdminStatCard } from './_components/AdminStatCard';
-import { AdminActivityFeed } from './_components/AdminActivityFeed';
-import { AdminButton } from './_components/AdminForm';
+import styles from '../shared-dashboard.module.css';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
+
+/* ─── Icons ─── */
+const IC = {
+    users: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
+    clipboard: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>,
+    send: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>,
+    trending: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
+    alertCircle: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
+    plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
+    barChart: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></svg>,
+    checkCircle: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>,
+    eye: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>,
+    moreH: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>,
+    settings: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
+};
+
+import { insforge } from '@/lib/insforge';
 
 type Stat = { value: number; trend: 'up' | 'down'; trendValue: string };
 type Stats = {
@@ -38,37 +53,26 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [alerts, setAlerts] = useState<AlertData | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const [statsRes, alertsRes, activityRes] = await Promise.all([
-        fetch('/api/admin/reports'),
-        fetch('/api/admin/alerts'),
-        fetch('/api/admin/activity?limit=10')
-      ]);
+      const { data, error: fetchError } = await insforge.functions.invoke('admin-dashboard', {
+        body: { action: 'get-summary', limit: 10 }
+      });
 
-      if (statsRes.ok) {
-        const data = await statsRes.json();
+      if (fetchError) throw new Error(fetchError.message);
+
+      if (data) {
         setStats({
           users: { value: data.metrics.totalCandidates + data.metrics.totalRecruiters, trend: 'up', trendValue: '+12%' },
           jobs: { value: data.metrics.totalJobs, trend: 'up', trendValue: '+5%' },
           applications: { value: data.metrics.totalApplications, trend: 'up', trendValue: '+18%' },
           recruiters: { value: data.metrics.totalRecruiters, trend: 'down', trendValue: '-2%' },
         });
-      }
-
-      if (alertsRes.ok) {
-        setAlerts(await alertsRes.json());
-      }
-
-      if (activityRes.ok) {
-        const data = await activityRes.json();
+        setAlerts(data.alerts);
         setActivities(data.activities || []);
       }
-      
-      setLastUpdated(new Date());
     } catch (error) {
       console.error('Dashboard fetch error:', error);
     } finally {
@@ -82,138 +86,153 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  if (loading) {
+    return <HomeSkeleton />;
+  }
+
   return (
-    <div className={styles.page} style={{ background: 'transparent' }}>
-      <AdminHeader 
-        title={`Welcome back, ${user?.name || user?.email?.split('@')[0] || 'Admin'}`}
-        eyebrow="System Intelligence Overview"
-        subtitle="Monitor, moderate, and manage your platform ecosystem from this central command center."
-        actions={
-          <>
-            <AdminButton variant="secondary" onClick={fetchData}>Refresh Data</AdminButton>
-            <AdminButton onClick={() => window.open('/dashboard/admin/jobs')}>Create New Role</AdminButton>
-          </>
-        }
-      />
-
-      <section className={styles.statsGrid}>
-        <AdminStatCard 
-          label="Global User Base" 
-          value={stats?.users.value || 0} 
-          trend={stats?.users.trend} 
-          trendValue={stats?.users.trendValue}
-          color="indigo"
-          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
-        />
-        <AdminStatCard 
-          label="Active Positions" 
-          value={stats?.jobs.value || 0} 
-          trend={stats?.jobs.trend} 
-          trendValue={stats?.jobs.trendValue}
-          color="emerald"
-          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>}
-        />
-        <AdminStatCard 
-          label="Application Velocity" 
-          value={stats?.applications.value || 0} 
-          trend={stats?.applications.trend} 
-          trendValue={stats?.applications.trendValue}
-          color="blue"
-          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>}
-        />
-        <AdminStatCard 
-          label="Recruiter Partnerships" 
-          value={stats?.recruiters.value || 0} 
-          trend={stats?.recruiters.trend} 
-          trendValue={stats?.recruiters.trendValue}
-          color="amber"
-          icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
-        />
-      </section>
-
-      <div className={styles.dashboardContent}>
-        <div className={styles.mainCol}>
-          {alerts && (alerts.pendingRecruiters > 0 || alerts.pendingJobs > 0 || alerts.reportedJobs > 0) && (
-            <section className={styles.alertsSection}>
-              <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>Critical Moderation Queue</h2>
-              </div>
-              <div className={styles.alertsList}>
-                {alerts.pendingRecruiters > 0 && (
-                  <Link href="/dashboard/admin/recruiters?status=pending" className={`${styles.alertCard} ${styles.alertAmber}`}>
-                    <div className={styles.alertIcon}>⚠️</div>
-                    <div className={styles.alertContent}>
-                      <strong>{alerts.pendingRecruiters} Approval Requests</strong>
-                      <span>Recruiters waiting for portal access</span>
-                    </div>
-                  </Link>
-                )}
-                {alerts.pendingJobs > 0 && (
-                  <Link href="/dashboard/admin/jobs?status=pending" className={`${styles.alertCard} ${styles.alertAmber}`}>
-                    <div className={styles.alertIcon}>📝</div>
-                    <div className={styles.alertContent}>
-                      <strong>{alerts.pendingJobs} Job Reviews</strong>
-                      <span>New listings requiring verification</span>
-                    </div>
-                  </Link>
-                )}
-                {alerts.reportedJobs > 0 && (
-                  <Link href="/dashboard/admin/jobs?status=reported" className={`${styles.alertCard} ${styles.alertRed}`}>
-                    <div className={styles.alertIcon}>🚩</div>
-                    <div className={styles.alertContent}>
-                      <strong>{alerts.reportedJobs} Flagged Reports</strong>
-                      <span>Safety violations requiring attention</span>
-                    </div>
-                  </Link>
-                )}
-              </div>
-            </section>
-          )}
-
-          <section className={styles.quickActionsSection} style={{ background: '#fff', padding: '24px', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>High Frequency Operations</h2>
-            </div>
-            <div className={styles.quickActions} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              <Link href="/dashboard/admin/jobs" className={styles.actionButton} style={{ padding: '20px', borderRadius: '16px', border: '1px solid #f1f5f9', background: '#f8fafc', textDecoration: 'none' }}>
-                <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '8px' }}>🚀</span>
-                <strong>Deploy New Job</strong>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0' }}>Add a listing to global index</p>
-              </Link>
-              <Link href="/dashboard/admin/blogs" className={styles.actionButton} style={{ padding: '20px', borderRadius: '16px', border: '1px solid #f1f5f9', background: '#f8fafc', textDecoration: 'none' }}>
-                <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '8px' }}>✍️</span>
-                <strong>Publish Article</strong>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0' }}>Update the ecosystem blog</p>
-              </Link>
-              <Link href="/dashboard/admin/reports" className={styles.actionButton} style={{ padding: '20px', borderRadius: '16px', border: '1px solid #f1f5f9', background: '#f8fafc', textDecoration: 'none' }}>
-                <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '8px' }}>📈</span>
-                <strong>Deep Analytics</strong>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0' }}>Export performance metrics</p>
-              </Link>
-              <Link href="/dashboard/admin/settings" className={styles.actionButton} style={{ padding: '20px', borderRadius: '16px', border: '1px solid #f1f5f9', background: '#f8fafc', textDecoration: 'none' }}>
-                <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '8px' }}>⚙️</span>
-                <strong>System Prefs</strong>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0' }}>Configure global parameters</p>
-              </Link>
-            </div>
-          </section>
-        </div>
-
-        <aside className={styles.rightCol}>
-          <AdminActivityFeed activities={activities} isLoading={loading} />
-          
-          <div style={{ marginTop: '28px', padding: '24px', borderRadius: '24px', background: 'linear-gradient(135deg, #0f172a, #1e293b)', color: '#fff' }}>
-             <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '8px' }}>Platform Health</h3>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '1.2rem', fontWeight: 700 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
-                Optimal
-             </div>
-             <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '12px' }}>
-                All nodes are operational. Request latency is at <span style={{ color: '#fff', fontWeight: 600 }}>24ms</span>. No active incidents reported.
-             </p>
-          </div>
-        </aside>
+    <div className={styles.dash}>
+      <div className={styles.greet}>
+        <h1 className={styles.greetTitle}>Welcome back, {user?.name || user?.email?.split('@')[0] || 'Admin'}!</h1>
+        <p className={styles.greetSub}>System Intelligence Overview: Monitor, moderate, and manage your platform ecosystem.</p>
       </div>
+
+      <AnimateOnScroll animation="fadeUp" delay={100}>
+        <div className={styles.stats}>
+          <div className={styles.stat}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>Global User Base</span>
+              <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
+            </div>
+            <span className={styles.statVal}>{stats?.users.value || 0}</span>
+            <span className={styles.statChange}>{IC.trending} {stats?.users.trendValue} users</span>
+          </div>
+          <div className={styles.stat}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>Active Positions</span>
+              <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
+            </div>
+            <span className={styles.statVal}>{stats?.jobs.value || 0}</span>
+            <span className={styles.statChange}>{IC.trending} {stats?.jobs.trendValue} roles</span>
+          </div>
+          <div className={styles.stat}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>Application Velocity</span>
+              <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
+            </div>
+            <span className={styles.statVal}>{stats?.applications.value || 0}</span>
+            <span className={styles.statChange}>{IC.trending} {stats?.applications.trendValue} apps</span>
+          </div>
+          <div className={styles.stat}>
+            <div className={styles.statTop}>
+              <span className={styles.statLabel}>Recruiters</span>
+              <span className={styles.statIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+            </div>
+            <span className={styles.statVal}>{stats?.recruiters.value || 0}</span>
+            <span className={styles.statHint}>{stats?.recruiters.trendValue} from last week</span>
+          </div>
+        </div>
+      </AnimateOnScroll>
+
+      <AnimateOnScroll animation="fadeUp" delay={200}>
+        <div className={styles.mainGrid}>
+          <div className={styles.leftCol}>
+            {/* Critical Moderation Queue */}
+            {alerts && (alerts.pendingRecruiters > 0 || alerts.pendingJobs > 0 || alerts.reportedJobs > 0) && (
+                <div className={styles.card}>
+                    <div className={styles.cardHead}>
+                        <h2 className={styles.cardTitle}>Critical Moderation Queue</h2>
+                    </div>
+                    {alerts.pendingRecruiters > 0 && (
+                        <div className={styles.actItem}>
+                            <span className={styles.actIcon} style={{color: '#f59e0b'}}>{IC.alertCircle}</span>
+                            <div className={styles.actContent}>
+                                <span className={styles.actText}><strong>{alerts.pendingRecruiters} Approval Requests</strong> - Recruiters waiting for portal access</span>
+                            </div>
+                            <Link href="/dashboard/admin/recruiters?status=pending" className={styles.actAction}>Review</Link>
+                        </div>
+                    )}
+                    {alerts.pendingJobs > 0 && (
+                        <div className={styles.actItem}>
+                            <span className={styles.actIcon} style={{color: '#f59e0b'}}>{IC.alertCircle}</span>
+                            <div className={styles.actContent}>
+                                <span className={styles.actText}><strong>{alerts.pendingJobs} Job Reviews</strong> - New listings requiring verification</span>
+                            </div>
+                            <Link href="/dashboard/admin/jobs?status=pending" className={styles.actAction}>Review</Link>
+                        </div>
+                    )}
+                    {alerts.reportedJobs > 0 && (
+                        <div className={styles.actItem}>
+                            <span className={styles.actIcon} style={{color: '#ef4444'}}>{IC.alertCircle}</span>
+                            <div className={styles.actContent}>
+                                <span className={styles.actText}><strong>{alerts.reportedJobs} Flagged Reports</strong> - Safety violations requiring attention</span>
+                            </div>
+                            <Link href="/dashboard/admin/jobs?status=reported" className={styles.actAction}>Review</Link>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className={styles.card}>
+              <div className={styles.cardHead}>
+                <h2 className={styles.cardTitle}>Recent Activity</h2>
+                <button className={styles.moreBtn} onClick={fetchData}>{IC.moreH}</button>
+              </div>
+              {activities.length > 0 ? (
+                activities.map((act) => (
+                  <div key={act.id} className={styles.actItem}>
+                    <span className={styles.actIcon}>{IC.eye}</span>
+                    <div className={styles.actContent}>
+                      <span className={styles.actText}><strong>{act.actor}</strong> {act.description}</span>
+                      <span className={styles.actTime}>{new Date(act.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className={styles.emptyText}>No recent activity reported.</p>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.rightCol}>
+            <div className={styles.card}>
+              <h2 className={styles.cardTitle}>High Frequency Operations</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <Link href="/dashboard/admin/jobs" style={{ textDecoration: 'none' }}>
+                  <button className={styles.quickAction}>
+                    <span className={styles.qaIcon}>{IC.plus}</span>
+                    <span className={styles.qaLabel}>Deploy New Job</span>
+                  </button>
+                </Link>
+                <Link href="/dashboard/admin/blogs" style={{ textDecoration: 'none' }}>
+                  <button className={styles.quickAction}>
+                    <span className={styles.qaIcon}>{IC.barChart}</span>
+                    <span className={styles.qaLabel}>Publish Article</span>
+                  </button>
+                </Link>
+                <Link href="/dashboard/admin/reports" style={{ textDecoration: 'none' }}>
+                  <button className={styles.quickAction}>
+                    <span className={styles.qaIcon}>{IC.users}</span>
+                    <span className={styles.qaLabel}>Deep Analytics</span>
+                  </button>
+                </Link>
+                <Link href="/dashboard/admin/settings" style={{ textDecoration: 'none' }}>
+                  <button className={styles.quickAction}>
+                    <span className={styles.qaIcon}>{IC.settings}</span>
+                    <span className={styles.qaLabel}>System Prefs</span>
+                  </button>
+                </Link>
+              </div>
+            </div>
+
+            <div className={styles.featuredCard}>
+                <span className={styles.featuredLabel}>PLATFORM HEALTH</span>
+                <span className={styles.featuredName}>Optimal & Operational</span>
+                <button className={styles.featuredLink}>All nodes are running. Request latency is at 24ms. No active incidents. {IC.checkCircle}</button>
+            </div>
+          </div>
+        </div>
+      </AnimateOnScroll>
     </div>
   );
 }

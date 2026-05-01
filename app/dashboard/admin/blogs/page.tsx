@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as Ico from 'lucide-react';
 import styles from './blogs.module.css';
+import { insforge } from '@/lib/insforge';
 
 interface BlogPost {
   id: string;
@@ -86,18 +87,18 @@ export default function AdminBlogsPage() {
   const fetchPosts = useCallback(async (currentSearch = search, currentStatus = status) => {
     setLoading(true);
     try {
-      const url = new URL('/api/admin/blogs', window.location.origin);
-      if (currentSearch) url.searchParams.append('search', currentSearch);
-      if (currentStatus !== 'all') url.searchParams.append('status', currentStatus);
+      const { data, error: fetchError } = await insforge.functions.invoke('admin-blogs', {
+        method: 'GET',
+        queries: {
+          search: currentSearch || undefined,
+          status: currentStatus !== 'all' ? currentStatus : undefined,
+        }
+      });
       
-      const res = await fetch(url.toString());
-      const data = await res.json();
+      if (fetchError) throw new Error(fetchError.message);
       
-      if (res.ok) {
-        // The API returns { blogs: [...] }
+      if (data) {
         setPosts(Array.isArray(data.blogs) ? data.blogs : []);
-      } else {
-        setError(data.error || 'Failed to fetch articles');
       }
     } catch (err) {
       setError('Failed to fetch articles');
@@ -142,22 +143,21 @@ export default function AdminBlogsPage() {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(selectedPost ? `/api/admin/blogs/${selectedPost.id}` : '/api/admin/blogs', {
+      const { data, error: saveError } = await insforge.functions.invoke('admin-blogs', {
         method: selectedPost ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: form,
+        path: selectedPost ? `/${selectedPost.id}` : undefined
       });
       
-      if (res.ok) {
+      if (saveError) throw new Error(saveError.message);
+      
+      if (data) {
         setSuccess(selectedPost ? 'Article updated' : 'Article published successfully');
         setTimeout(() => setIsEditing(false), 1500);
         fetchPosts();
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to save changes');
       }
-    } catch (err) {
-      setError('Connection error. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Connection error. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -166,11 +166,14 @@ export default function AdminBlogsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
     try {
-      const res = await fetch(`/api/admin/blogs/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setSuccess('Article deleted');
-        fetchPosts();
-      }
+      const { error: deleteError } = await insforge.functions.invoke('admin-blogs', {
+        method: 'DELETE',
+        path: `/${id}`
+      });
+      if (deleteError) throw new Error(deleteError.message);
+      
+      setSuccess('Article deleted');
+      fetchPosts();
     } catch (err) {
       setError('Delete failed');
     }
@@ -183,16 +186,17 @@ export default function AdminBlogsPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/upload-blog-image', {
+      
+      const { data, error: uploadError } = await insforge.functions.invoke('upload-blog-image', {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
-      if (data.url) {
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      if (data?.url) {
         setForm(prev => ({ ...prev, cover_image: data.url }));
         setSuccess('Image uploaded');
-      } else {
-        setError(data.error || 'Upload failed');
       }
     } catch (err) {
       setError('Image upload failed');

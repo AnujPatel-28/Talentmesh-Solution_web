@@ -5,14 +5,20 @@
 
 .page {
     width: 100vw;
-    height: 100vh;
+    height: 100vh; /* Fixed height */
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background: #f8fafc;
     position: relative;
-    overflow: hidden;
+    padding: 0; /* No padding for full fit */
     font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow: hidden; /* Prevent page scrolling */
+}
+
+.page::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 /* Background decorations */
@@ -67,18 +73,29 @@
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: 430px;
+    max-width: 380px; /* Even narrower */
+    max-height: 95vh; /* Maximize fit */
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 20px;
-    padding: 2rem 2.25rem;
+    padding: 1.5rem 1.75rem; /* Tighter padding */
     box-shadow:
         0 4px 6px -1px rgba(0, 0, 0, 0.03),
         0 10px 30px -5px rgba(0, 0, 0, 0.06);
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: 0.75rem; /* Tighter gaps */
     animation: cardEnter 0.5s ease-out;
+
+    /* Hide scrollbars but allow scrolling if absolutely needed */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.card::-webkit-scrollbar {
+    display: none;
 }
 
 @keyframes cardEnter {
@@ -317,10 +334,45 @@
 }
 
 .dividerText {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: #94a3b8;
     font-weight: 500;
     white-space: nowrap;
+}
+
+/* Custom Scrollbar for inner containers */
+.card::-webkit-scrollbar,
+.innerScroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card::-webkit-scrollbar-track,
+.innerScroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.card::-webkit-scrollbar-thumb,
+.innerScroll::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+.card::-webkit-scrollbar-thumb:hover,
+.innerScroll::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+/* Ensure RoleSelection fits on screen */
+@media (min-height: 800px) {
+    .page {
+        justify-content: center;
+    }
+}
+
+@media (max-height: 800px) {
+    .page {
+        padding: 1rem 0;
+    }
 }
 
 /* Social */
@@ -734,4 +786,56 @@
     .submitBtn {
         padding: 0.6rem 1rem;
     }
+}
+
+/* Social Auth Section */
+.socialAuth {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.socialBtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 9px;
+    color: #374151;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.socialBtn:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.5rem 0;
+}
+
+.dividerLine {
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+.dividerText {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 500;
+    white-space: nowrap;
 }

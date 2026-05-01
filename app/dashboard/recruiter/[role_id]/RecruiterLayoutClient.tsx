@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import styles from './recruiter-layout.module.css';
 
 const Icons = {
@@ -48,7 +49,9 @@ export default function RecruiterLayoutClient({ children }: { children: React.Re
         { label: 'Settings', href: '/dashboard/recruiter/settings', icon: Icons.settings, show: true },
     ];
 
-    if (loading && user) return <div className={styles.loading}>Initializing Recruiter Session...</div>;
+    if (loading && user) {
+        return <HomeSkeleton />;
+    }
 
     return (
         <div className={styles.shell}>

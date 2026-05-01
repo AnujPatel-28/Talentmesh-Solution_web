@@ -1,3 +1,5 @@
+import { insforge, invokeFunction } from '../insforge';
+
 export type ApplicationStatus =
   | 'applied'
   | 'reviewing'
@@ -30,68 +32,66 @@ export interface Application {
   };
 }
 
+/**
+ * Helper to build a URL with query parameters for Edge Functions
+ */
+function buildUrl(slug: string, params: Record<string, any>): string {
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== undefined && v !== null)
+  );
+  const query = new URLSearchParams(cleanParams as any).toString();
+  return query ? `${slug}?${query}` : slug;
+}
+
 export async function applyToJob(jobId: string, coverLetter?: string): Promise<{ success: boolean; applicationId?: string; error?: string }> {
   try {
-    const response = await fetch('/api/candidate/applications', {
+    const { data, error } = await invokeFunction('candidate-applications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ jobId, coverLetter }),
+      body: { jobId, coverLetter }
     });
-    const payload = await response.json();
 
-    if (!response.ok) {
-      return { success: false, error: payload.error || 'Application failed.' };
+    if (error) {
+      return { success: false, error: error.message || 'Application failed.' };
     }
 
-    return { success: true, applicationId: payload.application?.id };
+    return { success: true, applicationId: data?.application?.id };
   } catch (err: any) {
     return { success: false, error: err.message || 'Application failed.' };
   }
 }
 
 export async function getMyApplications(): Promise<Application[]> {
-  const response = await fetch('/api/candidate/applications', {
-    credentials: 'include',
-    cache: 'no-store',
+  const { data, error } = await invokeFunction('candidate-applications', {
+    method: 'GET'
   });
-  const payload = await response.json();
 
-  if (!response.ok) {
-    throw new Error(payload.error || 'Failed to fetch applications.');
+  if (error) {
+    throw new Error(error.message || 'Failed to fetch applications.');
   }
 
-  return (payload.applications || []) as Application[];
+  return (data?.applications || []) as Application[];
 }
 
 export async function withdrawApplication(id: string): Promise<void> {
-  const response = await fetch(`/api/candidate/applications/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ status: 'withdrawn' }),
+  const { error } = await invokeFunction(`candidate-applications-id?id=${id}`, {
+    method: 'DELETE'
   });
-  const payload = await response.json();
 
-  if (!response.ok) {
-    throw new Error(payload.error || 'Failed to withdraw application.');
+  if (error) {
+    throw new Error(error.message || 'Failed to withdraw application.');
   }
 }
 
 export async function checkAlreadyApplied(jobId: string): Promise<ApplicationStatus | null> {
-  const response = await fetch(`/api/candidate/applications?jobId=${encodeURIComponent(jobId)}`, {
-    credentials: 'include',
-    cache: 'no-store',
+  const { data, error } = await invokeFunction(`candidate-applications?jobId=${jobId}`, {
+    method: 'GET'
   });
 
-  if (response.status === 401 || response.status === 403) {
+  if (error) {
+    if (error.status === 401 || error.status === 403) return null;
     return null;
   }
 
-  const payload = await response.json();
-  if (!response.ok) {
-    return null;
-  }
-
-  return (payload.status as ApplicationStatus | null) || null;
+  return (data?.status as ApplicationStatus | null) || null;
 }
+

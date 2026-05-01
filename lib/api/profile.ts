@@ -1,109 +1,77 @@
 import { insforge } from '@/lib/insforge';
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  phone?: string;
-  location?: string;
-  bio?: string;
-  avatar_url?: string;
-  candidate_profiles?: CandidateProfile;
-}
-
-export interface CandidateProfile {
-  id: string;
-  headline?: string;
-  skills?: string[];
-  experience_years?: number;
-  education?: any[];
-  work_history?: any[];
-  resume_url?: string;
-  linkedin_url?: string;
-  github_url?: string;
-  portfolio_url?: string;
-  job_types?: string[];
-  preferred_locations?: string[];
-  salary_min?: number;
-  salary_max?: number;
-  currency?: string;
-  open_to_remote?: boolean;
-  profile_strength: number;
-  is_visible?: boolean;
-  updated_at?: string;
-}
+import type { UserProfile, CandidateProfile } from '@/types/user';
 
 /**
- * Fetches the current user's profile with joined candidate details.
+ * Fetches the current user's profile with joined candidate details via Edge Function.
  */
 export async function getMyProfile(): Promise<UserProfile> {
-  const { data: sessionData } = await insforge.auth.refreshSession();
-  const sessionUser = sessionData?.user;
-  if (!sessionUser) {
-    throw new Error('Unauthorized');
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+  const response = await fetch(`${baseUrl}/functions/candidate-profile`, {
+    method: 'GET',
+    headers: {
+      'x-client-info': 'talentmesh-web'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch profile: ${response.statusText}`);
   }
 
-  const { data, error } = await insforge.database
-    .from('profiles')
-    .select('*, candidate_profiles(*)')
-    .eq('id', sessionUser.id)
-    .single();
+  const data = await response.json();
 
-  if (error) {
-    throw new Error(`Failed to fetch profile: ${error.message}`);
-  }
-
-  return data as unknown as UserProfile;
+  // The Edge Function returns { profile, candidateProfile }
+  return {
+    ...data.profile,
+    candidate_profiles: data.candidateProfile
+  } as unknown as UserProfile;
 }
 
 /**
- * Updates the base user profile (profiles table).
+ * Updates the profile (base or candidate) via Edge Function.
  */
-export async function updateProfile(data: Partial<UserProfile>): Promise<void> {
-  const { data: sessionData } = await insforge.auth.refreshSession();
-  const sessionUser = sessionData?.user;
-  if (!sessionUser) throw new Error('Unauthorized');
+export async function updateProfile(bundle: { profile?: Partial<UserProfile>; candidateProfile?: Partial<CandidateProfile> }): Promise<UserProfile> {
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+  const response = await fetch(`${baseUrl}/functions/candidate-profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-client-info': 'talentmesh-web'
+    },
+    body: JSON.stringify(bundle)
+  });
 
-  const { error } = await insforge.database
-    .from('profiles')
-    .update(data)
-    .eq('id', sessionUser.id);
-
-  if (error) {
-    throw new Error(`Failed to update profile: ${error.message}`);
+  if (!response.ok) {
+    throw new Error(`Failed to update profile: ${response.statusText}`);
   }
+
+  const data = await response.json();
+
+  return {
+    ...data.profile,
+    candidate_profiles: data.candidateProfile
+  } as unknown as UserProfile;
 }
 
 /**
- * Updates the candidate-specific profile details.
+ * Marks onboarding as complete via Edge Function.
  */
-export async function updateCandidateProfile(data: Partial<CandidateProfile>): Promise<void> {
-  const { data: sessionData } = await insforge.auth.refreshSession();
-  const sessionUser = sessionData?.user;
-  if (!sessionUser) throw new Error('Unauthorized');
+export async function completeOnboarding(): Promise<void> {
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+  const response = await fetch(`${baseUrl}/functions/profile-complete-onboarding`, {
+    method: 'POST',
+    headers: {
+      'x-client-info': 'talentmesh-web'
+    }
+  });
 
-  // Calculate new strength if relevant fields have changed
-  const [{ data: current }, { data: baseProfile }] = await Promise.all([
-    insforge.database.from('candidate_profiles').select('*').eq('id', sessionUser.id).single(),
-    insforge.database.from('profiles').select('bio').eq('id', sessionUser.id).single()
-  ]);
-
-  const mergedForStrength = { ...current, ...data, bio: baseProfile?.bio };
-  const strength = calculateProfileStrength(mergedForStrength);
-
-  const { error } = await insforge.database
-    .from('candidate_profiles')
-    .update({ ...data, profile_strength: strength })
-    .eq('id', sessionUser.id);
-
-  if (error) {
-    throw new Error(`Failed to update candidate profile: ${error.message}`);
+  if (!response.ok) {
+    throw new Error(`Failed to complete onboarding: ${response.statusText}`);
   }
 }
 
 /**
  * Logic to calculate profile strength percentage 0-100.
+ * (Keeping this for client-side UI feedback if needed, but the server is now authoritative)
  */
 export function calculateProfileStrength(profile: any): number {
   if (!profile) return 0;
@@ -131,3 +99,4 @@ export function calculateProfileStrength(profile: any): number {
 
   return Math.min(strength, 100);
 }
+

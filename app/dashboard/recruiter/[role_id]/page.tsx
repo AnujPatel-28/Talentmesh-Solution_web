@@ -1,9 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import styles from './recruiter.module.css';
+import styles from '../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { formatTime, formatShortDate } from '@/lib/utils/date-utils';
 
 /* ─── Icons ─── */
 const IC = {
@@ -51,7 +53,12 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                     .from('interviews')
                     .select('*')
                     .limit(2);
-                setInterviews(intData || []);
+                
+                const mappedInterviews = (intData || []).map((i: any) => ({
+                    ...i,
+                    scheduledAt: i.scheduled_at
+                }));
+                setInterviews(mappedInterviews);
 
                 // Calculate Stats
                 const totalApplicants = openJobs.reduce((acc, j) => acc + (j.applicants || 0), 0);
@@ -71,7 +78,9 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
         fetchData();
     }, []);
 
-    if (loading) return <div className={styles.dash}><p style={{ color: 'white', padding: '2rem' }}>Loading Dashboard...</p></div>;
+    if (loading) {
+        return <HomeSkeleton />;
+    }
 
     return (
         <div className={styles.dash}>
@@ -85,7 +94,7 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                     <div className={styles.stat}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Open Positions</span>
-                            <span className={styles.statBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.clipboard}</span>
+                            <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.clipboard}</span>
                         </div>
                         <span className={styles.statVal}>{stats.open}</span>
                         <span className={styles.statHint}>3 urgent roles</span>
@@ -93,7 +102,7 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                     <div className={styles.stat}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Total Applicants</span>
-                            <span className={styles.statBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.users}</span>
+                            <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.users}</span>
                         </div>
                         <span className={styles.statVal}>{stats.applicants}</span>
                         <span className={styles.statChange}>{IC.trending} +18 this week</span>
@@ -101,15 +110,17 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                     <div className={styles.stat}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Interviews This Week</span>
-                            <span className={styles.statBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.calendar}</span>
+                            <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.calendar}</span>
                         </div>
                         <span className={styles.statVal}>{stats.interviews}</span>
-                        <span className={styles.statHint}>Next: Today, 3:00 PM</span>
+                        <span className={styles.statHint}>
+                            {interviews[0] ? `Next: ${formatShortDate(interviews[0].scheduledAt)}, ${formatTime(interviews[0].scheduledAt)}` : 'No upcoming interviews'}
+                        </span>
                     </div>
                     <div className={styles.stat}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Hires This Quarter</span>
-                            <span className={styles.statBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+                            <span className={styles.statIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
                         </div>
                         <span className={styles.statVal}>{stats.hires}</span>
                         <span className={styles.statHint}>Target: 20</span>
@@ -183,7 +194,7 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                             <h2 className={styles.cardTitle}>Today&apos;s Interviews</h2>
                             {interviews.length > 0 ? interviews.map((intr, i) => (
                                 <div key={i} className={styles.intCard}>
-                                    <div className={styles.intTime}>{intr.time}</div>
+                                    <div className={styles.intTime}>{formatTime(intr.scheduledAt)}</div>
                                     <div className={styles.intBody}>
                                         <span className={styles.intName}>{intr.role}</span>
                                         <span className={styles.intType}>{intr.type} Round</span>

@@ -1,178 +1,116 @@
-import { insforge } from '@/lib/insforge';
-
-export type JobStatus = 'draft' | 'active' | 'closed';
-
-export interface JobFilters {
-  search?: string;
-  type?: string;
-  location?: string;
-  salary_min?: number;
-  salary_max?: number;
-  industry?: string;
-  date_posted?: string;
-  page?: number;
-}
-
-export interface CreateJobInput {
-  company_id: string;
-  recruiter_id: string;
-  title: string;
-  description: string;
-  requirements?: string[];
-  skills_required?: string[];
-  type?: string;
-  location?: string;
-  salary_min?: number;
-  salary_max?: number;
-  currency?: string;
-  experience_min?: number;
-  experience_max?: number;
-  department?: string;
-}
+import { insforge, invokeFunction } from '../insforge';
+import { handleApiCall } from './index';
 
 export interface Job {
-  id: string;
-  title: string;
-  description: string;
-  requirements: string[] | null;
-  skills_required: string[] | null;
-  type: string;
-  location: string;
-  salary_min: number;
-  salary_max: number;
-  currency: string;
-  experience_min: number | null;
-  experience_max: number | null;
-  department: string | null;
-  status: JobStatus;
-  is_approved: boolean;
-  views_count: number;
-  applications_count: number;
-  created_at: string;
-  companies: {
-    name: string;
-    logo_url: string;
-    industry: string;
-  };
+    id: string;
+    title: string;
+    description: string;
+    requirements: string[];
+    skills_required: string[];
+    location: string;
+    type: string;
+    department?: string;
+    salary_min: number | null;
+    salary_max: number | null;
+    currency: string;
+    experience_min: number | null;
+    experience_max: number | null;
+    status: 'active' | 'paused' | 'closed' | 'draft';
+    created_at: string;
+    updated_at: string;
+    applications_count?: number;
+    companies?: {
+        name: string;
+        logo_url: string | null;
+    };
+    salary?: string;
+    posted_days?: number;
+    ai_match_rate?: number;
+    company_profiles?: any;
+}
+
+export interface JobFilters {
+    search?: string;
+    type?: string;
+    location?: string;
+    industry?: string;
+    salary_min?: number;
+    salary_max?: number;
+    date_posted?: string;
+    page?: number;
+    limit?: number;
 }
 
 /**
- * Fetches approved and active jobs with pagination and filters.
+ * Helper to build a URL with query parameters for Edge Functions
+ */
+function buildUrl(slug: string, params: Record<string, any>): string {
+    const cleanParams = Object.fromEntries(
+        Object.entries(params).filter(([_, v]) => v !== undefined && v !== null)
+    );
+    const query = new URLSearchParams(cleanParams as any).toString();
+    return query ? `${slug}?${query}` : slug;
+}
+
+/**
+ * Fetch approved/active jobs via Edge Function
  */
 export async function getApprovedJobs(filters: JobFilters = {}): Promise<Job[]> {
-  const params = new URLSearchParams({
-    page: String(filters.page || 0),
-    limit: '20',
-  });
+    const { data, error } = await invokeFunction(buildUrl('jobs', filters), {
+        method: 'GET'
+    });
 
-  if (filters.search) {
-    params.set('search', filters.search);
-  }
-  if (filters.type) {
-    params.set('type', filters.type);
-  }
-  if (filters.location) {
-    params.set('location', filters.location);
-  }
-  if (filters.salary_min) {
-    params.set('salary_min', String(filters.salary_min));
-  }
-  if (filters.salary_max) {
-    params.set('salary_max', String(filters.salary_max));
-  }
-  if (filters.industry) {
-    params.set('industry', filters.industry);
-  }
-  if (filters.date_posted) {
-    params.set('date_posted', filters.date_posted);
-  }
-
-  const response = await fetch(`/api/jobs?${params.toString()}`, {
-    credentials: 'include',
-    cache: 'no-store',
-  });
-  const payload = await response.json();
-
-  if (!response.ok) {
-    throw new Error(payload.error || 'Failed to fetch jobs');
-  }
-
-  return (payload.jobs || []) as Job[];
+    if (error) throw error;
+    return (data?.data || []) as Job[];
 }
 
 /**
- * Fetches a single job by ID and increments its views count.
+ * Fetch a single job by ID via Edge Function
  */
-export async function getJobById(id: string): Promise<Job> {
-  const response = await fetch(`/api/jobs/${id}`, {
-    credentials: 'include',
-    cache: 'no-store',
-  });
-  const payload = await response.json();
+export async function getJobById(id: string): Promise<Job | null> {
+    const { data, error } = await invokeFunction(`jobs-id?id=${id}`, {
+        method: 'GET'
+    });
 
-  if (!response.ok || !payload.job) {
-    throw new Error(payload.error || 'Job not found');
-  }
-
-  return payload.job as Job;
+    if (error) {
+        if (error.status === 404) return null;
+        throw error;
+    }
+    return data?.job as Job;
 }
 
 /**
- * Creates a new job in draft status.
+ * Legacy support for JobsApi object pattern
  */
-export async function createJob(data: CreateJobInput): Promise<Job> {
-  const { data: newJob, error } = await insforge.database
-    .from('jobs')
-    .insert([{
-      ...data,
-      status: 'draft',
-      is_approved: false
-    }])
-    .select()
-    .single();
+export const JobsApi = {
+    fetchAll: async (filters?: JobFilters) => invokeFunction(buildUrl('jobs', filters || {}), { method: 'GET' }),
+    fetchById: async (id: string) => invokeFunction(`jobs-id?id=${id}`, { method: 'GET' }),
+    create: async (job: Partial<Job>) => {
+        return handleApiCall(async () => 
+            insforge.database
+                .from('jobs')
+                .insert([job])
+                .select()
+                .single() as any
+        );
+    },
+    update: async (id: string, updates: Partial<Job>) => {
+        return handleApiCall(async () => 
+            insforge.database
+                .from('jobs')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single() as any
+        );
+    },
+    delete: async (id: string) => {
+        return handleApiCall(async () => 
+            insforge.database
+                .from('jobs')
+                .delete()
+                .eq('id', id) as any
+        );
+    }
+};
 
-  if (error) {
-    throw new Error(`Failed to create job: ${error.message}`);
-  }
-
-  return newJob as unknown as Job;
-}
-
-/**
- * Updates an existing job.
- */
-export async function updateJob(id: string, data: Partial<CreateJobInput>): Promise<Job> {
-  const { data: updatedJob, error } = await insforge.database
-    .from('jobs')
-    .update(data)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to update job: ${error.message}`);
-  }
-
-  return updatedJob as unknown as Job;
-}
-
-/**
- * Updates the status of a job.
- */
-export async function updateJobStatus(id: string, status: JobStatus): Promise<void> {
-  const { error } = await insforge.database
-    .from('jobs')
-    .update({ status })
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(`Failed to update job status: ${error.message}`);
-  }
-}
-
-/**
- * Soft deletes a job by setting its status to closed.
- */
-export async function deleteJob(id: string): Promise<void> {
-  return updateJobStatus(id, 'closed');
-}

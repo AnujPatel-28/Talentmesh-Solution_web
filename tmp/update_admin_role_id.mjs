@@ -1,7 +1,14 @@
 import { createClient } from '@insforge/sdk';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
-const supabaseUrl = 'https://sytk3jgv.ap-southeast.insforge.app';
-const supabaseAnonKey = 'ik_1a616463854d5d7b3fef4c4bf7516aee';
+const supabaseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Error: NEXT_PUBLIC_INSFORGE_URL or NEXT_PUBLIC_INSFORGE_ANON_KEY not found in .env.local');
+  process.exit(1);
+}
 
 const insforge = createClient({
   baseUrl: supabaseUrl,

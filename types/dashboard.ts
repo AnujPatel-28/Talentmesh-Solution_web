@@ -69,8 +69,7 @@ export interface Interview {
     candidateName: string;
     candidateAvatar: string;
     role: string;
-    date: string;           // e.g. "Mon Feb 25"
-    time: string;           // e.g. "10:00 AM"
+    scheduledAt: string;    // ISO 8601 format
     duration: string;       // e.g. "45 min"
     type: InterviewType;
     status: InterviewStatus;

@@ -72,6 +72,7 @@ export async function moveApplicationStage(applicationId: string, status: string
  * Completes recruiter setup by linking to a company and setting role details.
  */
 export async function completeRecruiterSetup(data: { 
+  name: string;
   companyName: string; 
   jobTitle: string; 
   department: string; 
@@ -79,6 +80,14 @@ export async function completeRecruiterSetup(data: {
   const { data: sessionData } = await insforge.auth.refreshSession();
   const sessionUser = sessionData?.user;
   if (!sessionUser) throw new Error('Unauthorized');
+
+  // 0. Update name in profiles table
+  const { error: nameError } = await insforge.database
+    .from('profiles')
+    .update({ name: data.name })
+    .eq('id', sessionUser.id);
+
+  if (nameError) throw new Error(`Failed to update name: ${nameError.message}`);
 
   // 1. Find or create company by name
   let { data: company } = await insforge.database

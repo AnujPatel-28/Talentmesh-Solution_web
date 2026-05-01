@@ -1,7 +1,19 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
 
 :root {
-  --background: #ffffff;
+  --background: #F2F3F4;
   --foreground: #000000;
 
   /* Brand Palette */
@@ -161,13 +173,6 @@
 
 html {
   scroll-behavior: smooth;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
-  --font-heading: var(--font-jakarta);
 }
 
 /* Enforce white background always */

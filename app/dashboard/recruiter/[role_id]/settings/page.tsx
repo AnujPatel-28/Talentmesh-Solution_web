@@ -1,8 +1,88 @@
 "use client";
-import React from 'react';
-import styles from '../recruiter.module.css';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { insforge } from '@/lib/insforge';
+import { FormSkeleton } from '@/components/ui/DashboardSkeleton';
+import styles from '../../../shared-dashboard.module.css';
 
 export default function RecruiterSettingsPage() {
+    const { user, refreshUser } = useAuth();
+    const [profile, setProfile] = useState({
+        name: '',
+        email: '',
+        job_title: '',
+        phone: '',
+        company_name: ''
+    });
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [message, setMessage] = useState({ text: '', type: 'success' });
+
+    useEffect(() => {
+        async function fetchProfile() {
+            if (!user) return;
+            try {
+                const { data: prof, error: profErr } = await insforge.database
+                    .from('profiles')
+                    .select('*, recruiter_profiles(*, companies(name))')
+                    .eq('id', user.id)
+                    .single();
+
+                if (profErr) throw profErr;
+
+                setProfile({
+                    name: prof.name || '',
+                    email: prof.email || '',
+                    job_title: prof.recruiter_profiles?.[0]?.job_title || '',
+                    phone: prof.phone || '',
+                    company_name: prof.recruiter_profiles?.[0]?.companies?.name || ''
+                });
+            } catch (err) {
+                console.error('Error fetching recruiter profile:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchProfile();
+    }, [user]);
+
+    const handleSaveProfile = async () => {
+        if (!user) return;
+        setIsSaving(true);
+        setMessage({ text: '', type: 'success' });
+        try {
+            // Update base profile (name, phone)
+            const { error: profErr } = await insforge.database
+                .from('profiles')
+                .update({ name: profile.name, phone: profile.phone })
+                .eq('id', user.id);
+
+            if (profErr) throw profErr;
+
+            // Update recruiter profile (job_title)
+            const { error: recErr } = await insforge.database
+                .from('recruiter_profiles')
+                .update({ job_title: profile.job_title })
+                .eq('id', user.id);
+
+            if (recErr) throw recErr;
+
+            // 🔥 Refresh global state to sync Navbar/Sidebar name
+            await refreshUser();
+
+            setMessage({ text: 'Profile updated successfully!', type: 'success' });
+        } catch (err) {
+            console.error('Error saving profile:', err);
+            setMessage({ text: 'Failed to update profile.', type: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+        return <FormSkeleton />;
+    }
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div>
@@ -10,7 +90,21 @@ export default function RecruiterSettingsPage() {
                 <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 2 }}>Manage your recruiter profile, company info, and preferences</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {message.text && (
+                <div style={{ 
+                    padding: '0.75rem 1rem', 
+                    borderRadius: 10, 
+                    fontSize: '0.85rem', 
+                    fontWeight: 500,
+                    backgroundColor: message.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                    color: message.type === 'success' ? '#16a34a' : '#dc2626',
+                    border: `1px solid ${message.type === 'success' ? '#bbf7d0' : '#fecaca'}`
+                }}>
+                    {message.text}
+                </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '1rem' }}>
 
                 {/* Profile */}
                 <div style={{ background: '#fff', border: '1px solid #eef0f2', borderRadius: 14, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -18,22 +112,52 @@ export default function RecruiterSettingsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Full Name</label>
-                            <input defaultValue="Harper Reid" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+                            <input 
+                                value={profile.name} 
+                                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} 
+                            />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Email</label>
-                            <input defaultValue="harper@techcorp.com" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+                            <input value={profile.email} disabled style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#94a3b8' }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Job Title</label>
-                            <input defaultValue="Senior Talent Acquisition Manager" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+                            <input 
+                                value={profile.job_title}
+                                onChange={(e) => setProfile({ ...profile, job_title: e.target.value })}
+                                style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} 
+                            />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Phone</label>
-                            <input defaultValue="+1 (555) 987-6543" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+                            <input 
+                                value={profile.phone}
+                                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                                style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} 
+                            />
                         </div>
                     </div>
-                    <button style={{ alignSelf: 'flex-start', padding: '0.5rem 1.2rem', background: 'linear-gradient(135deg, var(--primary-blue), #2563eb)', color: 'white', border: 'none', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 3px 10px rgba(37,99,235,0.25)' }}>Save Profile</button>
+                    <button 
+                        onClick={handleSaveProfile}
+                        disabled={isSaving}
+                        style={{ 
+                            alignSelf: 'flex-start', 
+                            padding: '0.5rem 1.2rem', 
+                            background: isSaving ? '#94a3b8' : 'linear-gradient(135deg, var(--primary-blue), #2563eb)', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: 10, 
+                            fontSize: '0.82rem', 
+                            fontWeight: 700, 
+                            cursor: isSaving ? 'not-allowed' : 'pointer', 
+                            fontFamily: 'inherit', 
+                            boxShadow: '0 3px 10px rgba(37,99,235,0.25)' 
+                        }}
+                    >
+                        {isSaving ? 'Saving...' : 'Save Profile'}
+                    </button>
                 </div>
 
                 {/* Company Info */}
@@ -42,7 +166,7 @@ export default function RecruiterSettingsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Company Name</label>
-                            <input defaultValue="TechCorp Inc." style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
+                            <input value={profile.company_name} disabled style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none', background: '#f8fafc', color: '#94a3b8' }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Industry</label>
@@ -55,10 +179,6 @@ export default function RecruiterSettingsPage() {
                             <select defaultValue="201-500" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }}>
                                 <option>1-50</option><option>51-200</option><option>201-500</option><option>501-1000</option><option>1000+</option>
                             </select>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Website</label>
-                            <input defaultValue="https://techcorp.com" style={{ padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }} />
                         </div>
                     </div>
                     <button style={{ alignSelf: 'flex-start', padding: '0.5rem 1.2rem', background: 'linear-gradient(135deg, var(--primary-blue), #2563eb)', color: 'white', border: 'none', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 3px 10px rgba(37,99,235,0.25)' }}>Update Company</button>

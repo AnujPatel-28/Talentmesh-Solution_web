@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import styles from './JobListings.module.css'; // Reusing similar grid styles if possible, or sections.module.css
+import styles from './sections.module.css'; // Using standard section styles
 
 interface BlogPost {
     id: string;
@@ -20,6 +20,36 @@ const IconArrowRight = () => (
     </svg>
 );
 
+const MOCK_POSTS: BlogPost[] = [
+    {
+        id: 'mock-1',
+        title: 'The Future of AI in Tech Recruitment',
+        slug: 'future-of-ai-recruitment',
+        excerpt: 'Discover how artificial intelligence is reshaping how companies discover and hire top engineering talent in 2026.',
+        cover_image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e',
+        category: 'AI & Future',
+        created_at: new Date().toISOString()
+    },
+    {
+        id: 'mock-2',
+        title: 'Developers Guide to Navigating the Modern Job Market',
+        slug: 'dev-guide-modern-job-market',
+        excerpt: 'Standing out requires more than just knowing React. Learn the soft skills and portfolio strategies that get noticed.',
+        cover_image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085',
+        category: 'Career Growth',
+        created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+        id: 'mock-3',
+        title: 'Why Salary Transparency Wins Top Talent',
+        slug: 'salary-transparency-wins',
+        excerpt: 'Data shows companies upfront about compensation see a 30% higher acceptance rate from senior candidates.',
+        cover_image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c',
+        category: 'Hiring Insights',
+        created_at: new Date(Date.now() - 86400000 * 5).toISOString()
+    }
+];
+
 export const BlogFeed = () => {
     const [posts, setPosts] = useState<BlogPost[]>([]);
     const [loading, setLoading] = useState(true);
@@ -32,9 +62,10 @@ export const BlogFeed = () => {
                 if (!response.ok) {
                     throw new Error(payload.error || 'Failed to fetch posts');
                 }
-                setPosts(payload.blogs || []);
+                setPosts(payload.blogs && payload.blogs.length > 0 ? payload.blogs : MOCK_POSTS);
             } catch (err) {
                 console.error('Blog feed error:', err);
+                setPosts(MOCK_POSTS);
             } finally {
                 setLoading(false);
             }
@@ -43,16 +74,17 @@ export const BlogFeed = () => {
     }, []);
 
     if (loading) return null; // Or skeleton
-    if (posts.length === 0) return null;
+
+    const isMockData = posts === MOCK_POSTS;
 
     return (
-        <section className="premium-section" style={{ background: '#f8fafc' }}>
+        <section className="premium-section" style={{ background: 'var(--background)' }}>
             <div className="premium-container">
                 <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                    <span style={{ color: 'var(--primary-blue)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    <span style={{ display: 'inline-block', padding: '0.4rem 1rem', background: 'var(--alice-blue)', color: 'var(--primary-blue)', border: '1px solid var(--icy-blue)', borderRadius: '9999px', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                         Knowledge Hub
                     </span>
-                    <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginTop: '0.5rem', color: '#0f172a' }}>
+                    <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginTop: '1rem', color: '#0f172a' }}>
                         Latest from the <span className="text-gradient">Blog.</span>
                     </h2>
                     <p style={{ color: '#64748b', marginTop: '1rem', maxWidth: '600px', margin: '1rem auto 0' }}>
@@ -65,20 +97,20 @@ export const BlogFeed = () => {
                         <Link href={`/blog/${post.slug}`} key={post.id} style={{ textDecoration: 'none' }}>
                             <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                                 <div style={{ position: 'relative', width: '100%', height: '200px' }}>
-                                    <Image 
-                                        src={post.cover_image || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d'} 
-                                        alt={post.title} 
-                                        fill 
+                                    <Image
+                                        src={post.cover_image || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d'}
+                                        alt={post.title}
+                                        fill
                                         style={{ objectFit: 'cover' }}
                                     />
-                                    <span style={{ 
-                                        position: 'absolute', 
-                                        top: '1rem', 
-                                        left: '1rem', 
-                                        background: 'rgba(255,255,255,0.9)', 
-                                        padding: '0.3rem 0.8rem', 
-                                        borderRadius: '20px', 
-                                        fontSize: '0.7rem', 
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: '1rem',
+                                        left: '1rem',
+                                        background: 'rgba(255,255,255,0.9)',
+                                        padding: '0.3rem 0.8rem',
+                                        borderRadius: '20px',
+                                        fontSize: '0.7rem',
                                         fontWeight: 700,
                                         color: '#0f172a'
                                     }}>
@@ -104,8 +136,8 @@ export const BlogFeed = () => {
                     ))}
                 </div>
 
-                <div style={{ textAlign: 'center', marginTop: '4rem' }}>
-                    <Link href="/blog" className="secondaryBtn" style={{ padding: '0.8rem 2rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fff' }}>
+                <div style={{ textAlign: 'center', marginTop: '4rem' }} className={styles.candidates}>
+                    <Link href={isMockData ? "/login" : "/blog"} className={styles.segmentAction} style={{ textDecoration: 'none' }}>
                         View All Articles
                     </Link>
                 </div>

@@ -15,9 +15,6 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
     title: "TalentMesh — Sign In / Sign Up",
     description: "Access your TalentMesh account — AI-powered recruiting platform.",
-    icons: {
-        icon: '/TalentMesh White Logo.png',
-    },
 };
 
 export default function AuthLayout({

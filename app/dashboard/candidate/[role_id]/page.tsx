@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './candidate.module.css';
+import styles from '../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { formatTime, formatShortDate } from '@/lib/utils/date-utils';
 
 /* ─── Inline SVG icons ─── */
 const IC = {
@@ -30,7 +32,7 @@ const IC = {
 export default function CandidateHome({ params }: { params: Promise<{ role_id: string }> }) {
     const { role_id } = React.use(params) || {}; // Handle async params
     const router = useRouter();
-    const { user: authUser } = useAuth();
+    const { user: authUser, isLoading: authLoading } = useAuth();
     const [profile, setProfile] = useState<any>(null);
     const [jobs, setJobs] = useState<any[]>([]);
     const [activity, setActivity] = useState<any[]>([]);
@@ -39,60 +41,115 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
     const [nextInterview, setNextInterview] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
     useEffect(() => {
+        // 0. Auth Guard
+        if (!authLoading && !authUser) {
+            router.replace('/login');
+            return;
+        }
+
+        // 1. Guard against uninitialized role_id
+        if (!role_id || role_id === ':role_id' || role_id === 'undefined') return;
+
+        // 2. Self-Correction: If URL has an invalid ID (e.g. cand_...), redirect to actual user UUID
+        if (!isUUID(role_id) && authUser?.id && isUUID(authUser.id)) {
+            console.log('Redirecting to valid UUID dashboard path...');
+            router.replace(`/dashboard/candidate/${authUser.id}`);
+            return;
+        }
+
+        // 3. Final safety: Don't query if still not a UUID
+        if (!isUUID(role_id)) {
+            // If we have authUser but it's still missing or loading, just wait
+            if (!authUser) return;
+            // If authUser is loaded but we're still here, it might be a broken session
+            return;
+        }
+
         async function fetchData() {
+            setLoading(true);
             try {
                 // Fetch Profile
-                const { data: profileData } = await insforge.database
+                const { data: profileData, error: pError } = await insforge.database
                     .from('candidate_profiles')
                     .select('*')
                     .eq('id', role_id)
                     .single();
+                
+                if (pError) console.warn('Profile fetch error:', pError.message);
                 setProfile(profileData);
 
                 // Fetch App Count
-                const { count: aCount } = await insforge.database
+                const { count: aCount, error: appsError } = await insforge.database
                     .from('applications')
                     .select('*', { count: 'exact', head: true })
                     .eq('candidate_id', role_id);
+                
+                if (appsError) console.warn('Apps count error:', appsError.message);
                 setAppCount(aCount || 0);
 
                 // Fetch Interview Count & Next Interview
-                const { data: interviews, count: iCount } = await insforge.database
+                const { data: interviews, count: iCount, error: intError } = await insforge.database
                     .from('interviews')
-                    .select('*, applications(jobs(title, companies(name)))')
+                    .select(`
+                        *,
+                        applications (
+                            id,
+                            jobs (
+                                id,
+                                title,
+                                companies (
+                                    name
+                                )
+                            )
+                        )
+                    `)
                     .eq('candidate_id', role_id)
                     .order('scheduled_at', { ascending: true });
+                
+                if (intError) console.warn('Interviews fetch error:', intError.message);
                 setInterviewCount(iCount || 0);
-                if (interviews && interviews.length > 0) setNextInterview(interviews[0]);
+                if (interviews && interviews.length > 0) {
+                    setNextInterview({
+                        ...interviews[0],
+                        scheduledAt: interviews[0].scheduled_at
+                    });
+                }
 
                 // Fetch Jobs with Company details
-                // Using API for complex join if needed, or direct
-                const { data: jobsData } = await insforge.database
+                const { data: jobsData, error: jobsError } = await insforge.database
                     .from('jobs')
                     .select('*, companies(name)')
                     .eq('status', 'active')
                     .limit(3);
+                
+                if (jobsError) console.warn('Jobs fetch error:', jobsError.message);
                 setJobs(jobsData || []);
 
                 // Fetch Activity
-                const { data: actData } = await insforge.database
+                const { data: actData, error: actError } = await insforge.database
                     .from('activity')
                     .select('*')
                     .eq('user_id', role_id)
                     .order('created_at', { ascending: false })
                     .limit(5);
+                
+                if (actError) console.warn('Activity fetch error:', actError.message);
                 setActivity(actData || []);
             } catch (error) {
-                console.error('Error fetching data:', error);
+                console.error('Unexpected dashboard fetch error:', error);
             } finally {
                 setLoading(false);
             }
         }
         fetchData();
-    }, []);
+    }, [role_id, authUser, router]);
 
-    if (loading) return <div className={styles.dash}><p style={{ color: 'white', padding: '2rem' }}>Loading Dashboard...</p></div>;
+    if (loading) {
+        return <HomeSkeleton />;
+    }
 
     const userName = authUser?.name || profile?.name || authUser?.email?.split('@')[0] || 'User';
 
@@ -107,7 +164,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
             {/* Stat Cards */}
             <AnimateOnScroll animation="fadeUp" delay={100}>
                 <div className={styles.stats}>
-                    <div className={styles.stat}>
+                    <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/applications`)}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Active Applications</span>
                             <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.send}</span>
@@ -115,7 +172,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                         <span className={styles.statVal}>{appCount}</span>
                         <span className={styles.statChange}>{IC.trending} Real-time status</span>
                     </div>
-                    <div className={styles.stat}>
+                    <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/profile`)}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Profile Strength</span>
                             <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.target}</span>
@@ -123,14 +180,14 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                         <span className={styles.statVal}>{profile?.profile_strength || 85}%</span>
                         <span className={styles.statHint}>Add {Math.max(0, 90 - (profile?.profile_strength || 85))}% more to reach 90%</span>
                     </div>
-                    <div className={styles.stat}>
+                    <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/messages`)}>
                         <div className={styles.statTop}>
                             <span className={styles.statLabel}>Upcoming Interviews</span>
                             <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.cal}</span>
                         </div>
                         <span className={styles.statVal}>{interviewCount}</span>
                         <span className={styles.statHint}>
-                            {nextInterview ? `Next: ${new Date(nextInterview.scheduled_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'No upcoming interviews'}
+                            {nextInterview ? `Next: ${formatShortDate(nextInterview.scheduledAt)}, ${formatTime(nextInterview.scheduledAt)}` : 'No upcoming interviews'}
                         </span>
                     </div>
                 </div>
@@ -144,7 +201,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                         <div className={styles.card}>
                             <div className={styles.cardHead}>
                                 <h2 className={styles.cardTitle}>{IC.star} Top AI Matches</h2>
-                                <button className={styles.viewAll}>View all matches</button>
+                                <button className={styles.viewAll} onClick={() => router.push(`/dashboard/candidate/${role_id}/search`)}>View all matches</button>
                             </div>
                             {jobs.map((job, i) => (
                                 <div key={i} className={styles.jobCard}>
@@ -194,13 +251,13 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                             </div>
                             {nextInterview ? (
                                 <div className={styles.scheduleItem}>
-                                    <div className={styles.schedBadge}>{new Date(nextInterview.scheduled_at) > new Date() ? 'UPCOMING' : 'TODAY'}</div>
+                                    <div className={styles.schedBadge}>{new Date(nextInterview.scheduledAt) > new Date() ? 'UPCOMING' : 'TODAY'}</div>
                                     <span className={styles.schedTitle}>{nextInterview.type.toUpperCase()} INTERVIEW</span>
                                     <span className={styles.schedMeta}>
                                         {nextInterview.applications?.jobs?.companies?.name || 'Company'} · {nextInterview.applications?.jobs?.title || 'Role'}
                                     </span>
                                     <div className={styles.schedDetails}>
-                                        <span>{IC.clock} {new Date(nextInterview.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span>{IC.clock} {formatTime(nextInterview.scheduledAt)}</span>
                                         <span>{IC.monitor} Online Join</span>
                                     </div>
                                     {nextInterview.meeting_link && (
@@ -220,11 +277,11 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                         <div className={styles.card}>
                             <h2 className={styles.cardTitle}>Quick Actions</h2>
                             {[
-                                { icon: IC.file, label: 'Update Resume' },
-                                { icon: IC.sliders, label: 'Edit Preferences' },
-                                { icon: IC.award, label: 'Add Certifications' },
+                                { icon: IC.file, label: 'Update Resume', route: `/dashboard/candidate/${role_id}/profile` },
+                                { icon: IC.sliders, label: 'Edit Preferences', route: `/dashboard/candidate/${role_id}/settings` },
+                                { icon: IC.award, label: 'Add Certifications', route: `/dashboard/candidate/${role_id}/profile` },
                             ].map((qa, i) => (
-                                <button key={i} className={styles.quickAction}>
+                                <button key={i} className={styles.quickAction} onClick={() => router.push(qa.route)}>
                                     <span className={styles.qaIcon}>{qa.icon}</span>
                                     <span className={styles.qaLabel}>{qa.label}</span>
                                     {IC.chevron}

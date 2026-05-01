@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import styles from './reports.module.css';
+import { insforge } from '@/lib/insforge';
 
 type ReportsData = {
   metrics: {
@@ -32,9 +33,14 @@ export default function AdminReportsPage() {
   useEffect(() => {
     async function fetchReports() {
       try {
-        const res = await fetch('/api/admin/reports');
-        if (res.ok) {
-          setData(await res.json());
+        const { data, error: fetchError } = await insforge.functions.invoke('admin-dashboard', {
+          body: { action: 'get-reports' }
+        });
+        
+        if (fetchError) throw new Error(fetchError.message);
+        
+        if (data) {
+          setData(data);
         }
       } catch (err) {
         setError('Failed to load platform analytics');

@@ -63,7 +63,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #ffffff;
+    background: var(--background);
     text-align: center;
 }
 
@@ -94,7 +94,7 @@
     display: inline-flex;
     align-items: center;
     padding: 0.6rem 1.2rem;
-    background: #ffffff;
+    background: var(--background);
     color: var(--primary-blue);
     border: 1px solid rgba(0, 123, 255, 0.2);
     border-radius: 50px;
@@ -130,7 +130,7 @@
 
 .searchContainer {
     display: flex;
-    background: #ffffff;
+    background: var(--background);
     padding: 8px;
     border-radius: 14px;
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05), 0px 1px 3px rgba(0, 0, 0, 0.04);
@@ -252,7 +252,7 @@
     top: 100%;
     left: 0;
     width: 100%;
-    background: white;
+    background: var(--background);
     border: 1px solid #E2E8F0;
     border-radius: 0 0 8px 8px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -300,7 +300,7 @@
 /* Dashboard Peek — grounded visual anchor */
 .dashboardPeek {
     margin-top: 2.5rem;
-    background: #ffffff;
+    background: var(--background);
     border: 1px solid #E2E8F0;
     border-radius: 12px;
     width: 100%;
@@ -315,7 +315,7 @@
     align-items: center;
     gap: 6px;
     padding: 10px 16px;
-    background: #F8FAFC;
+    background: var(--background);
     border-bottom: 1px solid #E2E8F0;
 }
 
@@ -352,7 +352,7 @@
 }
 
 .dashboardRow:hover {
-    background: #F8FAFC;
+    background: var(--background);
 }
 
 .dashboardAvatar {
@@ -574,7 +574,7 @@
     padding: 6rem 2rem;
     position: relative;
     overflow: hidden;
-    background: var(--white);
+    background: var(--background);
 }
 
 .stepsGrid {
@@ -610,7 +610,7 @@
     position: relative;
     z-index: 10;
     text-align: center;
-    background: var(--white);
+    background: var(--background);
     padding: 2.5rem 1.5rem;
     border-radius: 1.5rem;
     border: 1px solid transparent;
@@ -618,7 +618,7 @@
 }
 
 .stepCard:hover {
-    background: #ffffff;
+    background: var(--background);
     border-color: var(--primary-blue);
     box-shadow: 0 25px 50px -12px rgba(0, 123, 255, 0.15);
     transform: translateY(-5px);
@@ -628,7 +628,7 @@
 .stepNumber {
     width: 4rem;
     height: 4rem;
-    background: var(--white);
+    background: var(--background);
     color: var(--primary-blue);
     border: 2px solid var(--primary-blue);
     border-radius: 50%;
@@ -1021,7 +1021,7 @@
 }
 
 .ctaBtn {
-    background: var(--white);
+    background: var(--background);
     color: var(--deep-navy);
     padding: 1.1rem 3rem;
     border-radius: 9999px;
@@ -1048,7 +1048,7 @@
     padding: 6rem 2rem;
     position: relative;
     overflow: hidden;
-    background: var(--white);
+    background: var(--background);
     position: relative;
     overflow: hidden;
 }
@@ -1063,7 +1063,7 @@
 }
 
 .industryCard {
-    background: var(--white);
+    background: var(--background);
     border: 1px solid rgba(0, 0, 0, 0.05);
     border-radius: 1rem;
     padding: 1.25rem 2rem;
@@ -1077,7 +1077,7 @@
 
 .industryCard:hover {
     transform: translateY(-5px) scale(1.05);
-    background: var(--white);
+    background: var(--background);
     box-shadow: 0 20px 25px -5px rgba(0, 123, 255, 0.15), 0 10px 10px -5px rgba(0, 123, 255, 0.04);
     border-color: var(--primary-blue);
     z-index: 10;
@@ -1117,7 +1117,7 @@
     padding: 6rem 2rem;
     position: relative;
     overflow: hidden;
-    background: var(--white);
+    background: var(--background);
 }
 
 .pricingGrid {
@@ -1129,7 +1129,7 @@
 }
 
 .pricingCard {
-    background: var(--white);
+    background: var(--background);
     border: 1px solid var(--icy-blue);
     border-radius: 1.5rem;
     padding: 3rem 2rem;
@@ -1230,7 +1230,7 @@
 }
 
 .faqItem {
-    background: var(--white);
+    background: var(--background);
     padding: 2rem;
     border-radius: 1rem;
     border: 1px solid rgba(0, 0, 0, 0.05);
@@ -1261,7 +1261,7 @@
 }
 
 .jobCard {
-    background: var(--white);
+    background: var(--background);
     padding: 2rem;
     border-radius: 1rem;
     border: 1px solid rgba(0, 0, 0, 0.05);
@@ -1353,7 +1353,7 @@
 .jobTag {
     font-size: 0.85rem;
     color: var(--medium-grey);
-    background: #f8fafc;
+    background: var(--background);
     padding: 0.25rem 0.75rem;
     border-radius: 4px;
     border: 1px solid #e2e8f0;
@@ -1363,7 +1363,7 @@
 /* INDUSTRIES SECTION */
 .industries {
     padding: 6rem 0;
-    background: var(--white);
+    background: var(--background);
     position: relative;
     overflow: hidden;
 }
@@ -1440,7 +1440,7 @@
     padding: 6rem 2rem;
     position: relative;
     overflow: hidden;
-    background: var(--white);
+    background: var(--background);
 }
 
 .segmentsGrid {
@@ -1452,7 +1452,7 @@
 }
 
 .segmentCard {
-    background: var(--white);
+    background: var(--background);
     border-radius: 2rem;
     padding: 3.5rem;
     position: relative;
@@ -1503,7 +1503,7 @@
 
 /* Specific styling for Candidates card (Light Theme) */
 .segmentCard.candidates {
-    background: #ffffff;
+    background: var(--background);
     border: 1px solid #f1f5f9;
 }
 
@@ -1609,7 +1609,7 @@
 
 /* Employers button (dark card) — white bg + dark text */
 .employers .segmentAction {
-    background: var(--white);
+    background: var(--background);
     color: var(--deep-navy);
     border: 2px solid rgba(255, 255, 255, 0.2);
 }
@@ -2330,7 +2330,7 @@
 
     .industryCard {
         flex-shrink: 0;
-        background: #f8fafc;
+        background: var(--background);
         padding: 0.5rem 1rem;
         border-radius: 0.5rem;
     }

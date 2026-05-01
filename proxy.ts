@@ -14,6 +14,10 @@ interface MiddlewareUser {
   role_id?: string | null;
 }
 
+/**
+ * Next.js 16 Proxy (formerly Middleware)
+ * Separates access control logic into a dedicated edge layer.
+ */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('tm_access_token')?.value;
@@ -39,7 +43,7 @@ export async function proxy(request: NextRequest) {
 
         const { data: profile } = await insforge.database
           .from('profiles')
-          .select('role, mfa_enabled, role_id,completed_onboarding')
+          .select('role, mfa_enabled, role_id, completed_onboarding')
           .eq('id', user.id)
           .single();
 
@@ -63,7 +67,6 @@ export async function proxy(request: NextRequest) {
 
   const isAdmin = ['admin', 'super_admin'].includes(role || '');
   const hasAdminAccessCookie = request.cookies.get('tm_admin_access')?.value === 'true';
-  const session = user ? { user } : null;
 
   const authPages = ['/login', '/signup', '/forgot-password', '/admin/login', '/auth/forgot-password'];
   if (user && authPages.includes(pathname)) {
@@ -87,26 +90,13 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Onboarding Redirection Logic
-   // const isCandidate = role === 'candidate';
-    //const isRecruiter = role === 'recruiter';
-    //const hasRoleId = user.role_id || user.metadata?.role_id; // Check if user has a custom role_id set
-    
-    // For now, let's use the presence of role_id as the indicator of completed onboarding
-    // since both Candidate and Recruiter onboarding flows eventually set it.
-   // if ((isCandidate || isRecruiter) && !hasRoleId && !pathname.startsWith('/onboarding')) {
-     // const dest = isCandidate ? '/onboarding/candidate' : '/onboarding/recruiter/setup';
-     // return NextResponse.redirect(new URL(dest, request.url));
-    //}
-    
-
-   // 🔥 Correct onboarding logic
+    // 🔥 Correct onboarding logic
     if ((role === 'candidate' || role === 'recruiter') && !completedOnboarding && !pathname.startsWith('/onboarding')) {
-    const dest = role === 'candidate'
-      ? '/onboarding/candidate'
-     : '/onboarding/recruiter/setup';
+      const dest = role === 'candidate'
+        ? '/onboarding/candidate'
+        : '/onboarding/recruiter/setup';
 
-     return NextResponse.redirect(new URL(dest, request.url));
+      return NextResponse.redirect(new URL(dest, request.url));
     }
   }
 
@@ -164,14 +154,7 @@ export async function proxy(request: NextRequest) {
     if (user && !isWhitelistedAdminEmail(user.email ?? '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    // If no user at all, handled by the specific route or fallback to 401
   }
-
-  // Security: Simple Rate Limiting Point (Stub)
-  // In production, use Redis or a dedicated rate-limiting service/middleware
-  // We can track usage per IP or Token here if needed.
-  // const ip = request.ip || '127.0.0.1';
-  // const rateLimitKey = `rl:${ip}:${pathname}`;
 
   return NextResponse.next();
 }
@@ -187,7 +170,7 @@ export const config = {
     '/admin/login',
     '/auth/forgot-password',
     '/auth/setup-mfa',
-    '/api/admin/:path*', // Added explicit API admin protection
+    '/api/admin/:path*',
     '/api/candidate-profile/:path*',
   ],
 };

@@ -3,7 +3,10 @@ const path = require('path');
 
 const CONFIG = {
   includeExtensions: ['.js', '.jsx', '.ts', '.tsx', '.css', '.scss', '.html', '.md', '.json', '.yaml', '.yml', '.sql'],
-  excludeDirectories: ['node_modules', '.git', '.next', 'dist', 'build', '.vercel', 'bundles', 'tmp'],
+  excludeDirectories: [
+    'node_modules', '.git', '.next', 'dist', 'build', '.vercel', 'bundles', 'tmp', 'coverage',
+    '.agents', '.augment', '.claude', '.kilocode', '.qoder', '.qwen', '.roo', '.trae', '.windsurf'
+  ],
   excludeFiles: ['.env', '.env.local', 'package-lock.json', 'yarn.lock', '.DS_Store', 'tsconfig.tsbuildinfo'],
   projectRoot: path.resolve(__dirname, '..'),
   outputDir: path.resolve(__dirname, '../bundles'),

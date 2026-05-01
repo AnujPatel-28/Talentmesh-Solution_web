@@ -53,14 +53,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const syncAuthCookies = useCallback((token: string, authUser: Pick<User, 'role' | 'email'>) => {
+  const syncAuthCookies = useCallback(async (token: string, authUser: Pick<User, 'role' | 'email'>) => {
     clearAuthCookies();
-    document.cookie = `tm_access_token=${token}; path=/; SameSite=Lax`;
-    document.cookie = `tm_role=${authUser.role}; path=/; SameSite=Lax`;
-
-    if (authUser.role === 'admin' || authUser.role === 'super_admin' || isAdminEmail(authUser.email)) {
-      document.cookie = 'tm_admin_access=true; path=/; SameSite=Lax';
-    }
+    const adminAccess = authUser.role === 'admin' || authUser.role === 'super_admin' || isAdminEmail(authUser.email);
+    
+    // Call the auth-session edge function to set cookies in the function domain
+    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+    await fetch(`${baseUrl}/functions/auth-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'x-client-info': 'talentmesh-web'
+      },
+      body: JSON.stringify({
+        token,
+        role: authUser.role,
+        adminAccess,
+      }),
+    }).catch(console.error);
   }, [clearAuthCookies]);
 
   const cacheUser = useCallback((authUser: User | null) => {
@@ -158,9 +169,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/session', {
-        credentials: 'include',
-        cache: 'no-store',
+      // Use the auth-session edge function to check current session
+      const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+      const response = await fetch(`${baseUrl}/functions/auth-session`, {
+        method: 'GET',
+        headers: {
+          'x-client-info': 'talentmesh-web'
+        }
       });
 
       if (!response.ok) {
@@ -170,13 +185,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const payload = await response.json();
-      const resolvedUser = (payload?.user || null) as User | null;
 
-      if (!resolvedUser) {
+      if (!payload?.user) {
         clearAuthCookies();
         setUser(null);
         return null;
       }
+
+      const resolvedUser = payload.user as User;
 
       document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax`;
       if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin' || isAdminEmail(resolvedUser.email)) {
@@ -214,8 +230,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Auto-refresh if we have a cached user OR a matching access cookie.
     // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
     const hasAccessToken = document.cookie.includes('tm_access_token');
+    const isAuthPage = typeof window !== 'undefined' && 
+      (window.location.pathname === '/auth/callback' || window.location.pathname === '/login');
 
-    if (hasLoadedCached || hasAccessToken) {
+    if ((hasLoadedCached || hasAccessToken) && !isAuthPage) {
       refreshUser();
     } else {
       setIsLoading(false);
@@ -245,7 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: 'Signed in, but failed to load your profile.' };
       }
 
-      syncAuthCookies(data.accessToken, fullUser);
+      await syncAuthCookies(data.accessToken, fullUser);
       setUser(fullUser);
       cacheUser(fullUser);
       return { user: fullUser };
@@ -256,40 +274,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, role: UserRole, name: string) => {
     try {
-      const { error, data } = await insforge.auth.signUp({
-        email,
-        password,
-        name,
+      // Use the auth-signup edge function which handles both auth and profile creation
+      const { data, error } = await insforge.functions.invoke('auth-signup', {
+        body: { email, password, role, name }
       });
 
       if (error) {
         return { error: error.message };
       }
 
-      if (data?.user) {
-        const { error: profileError } = await insforge.database
-          .from('profiles')
-          .insert([{
-            id: data.user.id,
-            email: data.user.email,
-            role,
-            name,
-            completed_onboarding: false,
-          }]);
-
-        if (profileError) {
-          return { error: profileError.message };
-        }
-      }
-
       // If we got an access token (email verification not required), set up the session
       if (data?.accessToken && data?.user) {
-        const fullUser = await fetchProfile(data.user.id, data.user.email, data.user.metadata as Record<string, unknown> || undefined);
-        if (fullUser) {
-          syncAuthCookies(data.accessToken, fullUser);
-          setUser(fullUser);
-          cacheUser(fullUser);
-        }
+        // Construct user object from response
+        const fullUser: User = {
+          id: data.user.id,
+          email: data.user.email,
+          role: normalizeRole(role, email),
+          name: name,
+          avatar_url: null,
+          created_at: new Date().toISOString(),
+          mfa_enabled: false
+        };
+        
+        await syncAuthCookies(data.accessToken, fullUser);
+        setUser(fullUser);
+        cacheUser(fullUser);
       }
 
       return { requireEmailVerification: data?.requireEmailVerification };
@@ -300,17 +309,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await insforge.auth.signOut();
-    await fetch('/api/auth/session', {
+    // Call the auth-session edge function to clear cookies
+    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+    await fetch(`${baseUrl}/functions/auth-session`, {
       method: 'DELETE',
-      credentials: 'include',
+      headers: {
+        'x-client-info': 'talentmesh-web'
+      }
     }).catch(() => undefined);
+    
     clearAuthCookies();
     setUser(null);
     window.location.replace('/login');
   };
 
-  const login = useCallback((token: string, authUser: User) => {
-    syncAuthCookies(token, authUser);
+  const login = useCallback(async (token: string, authUser: User) => {
+    await syncAuthCookies(token, authUser);
     setUser(authUser);
     cacheUser(authUser);
   }, [cacheUser, syncAuthCookies]);

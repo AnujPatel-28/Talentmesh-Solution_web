@@ -6,6 +6,7 @@ import styles from '../../onboarding.module.css';
 
 export default function RecruiterSetup() {
     const [formData, setFormData] = useState({
+        name: '',
         companyName: '',
         jobTitle: '',
         department: ''
@@ -52,6 +53,22 @@ export default function RecruiterSetup() {
 
             <form onSubmit={handleSubmit} className={styles.form} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', padding: '0.5rem', background: '#fef2f2', borderRadius: '8px' }}>{error}</div>}
+                
+                <div className={styles.fieldGroup}>
+                    <label className={styles.label}>Full name</label>
+                    <div className={styles.inputWrap}>
+                        <svg className={styles.inputIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                        <input
+                            name="name"
+                            type="text"
+                            className={styles.input}
+                            placeholder="e.g. John Doe"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                </div>
                 
                 <div className={styles.fieldGroup}>
                     <label className={styles.label}>Company name</label>

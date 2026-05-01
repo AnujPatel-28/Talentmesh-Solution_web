@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "lib": ["esnext"],
+    "strict": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "deno.enable": true,
+  "deno.importMap": "./import_map.json",
+  "include": ["**/*.ts"]
+}

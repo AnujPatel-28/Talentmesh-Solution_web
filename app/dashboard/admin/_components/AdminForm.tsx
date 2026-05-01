@@ -1,85 +1,101 @@
-'use client';
-
 import React from 'react';
-import styles from '../dashboard.module.css';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface AdminInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  error?: string;
-  helperText?: string;
 }
 
-export function AdminInput({ label, error, helperText, ...props }: InputProps) {
-  return (
-    <div className={styles.field}>
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <label className={styles.label}>{label}</label>
-        {helperText && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{helperText}</span>}
-      </div>
-      <input 
-        className={`${styles.input} ${error ? styles.inputError : ''}`}
-        {...props}
-      />
-      {error && <span className={styles.errorMessage}>{error}</span>}
-    </div>
-  );
-}
+export const AdminInput: React.FC<AdminInputProps> = ({ label, ...props }) => (
+  <div style={{ marginBottom: '20px' }}>
+    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>{label}</label>
+    <input
+      {...props}
+      style={{
+        width: '100%',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid #e2e8f0',
+        fontSize: '0.95rem',
+        outline: 'none',
+        transition: 'border-color 0.2s',
+        ...props.style
+      }}
+    />
+  </div>
+);
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface AdminSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   options: { label: string; value: string }[];
-  error?: string;
 }
 
-export function AdminSelect({ label, options, error, ...props }: SelectProps) {
-  return (
-    <div className={styles.field}>
-      <label className={styles.label}>{label}</label>
-      <select 
-        className={`${styles.select} ${error ? styles.inputError : ''}`}
-        {...props}
-      >
-        {options.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-      {error && <span className={styles.errorMessage}>{error}</span>}
-    </div>
-  );
-}
+export const AdminSelect: React.FC<AdminSelectProps> = ({ label, options, ...props }) => (
+  <div style={{ marginBottom: '20px' }}>
+    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>{label}</label>
+    <select
+      {...props}
+      style={{
+        width: '100%',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid #e2e8f0',
+        fontSize: '0.95rem',
+        outline: 'none',
+        backgroundColor: '#fff',
+        cursor: 'pointer',
+        ...props.style
+      }}
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
+);
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'danger';
   isLoading?: boolean;
 }
 
-export function AdminButton({ 
+export const AdminButton: React.FC<AdminButtonProps> = ({ 
+  children, 
   variant = 'primary', 
   isLoading, 
-  children, 
   ...props 
-}: ButtonProps) {
-  const variantClass = {
-    primary: styles.primaryButton,
-    secondary: styles.secondaryButton,
-    danger: styles.deleteButton,
-    ghost: styles.actionButton
-  }[variant];
+}) => {
+  const getStyles = () => {
+    switch (variant) {
+      case 'secondary': return { bg: '#f1f5f9', text: '#475569', border: '1px solid #e2e8f0' };
+      case 'danger': return { bg: '#ef4444', text: '#fff', border: 'none' };
+      default: return { bg: '#2563eb', text: '#fff', border: 'none' };
+    }
+  };
+  const styles = getStyles();
 
   return (
-    <button 
-      className={variantClass} 
-      disabled={isLoading || props.disabled}
+    <button
       {...props}
+      disabled={isLoading || props.disabled}
+      style={{
+        padding: '12px 24px',
+        borderRadius: '12px',
+        fontWeight: 700,
+        fontSize: '0.95rem',
+        cursor: (isLoading || props.disabled) ? 'not-allowed' : 'pointer',
+        backgroundColor: styles.bg,
+        color: styles.text,
+        border: styles.border,
+        opacity: (isLoading || props.disabled) ? 0.7 : 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+        transition: 'all 0.2s',
+        ...props.style
+      }}
     >
-      {isLoading ? (
-        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg style={{ animation: 'spin 1s linear infinite' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-          Loading...
-        </span>
-      ) : children}
+      {isLoading && <span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />}
+      {children}
     </button>
   );
-}
+};

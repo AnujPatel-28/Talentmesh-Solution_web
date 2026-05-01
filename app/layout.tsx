@@ -16,7 +16,7 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: {
     default: "TalentMesh | Next-Gen AI Recruitment & Smart Matching",
-    template: "%s | TalentMesh - Modern AI Hiring"
+    template: "%s | TalentMesh Solutions | AI Recruiting Platform"
   },
   description: "Experience the future of hiring with TalentMesh. Our AI-powered platform connects top tech talent with world-class companies using advanced skill-matching algorithms. Hire faster, smarter, and more efficiently.",
   keywords: ["AI Recruitment Platform", "AI Job Matching", "Tech Recruitment", "Smart Hiring", "Talent Acquisition Software", "Recruitment Automation"],
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "TalentMesh | AI Recruitment Platform",
+    title: "TalentMesh Solutions | AI Recruitment Platform",
     description: "Hire top talent with the power of AI.",
   },
   verification: {

@@ -6,6 +6,7 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { AdminHeader } from '../_components/AdminHeader';
 import { AdminStatCard } from '../_components/AdminStatCard';
 import { AdminInput, AdminSelect, AdminButton } from '../_components/AdminForm';
+import { insforge } from '@/lib/insforge';
 
 type CompanyOption = {
   id: string;
@@ -135,21 +136,24 @@ export default function AdminJobsPage() {
   const fetchJobs = useCallback(async (p = page, s = filterStatus, q = search) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        includeMeta: 'true',
-        search: q,
-        status: s,
-        page: p.toString(),
-        limit: '20',
+      const { data, error: fetchError } = await insforge.functions.invoke('admin-jobs', {
+        method: 'GET',
+        queries: {
+          includeMeta: 'true',
+          search: q || undefined,
+          status: s !== 'all' ? s : undefined,
+          page: p.toString(),
+          limit: '20',
+        }
       });
-      const res = await fetch(`/api/admin/jobs?${params.toString()}`);
-      const payload = await res.json();
 
-      if (res.ok) {
-        setJobs(payload.data || []);
-        setTotalCount(payload.pagination.total);
-        setTotalPages(payload.pagination.totalPages);
-        if (payload.companies) setCompanies(payload.companies);
+      if (fetchError) throw new Error(fetchError.message);
+
+      if (data) {
+        setJobs(data.items || []);
+        setTotalCount(data.total);
+        setTotalPages(Math.ceil(data.total / 20));
+        if (data.companies) setCompanies(data.companies);
       }
     } catch (err) {
       setError('Failed to load jobs');
@@ -176,16 +180,19 @@ export default function AdminJobsPage() {
     if (selectedIds.size === 0) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/jobs/bulk', {
+      const edgeAction = action === 'delete' ? 'bulk-delete' : 'bulk-update';
+      const updates = action === 'approve' ? { is_approved: true } : action === 'reject' ? { is_approved: false } : {};
+      
+      const { error: bulkError } = await insforge.functions.invoke('admin-jobs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+        body: { ids: Array.from(selectedIds), action: edgeAction, updates }
       });
-      if (res.ok) {
-        setSuccess(`Successfully ${action}d ${selectedIds.size} jobs`);
-        setSelectedIds(new Set());
-        fetchJobs();
-      }
+      
+      if (bulkError) throw new Error(bulkError.message);
+
+      setSuccess(`Successfully ${action}d ${selectedIds.size} jobs`);
+      setSelectedIds(new Set());
+      fetchJobs();
     } catch (err) {
       setError('Bulk action failed');
     } finally {
@@ -259,32 +266,23 @@ export default function AdminJobsPage() {
 
       console.log('[Job Creation] Payload ready:', payload);
 
-      const res = await fetch(selectedJob ? `/api/admin/jobs/${selectedJob.id}` : '/api/admin/jobs', {
+      const { data, error: saveError } = await insforge.functions.invoke('admin-jobs', {
         method: selectedJob ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: payload,
+        path: selectedJob ? `/${selectedJob.id}` : undefined
       });
 
-      if (res.ok) {
+      if (saveError) throw new Error(saveError.message);
+
+      if (data) {
         console.log('[Job Creation] Success');
         setSuccess('Job successfully injected into the ecosystem');
         resetForm();
         fetchJobs();
-      } else {
-        const result = await res.json();
-        console.error('[Job Creation] API Error:', result);
-        if (result.details) {
-          const detailMsgs = Object.entries(result.details)
-            .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(', ')}`)
-            .join(' | ');
-          setError(`Validation Failed: ${detailMsgs}`);
-        } else {
-          setError(result.error || 'Failed to save job');
-        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Job Creation] Critical error:', err);
-      setError('A critical connectivity error occurred during injection.');
+      setError(err.message || 'A critical connectivity error occurred during injection.');
     } finally {
       setSaving(false);
     }

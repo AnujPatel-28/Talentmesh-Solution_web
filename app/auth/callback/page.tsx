@@ -3,33 +3,38 @@ import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { insforge } from '@/lib/insforge';
 
+import { useAuth } from '@/lib/auth/AuthContext';
+
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const defaultRole = searchParams.get('role'); // Get role from query param (?role=recruiter)
+  const { login } = useAuth();
+  const defaultRole = searchParams.get('role');
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // 1. Trigger a session refresh to pick up the OAuth tokens
-        const { data: session, error } = await insforge.auth.refreshSession();
-        
-        if (error) {
-          console.error('Session retrieval error:', error.message);
-          router.push('/login?error=session_fetch_failed');
-          return;
+        // 1. Wait for OAuth callback processing to complete first
+        // getCurrentUser() internally awaits the insforge_code exchange
+        await insforge.auth.getCurrentUser();
+
+        // 2. Refresh the session using the httpOnly cookie
+        let { data: sessionData, error } = await insforge.auth.refreshSession();
+        let session = sessionData;
+
+        // 3. Handle potential CSRF or initial failure
+        if (error || !session) {
+          if (error?.message?.includes('CSRF') || !session) {
+            console.warn('Initial session refresh failed, retrying once...', error?.message);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            ({ data: sessionData, error } = await insforge.auth.refreshSession());
+            session = sessionData;
+          }
         }
 
-        if (!session) {
-          // Fallback if session is missing after a short delay
-          setTimeout(async () => {
-            const { data: retrySession } = await insforge.auth.refreshSession();
-            if (!retrySession) {
-              router.push('/login?error=no_session');
-            } else {
-              processSession(retrySession);
-            }
-          }, 1500);
+        if (error || !session) {
+          console.error('Session retrieval error:', error?.message);
+          router.push('/login?error=session_fetch_failed');
           return;
         }
 
@@ -43,13 +48,11 @@ function AuthCallbackContent() {
     const processSession = async (session: { user: any; accessToken: string }) => {
       const user = session.user;
 
-      // Extract metadata provided by the provider (Google/LinkedIn)
-      const profileInfo = user.profile || {};
+      // ... profile extraction logic ...
       const metadataInfo = user.metadata || {};
       const identityData = user.identities?.[0]?.identity_data || {};
 
       const realName =
-        profileInfo.name ||
         metadataInfo.full_name ||
         metadataInfo.name ||
         identityData.full_name ||
@@ -57,36 +60,35 @@ function AuthCallbackContent() {
         (user.email ?? '').split('@')[0] || 'User';
 
       const avatarUrl =
-        profileInfo.avatar_url ||
         metadataInfo.avatar_url ||
         metadataInfo.picture ||
         identityData.avatar_url ||
         identityData.picture ||
         null;
 
-      // Fetch existing profile to determine role and onboarding status
+      // Fetch existing profile
       const { data: existingProfile } = await insforge.database
         .from('profiles')
-        .select('role, role_id, completed_onboarding')
+        .select('name, role, role_id, completed_onboarding')
         .eq('id', user.id)
         .single();
 
       const finalRole = existingProfile?.role || defaultRole || 'candidate';
 
-      // Generate role-specific ID if not exists
       let roleId = existingProfile?.role_id;
       if (!roleId) {
         const prefix = finalRole === 'super_admin' ? 'admin' : finalRole === 'recruiter' ? 'recr' : 'cand';
         roleId = `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
       }
 
-      // Upsert profile
-      const { error: profileError } = await insforge.database
+      const finalName = existingProfile ? (existingProfile.name || realName) : "";
+
+      await insforge.database
         .from('profiles')
         .upsert([{
           id: user.id,
           email: user.email,
-          name: realName,
+          name: finalName,
           avatar_url: avatarUrl,
           role: finalRole,
           role_id: roleId,
@@ -94,53 +96,40 @@ function AuthCallbackContent() {
           updated_at: new Date().toISOString(),
         }]);
 
-      if (profileError) {
-        console.error('Profile save error:', profileError.message);
-      }
-
-      // Ensure candidate profile exists
       if (finalRole === 'candidate') {
         await insforge.database
           .from('candidate_profiles')
           .upsert([{ id: user.id }]);
       }
 
-      // Set cookies for middleware
-      document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      document.cookie = `tm_access_token=${session.accessToken}; path=/; max-age=3600; SameSite=Lax`;
-      document.cookie = `tm_role=${finalRole}; path=/; max-age=3600; SameSite=Lax`;
-
-      if (finalRole === 'admin' || finalRole === 'super_admin') {
-        document.cookie = 'tm_admin_access=true; path=/; max-age=3600; SameSite=Lax';
-      }
+      // 🛡️ SECURE LOGIN HANDOFF
+      // This uses our new HttpOnly secure session API internally
+      await login(session.accessToken, {
+        id: user.id,
+        email: user.email!,
+        name: realName,
+        role: finalRole as any,
+        avatar_url: avatarUrl,
+        role_id: roleId,
+      });
 
       // --- Role-based routing ---
       if (finalRole === 'admin' || finalRole === 'super_admin') {
-        window.location.assign('/dashboard/admin');
+        router.replace('/dashboard/admin');
         return;
       }
 
       if (finalRole === 'recruiter') {
-        if (existingProfile?.completed_onboarding) {
-          window.location.assign('/dashboard/recruiter');
-        } else {
-          window.location.assign('/onboarding/recruiter/setup');
-        }
+        router.replace(existingProfile?.completed_onboarding ? '/dashboard/recruiter' : '/onboarding/recruiter/setup');
         return;
       }
 
-      // For candidates: check onboarding
-      if (existingProfile?.completed_onboarding) {
-        const dashboardRoleId = existingProfile?.role_id || roleId;
-        window.location.assign(`/dashboard/candidate/${dashboardRoleId}`);
-      } else {
-        window.location.assign('/onboarding/candidate');
-      }
+      router.replace(existingProfile?.completed_onboarding ? `/dashboard/candidate/${roleId}` : '/onboarding/candidate');
     };
 
     handleCallback();
-  }, [router, defaultRole]);
+  }, [router, defaultRole, login]);
+
 
   return (
     <div style={{

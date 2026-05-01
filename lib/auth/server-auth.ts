@@ -109,7 +109,7 @@ export async function resolveSessionFromToken(accessToken: string): Promise<Auth
   const authUser = response.data?.user;
   const userError = response.error;
 
-  if (userError || !authUser?.id || !authUser.email) {
+  if (userError || !authUser?.id || !authUser.email || authUser.id === 'project-admin-with-api-key') {
     return null;
   }
 

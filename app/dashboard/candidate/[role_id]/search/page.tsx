@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getApprovedJobs, type Job } from '@/lib/api/jobs';
 import { useAuth } from '@/lib/auth/AuthContext';
 import Toast from '@/components/ui/Toast';
-import styles from '../candidate.module.css';
+import styles from '../../../shared-dashboard.module.css';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -62,10 +62,10 @@ export default function AdvancedSearchPage() {
     };
 
     return (
-        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div className={styles.dash} style={{ gap: '2rem' }}>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             {/* Search Header */}
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div className={styles.pageHeader} style={{ alignItems: 'center' }}>
                 <div style={{ 
                     flex: 1, position: 'relative', display: 'flex', alignItems: 'center',
                     background: 'white', border: '1px solid #e2e8f0', borderRadius: '16px',
@@ -85,13 +85,14 @@ export default function AdvancedSearchPage() {
                 </div>
                 <button 
                    onClick={() => router.back()}
-                   style={{ background: '#f1f5f9', border: 'none', padding: '1.2rem 1.5rem', borderRadius: '16px', fontWeight: 700, cursor: 'pointer' }}
+                   className={styles.secondaryBtn}
+                   style={{ padding: '1.2rem 1.5rem', borderRadius: '16px' }}
                 >
                     Cancel
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '2rem', alignItems: 'start' }}>
+            <div className={styles.searchGrid}>
                 {/* Filters Sidebar */}
                 <aside style={{ 
                     background: 'white', border: '1px solid #e2e8f0', borderRadius: '24px', 

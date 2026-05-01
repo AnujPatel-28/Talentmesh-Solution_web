@@ -2,8 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
-import styles from '../candidate.module.css';
+import { getMyProfile, updateProfile as saveProfileSDK } from '@/lib/api/profile';
+import styles from '../../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 /* ─── Premium SVG Icons ─── */
@@ -45,6 +47,7 @@ const INITIAL_PRIVACY: ToggleItem[] = [
 
 export default function CandidateSettingsPage() {
     const router = useRouter();
+    const { refreshUser } = useAuth();
     const [form, setForm] = useState<CandidateSettingsBundle>(EMPTY_STATE);
     const [expectedSalary, setExpectedSalary] = useState('');
     const [preferredLocationsInput, setPreferredLocationsInput] = useState('');
@@ -58,12 +61,28 @@ export default function CandidateSettingsPage() {
     useEffect(() => {
         async function fetchData() {
             try {
-                const response = await fetch('/api/candidate-profile', { cache: 'no-store' });
-                const payload = await response.json();
-                if (!response.ok) throw new Error(payload.error || 'Failed to load settings');
-                setForm(payload);
-                if (payload.candidateProfile.salary_min) setExpectedSalary(`${payload.candidateProfile.salary_min} - ${payload.candidateProfile.salary_max || ''}`);
-                setPreferredLocationsInput(payload.candidateProfile.preferred_locations.join(', '));
+                const profile = await getMyProfile();
+                const bundle: CandidateSettingsBundle = {
+                    profile: {
+                        id: profile.id,
+                        email: profile.email,
+                        name: profile.name || '',
+                        phone: profile.phone || '',
+                        location: profile.location || '',
+                        role_id: profile.role_id,
+                        is_onboarded: profile.is_onboarded || false,
+                    },
+                    candidateProfile: profile.candidate_profiles || {
+                        headline: '', skills: [], experience_years: null, education: '', resume_url: '',
+                        linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
+                        currency: 'USD', open_to_remote: true, is_visible: true, preferred_locations: [],
+                        job_type: '', profile_strength: 0,
+                    }
+                };
+
+                setForm(bundle);
+                if (bundle.candidateProfile.salary_min) setExpectedSalary(`${bundle.candidateProfile.salary_min} - ${bundle.candidateProfile.salary_max || ''}`);
+                setPreferredLocationsInput(bundle.candidateProfile.preferred_locations.join(', '));
             } catch (err) {
                 setMessage({ text: err instanceof Error ? err.message : 'Error loading profile', type: 'error' });
             } finally {
@@ -77,14 +96,30 @@ export default function CandidateSettingsPage() {
         setSaving(true);
         setMessage({ text: '', type: 'success' });
         try {
-            const response = await fetch('/api/candidate-profile', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
+            await saveProfileSDK({
+                profile: form.profile,
+                candidateProfile: form.candidateProfile
             });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Failed to save');
-            setForm(payload);
+            
+            // Re-fetch to ensure sync
+            const updatedProfile = await getMyProfile();
+            const updatedBundle: CandidateSettingsBundle = {
+                profile: {
+                    id: updatedProfile.id,
+                    email: updatedProfile.email,
+                    name: updatedProfile.name || '',
+                    phone: updatedProfile.phone || '',
+                    location: updatedProfile.location || '',
+                    role_id: updatedProfile.role_id,
+                    is_onboarded: updatedProfile.is_onboarded || false,
+                },
+                candidateProfile: updatedProfile.candidate_profiles || form.candidateProfile
+            };
+            setForm(updatedBundle);
+            
+            // 🔥 Refresh the global user state to update Navbar/Sidebar names
+            await refreshUser();
+            
             setMessage({ text: mode === 'profile' ? 'Profile updated successfully!' : 'Preferences saved!', type: 'success' });
         } catch (err) {
             setMessage({ text: err instanceof Error ? err.message : 'Update failed', type: 'error' });
@@ -96,7 +131,7 @@ export default function CandidateSettingsPage() {
     if (isLoading) return <div className={styles.loadingState}><div className={styles.spinner}></div><p>Preparing your workspace...</p></div>;
 
     return (
-        <div className={styles.settingsPage}>
+        <div className={styles.dash}>
             {/* Header Section */}
             <div className={styles.settingsHeader}>
                 <div className={styles.titleArea}>

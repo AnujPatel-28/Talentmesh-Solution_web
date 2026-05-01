@@ -6,7 +6,7 @@ import { getMyApplications, withdrawApplication, type Application, type Applicat
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
-import styles from '../candidate.module.css';
+import styles from '../../../shared-dashboard.module.css';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -91,15 +91,15 @@ export default function ApplicationsPage() {
     if (loading) return <div style={{ padding: '80px 0', textAlign: 'center' }}>Loading applications...</div>;
 
     return (
-        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div className={styles.dash} style={{ gap: '2rem' }}>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>My Applications</h1>
-                    <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>Track your journey across {stats.total} roles.</p>
+            <div className={styles.pageHeader}>
+                <div className={styles.pageHeaderContent}>
+                    <h1 className={styles.pageHeaderTitle}>My Applications</h1>
+                    <p className={styles.pageHeaderSub}>Track your journey across {stats.total} roles.</p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className={styles.headerStats}>
                     <div className={styles.statCard} style={{ padding: '0.75rem 1.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', textAlign: 'center' }}>
                         <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{stats.total}</div>
                         <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Applied</div>
@@ -115,7 +115,7 @@ export default function ApplicationsPage() {
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '1px' }}>
+            <div className={styles.tabScroll}>
                 {(['all', 'active', 'rejected', 'withdrawn'] as const).map(tab => (
                     <button
                         key={tab}

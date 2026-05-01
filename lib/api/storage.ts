@@ -87,9 +87,18 @@ export async function uploadResume(file: File, userId: string): Promise<string> 
   formData.append('file', file);
   formData.append('userId', userId);
 
-  const res = await fetch('/api/upload-resume', {
+  // Use the Edge Function URL directly for FormData upload
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL?.replace('ap-southeast.', 'functions.');
+  const url = `${baseUrl}/upload-resume`;
+
+  const res = await fetch(url, {
     method: 'POST',
     body: formData,
+    headers: {
+      // The Edge Function will expect an Authorization header if we want to use the user's context
+      // but here we might just rely on the anon key if the function is public, 
+      // or we can pass the token if available.
+    }
   });
 
   const result = await res.json();
@@ -148,7 +157,10 @@ export async function uploadCompanyLogo(file: File, companyId: string): Promise<
   formData.append('file', file);
   formData.append('companyId', companyId);
 
-  const res = await fetch('/api/upload-logo', {
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL?.replace('ap-southeast.', 'functions.');
+  const url = `${baseUrl}/upload-logo`;
+
+  const res = await fetch(url, {
     method: 'POST',
     body: formData,
   });
@@ -181,7 +193,10 @@ export async function uploadBlogImage(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch('/api/upload-blog-image', {
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL?.replace('ap-southeast.', 'functions.');
+  const url = `${baseUrl}/upload-blog-image`;
+
+  const res = await fetch(url, {
     method: 'POST',
     body: formData,
   });

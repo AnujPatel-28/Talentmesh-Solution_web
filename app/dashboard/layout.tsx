@@ -4,8 +4,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { SearchProvider, useSearch } from '@/context/SearchContext';
+import { useSearch, SearchProvider } from '@/context/SearchContext';
+import { insforge } from '@/lib/insforge';
 import SearchOverlay from '@/components/candidate/SearchOverlay';
+import CenteredLoader from '@/components/ui/CenteredLoader';
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import styles from './dashboard-layout.module.css';
 
 /* ─── SVG Icon Components ─── */
@@ -55,6 +58,21 @@ const Icons = {
             <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
         </svg>
     ),
+    recruiter: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><polyline points="16 11 18 13 22 9" />
+        </svg>
+    ),
+    bookOpen: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+        </svg>
+    ),
+    activity: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+    ),
     settings: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -85,8 +103,8 @@ const SUPER_ADMIN_NAV: NavItem[] = [
     { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
     { label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, badge: 14 },
     { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: 23 },
-    { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>, badge: 6 },
-    { label: 'Blogs', href: '/dashboard/admin/blogs', icon: Icons.edit },
+    { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: Icons.recruiter, badge: 6 },
+    { label: 'Blogs', href: '/dashboard/admin/blogs', icon: Icons.bookOpen },
     { label: 'Reports', href: '/dashboard/admin/reports', icon: Icons.pieChart },
 ];
 
@@ -106,6 +124,71 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const [isSigningOut, setIsSigningOut] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [adminCounts, setAdminCounts] = useState({ jobs: 0, candidates: 0, recruiters: 0 });
+    const [notifCount, setNotifCount] = useState(0);
+
+    React.useEffect(() => {
+        if (isAdmin) {
+            const fetchCounts = async () => {
+                try {
+                    const [reportsRes, alertsRes] = await Promise.all([
+                        fetch('/api/admin/reports'),
+                        fetch('/api/admin/alerts')
+                    ]);
+                    if (reportsRes.ok) {
+                        const data = await reportsRes.json();
+                        setAdminCounts({
+                            jobs: data.metrics?.totalJobs || 0,
+                            candidates: data.metrics?.totalCandidates || 0,
+                            recruiters: data.metrics?.totalRecruiters || 0
+                        });
+                    }
+                    if (alertsRes.ok) {
+                        const alerts = await alertsRes.json();
+                        setNotifCount((alerts.pendingRecruiters || 0) + (alerts.pendingJobs || 0) + (alerts.reportedJobs || 0));
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            };
+            fetchCounts();
+            const interval = setInterval(fetchCounts, 60000);
+            return () => clearInterval(interval);
+        }
+    }, [isAdmin]);
+
+    // Setup realtime live notifications
+    React.useEffect(() => {
+        if (!authUser) return;
+
+        let active = true;
+        const setupRealtime = async () => {
+            try {
+                await insforge.realtime.connect();
+                
+                if (isAdmin) {
+                    await insforge.realtime.subscribe('admin:alerts');
+                    insforge.realtime.on('new_alert', () => {
+                        if (active) setNotifCount(prev => prev + 1);
+                    });
+                } else if (authUser?.id) {
+                    await insforge.realtime.subscribe(`user:${authUser.id}`);
+                    insforge.realtime.on('new_notification', () => {
+                        if (active) setNotifCount(prev => prev + 1);
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to setup realtime notifications:', err);
+            }
+        };
+
+        setupRealtime();
+
+        return () => {
+            active = false;
+        };
+    }, [isAdmin, authUser]);
 
     const handleSignOut = async () => {
         setIsSigningOut(true);
@@ -118,8 +201,22 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     const isSuperAdmin = pathname.includes('/dashboard/admin');
     const isRecruiter = pathname.includes('/dashboard/recruiter');
-    const roleId = authUser?.id || '';
-    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV : isRecruiter ? RECRUITER_NAV : getCandidateNav(roleId);
+    
+    // Extract ID from path if authUser is not yet loaded to show correct sidebar
+    const pathSegments = pathname.split('/');
+    const roleIdFromPath = pathSegments.find(s => 
+        s.length === 36 || /^(cand|rec|adm)_[a-z0-9]+$/i.test(s)
+    ) || '';
+    
+    const roleId = authUser?.id || roleIdFromPath;
+    const navItems = isSuperAdmin ? [
+        { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
+        { label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, badge: adminCounts.jobs > 0 ? adminCounts.jobs : undefined },
+        { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: adminCounts.candidates > 0 ? adminCounts.candidates : undefined },
+        { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: Icons.recruiter, badge: adminCounts.recruiters > 0 ? adminCounts.recruiters : undefined },
+        { label: 'Blogs', href: '/dashboard/admin/blogs', icon: Icons.bookOpen },
+        { label: 'Reports', href: '/dashboard/admin/reports', icon: Icons.pieChart },
+    ] : isRecruiter ? RECRUITER_NAV : getCandidateNav(roleId);
 
     const user = {
         name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
@@ -130,11 +227,21 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const pageTitle = (() => {
         const segments = pathname.split('/').filter(Boolean);
         const last = segments[segments.length - 1];
-        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        
+        // Helper to check for UUIDs or custom IDs (like cand_...)
+        const isID = (str: string) => {
+            if (!str) return false;
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            const customIdRegex = /^(cand|rec|adm)_[a-z0-9]+$/i;
+            return uuidRegex.test(str) || customIdRegex.test(str);
+        };
 
-        if (!last || isUUID(last)) {
+        if (!last || isID(last)) {
             const prev = segments[segments.length - 2];
-            if (!prev || prev === 'candidate' || prev === 'recruiter' || prev === 'admin') return 'Dashboard';
+            // If on the base dashboard path, show the user's name or a clean "Dashboard"
+            if (!prev || prev === 'candidate' || prev === 'recruiter' || prev === 'admin') {
+                return user.name || 'Dashboard';
+            }
             return prev.charAt(0).toUpperCase() + prev.slice(1);
         }
 
@@ -158,21 +265,24 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         }
     }, [isLoading, authUser, router, pathname]);
 
-    const isAdminBranch = pathname.startsWith('/dashboard/admin');
     const isRecruiterBranch = pathname.startsWith('/dashboard/recruiter');
 
-    if (isLoading && !isAdminBranch && !isRecruiterBranch) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-        <div style={{ width: 40, height: 40, border: '4px solid #e2e8f0', borderTopColor: '#007BFF', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>;
-
-    if (!authUser && !isAdminBranch && !isRecruiterBranch) {
-        return null;
-    }
-
-    if (isAdminBranch || isRecruiterBranch) {
+    if (isRecruiterBranch) {
         return <>{children}</>;
     }
+
+    // Shell rendering logic
+    const renderContent = () => {
+        if (isLoading) {
+            return <HomeSkeleton />;
+        }
+        if (!authUser) {
+            return null; // Will redirect via useEffect
+        }
+        return children;
+    };
+
+    const homeUrl = isSuperAdmin ? '/dashboard/admin' : isRecruiter ? '/dashboard/recruiter' : authUser ? `/dashboard/candidate/${roleId}` : '/';
 
     return (
         <div className={styles.shell}>
@@ -181,22 +291,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             {/* Sidebar */}
             <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}>
                 <div className={`${styles.sidebarHead} ${isAdmin ? styles.adminSidebarHead : ''}`}>
-                    <Link href="/" className={styles.brand}>
+                    <Link href={homeUrl} className={styles.brand}>
                         {collapsed ? (
                             <span className={styles.brandIcon}>
                                 <Image src="/TalentMesh_Logo-removebg-preview.png" alt="Icon" width={32} height={32} unoptimized />
                             </span>
                         ) : (
-                            isAdmin ? (
-                                <div className={styles.adminPortalHeader}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    </svg>
-                                    <span style={{ fontSize: '1.1rem', letterSpacing: '-0.01em' }}>Admin Portal</span>
-                                </div>
-                            ) : (
-                                <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={140} height={38} style={{ objectFit: 'contain' }} unoptimized />
-                            )
+                            <Image src="/TalentMesh_page-0002-removebg-preview.png" alt="TalentMesh" width={140} height={38} style={{ objectFit: 'contain' }} unoptimized />
                         )}
                     </Link>
                 </div>
@@ -226,6 +327,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 </nav>
 
                 <div className={styles.sidebarFoot}>
+                    {isAdmin && !collapsed && (
+                        <div className={styles.adminPortalHeader} style={{ marginBottom: '12px', justifyContent: 'center' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            </svg>
+                            <span style={{ fontSize: '0.9rem', letterSpacing: '-0.01em' }}>Admin Portal</span>
+                        </div>
+                    )}
                     <Link
                         href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : `/dashboard/candidate/${roleId}/settings`}
                         className={styles.navLink}
@@ -299,36 +408,55 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     </button>
                     <h1 className={styles.pageTitle}>{pageTitle}</h1>
                     <div className={styles.topRight}>
-                        {isAdmin && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '16px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>{user.name}</span>
-                                    <span className={styles.adminBadge}>Admin</span>
-                                </div>
-                                <button 
-                                    onClick={handleSignOut} 
-                                    disabled={isSigningOut} 
-                                    className={`${styles.topSignOut} ${isAdmin ? styles.topSignOutAdmin : ''}`}
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
-                                    </svg>
-                                    {isSigningOut ? 'Signing out...' : 'Sign Out'}
-                                </button>
-                            </div>
-                        )}
                         <div className={styles.searchBox} onClick={openSearch} style={{ cursor: 'pointer' }}>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                             <span style={{ color: '#94a3b8', fontSize: '0.85rem', userSelect: 'none' }}>Search jobs, skills...</span>
                         </div>
-                        <button className={styles.notifBtn} aria-label="Notifications">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
-                            <span className={styles.notifDot} />
-                        </button>
-                        <div className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : ''}`}>{user.initials}</div>
+                        <div style={{ position: 'relative' }}>
+                            <button className={styles.notifBtn} aria-label="Notifications" onClick={() => {
+                                setIsNotifOpen(!isNotifOpen);
+                                if (!isNotifOpen) {
+                                    setNotifCount(0);
+                                }
+                            }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+                                {notifCount > 0 ? (
+                                    <span className={styles.notifBadge}>{notifCount > 99 ? '99+' : notifCount}</span>
+                                ) : (
+                                    <span className={styles.notifDot} />
+                                )}
+                            </button>
+                            {isNotifOpen && (
+                                <div className={styles.notifDropdown}>
+                                    <div className={styles.notifHeader}>Notifications</div>
+                                    <div className={styles.notifBody}>
+                                        {notifCount > 0 ? (
+                                            <div className={styles.notifItem}>You have <strong>{notifCount}</strong> new alerts requiring attention.</div>
+                                        ) : (
+                                            <div className={styles.notifItem}>No new notifications. You're all caught up!</div>
+                                        )}
+                                    </div>
+                                    <Link 
+                                        href={isSuperAdmin ? '/dashboard/admin/notifications' : isRecruiter ? '/dashboard/recruiter/notifications' : `/dashboard/candidate/${roleId}/notifications`} 
+                                        className={styles.notifFooter} 
+                                        onClick={() => setIsNotifOpen(false)}
+                                    >
+                                        View all notifications
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                        <Link 
+                            href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : `/dashboard/candidate/${roleId}/profile`}
+                            className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : ''}`}
+                        >
+                            {user.initials}
+                        </Link>
                     </div>
                 </header>
-                <div className={styles.content}>{children}</div>
+                <main className={styles.content}>
+                    {renderContent()}
+                </main>
             </div>
         </div>
     );

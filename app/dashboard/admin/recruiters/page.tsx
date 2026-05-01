@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from '../candidates/candidates.module.css'; // Reusing established styles
+import { insforge } from '@/lib/insforge';
 
 type RecruiterProfile = {
   id: string;
@@ -39,18 +40,22 @@ export default function AdminRecruitersPage() {
   const fetchRecruiters = useCallback(async (p = page, q = search, s = statusFilter) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        search: q,
-        status: s,
-        page: p.toString(),
+      const { data, error: fetchError } = await insforge.functions.invoke('admin-recruiters', {
+        method: 'GET',
+        queries: {
+          search: q || undefined,
+          status: s !== 'all' ? s : undefined,
+          page: p.toString(),
+          limit: '20'
+        }
       });
-      const res = await fetch(`/api/admin/recruiters?${params.toString()}`);
-      const payload = await res.json();
       
-      if (res.ok) {
-        setRecruiters(payload.recruiters.recruiters || []);
-        setTotalCount(payload.recruiters.total);
-        setTotalPages(payload.recruiters.totalPages);
+      if (fetchError) throw new Error(fetchError.message);
+      
+      if (data) {
+        setRecruiters(data.recruiters || []);
+        setTotalCount(data.total);
+        setTotalPages(Math.ceil(data.total / 20));
       }
     } catch (err: any) {
       setError('Failed to load recruiters registry');
@@ -65,12 +70,15 @@ export default function AdminRecruitersPage() {
 
   const toggleStatus = async (user: AdminRecruiter) => {
     try {
-      const res = await fetch(`/api/admin/candidates/${user.id}`, { // Reusing generic profile update
+      const { data, error: updateError } = await insforge.functions.invoke('admin-recruiters', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !user.is_active }),
+        body: { is_active: !user.is_active },
+        path: `/${user.id}`
       });
-      if (res.ok) {
+      
+      if (updateError) throw new Error(updateError.message);
+
+      if (data) {
         fetchRecruiters();
         if (previewUser?.id === user.id) {
           setPreviewUser({ ...user, is_active: !user.is_active });
@@ -83,12 +91,20 @@ export default function AdminRecruitersPage() {
 
   const approveRecruiter = async (profileId: string) => {
     try {
-      const res = await fetch(`/api/admin/recruiters`, { // We'll need a way to pass ID, maybe PATCH /api/admin/recruiters/[id]
-        method: 'POST', // Based on current API design if it exists
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: profileId, action: 'approve' }),
+      // In the edge function, we can handle approval by updating the profile
+      // Actually, my admin-recruiters edge function updates recruiter_profiles table if I passed the profile ID, 
+      // but it currently targets recruiter_profiles (based on my index.ts write).
+      // Let's check index.ts for admin-recruiters.
+      
+      const { data, error: updateError } = await insforge.functions.invoke('admin-recruiters', {
+        method: 'PATCH',
+        body: { is_approved: true },
+        path: `/${profileId}`
       });
-      if (res.ok) {
+      
+      if (updateError) throw new Error(updateError.message);
+
+      if (data) {
         fetchRecruiters();
         setPreviewUser(null);
       }
