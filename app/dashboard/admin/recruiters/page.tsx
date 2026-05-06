@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from '../candidates/candidates.module.css'; // Reusing established styles
-import { insforge } from '@/lib/insforge';
+import { invokeFunction } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
+
 
 type RecruiterProfile = {
   id: string;
@@ -25,6 +27,7 @@ type AdminRecruiter = {
 };
 
 export default function AdminRecruitersPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [recruiters, setRecruiters] = useState<AdminRecruiter[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -40,19 +43,14 @@ export default function AdminRecruitersPage() {
   const fetchRecruiters = useCallback(async (p = page, q = search, s = statusFilter) => {
     setLoading(true);
     try {
-      const cleanParams = Object.fromEntries(
-        Object.entries({
+      const { data, error: fetchError } = await invokeFunction('admin-recruiters', {
+        method: 'GET',
+        queries: {
           search: q || undefined,
           status: s !== 'all' ? s : undefined,
           page: p.toString(),
           limit: '20'
-        }).filter(([_, v]) => v !== undefined && v !== null)
-      );
-      const queryStr = new URLSearchParams(cleanParams as any).toString();
-      const slug = queryStr ? `admin-recruiters?${queryStr}` : 'admin-recruiters';
-
-      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
-        method: 'GET'
+        }
       });
       
       if (fetchError) throw new Error(fetchError.message);
@@ -70,14 +68,17 @@ export default function AdminRecruitersPage() {
   }, [page, search, statusFilter]);
 
   useEffect(() => {
-    fetchRecruiters();
-  }, [fetchRecruiters]);
+    if (user) {
+      fetchRecruiters();
+    }
+  }, [fetchRecruiters, user]);
 
   const toggleStatus = async (user: AdminRecruiter) => {
     try {
-      const { data, error: updateError } = await insforge.functions.invoke(`admin-recruiters/${user.id}`, {
+      const { data, error: updateError } = await invokeFunction('admin-recruiters', {
         method: 'PATCH',
-        body: { is_active: !user.is_active }
+        body: { is_active: !user.is_active },
+        queries: { id: user.id }
       });
       
       if (updateError) throw new Error(updateError.message);
@@ -95,14 +96,10 @@ export default function AdminRecruitersPage() {
 
   const approveRecruiter = async (profileId: string) => {
     try {
-      // In the edge function, we can handle approval by updating the profile
-      // Actually, my admin-recruiters edge function updates recruiter_profiles table if I passed the profile ID, 
-      // but it currently targets recruiter_profiles (based on my index.ts write).
-      // Let's check index.ts for admin-recruiters.
-      
-      const { data, error: updateError } = await insforge.functions.invoke(`admin-recruiters/${profileId}`, {
+      const { data, error: updateError } = await invokeFunction('admin-recruiters', {
         method: 'PATCH',
-        body: { is_approved: true }
+        body: { is_approved: true },
+        queries: { id: profileId }
       });
       
       if (updateError) throw new Error(updateError.message);
@@ -164,7 +161,7 @@ export default function AdminRecruitersPage() {
       {error && <div className={styles.errorBanner}>{error}</div>}
 
       <div className={styles.grid}>
-        {loading ? (
+        {(authLoading || loading) ? (
           <div className={styles.emptyState}>Syncing registry...</div>
         ) : recruiters.length === 0 ? (
           <div className={styles.emptyState}>No recruiters found.</div>

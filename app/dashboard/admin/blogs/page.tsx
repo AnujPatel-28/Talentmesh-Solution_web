@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as Ico from 'lucide-react';
 import styles from './blogs.module.css';
-import { insforge } from '@/lib/insforge';
+import { invokeFunction } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
+
 
 interface BlogPost {
   id: string;
@@ -51,6 +53,7 @@ const categoryOptions = [
 const statusOptions = ['all', 'draft', 'published', 'archived'];
 
 export default function AdminBlogsPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -68,10 +71,12 @@ export default function AdminBlogsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchPosts();
-    // Simulate premium views
-    setTotalViews(Math.floor(Math.random() * 5000) + 1200);
-  }, []);
+    if (user) {
+      fetchPosts();
+      // Simulate premium views
+      setTotalViews(Math.floor(Math.random() * 5000) + 1200);
+    }
+  }, [user]);
 
   // Real-time Slug Generation
   useEffect(() => {
@@ -87,8 +92,14 @@ export default function AdminBlogsPage() {
   const fetchPosts = useCallback(async (currentSearch = search, currentStatus = status) => {
     setLoading(true);
     try {
+<<<<<<< HEAD
       const cleanParams = Object.fromEntries(
         Object.entries({
+=======
+      const { data, error: fetchError } = await invokeFunction('admin-blogs', {
+        method: 'GET',
+        queries: {
+>>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
           search: currentSearch || undefined,
           status: currentStatus !== 'all' ? currentStatus : undefined,
         }).filter(([_, v]) => v !== undefined && v !== null)
@@ -99,6 +110,7 @@ export default function AdminBlogsPage() {
       const { data, error: fetchError } = await insforge.functions.invoke(slug, {
         method: 'GET'
       });
+
       
       if (fetchError) throw new Error(fetchError.message);
       
@@ -148,11 +160,16 @@ export default function AdminBlogsPage() {
     setSaving(true);
     setError('');
     try {
+<<<<<<< HEAD
       const slug = selectedPost ? `admin-blogs/${selectedPost.id}` : 'admin-blogs';
       const { data, error: saveError } = await insforge.functions.invoke(slug, {
+=======
+      const { data, error: saveError } = await invokeFunction('admin-blogs', {
+>>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
         method: selectedPost ? 'PATCH' : 'POST',
         body: form
       });
+
       
       if (saveError) throw new Error(saveError.message);
       
@@ -171,9 +188,16 @@ export default function AdminBlogsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
     try {
+<<<<<<< HEAD
       const { error: deleteError } = await insforge.functions.invoke(`admin-blogs/${id}`, {
         method: 'DELETE'
+=======
+      const { error: deleteError } = await invokeFunction('admin-blogs', {
+        method: 'DELETE',
+        path: `/${id}`
+>>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
       });
+
       if (deleteError) throw new Error(deleteError.message);
       
       setSuccess('Article deleted');
@@ -191,10 +215,11 @@ export default function AdminBlogsPage() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const { data, error: uploadError } = await insforge.functions.invoke('upload-blog-image', {
+      const { data, error: uploadError } = await invokeFunction('upload-blog-image', {
         method: 'POST',
         body: formData,
       });
+
 
       if (uploadError) throw new Error(uploadError.message);
 
@@ -391,7 +416,7 @@ export default function AdminBlogsPage() {
         </select>
       </div>
 
-      {loading ? (
+      {(authLoading || loading) ? (
         <div className="flex justify-center items-center py-20">
           <Ico.Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
         </div>

@@ -1,14 +1,26 @@
 import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
+const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 
 export default async function handler(req: Request): Promise<Response> {
+  const origin = req.headers.get('Origin') || 'http://localhost:3000';
+  const corsHeaders: Record<string, string> = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { status: 204, headers: corsHeaders });
+  }
+
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.split(' ')[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
   try {
@@ -21,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
       const page = parseInt(url.searchParams.get('page') || '0');
       const limit = parseInt(url.searchParams.get('limit') || '20');
 
-      let query = insforge.database.from('blogs').select('*', { count: 'exact' });
+      let query = insforge.database.from('blog').select('*', { count: 'exact' });
 
       if (search) {
         query = query.ilike('title', `%${search}%`);
@@ -36,16 +48,18 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ blogs: data, total: count }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ blogs: data, total: count }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (req.method === 'POST') {
       const body = await req.json();
       // Get user from token
-      const { data: { user }, error: userError } = await insforge.auth.getCurrentUser();
+      const { data: userData, error: userError } = await insforge.auth.getCurrentUser();
+      const user = userData?.user;
+      
       if (userError || !user) throw new Error('Unauthorized');
 
-      const { data, error } = await insforge.database.from('blogs').insert([{
+      const { data, error } = await insforge.database.from('blog').insert([{
         ...body,
         author_id: user.id,
         created_at: new Date().toISOString(),
@@ -54,7 +68,7 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ blog: data }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ blog: data }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (req.method === 'PATCH') {
@@ -63,14 +77,14 @@ export default async function handler(req: Request): Promise<Response> {
       const body = await req.json();
 
       const { data, error } = await insforge.database
-        .from('blogs')
+        .from('blog')
         .update({ ...body, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
-      return new Response(JSON.stringify({ blog: data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ blog: data }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (req.method === 'DELETE') {
@@ -78,17 +92,17 @@ export default async function handler(req: Request): Promise<Response> {
       const id = url.pathname.split('/').pop();
 
       const { error } = await insforge.database
-        .from('blogs')
+        .from('blog')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      return new Response(null, { status: 204 });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
   } catch (err: any) {
     console.error('Admin Blogs Edge Function Error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }

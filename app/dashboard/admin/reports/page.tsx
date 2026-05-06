@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import styles from './reports.module.css';
-import { insforge } from '@/lib/insforge';
+import { invokeFunction } from '@/lib/insforge';
+
 
 type ReportsData = {
   metrics: {
@@ -33,9 +34,11 @@ export default function AdminReportsPage() {
   useEffect(() => {
     async function fetchReports() {
       try {
-        const { data, error: fetchError } = await insforge.functions.invoke('admin-dashboard', {
+        const { data, error: fetchError } = await invokeFunction('admin-dashboard', {
+          method: 'POST',
           body: { action: 'get-reports' }
         });
+
         
         if (fetchError) throw new Error(fetchError.message);
         

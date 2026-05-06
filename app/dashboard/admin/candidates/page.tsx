@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from './candidates.module.css';
-import { insforge } from '@/lib/insforge';
+import { invokeFunction } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
+
 
 type CandidateProfile = {
   headline?: string;
@@ -29,6 +31,7 @@ type AdminCandidate = {
 };
 
 export default function AdminCandidatesPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [candidates, setCandidates] = useState<AdminCandidate[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -46,8 +49,14 @@ export default function AdminCandidatesPage() {
     setLoading(true);
     setError('');
     try {
+<<<<<<< HEAD
       const cleanParams = Object.fromEntries(
         Object.entries({
+=======
+      const { data, error: fetchError } = await invokeFunction('admin-candidates', {
+        method: 'GET',
+        queries: {
+>>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
           search: q || undefined,
           page: p.toString(),
           limit: '20'
@@ -59,6 +68,7 @@ export default function AdminCandidatesPage() {
       const { data, error: fetchError } = await insforge.functions.invoke(slug, {
         method: 'GET'
       });
+
       
       if (fetchError) throw new Error(fetchError.message);
       
@@ -75,15 +85,22 @@ export default function AdminCandidatesPage() {
   }, [page, search]);
 
   useEffect(() => {
-    fetchCandidates();
-  }, [fetchCandidates]);
+    if (user) {
+      fetchCandidates();
+    }
+  }, [fetchCandidates, user]);
 
   const updateCandidate = async (user: AdminCandidate, payload: Partial<AdminCandidate>) => {
     try {
+<<<<<<< HEAD
       const { data, error: updateError } = await insforge.functions.invoke(`admin-candidates/${user.id}`, {
+=======
+      const { data, error: updateError } = await invokeFunction('admin-candidates', {
+>>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
         method: 'PATCH',
         body: payload
       });
+
       
       if (updateError) throw new Error(updateError.message);
 
@@ -145,7 +162,7 @@ export default function AdminCandidatesPage() {
       {error && <div className={styles.errorBanner}>{error}</div>}
 
       <div className={styles.grid}>
-        {loading ? (
+        {(authLoading || loading) ? (
           <div className={styles.emptyState}>Syncing registry...</div>
         ) : candidates.length === 0 ? (
           <div className={styles.emptyState}>No candidates matched your criteria.</div>

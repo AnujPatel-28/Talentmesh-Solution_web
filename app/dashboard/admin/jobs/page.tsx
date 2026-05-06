@@ -6,7 +6,9 @@ import { JobCard } from '@/components/jobs/JobCard';
 import { AdminHeader } from '../_components/AdminHeader';
 import { AdminStatCard } from '../_components/AdminStatCard';
 import { AdminInput, AdminSelect, AdminButton } from '../_components/AdminForm';
-import { insforge } from '@/lib/insforge';
+import { invokeFunction } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
+
 
 type CompanyOption = {
   id: string;
@@ -110,6 +112,7 @@ function toFormState(job?: AdminJob | null): JobFormState {
 }
 
 export default function AdminJobsPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [search, setSearch] = useState('');
@@ -136,20 +139,15 @@ export default function AdminJobsPage() {
   const fetchJobs = useCallback(async (p = page, s = filterStatus, q = search) => {
     setLoading(true);
     try {
-      const cleanParams = Object.fromEntries(
-        Object.entries({
+      const { data, error: fetchError } = await invokeFunction('admin-jobs', {
+        method: 'GET',
+        queries: {
           includeMeta: 'true',
           search: q || undefined,
           status: s !== 'all' ? s : undefined,
           page: p.toString(),
           limit: '20',
-        }).filter(([_, v]) => v !== undefined && v !== null)
-      );
-      const queryStr = new URLSearchParams(cleanParams as any).toString();
-      const slug = queryStr ? `admin-jobs?${queryStr}` : 'admin-jobs';
-
-      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
-        method: 'GET'
+        }
       });
 
       if (fetchError) throw new Error(fetchError.message);
@@ -168,8 +166,10 @@ export default function AdminJobsPage() {
   }, [page, filterStatus, search]);
 
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (user) {
+      fetchJobs();
+    }
+  }, [fetchJobs, user]);
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -181,6 +181,23 @@ export default function AdminJobsPage() {
     });
   };
 
+  const handleApprove = async (id: string) => {
+    setLoading(true);
+    try {
+      const { error: approveError } = await invokeFunction('admin-jobs', {
+        method: 'POST',
+        body: { id, action: 'approve' }
+      });
+      if (approveError) throw new Error(approveError.message);
+      setSuccess('Job approved and is now active');
+      fetchJobs();
+    } catch (err) {
+      setError('Failed to approve job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBulkAction = async (action: 'approve' | 'reject' | 'delete') => {
     if (selectedIds.size === 0) return;
     setLoading(true);
@@ -188,11 +205,11 @@ export default function AdminJobsPage() {
       const edgeAction = action === 'delete' ? 'bulk-delete' : 'bulk-update';
       const updates = action === 'approve' ? { is_approved: true } : action === 'reject' ? { is_approved: false } : {};
       
-      const { error: bulkError } = await insforge.functions.invoke('admin-jobs', {
+      const { error: bulkError } = await invokeFunction('admin-jobs', {
         method: 'POST',
         body: { ids: Array.from(selectedIds), action: edgeAction, updates }
       });
-      
+
       if (bulkError) throw new Error(bulkError.message);
 
       setSuccess(`Successfully ${action}d ${selectedIds.size} jobs`);
@@ -225,7 +242,6 @@ export default function AdminJobsPage() {
     setError('');
     setSuccess('');
     try {
-      // 1. Client-side Pre-flight Validation
       if (!form.company_id) {
         setError('Hiring Portfolio (Company) is mandatory for platform injection.');
         setSaving(false);
@@ -256,7 +272,6 @@ export default function AdminJobsPage() {
         skills_required: form.skills_required.split('\n').filter(s => s.trim()),
       };
 
-      // Clean up optional numerical fields: only include if they have a value
       if (form.salary_min) payload.salary_min = Number(form.salary_min);
       else delete payload.salary_min;
 
@@ -271,10 +286,10 @@ export default function AdminJobsPage() {
 
       console.log('[Job Creation] Payload ready:', payload);
 
-      const slug = selectedJob ? `admin-jobs/${selectedJob.id}` : 'admin-jobs';
-      const { data, error: saveError } = await insforge.functions.invoke(slug, {
+      const { data, error: saveError } = await invokeFunction('admin-jobs', {
         method: selectedJob ? 'PATCH' : 'POST',
-        body: payload
+        body: payload,
+        queries: selectedJob ? { id: selectedJob.id } : undefined
       });
 
       if (saveError) throw new Error(saveError.message);
@@ -334,12 +349,13 @@ export default function AdminJobsPage() {
             <select className={styles.select} style={{ width: '160px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="all">All Status</option>
               {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              <option value="pending">Pending Approval</option>
             </select>
             <AdminButton onClick={() => fetchJobs(0)}>Apply</AdminButton>
           </div>
 
           <div className={styles.listBody}>
-            {loading ? <div className={styles.emptyState}>Syncing registry...</div> :
+            {(authLoading || loading) ? <div className={styles.emptyState}>Syncing registry...</div> :
               jobs.length === 0 ? <div className={styles.emptyState}>No roles match your search.</div> : (
                 jobs.map(job => (
                   <article key={job.id}
@@ -366,9 +382,12 @@ export default function AdminJobsPage() {
                       <div style={{ flex: 1 }}>
                         <div className={styles.jobCardHeader}>
                           <h2 className={styles.jobTitle}>{job.title}</h2>
-                          <span className={`${styles.statusBadge} ${styles[`status_${job.status}`]}`}>
-                            {job.status}
-                          </span>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {!job.is_approved && <span className={styles.statusBadge} style={{ background: '#fef3c7', color: '#92400e' }}>Pending</span>}
+                            <span className={`${styles.statusBadge} ${styles[`status_${job.status}`]}`}>
+                              {job.status}
+                            </span>
+                          </div>
                         </div>
                         <p className={styles.jobMeta}>{(job as any).companies?.name} • {job.location} • {job.type}</p>
                       </div>
@@ -556,6 +575,9 @@ export default function AdminJobsPage() {
             <div className={styles.drawerContent}>
               <JobCard job={previewJob} showActions={false} />
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                {!previewJob.is_approved && (
+                  <AdminButton style={{ flex: 1, background: '#10b981' }} onClick={() => handleApprove(previewJob.id)}>Approve & Go Live</AdminButton>
+                )}
                 <AdminButton style={{ flex: 1 }} onClick={() => handleEdit(previewJob)}>Moderate Listing</AdminButton>
                 <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Purge</AdminButton>
               </div>
