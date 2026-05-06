@@ -1,14 +1,25 @@
 import { createClient } from 'npm:@insforge/sdk';
+// @ts-ignore: Deno npm import
+import pdfParse from 'npm:pdf-parse@1.1.1';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
+const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.split(' ')[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
   }
 
   try {
@@ -16,48 +27,70 @@ export default async function handler(req: Request): Promise<Response> {
     const file = formData.get('file') as File;
 
     if (!file) {
-      return new Response(JSON.stringify({ error: 'No file provided' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'No file provided' }), { status: 400, headers: corsHeaders });
     }
 
-    // Since we are in an Edge Function, we can use InsForge AI to parse the text
-    // First, let's extract text if it's text/plain, or use AI to "read" the PDF if supported.
-    // For now, we'll assume the text is extracted or we'll use a simple prompt.
-    // InsForge AI can take text. We'll read the file content as text.
-    
-    const text = await file.text();
-    
+    let extractedText = '';
+    if (file.type === 'application/pdf') {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const data = await pdfParse(new Uint8Array(arrayBuffer));
+        extractedText = data.text;
+      } catch (err) {
+        console.error('PDF Parse Error:', err);
+        return new Response(JSON.stringify({ error: 'Failed to parse PDF' }), { status: 422, headers: corsHeaders });
+      }
+    } else {
+      extractedText = await file.text();
+    }
+
+    const textLimit = extractedText.slice(0, 8000);
+
     const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
 
     const prompt = `
-      Extract information from the following resume text and return it in JSON format.
-      The JSON should have the following structure:
+      Extract information from the following resume text and return it in valid JSON format.
+      JSON structure:
       {
-        "contact": { "name": string, "email": string, "phone": string, "location": string },
-        "profile": { "headline": string, "skills": string[], "experience_years": number, "education": string },
-        "meta": { "confidence": number }
+        "contact": { "name": "string", "email": "string", "phone": "string", "location": "string" },
+        "profile": { "headline": "string", "skills": ["string"] (lowercase), "experience_years": number, "education": "string" },
+        "work_history": [{ "company": "string", "title": "string", "start_date": "string", "end_date": "string", "description": "string" }],
+        "meta": { "confidence": number (0.0-1.0) }
       }
 
       Resume Text:
-      ${text.slice(0, 5000)}
+      ${textLimit}
     `;
 
-    const { data: aiResponse, error: aiError } = await insforge.ai.chat.completions.create({
-      model: 'gpt-4o', // or whatever model InsForge supports
-      messages: [{ role: 'user', content: prompt }],
+    const { data: aiResult, error: aiError } = await insforge.ai.chat.completions.create({
+      model: 'anthropic/claude-3.5-haiku',
+      messages: [{ role: 'user', content: prompt }]
     });
 
-    if (aiError) {
-      return new Response(JSON.stringify({ error: aiError.message }), { status: 500 });
+    if (aiError) throw aiError;
+
+    // Return the structured data
+    let structuredData;
+    try {
+      const content = aiResult.choices[0].message.content;
+      // Handle potential markdown backticks in AI response
+      const jsonStr = content.replace(/```json\n?|\n?```/g, '').trim();
+      structuredData = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('AI JSON Parse Error:', parseErr);
+      throw new Error('Failed to parse AI response into structured data');
     }
 
-    const parsedData = JSON.parse(aiResponse.choices[0].message.content);
-
-    return new Response(JSON.stringify(parsedData), { 
+    return new Response(JSON.stringify(structuredData), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-  } catch (err) {
-    console.error('Resume Parse Edge Function Error:', err);
-    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+
+  } catch (err: any) {
+    console.error('Resume Parse Function Error:', err);
+    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 }
