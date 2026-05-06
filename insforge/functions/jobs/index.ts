@@ -13,6 +13,22 @@ const jobFilterSchema = z.object({
   date_posted: z.enum(['all', '24h', '7d', '30d']).optional(),
 });
 
+const jobCreateSchema = z.object({
+  title: z.string().min(3),
+  description: z.string().min(10),
+  requirements: z.array(z.string()).optional(),
+  skills_required: z.array(z.string()).optional(),
+  location: z.string().optional(),
+  type: z.string().optional(),
+  department: z.string().optional(),
+  salary_min: z.number().optional(),
+  salary_max: z.number().optional(),
+  currency: z.string().default('INR'),
+  experience_min: z.number().optional(),
+  experience_max: z.number().optional(),
+  company_id: z.string().uuid(),
+});
+
 type JobRecord = {
   id: string;
   title: string;
@@ -113,79 +129,131 @@ const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFOR
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  const origin = req.headers.get('Origin') || '*';
+  const corsHeaders: Record<string, string> = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { status: 204, headers: corsHeaders });
   }
 
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.split(' ')[1];
+
   try {
-    const url = new URL(req.url);
-    const params = Object.fromEntries(url.searchParams.entries());
-    const validation = jobFilterSchema.safeParse(params);
+    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
 
-    if (!validation.success) {
-      return new Response(JSON.stringify({ error: 'Invalid query parameters', details: validation.error.flatten().fieldErrors }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    const filters = validation.data;
-    const client = createClient({ baseUrl, anonKey });
-
-    const page = filters.page || 0;
-    const limit = filters.limit || 20;
-    const start = page * limit;
-    const end = start + limit - 1;
-
-    let query = client.database
-      .from('jobs')
-      .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)', { count: 'exact' })
-      .eq('is_approved', true)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
-
-    if (filters.search) {
-      query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
-    }
-    if (filters.type) {
-      query = query.eq('type', filters.type);
-    }
-    if (filters.location) {
-      query = query.ilike('location', `%${filters.location}%`);
-    }
-    if (filters.salary_min) {
-      query = query.gte('salary_min', filters.salary_min);
-    }
-    if (filters.salary_max) {
-      query = query.lte('salary_max', filters.salary_max);
-    }
-    if (filters.industry) {
-      query = query.filter('companies.industry', 'eq', filters.industry);
-    }
-    if (filters.date_posted && filters.date_posted !== 'all') {
-      const now = new Date();
-      if (filters.date_posted === '24h') now.setHours(now.getHours() - 24);
-      else if (filters.date_posted === '7d') now.setDate(now.getDate() - 7);
-      else if (filters.date_posted === '30d') now.setDate(now.getDate() - 30);
-      query = query.gte('created_at', now.toISOString());
-    }
-
-    const { data, error, count } = await query.range(start, end);
-    if (error) {
-      throw new Error(`Failed to fetch jobs: ${error.message}`);
-    }
-
-    const jobs = (data || []).map((job) => serializeJob(job as JobRecord));
-    
-    return new Response(JSON.stringify({
-      data: jobs,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
-        hasMore: (page + 1) * limit < (count || 0),
+    if (req.method === 'POST') {
+      if (!token) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+      const { data: { user }, error: userError } = await insforge.auth.getCurrentUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401, headers: corsHeaders });
+      }
+
+      const body = await req.json();
+      const validation = jobCreateSchema.safeParse(body);
+      
+      if (!validation.success) {
+        return new Response(JSON.stringify({ error: 'Validation failed', details: validation.error.flatten() }), { status: 400, headers: corsHeaders });
+      }
+
+      const { data: newJob, error: insertError } = await insforge.database
+        .from('jobs')
+        .insert([{
+          ...validation.data,
+          recruiter_id: user.id,
+          status: 'draft',
+          is_approved: false
+        }])
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(`Failed to create job: ${insertError.message}`);
+      }
+
+      return new Response(JSON.stringify(newJob), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      const params = Object.fromEntries(url.searchParams.entries());
+      const validation = jobFilterSchema.safeParse(params);
+
+      if (!validation.success) {
+        return new Response(JSON.stringify({ error: 'Invalid query parameters', details: validation.error.flatten().fieldErrors }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const filters = validation.data;
+      const page = filters.page || 0;
+      const limit = filters.limit || 20;
+      const start = page * limit;
+      const end = start + limit - 1;
+
+      let query = insforge.database
+        .from('jobs')
+        .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies:company_profiles(id, name, logo_url, industry, about, website)', { count: 'exact' })
+        .eq('is_approved', true)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+      }
+      if (filters.type) {
+        query = query.eq('type', filters.type);
+      }
+      if (filters.location) {
+        query = query.ilike('location', `%${filters.location}%`);
+      }
+      if (filters.salary_min) {
+        query = query.gte('salary_min', filters.salary_min);
+      }
+      if (filters.salary_max) {
+        query = query.lte('salary_max', filters.salary_max);
+      }
+      if (filters.industry) {
+        // This is a bit tricky with PostgREST join filtering, usually done via dot notation
+        query = query.filter('company_profiles.industry', 'eq', filters.industry);
+      }
+      if (filters.date_posted && filters.date_posted !== 'all') {
+        const now = new Date();
+        if (filters.date_posted === '24h') now.setHours(now.getHours() - 24);
+        else if (filters.date_posted === '7d') now.setDate(now.getDate() - 7);
+        else if (filters.date_posted === '30d') now.setDate(now.getDate() - 30);
+        query = query.gte('created_at', now.toISOString());
+      }
+
+      const { data, error, count } = await query.range(start, end);
+      if (error) {
+        throw new Error(`Failed to fetch jobs: ${error.message}`);
+      }
+
+      const jobs = (data || []).map((job) => serializeJob(job as JobRecord));
+
+      return new Response(JSON.stringify({
+        data: jobs,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit),
+          hasMore: (page + 1) * limit < (count || 0),
+        }
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    console.error('Jobs Edge Function Error:', err);
+    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }

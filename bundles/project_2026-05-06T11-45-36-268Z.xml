@@ -1,7 +1,7 @@
-?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <bundle>
   <metadata>
-    <created>2026-05-01T06:54:10.601Z</created>
+    <created>2026-05-06T11:45:36.270Z</created>
     <projectPath>F:\frontend_talentmesh</projectPath>
   </metadata>
   <files>
@@ -1495,6 +1495,7 @@ import Image from &apos;next/image&apos;;
 import { useRouter } from &apos;next/navigation&apos;;
 import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import { insforge } from &apos;@/lib/insforge&apos;;
+import { getMyProfile } from &apos;@/lib/api/profile&apos;;
 import styles from &apos;./login.module.css&apos;;
 
 // Admin email list from .env — updateable via NEXT_PUBLIC_ADMIN_EMAILS
@@ -1573,9 +1574,14 @@ export default function LoginPage() {
             }
 
             // Redirect based on profile
-            const res = await fetch(&apos;/api/candidate-profile&apos;);
-            const profileData = await res.json();
-            const profile = profileData?.profile;
+            let profile;
+            if (!isAdminEmail) {
+                try {
+                    profile = await getMyProfile(result.accessToken);
+                } catch (err) {
+                    console.error(&apos;Failed to fetch profile during auto-login:&apos;, err);
+                }
+            }
 
             if (!profile) {
                 // New admin — no candidate profile, redirect to admin dashboard
@@ -1593,7 +1599,7 @@ export default function LoginPage() {
                 router.push(&apos;/dashboard/admin&apos;);
             } else if (profile.role === &apos;recruiter&apos;) {
                 router.push(&apos;/dashboard/recruiter&apos;);
-            } else if (!profile.completed_onboarding) {
+            } else if (!profile.is_onboarded) {
                 router.push(&apos;/onboarding/candidate&apos;);
             } else {
                 router.push(`/dashboard/candidate/${profile.id}`);
@@ -1642,21 +1648,29 @@ export default function LoginPage() {
             // 3. Success — let middleware redirect to the right dashboard based on role.
             // router.refresh() re-requests the current page (/login); the middleware
             // sees the authenticated user and redirects to /dashboard/{role}.
-            // 🔥 STEP 1 — Fetch profile
-            const res = await fetch(&apos;/api/candidate-profile&apos;);
-            const data = await res.json();
-
-            if (!data?.profile) {
-                if (isAdminEmail) {
-                    router.push(&apos;/dashboard/admin&apos;);
+            // 🔥 STEP 1 — Fetch profile (Skip for Admins)
+            let profile;
+            if (!isAdminEmail) {
+                try {
+                    profile = await getMyProfile(result.accessToken);
+                } catch (err) {
+                    console.error(&apos;Failed to fetch profile during login:&apos;, err);
+                    setError(&apos;Failed to load profile. Please try again.&apos;);
+                    setIsLoading(false);
                     return;
                 }
-                setError(&apos;Profile not found&apos;);
-                setIsLoading(false);
+            }
+
+            if (!profile) {
+                // No profile found, redirect based on admin status
+                if (isAdminEmail) {
+                    router.push(&apos;/dashboard/admin&apos;);
+                } else {
+                    router.push(&apos;/onboarding/candidate&apos;);
+                }
                 return;
             }
 
-            const profile = data.profile;
             const isAdminRole = isAdminEmail || profile.role === &apos;admin&apos; || profile.role === &apos;super_admin&apos;;
 
             console.log(`Login successful. User role: ${profile.role}. Redirecting...`);
@@ -1665,14 +1679,13 @@ export default function LoginPage() {
             const destination = isAdminRole 
                 ? &apos;/dashboard/admin&apos; 
                 : profile.role === &apos;recruiter&apos;
-                ? (profile.completed_onboarding ? &apos;/dashboard/recruiter&apos; : &apos;/onboarding/recruiter/setup&apos;)
-                : (profile.completed_onboarding ? `/dashboard/candidate/${profile.id}` : &apos;/onboarding/candidate&apos;);
+                ? (profile.is_onboarded ? &apos;/dashboard/recruiter&apos; : &apos;/onboarding/recruiter/setup&apos;)
+                : (profile.is_onboarded ? `/dashboard/candidate/${profile.id}` : &apos;/onboarding/candidate&apos;);
+
 
             setTimeout(() =&gt; {
                 window.location.href = destination;
             }, 150);
-
-
 
         } catch (err: any) {
             setError(err.message || &apos;An unexpected error occurred. Please try again.&apos;);
@@ -14726,7 +14739,9 @@ export default function AdminBillingPage() {
 import React, { useState, useEffect, useRef, useCallback } from &apos;react&apos;;
 import * as Ico from &apos;lucide-react&apos;;
 import styles from &apos;./blogs.module.css&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { invokeFunction } from &apos;@/lib/insforge&apos;;
+import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
+
 
 interface BlogPost {
   id: string;
@@ -14774,6 +14789,7 @@ const categoryOptions = [
 const statusOptions = [&apos;all&apos;, &apos;draft&apos;, &apos;published&apos;, &apos;archived&apos;];
 
 export default function AdminBlogsPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [posts, setPosts] = useState&lt;BlogPost[]&gt;([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -14791,10 +14807,12 @@ export default function AdminBlogsPage() {
   const fileInputRef = useRef&lt;HTMLInputElement&gt;(null);
 
   useEffect(() =&gt; {
-    fetchPosts();
-    // Simulate premium views
-    setTotalViews(Math.floor(Math.random() * 5000) + 1200);
-  }, []);
+    if (user) {
+      fetchPosts();
+      // Simulate premium views
+      setTotalViews(Math.floor(Math.random() * 5000) + 1200);
+    }
+  }, [user]);
 
   // Real-time Slug Generation
   useEffect(() =&gt; {
@@ -14810,13 +14828,14 @@ export default function AdminBlogsPage() {
   const fetchPosts = useCallback(async (currentSearch = search, currentStatus = status) =&gt; {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke(&apos;admin-blogs&apos;, {
+      const { data, error: fetchError } = await invokeFunction(&apos;admin-blogs&apos;, {
         method: &apos;GET&apos;,
         queries: {
           search: currentSearch || undefined,
           status: currentStatus !== &apos;all&apos; ? currentStatus : undefined,
         }
       });
+
       
       if (fetchError) throw new Error(fetchError.message);
       
@@ -14866,11 +14885,12 @@ export default function AdminBlogsPage() {
     setSaving(true);
     setError(&apos;&apos;);
     try {
-      const { data, error: saveError } = await insforge.functions.invoke(&apos;admin-blogs&apos;, {
+      const { data, error: saveError } = await invokeFunction(&apos;admin-blogs&apos;, {
         method: selectedPost ? &apos;PATCH&apos; : &apos;POST&apos;,
         body: form,
         path: selectedPost ? `/${selectedPost.id}` : undefined
       });
+
       
       if (saveError) throw new Error(saveError.message);
       
@@ -14889,10 +14909,11 @@ export default function AdminBlogsPage() {
   const handleDelete = async (id: string) =&gt; {
     if (!confirm(&apos;Are you sure you want to delete this article?&apos;)) return;
     try {
-      const { error: deleteError } = await insforge.functions.invoke(&apos;admin-blogs&apos;, {
+      const { error: deleteError } = await invokeFunction(&apos;admin-blogs&apos;, {
         method: &apos;DELETE&apos;,
         path: `/${id}`
       });
+
       if (deleteError) throw new Error(deleteError.message);
       
       setSuccess(&apos;Article deleted&apos;);
@@ -14910,10 +14931,11 @@ export default function AdminBlogsPage() {
       const formData = new FormData();
       formData.append(&apos;file&apos;, file);
       
-      const { data, error: uploadError } = await insforge.functions.invoke(&apos;upload-blog-image&apos;, {
+      const { data, error: uploadError } = await invokeFunction(&apos;upload-blog-image&apos;, {
         method: &apos;POST&apos;,
         body: formData,
       });
+
 
       if (uploadError) throw new Error(uploadError.message);
 
@@ -15110,7 +15132,7 @@ export default function AdminBlogsPage() {
         &lt;/select&gt;
       &lt;/div&gt;
 
-      {loading ? (
+      {(authLoading || loading) ? (
         &lt;div className=&quot;flex justify-center items-center py-20&quot;&gt;
           &lt;Ico.Loader2 className=&quot;w-10 h-10 text-blue-500 animate-spin&quot; /&gt;
         &lt;/div&gt;
@@ -15550,7 +15572,9 @@ export default function AdminBlogsPage() {
 
 import { useEffect, useMemo, useState, useCallback } from &apos;react&apos;;
 import styles from &apos;./candidates.module.css&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { invokeFunction } from &apos;@/lib/insforge&apos;;
+import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
+
 
 type CandidateProfile = {
   headline?: string;
@@ -15577,6 +15601,7 @@ type AdminCandidate = {
 };
 
 export default function AdminCandidatesPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [candidates, setCandidates] = useState&lt;AdminCandidate[]&gt;([]);
   const [search, setSearch] = useState(&apos;&apos;);
   const [loading, setLoading] = useState(true);
@@ -15594,7 +15619,7 @@ export default function AdminCandidatesPage() {
     setLoading(true);
     setError(&apos;&apos;);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke(&apos;admin-candidates&apos;, {
+      const { data, error: fetchError } = await invokeFunction(&apos;admin-candidates&apos;, {
         method: &apos;GET&apos;,
         queries: {
           search: q || undefined,
@@ -15602,6 +15627,7 @@ export default function AdminCandidatesPage() {
           limit: &apos;20&apos;
         }
       });
+
       
       if (fetchError) throw new Error(fetchError.message);
       
@@ -15618,16 +15644,19 @@ export default function AdminCandidatesPage() {
   }, [page, search]);
 
   useEffect(() =&gt; {
-    fetchCandidates();
-  }, [fetchCandidates]);
+    if (user) {
+      fetchCandidates();
+    }
+  }, [fetchCandidates, user]);
 
   const updateCandidate = async (user: AdminCandidate, payload: Partial&lt;AdminCandidate&gt;) =&gt; {
     try {
-      const { data, error: updateError } = await insforge.functions.invoke(&apos;admin-candidates&apos;, {
+      const { data, error: updateError } = await invokeFunction(&apos;admin-candidates&apos;, {
         method: &apos;PATCH&apos;,
         body: payload,
         path: `/${user.id}`
       });
+
       
       if (updateError) throw new Error(updateError.message);
 
@@ -15689,7 +15718,7 @@ export default function AdminCandidatesPage() {
       {error &amp;&amp; &lt;div className={styles.errorBanner}&gt;{error}&lt;/div&gt;}
 
       &lt;div className={styles.grid}&gt;
-        {loading ? (
+        {(authLoading || loading) ? (
           &lt;div className={styles.emptyState}&gt;Syncing registry...&lt;/div&gt;
         ) : candidates.length === 0 ? (
           &lt;div className={styles.emptyState}&gt;No candidates matched your criteria.&lt;/div&gt;
@@ -16630,7 +16659,9 @@ import { JobCard } from &apos;@/components/jobs/JobCard&apos;;
 import { AdminHeader } from &apos;../_components/AdminHeader&apos;;
 import { AdminStatCard } from &apos;../_components/AdminStatCard&apos;;
 import { AdminInput, AdminSelect, AdminButton } from &apos;../_components/AdminForm&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { invokeFunction } from &apos;@/lib/insforge&apos;;
+import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
+
 
 type CompanyOption = {
   id: string;
@@ -16734,6 +16765,7 @@ function toFormState(job?: AdminJob | null): JobFormState {
 }
 
 export default function AdminJobsPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [jobs, setJobs] = useState&lt;AdminJob[]&gt;([]);
   const [companies, setCompanies] = useState&lt;CompanyOption[]&gt;([]);
   const [search, setSearch] = useState(&apos;&apos;);
@@ -16760,7 +16792,7 @@ export default function AdminJobsPage() {
   const fetchJobs = useCallback(async (p = page, s = filterStatus, q = search) =&gt; {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke(&apos;admin-jobs&apos;, {
+      const { data, error: fetchError } = await invokeFunction(&apos;admin-jobs&apos;, {
         method: &apos;GET&apos;,
         queries: {
           includeMeta: &apos;true&apos;,
@@ -16770,6 +16802,7 @@ export default function AdminJobsPage() {
           limit: &apos;20&apos;,
         }
       });
+
 
       if (fetchError) throw new Error(fetchError.message);
 
@@ -16787,8 +16820,10 @@ export default function AdminJobsPage() {
   }, [page, filterStatus, search]);
 
   useEffect(() =&gt; {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (user) {
+      fetchJobs();
+    }
+  }, [fetchJobs, user]);
 
   const toggleSelect = (id: string, e: React.MouseEvent) =&gt; {
     e.stopPropagation();
@@ -16807,10 +16842,11 @@ export default function AdminJobsPage() {
       const edgeAction = action === &apos;delete&apos; ? &apos;bulk-delete&apos; : &apos;bulk-update&apos;;
       const updates = action === &apos;approve&apos; ? { is_approved: true } : action === &apos;reject&apos; ? { is_approved: false } : {};
       
-      const { error: bulkError } = await insforge.functions.invoke(&apos;admin-jobs&apos;, {
+      const { error: bulkError } = await invokeFunction(&apos;admin-jobs&apos;, {
         method: &apos;POST&apos;,
         body: { ids: Array.from(selectedIds), action: edgeAction, updates }
       });
+
       
       if (bulkError) throw new Error(bulkError.message);
 
@@ -16890,11 +16926,12 @@ export default function AdminJobsPage() {
 
       console.log(&apos;[Job Creation] Payload ready:&apos;, payload);
 
-      const { data, error: saveError } = await insforge.functions.invoke(&apos;admin-jobs&apos;, {
+      const { data, error: saveError } = await invokeFunction(&apos;admin-jobs&apos;, {
         method: selectedJob ? &apos;PATCH&apos; : &apos;POST&apos;,
         body: payload,
         path: selectedJob ? `/${selectedJob.id}` : undefined
       });
+
 
       if (saveError) throw new Error(saveError.message);
 
@@ -16958,7 +16995,7 @@ export default function AdminJobsPage() {
           &lt;/div&gt;
 
           &lt;div className={styles.listBody}&gt;
-            {loading ? &lt;div className={styles.emptyState}&gt;Syncing registry...&lt;/div&gt; :
+            {(authLoading || loading) ? &lt;div className={styles.emptyState}&gt;Syncing registry...&lt;/div&gt; :
               jobs.length === 0 ? &lt;div className={styles.emptyState}&gt;No roles match your search.&lt;/div&gt; : (
                 jobs.map(job =&gt; (
                   &lt;article key={job.id}
@@ -17209,7 +17246,7 @@ export default function AdminNotificationsPage() {
     <file path="app\dashboard\admin\page.tsx" type="code">
       <content>&quot;use client&quot;;
 
-import { useEffect, useState, useCallback } from &apos;react&apos;;
+import { useEffect, useState, useCallback, useRef } from &apos;react&apos;;
 import Link from &apos;next/link&apos;;
 import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import styles from &apos;../shared-dashboard.module.css&apos;;
@@ -17218,20 +17255,20 @@ import { HomeSkeleton } from &apos;@/components/ui/DashboardSkeleton&apos;;
 
 /* ─── Icons ─── */
 const IC = {
-    users: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2&quot; /&gt;&lt;circle cx=&quot;9&quot; cy=&quot;7&quot; r=&quot;4&quot; /&gt;&lt;path d=&quot;M23 21v-2a4 4 0 0 0-3-3.87&quot; /&gt;&lt;path d=&quot;M16 3.13a4 4 0 0 1 0 7.75&quot; /&gt;&lt;/svg&gt;,
-    clipboard: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;rect x=&quot;2&quot; y=&quot;7&quot; width=&quot;20&quot; height=&quot;14&quot; rx=&quot;2&quot; ry=&quot;2&quot; /&gt;&lt;path d=&quot;M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16&quot; /&gt;&lt;/svg&gt;,
-    send: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2&quot; /&gt;&lt;rect x=&quot;8&quot; y=&quot;2&quot; width=&quot;8&quot; height=&quot;4&quot; rx=&quot;1&quot; ry=&quot;1&quot; /&gt;&lt;/svg&gt;,
-    trending: &lt;svg width=&quot;13&quot; height=&quot;13&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot; strokeLinecap=&quot;round&quot; strokeLinejoin=&quot;round&quot;&gt;&lt;polyline points=&quot;23 6 13.5 15.5 8.5 10.5 1 18&quot; /&gt;&lt;polyline points=&quot;17 6 23 6 23 12&quot; /&gt;&lt;/svg&gt;,
-    alertCircle: &lt;svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;10&quot; /&gt;&lt;line x1=&quot;12&quot; y1=&quot;8&quot; x2=&quot;12&quot; y2=&quot;12&quot; /&gt;&lt;line x1=&quot;12&quot; y1=&quot;16&quot; x2=&quot;12.01&quot; y2=&quot;16&quot; /&gt;&lt;/svg&gt;,
-    plus: &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;line x1=&quot;12&quot; y1=&quot;5&quot; x2=&quot;12&quot; y2=&quot;19&quot; /&gt;&lt;line x1=&quot;5&quot; y1=&quot;12&quot; x2=&quot;19&quot; y2=&quot;12&quot; /&gt;&lt;/svg&gt;,
-    barChart: &lt;svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;line x1=&quot;12&quot; y1=&quot;20&quot; x2=&quot;12&quot; y2=&quot;10&quot; /&gt;&lt;line x1=&quot;18&quot; y1=&quot;20&quot; x2=&quot;18&quot; y2=&quot;4&quot; /&gt;&lt;line x1=&quot;6&quot; y1=&quot;20&quot; x2=&quot;6&quot; y2=&quot;16&quot; /&gt;&lt;/svg&gt;,
-    checkCircle: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M22 11.08V12a10 10 0 1 1-5.93-9.14&quot; /&gt;&lt;polyline points=&quot;22 4 12 14.01 9 11.01&quot; /&gt;&lt;/svg&gt;,
-    eye: &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot; /&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; /&gt;&lt;/svg&gt;,
-    moreH: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;1&quot; /&gt;&lt;circle cx=&quot;19&quot; cy=&quot;12&quot; r=&quot;1&quot; /&gt;&lt;circle cx=&quot;5&quot; cy=&quot;12&quot; r=&quot;1&quot; /&gt;&lt;/svg&gt;,
-    settings: &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; /&gt;&lt;path d=&quot;M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z&quot; /&gt;&lt;/svg&gt;,
+  users: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2&quot; /&gt;&lt;circle cx=&quot;9&quot; cy=&quot;7&quot; r=&quot;4&quot; /&gt;&lt;path d=&quot;M23 21v-2a4 4 0 0 0-3-3.87&quot; /&gt;&lt;path d=&quot;M16 3.13a4 4 0 0 1 0 7.75&quot; /&gt;&lt;/svg&gt;,
+  clipboard: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;rect x=&quot;2&quot; y=&quot;7&quot; width=&quot;20&quot; height=&quot;14&quot; rx=&quot;2&quot; ry=&quot;2&quot; /&gt;&lt;path d=&quot;M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16&quot; /&gt;&lt;/svg&gt;,
+  send: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2&quot; /&gt;&lt;rect x=&quot;8&quot; y=&quot;2&quot; width=&quot;8&quot; height=&quot;4&quot; rx=&quot;1&quot; ry=&quot;1&quot; /&gt;&lt;/svg&gt;,
+  trending: &lt;svg width=&quot;13&quot; height=&quot;13&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot; strokeLinecap=&quot;round&quot; strokeLinejoin=&quot;round&quot;&gt;&lt;polyline points=&quot;23 6 13.5 15.5 8.5 10.5 1 18&quot; /&gt;&lt;polyline points=&quot;17 6 23 6 23 12&quot; /&gt;&lt;/svg&gt;,
+  alertCircle: &lt;svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;10&quot; /&gt;&lt;line x1=&quot;12&quot; y1=&quot;8&quot; x2=&quot;12&quot; y2=&quot;12&quot; /&gt;&lt;line x1=&quot;12&quot; y1=&quot;16&quot; x2=&quot;12.01&quot; y2=&quot;16&quot; /&gt;&lt;/svg&gt;,
+  plus: &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;line x1=&quot;12&quot; y1=&quot;5&quot; x2=&quot;12&quot; y2=&quot;19&quot; /&gt;&lt;line x1=&quot;5&quot; y1=&quot;12&quot; x2=&quot;19&quot; y2=&quot;12&quot; /&gt;&lt;/svg&gt;,
+  barChart: &lt;svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;line x1=&quot;12&quot; y1=&quot;20&quot; x2=&quot;12&quot; y2=&quot;10&quot; /&gt;&lt;line x1=&quot;18&quot; y1=&quot;20&quot; x2=&quot;18&quot; y2=&quot;4&quot; /&gt;&lt;line x1=&quot;6&quot; y1=&quot;20&quot; x2=&quot;6&quot; y2=&quot;16&quot; /&gt;&lt;/svg&gt;,
+  checkCircle: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M22 11.08V12a10 10 0 1 1-5.93-9.14&quot; /&gt;&lt;polyline points=&quot;22 4 12 14.01 9 11.01&quot; /&gt;&lt;/svg&gt;,
+  eye: &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;1.8&quot;&gt;&lt;path d=&quot;M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z&quot; /&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; /&gt;&lt;/svg&gt;,
+  moreH: &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;1&quot; /&gt;&lt;circle cx=&quot;19&quot; cy=&quot;12&quot; r=&quot;1&quot; /&gt;&lt;circle cx=&quot;5&quot; cy=&quot;12&quot; r=&quot;1&quot; /&gt;&lt;/svg&gt;,
+  settings: &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;circle cx=&quot;12&quot; cy=&quot;12&quot; r=&quot;3&quot; /&gt;&lt;path d=&quot;M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z&quot; /&gt;&lt;/svg&gt;,
 };
 
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { invokeFunction } from &apos;@/lib/insforge&apos;;
 
 type Stat = { value: number; trend: &apos;up&apos; | &apos;down&apos;; trendValue: string };
 type Stats = {
@@ -17258,17 +17295,22 @@ type ActivityItem = {
 };
 
 export default function AdminDashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [stats, setStats] = useState&lt;Stats | null&gt;(null);
   const [alerts, setAlerts] = useState&lt;AlertData | null&gt;(null);
   const [activities, setActivities] = useState&lt;ActivityItem[]&gt;([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+  const fetching = useRef(false);
 
   const fetchData = useCallback(async () =&gt; {
+    if (fetching.current) return;
+    fetching.current = true;
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke(&apos;admin-dashboard&apos;, {
+      const { data, error: fetchError } = await invokeFunction(&apos;admin-dashboard&apos;, {
+        method: &apos;POST&apos;,
         body: { action: &apos;get-summary&apos;, limit: 10 }
       });
+
 
       if (fetchError) throw new Error(fetchError.message);
 
@@ -17285,17 +17327,20 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error(&apos;Dashboard fetch error:&apos;, error);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
+      fetching.current = false;
     }
   }, []);
 
   useEffect(() =&gt; {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
-    return () =&gt; clearInterval(interval);
-  }, [fetchData]);
+    if (user) {
+      fetchData();
+      const interval = setInterval(fetchData, 60000);
+      return () =&gt; clearInterval(interval);
+    }
+  }, [fetchData, user?.id]);
 
-  if (loading) {
+  if (authLoading || dataLoading) {
     return &lt;HomeSkeleton /&gt;;
   }
 
@@ -17348,38 +17393,38 @@ export default function AdminDashboardPage() {
           &lt;div className={styles.leftCol}&gt;
             {/* Critical Moderation Queue */}
             {alerts &amp;&amp; (alerts.pendingRecruiters &gt; 0 || alerts.pendingJobs &gt; 0 || alerts.reportedJobs &gt; 0) &amp;&amp; (
-                &lt;div className={styles.card}&gt;
-                    &lt;div className={styles.cardHead}&gt;
-                        &lt;h2 className={styles.cardTitle}&gt;Critical Moderation Queue&lt;/h2&gt;
-                    &lt;/div&gt;
-                    {alerts.pendingRecruiters &gt; 0 &amp;&amp; (
-                        &lt;div className={styles.actItem}&gt;
-                            &lt;span className={styles.actIcon} style={{color: &apos;#f59e0b&apos;}}&gt;{IC.alertCircle}&lt;/span&gt;
-                            &lt;div className={styles.actContent}&gt;
-                                &lt;span className={styles.actText}&gt;&lt;strong&gt;{alerts.pendingRecruiters} Approval Requests&lt;/strong&gt; - Recruiters waiting for portal access&lt;/span&gt;
-                            &lt;/div&gt;
-                            &lt;Link href=&quot;/dashboard/admin/recruiters?status=pending&quot; className={styles.actAction}&gt;Review&lt;/Link&gt;
-                        &lt;/div&gt;
-                    )}
-                    {alerts.pendingJobs &gt; 0 &amp;&amp; (
-                        &lt;div className={styles.actItem}&gt;
-                            &lt;span className={styles.actIcon} style={{color: &apos;#f59e0b&apos;}}&gt;{IC.alertCircle}&lt;/span&gt;
-                            &lt;div className={styles.actContent}&gt;
-                                &lt;span className={styles.actText}&gt;&lt;strong&gt;{alerts.pendingJobs} Job Reviews&lt;/strong&gt; - New listings requiring verification&lt;/span&gt;
-                            &lt;/div&gt;
-                            &lt;Link href=&quot;/dashboard/admin/jobs?status=pending&quot; className={styles.actAction}&gt;Review&lt;/Link&gt;
-                        &lt;/div&gt;
-                    )}
-                    {alerts.reportedJobs &gt; 0 &amp;&amp; (
-                        &lt;div className={styles.actItem}&gt;
-                            &lt;span className={styles.actIcon} style={{color: &apos;#ef4444&apos;}}&gt;{IC.alertCircle}&lt;/span&gt;
-                            &lt;div className={styles.actContent}&gt;
-                                &lt;span className={styles.actText}&gt;&lt;strong&gt;{alerts.reportedJobs} Flagged Reports&lt;/strong&gt; - Safety violations requiring attention&lt;/span&gt;
-                            &lt;/div&gt;
-                            &lt;Link href=&quot;/dashboard/admin/jobs?status=reported&quot; className={styles.actAction}&gt;Review&lt;/Link&gt;
-                        &lt;/div&gt;
-                    )}
+              &lt;div className={styles.card}&gt;
+                &lt;div className={styles.cardHead}&gt;
+                  &lt;h2 className={styles.cardTitle}&gt;Critical Moderation Queue&lt;/h2&gt;
                 &lt;/div&gt;
+                {alerts.pendingRecruiters &gt; 0 &amp;&amp; (
+                  &lt;div className={styles.actItem}&gt;
+                    &lt;span className={styles.actIcon} style={{ color: &apos;#f59e0b&apos; }}&gt;{IC.alertCircle}&lt;/span&gt;
+                    &lt;div className={styles.actContent}&gt;
+                      &lt;span className={styles.actText}&gt;&lt;strong&gt;{alerts.pendingRecruiters} Approval Requests&lt;/strong&gt; - Recruiters waiting for portal access&lt;/span&gt;
+                    &lt;/div&gt;
+                    &lt;Link href=&quot;/dashboard/admin/recruiters?status=pending&quot; className={styles.actAction}&gt;Review&lt;/Link&gt;
+                  &lt;/div&gt;
+                )}
+                {alerts.pendingJobs &gt; 0 &amp;&amp; (
+                  &lt;div className={styles.actItem}&gt;
+                    &lt;span className={styles.actIcon} style={{ color: &apos;#f59e0b&apos; }}&gt;{IC.alertCircle}&lt;/span&gt;
+                    &lt;div className={styles.actContent}&gt;
+                      &lt;span className={styles.actText}&gt;&lt;strong&gt;{alerts.pendingJobs} Job Reviews&lt;/strong&gt; - New listings requiring verification&lt;/span&gt;
+                    &lt;/div&gt;
+                    &lt;Link href=&quot;/dashboard/admin/jobs?status=pending&quot; className={styles.actAction}&gt;Review&lt;/Link&gt;
+                  &lt;/div&gt;
+                )}
+                {alerts.reportedJobs &gt; 0 &amp;&amp; (
+                  &lt;div className={styles.actItem}&gt;
+                    &lt;span className={styles.actIcon} style={{ color: &apos;#ef4444&apos; }}&gt;{IC.alertCircle}&lt;/span&gt;
+                    &lt;div className={styles.actContent}&gt;
+                      &lt;span className={styles.actText}&gt;&lt;strong&gt;{alerts.reportedJobs} Flagged Reports&lt;/strong&gt; - Safety violations requiring attention&lt;/span&gt;
+                    &lt;/div&gt;
+                    &lt;Link href=&quot;/dashboard/admin/jobs?status=reported&quot; className={styles.actAction}&gt;Review&lt;/Link&gt;
+                  &lt;/div&gt;
+                )}
+              &lt;/div&gt;
             )}
 
             &lt;div className={styles.card}&gt;
@@ -17435,9 +17480,9 @@ export default function AdminDashboardPage() {
             &lt;/div&gt;
 
             &lt;div className={styles.featuredCard}&gt;
-                &lt;span className={styles.featuredLabel}&gt;PLATFORM HEALTH&lt;/span&gt;
-                &lt;span className={styles.featuredName}&gt;Optimal &amp; Operational&lt;/span&gt;
-                &lt;button className={styles.featuredLink}&gt;All nodes are running. Request latency is at 24ms. No active incidents. {IC.checkCircle}&lt;/button&gt;
+              &lt;span className={styles.featuredLabel}&gt;PLATFORM HEALTH&lt;/span&gt;
+              &lt;span className={styles.featuredName}&gt;Optimal &amp; Operational&lt;/span&gt;
+              &lt;button className={styles.featuredLink}&gt;All nodes are running. Request latency is at 24ms. No active incidents. {IC.checkCircle}&lt;/button&gt;
             &lt;/div&gt;
           &lt;/div&gt;
         &lt;/div&gt;
@@ -17452,7 +17497,9 @@ export default function AdminDashboardPage() {
 
 import { useEffect, useMemo, useState, useCallback } from &apos;react&apos;;
 import styles from &apos;../candidates/candidates.module.css&apos;; // Reusing established styles
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { invokeFunction } from &apos;@/lib/insforge&apos;;
+import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
+
 
 type RecruiterProfile = {
   id: string;
@@ -17475,6 +17522,7 @@ type AdminRecruiter = {
 };
 
 export default function AdminRecruitersPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [recruiters, setRecruiters] = useState&lt;AdminRecruiter[]&gt;([]);
   const [search, setSearch] = useState(&apos;&apos;);
   const [statusFilter, setStatusFilter] = useState(&apos;all&apos;);
@@ -17490,7 +17538,7 @@ export default function AdminRecruitersPage() {
   const fetchRecruiters = useCallback(async (p = page, q = search, s = statusFilter) =&gt; {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke(&apos;admin-recruiters&apos;, {
+      const { data, error: fetchError } = await invokeFunction(&apos;admin-recruiters&apos;, {
         method: &apos;GET&apos;,
         queries: {
           search: q || undefined,
@@ -17499,6 +17547,7 @@ export default function AdminRecruitersPage() {
           limit: &apos;20&apos;
         }
       });
+
       
       if (fetchError) throw new Error(fetchError.message);
       
@@ -17515,16 +17564,19 @@ export default function AdminRecruitersPage() {
   }, [page, search, statusFilter]);
 
   useEffect(() =&gt; {
-    fetchRecruiters();
-  }, [fetchRecruiters]);
+    if (user) {
+      fetchRecruiters();
+    }
+  }, [fetchRecruiters, user]);
 
   const toggleStatus = async (user: AdminRecruiter) =&gt; {
     try {
-      const { data, error: updateError } = await insforge.functions.invoke(&apos;admin-recruiters&apos;, {
+      const { data, error: updateError } = await invokeFunction(&apos;admin-recruiters&apos;, {
         method: &apos;PATCH&apos;,
         body: { is_active: !user.is_active },
         path: `/${user.id}`
       });
+
       
       if (updateError) throw new Error(updateError.message);
 
@@ -17546,11 +17598,12 @@ export default function AdminRecruitersPage() {
       // but it currently targets recruiter_profiles (based on my index.ts write).
       // Let&apos;s check index.ts for admin-recruiters.
       
-      const { data, error: updateError } = await insforge.functions.invoke(&apos;admin-recruiters&apos;, {
+      const { data, error: updateError } = await invokeFunction(&apos;admin-recruiters&apos;, {
         method: &apos;PATCH&apos;,
         body: { is_approved: true },
         path: `/${profileId}`
       });
+
       
       if (updateError) throw new Error(updateError.message);
 
@@ -17611,7 +17664,7 @@ export default function AdminRecruitersPage() {
       {error &amp;&amp; &lt;div className={styles.errorBanner}&gt;{error}&lt;/div&gt;}
 
       &lt;div className={styles.grid}&gt;
-        {loading ? (
+        {(authLoading || loading) ? (
           &lt;div className={styles.emptyState}&gt;Syncing registry...&lt;/div&gt;
         ) : recruiters.length === 0 ? (
           &lt;div className={styles.emptyState}&gt;No recruiters found.&lt;/div&gt;
@@ -17751,7 +17804,8 @@ export default function AdminRecruitersPage() {
 
 import { useEffect, useState } from &apos;react&apos;;
 import styles from &apos;./reports.module.css&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { invokeFunction } from &apos;@/lib/insforge&apos;;
+
 
 type ReportsData = {
   metrics: {
@@ -17782,9 +17836,11 @@ export default function AdminReportsPage() {
   useEffect(() =&gt; {
     async function fetchReports() {
       try {
-        const { data, error: fetchError } = await insforge.functions.invoke(&apos;admin-dashboard&apos;, {
+        const { data, error: fetchError } = await invokeFunction(&apos;admin-dashboard&apos;, {
+          method: &apos;POST&apos;,
           body: { action: &apos;get-reports&apos; }
         });
+
         
         if (fetchError) throw new Error(fetchError.message);
         
@@ -21319,12 +21375,12 @@ export default function CandidateNotificationsPage() {
     </file>
     <file path="app\dashboard\candidate\[role_id]\page.tsx" type="code">
       <content>&quot;use client&quot;;
-import React, { useEffect, useState } from &apos;react&apos;;
+import React, { useEffect, useState, useRef } from &apos;react&apos;;
 import { useRouter } from &apos;next/navigation&apos;;
 import styles from &apos;../../shared-dashboard.module.css&apos;;
 import AnimateOnScroll from &apos;@/components/AnimateOnScroll&apos;;
 import { HomeSkeleton } from &apos;@/components/ui/DashboardSkeleton&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { insforge, invokeFunction } from &apos;@/lib/insforge&apos;;
 import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import { formatTime, formatShortDate } from &apos;@/lib/utils/date-utils&apos;;
 
@@ -21360,12 +21416,16 @@ export default function CandidateHome({ params }: { params: Promise&lt;{ role_id
     const [interviewCount, setInterviewCount] = useState(0);
     const [nextInterview, setNextInterview] = useState&lt;any&gt;(null);
     const [loading, setLoading] = useState(true);
+    const fetching = useRef(false);
 
     const isUUID = (str: string) =&gt; /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
     useEffect(() =&gt; {
-        // 0. Auth Guard
-        if (!authLoading &amp;&amp; !authUser) {
+        // 0. Wait for session restoration
+        if (authLoading) return;
+
+        // 1. Auth Guard
+        if (!authUser) {
             router.replace(&apos;/login&apos;);
             return;
         }
@@ -21389,83 +21449,41 @@ export default function CandidateHome({ params }: { params: Promise&lt;{ role_id
         }
 
         async function fetchData() {
+            if (fetching.current) return;
+            fetching.current = true;
             setLoading(true);
             try {
-                // Fetch Profile
-                const { data: profileData, error: pError } = await insforge.database
-                    .from(&apos;candidate_profiles&apos;)
-                    .select(&apos;*&apos;)
-                    .eq(&apos;id&apos;, role_id)
-                    .single();
+                // Fetch All Dashboard Data via Unified Function
+                const { data: dash, error: dError } = await invokeFunction(&apos;candidate-dashboard&apos;);
                 
-                if (pError) console.warn(&apos;Profile fetch error:&apos;, pError.message);
-                setProfile(profileData);
-
-                // Fetch App Count
-                const { count: aCount, error: appsError } = await insforge.database
-                    .from(&apos;applications&apos;)
-                    .select(&apos;*&apos;, { count: &apos;exact&apos;, head: true })
-                    .eq(&apos;candidate_id&apos;, role_id);
-                
-                if (appsError) console.warn(&apos;Apps count error:&apos;, appsError.message);
-                setAppCount(aCount || 0);
-
-                // Fetch Interview Count &amp; Next Interview
-                const { data: interviews, count: iCount, error: intError } = await insforge.database
-                    .from(&apos;interviews&apos;)
-                    .select(`
-                        *,
-                        applications (
-                            id,
-                            jobs (
-                                id,
-                                title,
-                                companies (
-                                    name
-                                )
-                            )
-                        )
-                    `)
-                    .eq(&apos;candidate_id&apos;, role_id)
-                    .order(&apos;scheduled_at&apos;, { ascending: true });
-                
-                if (intError) console.warn(&apos;Interviews fetch error:&apos;, intError.message);
-                setInterviewCount(iCount || 0);
-                if (interviews &amp;&amp; interviews.length &gt; 0) {
-                    setNextInterview({
-                        ...interviews[0],
-                        scheduledAt: interviews[0].scheduled_at
-                    });
+                if (dError) {
+                    console.error(&apos;Dashboard fetch error:&apos;, dError.message);
+                    return;
                 }
 
-                // Fetch Jobs with Company details
-                const { data: jobsData, error: jobsError } = await insforge.database
-                    .from(&apos;jobs&apos;)
-                    .select(&apos;*, companies(name)&apos;)
-                    .eq(&apos;status&apos;, &apos;active&apos;)
-                    .limit(3);
-                
-                if (jobsError) console.warn(&apos;Jobs fetch error:&apos;, jobsError.message);
-                setJobs(jobsData || []);
+                if (dash) {
+                    setProfile(dash.candidateProfile);
+                    setAppCount(dash.appCount);
+                    setJobs(dash.jobs || []);
+                    setActivity(dash.activity || []);
 
-                // Fetch Activity
-                const { data: actData, error: actError } = await insforge.database
-                    .from(&apos;activity&apos;)
-                    .select(&apos;*&apos;)
-                    .eq(&apos;user_id&apos;, role_id)
-                    .order(&apos;created_at&apos;, { ascending: false })
-                    .limit(5);
-                
-                if (actError) console.warn(&apos;Activity fetch error:&apos;, actError.message);
-                setActivity(actData || []);
+                    if (dash.interviews &amp;&amp; dash.interviews.length &gt; 0) {
+                        setInterviewCount(dash.interviews.length);
+                        setNextInterview({
+                            ...dash.interviews[0],
+                            scheduledAt: dash.interviews[0].scheduled_at
+                        });
+                    }
+                }
             } catch (error) {
                 console.error(&apos;Unexpected dashboard fetch error:&apos;, error);
             } finally {
                 setLoading(false);
+                fetching.current = false;
             }
         }
         fetchData();
-    }, [role_id, authUser, router]);
+    }, [authLoading, authUser?.id, role_id, router]);
 
     if (loading) {
         return &lt;HomeSkeleton /&gt;;
@@ -22353,6 +22371,7 @@ import React, { useEffect, useMemo, useState } from &apos;react&apos;;
 import { useRouter } from &apos;next/navigation&apos;;
 import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import type { CandidateSettingsBundle } from &apos;@/lib/candidate-profile&apos;;
+import { getMyProfile, updateProfile as saveProfileSDK } from &apos;@/lib/api/profile&apos;;
 import styles from &apos;../../../shared-dashboard.module.css&apos;;
 import AnimateOnScroll from &apos;@/components/AnimateOnScroll&apos;;
 
@@ -22409,12 +22428,28 @@ export default function CandidateSettingsPage() {
     useEffect(() =&gt; {
         async function fetchData() {
             try {
-                const response = await fetch(&apos;/api/candidate-profile&apos;, { cache: &apos;no-store&apos; });
-                const payload = await response.json();
-                if (!response.ok) throw new Error(payload.error || &apos;Failed to load settings&apos;);
-                setForm(payload);
-                if (payload.candidateProfile.salary_min) setExpectedSalary(`${payload.candidateProfile.salary_min} - ${payload.candidateProfile.salary_max || &apos;&apos;}`);
-                setPreferredLocationsInput(payload.candidateProfile.preferred_locations.join(&apos;, &apos;));
+                const profile = await getMyProfile();
+                const bundle: CandidateSettingsBundle = {
+                    profile: {
+                        id: profile.id,
+                        email: profile.email,
+                        name: profile.name || &apos;&apos;,
+                        phone: profile.phone || &apos;&apos;,
+                        location: profile.location || &apos;&apos;,
+                        role_id: profile.role_id,
+                        is_onboarded: profile.is_onboarded || false,
+                    },
+                    candidateProfile: profile.candidate_profiles || {
+                        headline: &apos;&apos;, skills: [], experience_years: null, education: &apos;&apos;, resume_url: &apos;&apos;,
+                        linkedin_url: &apos;&apos;, github_url: &apos;&apos;, portfolio_url: &apos;&apos;, salary_min: null, salary_max: null,
+                        currency: &apos;USD&apos;, open_to_remote: true, is_visible: true, preferred_locations: [],
+                        job_type: &apos;&apos;, profile_strength: 0,
+                    }
+                };
+
+                setForm(bundle);
+                if (bundle.candidateProfile.salary_min) setExpectedSalary(`${bundle.candidateProfile.salary_min} - ${bundle.candidateProfile.salary_max || &apos;&apos;}`);
+                setPreferredLocationsInput(bundle.candidateProfile.preferred_locations.join(&apos;, &apos;));
             } catch (err) {
                 setMessage({ text: err instanceof Error ? err.message : &apos;Error loading profile&apos;, type: &apos;error&apos; });
             } finally {
@@ -22428,14 +22463,26 @@ export default function CandidateSettingsPage() {
         setSaving(true);
         setMessage({ text: &apos;&apos;, type: &apos;success&apos; });
         try {
-            const response = await fetch(&apos;/api/candidate-profile&apos;, {
-                method: &apos;PUT&apos;,
-                headers: { &apos;Content-Type&apos;: &apos;application/json&apos; },
-                body: JSON.stringify(form),
+            await saveProfileSDK({
+                profile: form.profile,
+                candidateProfile: form.candidateProfile
             });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || &apos;Failed to save&apos;);
-            setForm(payload);
+            
+            // Re-fetch to ensure sync
+            const updatedProfile = await getMyProfile();
+            const updatedBundle: CandidateSettingsBundle = {
+                profile: {
+                    id: updatedProfile.id,
+                    email: updatedProfile.email,
+                    name: updatedProfile.name || &apos;&apos;,
+                    phone: updatedProfile.phone || &apos;&apos;,
+                    location: updatedProfile.location || &apos;&apos;,
+                    role_id: updatedProfile.role_id,
+                    is_onboarded: updatedProfile.is_onboarded || false,
+                },
+                candidateProfile: updatedProfile.candidate_profiles || form.candidateProfile
+            };
+            setForm(updatedBundle);
             
             // 🔥 Refresh the global user state to update Navbar/Sidebar names
             await refreshUser();
@@ -23274,9 +23321,10 @@ import Image from &apos;next/image&apos;;
 import { usePathname, useRouter } from &apos;next/navigation&apos;;
 import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import { useSearch, SearchProvider } from &apos;@/context/SearchContext&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
 import SearchOverlay from &apos;@/components/candidate/SearchOverlay&apos;;
 import CenteredLoader from &apos;@/components/ui/CenteredLoader&apos;;
+import { insforge, invokeFunction } from &apos;@/lib/insforge&apos;;
+
 import { HomeSkeleton } from &apos;@/components/ui/DashboardSkeleton&apos;;
 import styles from &apos;./dashboard-layout.module.css&apos;;
 
@@ -23401,26 +23449,24 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (isAdmin) {
             const fetchCounts = async () =&gt; {
                 try {
-                    const [reportsRes, alertsRes] = await Promise.all([
-                        fetch(&apos;/api/admin/reports&apos;),
-                        fetch(&apos;/api/admin/alerts&apos;)
-                    ]);
-                    if (reportsRes.ok) {
-                        const data = await reportsRes.json();
+                    const { data, error } = await invokeFunction(&apos;admin-dashboard&apos;, {
+                        method: &apos;POST&apos;,
+                        body: { action: &apos;get-summary&apos; }
+                    });
+
+                    if (data) {
                         setAdminCounts({
                             jobs: data.metrics?.totalJobs || 0,
                             candidates: data.metrics?.totalCandidates || 0,
                             recruiters: data.metrics?.totalRecruiters || 0
                         });
-                    }
-                    if (alertsRes.ok) {
-                        const alerts = await alertsRes.json();
-                        setNotifCount((alerts.pendingRecruiters || 0) + (alerts.pendingJobs || 0) + (alerts.reportedJobs || 0));
+                        setNotifCount((data.alerts?.pendingRecruiters || 0) + (data.alerts?.pendingJobs || 0) + (data.alerts?.reportedJobs || 0));
                     }
                 } catch (err) {
-                    console.error(err);
+                    console.error(&apos;Failed to fetch admin stats:&apos;, err);
                 }
             };
+
             fetchCounts();
             const interval = setInterval(fetchCounts, 60000);
             return () =&gt; clearInterval(interval);
@@ -23435,7 +23481,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         const setupRealtime = async () =&gt; {
             try {
                 await insforge.realtime.connect();
-                
+
                 if (isAdmin) {
                     await insforge.realtime.subscribe(&apos;admin:alerts&apos;);
                     insforge.realtime.on(&apos;new_alert&apos;, () =&gt; {
@@ -23470,13 +23516,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     const isSuperAdmin = pathname.includes(&apos;/dashboard/admin&apos;);
     const isRecruiter = pathname.includes(&apos;/dashboard/recruiter&apos;);
-    
+
     // Extract ID from path if authUser is not yet loaded to show correct sidebar
     const pathSegments = pathname.split(&apos;/&apos;);
-    const roleIdFromPath = pathSegments.find(s =&gt; 
+    const roleIdFromPath = pathSegments.find(s =&gt;
         s.length === 36 || /^(cand|rec|adm)_[a-z0-9]+$/i.test(s)
     ) || &apos;&apos;;
-    
+
     const roleId = authUser?.id || roleIdFromPath;
     const navItems = isSuperAdmin ? [
         { label: &apos;Overview&apos;, href: &apos;/dashboard/admin&apos;, icon: Icons.home },
@@ -23496,7 +23542,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const pageTitle = (() =&gt; {
         const segments = pathname.split(&apos;/&apos;).filter(Boolean);
         const last = segments[segments.length - 1];
-        
+
         // Helper to check for UUIDs or custom IDs (like cand_...)
         const isID = (str: string) =&gt; {
             if (!str) return false;
@@ -23527,12 +23573,18 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     }, []);
 
     React.useEffect(() =&gt; {
-        const isDedicatedBranch = pathname.startsWith(&apos;/dashboard/admin&apos;) || pathname.startsWith(&apos;/dashboard/recruiter&apos;);
+        // Prevent redirect while loading
+        if (isLoading) return;
 
-        if (!isDedicatedBranch &amp;&amp; !isLoading &amp;&amp; !authUser) {
+        const isDedicatedBranch = pathname.startsWith(&apos;/dashboard/admin&apos;) || pathname.startsWith(&apos;/dashboard/recruiter&apos;);
+        const hasToken = typeof window !== &apos;undefined&apos; &amp;&amp; document.cookie.includes(&apos;tm_access_token&apos;);
+
+        // Only redirect if we are sure there is no session
+        if (!isDedicatedBranch &amp;&amp; !authUser &amp;&amp; !hasToken) {
             router.push(&apos;/login&apos;);
         }
     }, [isLoading, authUser, router, pathname]);
+
 
     const isRecruiterBranch = pathname.startsWith(&apos;/dashboard/recruiter&apos;);
 
@@ -23612,7 +23664,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         &lt;span className={styles.navIcon}&gt;{Icons.settings}&lt;/span&gt;
                         {!collapsed &amp;&amp; &lt;span className={styles.navLabel}&gt;Settings&lt;/span&gt;}
                     &lt;/Link&gt;
-                    
+
                     {!isAdmin &amp;&amp; (
                         &lt;button onClick={handleSignOut} disabled={isSigningOut} className={`${styles.navLink} ${styles.logoutBtn}`}&gt;
                             &lt;span className={styles.navIcon}&gt;
@@ -23630,26 +23682,26 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
                     {isAdmin ? (
                         &lt;div className={styles.adminMiniCard}&gt;
-                             {!collapsed &amp;&amp; (
+                            {!collapsed &amp;&amp; (
                                 &lt;div className={styles.adminMiniCardInner}&gt;
-                                   &lt;div className={`${styles.userAvatar} ${styles.adminAvatar}`}&gt;{user.initials}&lt;/div&gt;
-                                   &lt;div className={styles.userMeta}&gt;
-                                       &lt;span className={styles.userName}&gt;{user.name}&lt;/span&gt;
-                                       &lt;span className={styles.userEmail}&gt;{user.email}&lt;/span&gt;
-                                   &lt;/div&gt;
-                                   &lt;div className={styles.lockIcon}&gt;
-                                       &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;3&quot;&gt;&lt;rect x=&quot;3&quot; y=&quot;11&quot; width=&quot;18&quot; height=&quot;11&quot; rx=&quot;2&quot; ry=&quot;2&quot; /&gt;&lt;path d=&quot;M7 11V7a5 5 0 0 1 10 0v4&quot; /&gt;&lt;/svg&gt;
-                                   &lt;/div&gt;
+                                    &lt;div className={`${styles.userAvatar} ${styles.adminAvatar}`}&gt;{user.initials}&lt;/div&gt;
+                                    &lt;div className={styles.userMeta}&gt;
+                                        &lt;span className={styles.userName}&gt;{user.name}&lt;/span&gt;
+                                        &lt;span className={styles.userEmail}&gt;{user.email}&lt;/span&gt;
+                                    &lt;/div&gt;
+                                    &lt;div className={styles.lockIcon}&gt;
+                                        &lt;svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;3&quot;&gt;&lt;rect x=&quot;3&quot; y=&quot;11&quot; width=&quot;18&quot; height=&quot;11&quot; rx=&quot;2&quot; ry=&quot;2&quot; /&gt;&lt;path d=&quot;M7 11V7a5 5 0 0 1 10 0v4&quot; /&gt;&lt;/svg&gt;
+                                    &lt;/div&gt;
                                 &lt;/div&gt;
-                             )}
-                             &lt;button 
-                                onClick={handleSignOut} 
-                                disabled={isSigningOut} 
+                            )}
+                            &lt;button
+                                onClick={handleSignOut}
+                                disabled={isSigningOut}
                                 className={styles.adminSignOutBtn}
                                 style={{ display: collapsed ? &apos;flex&apos; : &apos;block&apos;, justifyContent: &apos;center&apos; }}
-                             &gt;
+                            &gt;
                                 {isSigningOut ? &apos;...&apos; : collapsed ? &lt;svg width=&quot;16&quot; height=&quot;16&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; strokeWidth=&quot;2&quot;&gt;&lt;path d=&quot;M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4&quot; /&gt;&lt;polyline points=&quot;16 17 21 12 16 7&quot; /&gt;&lt;line x1=&quot;21&quot; y1=&quot;12&quot; x2=&quot;9&quot; y2=&quot;12&quot; /&gt;&lt;/svg&gt; : &apos;Sign Out&apos;}
-                             &lt;/button&gt;
+                            &lt;/button&gt;
                         &lt;/div&gt;
                     ) : (
                         &lt;div className={styles.userCard}&gt;
@@ -23705,9 +23757,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                             &lt;div className={styles.notifItem}&gt;No new notifications. You&apos;re all caught up!&lt;/div&gt;
                                         )}
                                     &lt;/div&gt;
-                                    &lt;Link 
-                                        href={isSuperAdmin ? &apos;/dashboard/admin/notifications&apos; : isRecruiter ? &apos;/dashboard/recruiter/notifications&apos; : `/dashboard/candidate/${roleId}/notifications`} 
-                                        className={styles.notifFooter} 
+                                    &lt;Link
+                                        href={isSuperAdmin ? &apos;/dashboard/admin/notifications&apos; : isRecruiter ? &apos;/dashboard/recruiter/notifications&apos; : `/dashboard/candidate/${roleId}/notifications`}
+                                        className={styles.notifFooter}
                                         onClick={() =&gt; setIsNotifOpen(false)}
                                     &gt;
                                         View all notifications
@@ -23715,7 +23767,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                 &lt;/div&gt;
                             )}
                         &lt;/div&gt;
-                        &lt;Link 
+                        &lt;Link
                             href={isSuperAdmin ? &apos;/dashboard/admin/settings&apos; : isRecruiter ? &apos;/dashboard/recruiter/settings&apos; : `/dashboard/candidate/${roleId}/profile`}
                             className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : &apos;&apos;}`}
                         &gt;
@@ -24733,11 +24785,11 @@ export default function RecruiterNotificationsPage() {
     </file>
     <file path="app\dashboard\recruiter\[role_id]\page.tsx" type="code">
       <content>&quot;use client&quot;;
-import React, { useEffect, useState } from &apos;react&apos;;
+import React, { useEffect, useState, useRef } from &apos;react&apos;;
 import styles from &apos;../../shared-dashboard.module.css&apos;;
 import AnimateOnScroll from &apos;@/components/AnimateOnScroll&apos;;
 import { HomeSkeleton } from &apos;@/components/ui/DashboardSkeleton&apos;;
-import { insforge } from &apos;@/lib/insforge&apos;;
+import { insforge, invokeFunction } from &apos;@/lib/insforge&apos;;
 import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import { formatTime, formatShortDate } from &apos;@/lib/utils/date-utils&apos;;
 
@@ -24755,7 +24807,8 @@ const IC = {
 
 export default function RecruiterHome({ params }: { params: Promise&lt;{ role_id: string }&gt; }) {
     const { role_id } = React.use(params) || {};
-    const { user: authUser } = useAuth();
+    const { user: authUser, isLoading: authLoading } = useAuth();
+    const fetching = useRef(false);
     const [jobs, setJobs] = useState&lt;any[]&gt;([]);
     const [candidates, setCandidates] = useState&lt;any[]&gt;([]);
     const [interviews, setInterviews] = useState&lt;any[]&gt;([]);
@@ -24763,56 +24816,43 @@ export default function RecruiterHome({ params }: { params: Promise&lt;{ role_id
     const [loading, setLoading] = useState(true);
 
     useEffect(() =&gt; {
+        if (authLoading) return;
+        if (!authUser) return;
+
         async function fetchData() {
+            if (fetching.current) return;
+            fetching.current = true;
             try {
-                // Fetch Jobs
-                const { data: jobData } = await insforge.database
-                    .from(&apos;jobs&apos;)
-                    .select(&apos;*&apos;)
-                    .order(&apos;created_at&apos;, { ascending: false });
-
-                const openJobs = jobData || [];
-                setJobs(openJobs);
-
-                // Fetch Candidates (mocking top matches)
-                const { data: candData } = await insforge.database
-                    .from(&apos;candidate_profiles&apos;)
-                    .select(&apos;*&apos;)
-                    .order(&apos;ai_karma&apos;, { ascending: false })
-                    .limit(3);
-                setCandidates(candData || []);
-
-                // Fetch Today&apos;s Interviews
-                const { data: intData } = await insforge.database
-                    .from(&apos;interviews&apos;)
-                    .select(&apos;*&apos;)
-                    .limit(2);
+                const { data: dash, error: dError } = await invokeFunction(&apos;recruiter-dashboard&apos;);
                 
-                const mappedInterviews = (intData || []).map((i: any) =&gt; ({
-                    ...i,
-                    scheduledAt: i.scheduled_at
-                }));
-                setInterviews(mappedInterviews);
+                if (dError) {
+                    console.error(&apos;Dashboard fetch error:&apos;, dError.message);
+                    return;
+                }
 
-                // Calculate Stats
-                const totalApplicants = openJobs.reduce((acc, j) =&gt; acc + (j.applicants || 0), 0);
-                setStats({
-                    open: openJobs.length,
-                    applicants: totalApplicants,
-                    interviews: 6, // Hardcoded for now
-                    hires: 15
-                });
+                if (dash) {
+                    setJobs(dash.recentJobs || []);
+                    // We can map candidates from apps or recent activity if needed, 
+                    // or just show empty for now if not part of aggregated data
+                    setStats({
+                        open: dash.activeJobsCount || 0,
+                        applicants: dash.totalAppsCount || 0,
+                        interviews: 0, // Need to implement in function
+                        hires: 15
+                    });
+                }
 
             } catch (error) {
                 console.error(&apos;Error fetching data:&apos;, error);
             } finally {
                 setLoading(false);
+                fetching.current = false;
             }
         }
         fetchData();
-    }, []);
+    }, [authLoading, authUser?.id]);
 
-    if (loading) {
+    if (authLoading || loading) {
         return &lt;HomeSkeleton /&gt;;
     }
 
@@ -34071,6 +34111,7 @@ import { useAuth } from &apos;@/lib/auth/AuthContext&apos;;
 import { uploadResume } from &apos;@/lib/api/storage&apos;;
 import type { CandidateSettingsBundle } from &apos;@/lib/candidate-profile&apos;;
 import { getDefaultCandidateProfile } from &apos;@/lib/candidate-profile&apos;;
+import { getMyProfile, updateProfile as saveProfile } from &apos;@/lib/api/profile&apos;;
 
 import styles from &apos;../onboarding.module.css&apos;;
 
@@ -34126,17 +34167,24 @@ export default function CandidateOnboardingPage() {
 
         const fetchProfile = async () =&gt; {
             try {
-                const response = await fetch(&apos;/api/candidate-profile&apos;, { cache: &apos;no-store&apos; });
-                const payload = await response.json();
+                const profile = await getMyProfile();
 
-                if (!response.ok) {
-                    throw new Error(payload.error || &apos;Failed to load onboarding data&apos;);
-                }
+                // Construct full bundle from profile and candidate_profiles
+                const bundle: CandidateSettingsBundle = {
+                    profile: {
+                        id: profile.id,
+                        email: profile.email,
+                        name: profile.name || &apos;&apos;,
+                        phone: profile.phone || &apos;&apos;,
+                        location: profile.location || &apos;&apos;,
+                        role_id: profile.role_id,
+                        is_onboarded: profile.is_onboarded || false,
+                    },
+                    candidateProfile: profile.candidate_profiles || getDefaultCandidateProfile()
+                };
 
-                // No longer pre-filling name from AuthContext to force manual entry as per user request
-
-                setForm(payload);
-                setStep(getFirstIncompleteStep(payload));
+                setForm(bundle);
+                setStep(getFirstIncompleteStep(bundle));
             } catch (err) {
                 const message = err instanceof Error ? err.message : &apos;Failed to load onboarding data&apos;;
                 setError(message);
@@ -34259,17 +34307,11 @@ export default function CandidateOnboardingPage() {
                 }
             };
 
-            // 3. Save to API
-            const response = await fetch(&apos;/api/candidate-profile&apos;, {
-                method: &apos;PUT&apos;,
-                headers: { &apos;Content-Type&apos;: &apos;application/json&apos; },
-                body: JSON.stringify(payload),
+            // 3. Save to API via Edge Function
+            await saveProfile({
+                profile: payload.profile,
+                candidateProfile: payload.candidateProfile
             });
-
-            if (!response.ok) {
-                const responseData = await response.json();
-                throw new Error(responseData.error || &apos;Failed to save onboarding&apos;);
-            }
 
             setUploadProgress(100);
             
@@ -50969,7 +51011,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const page = parseInt(url.searchParams.get(&apos;page&apos;) || &apos;0&apos;);
       const limit = parseInt(url.searchParams.get(&apos;limit&apos;) || &apos;20&apos;);
 
-      let query = insforge.database.from(&apos;job_applications&apos;).select(&apos;*, jobs(title, companies(name)), candidate_profiles(full_name, email)&apos;, { count: &apos;exact&apos; });
+      let query = insforge.database.from(&apos;applications&apos;).select(&apos;*, jobs(title, companies(name)), profiles(name, email)&apos;, { count: &apos;exact&apos; });
 
       if (status &amp;&amp; status !== &apos;all&apos;) {
         query = query.eq(&apos;status&apos;, status);
@@ -50990,7 +51032,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
        const body = await req.json();
 
        const { data, error } = await insforge.database
-         .from(&apos;job_applications&apos;)
+         .from(&apos;applications&apos;)
          .update({ ...body, updated_at: new Date().toISOString() })
          .eq(&apos;id&apos;, id)
          .select()
@@ -51005,7 +51047,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
        const id = url.pathname.split(&apos;/&apos;).pop();
 
        const { error } = await insforge.database
-         .from(&apos;job_applications&apos;)
+         .from(&apos;applications&apos;)
          .delete()
          .eq(&apos;id&apos;, id);
 
@@ -51044,10 +51086,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const page = parseInt(url.searchParams.get(&apos;page&apos;) || &apos;0&apos;);
       const limit = parseInt(url.searchParams.get(&apos;limit&apos;) || &apos;20&apos;);
 
-      let query = insforge.database.from(&apos;audit_logs&apos;).select(&apos;*, profiles(full_name, email)&apos;, { count: &apos;exact&apos; });
+      let query = insforge.database.from(&apos;audit_logs&apos;).select(&apos;*, profiles(name, email)&apos;, { count: &apos;exact&apos; });
 
       if (search) {
-        query = query.or(`action.ilike.%${search}%,entity_type.ilike.%${search}%,profiles.full_name.ilike.%${search}%`);
+        query = query.or(`action.ilike.%${search}%,entity_type.ilike.%${search}%,profiles.name.ilike.%${search}%`);
       }
 
       const { data: logs, count: total, error } = await query
@@ -51176,14 +51218,26 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
 
 const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
-const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, PATCH, DELETE, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   const authHeader = req.headers.get(&apos;Authorization&apos;);
   const token = authHeader?.split(&apos; &apos;)[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401 });
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   try {
@@ -51196,7 +51250,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const page = parseInt(url.searchParams.get(&apos;page&apos;) || &apos;0&apos;);
       const limit = parseInt(url.searchParams.get(&apos;limit&apos;) || &apos;20&apos;);
 
-      let query = insforge.database.from(&apos;blogs&apos;).select(&apos;*&apos;, { count: &apos;exact&apos; });
+      let query = insforge.database.from(&apos;blog&apos;).select(&apos;*&apos;, { count: &apos;exact&apos; });
 
       if (search) {
         query = query.ilike(&apos;title&apos;, `%${search}%`);
@@ -51211,16 +51265,17 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ blogs: data, total: count }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      return new Response(JSON.stringify({ blogs: data, total: count }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     if (req.method === &apos;POST&apos;) {
       const body = await req.json();
       // Get user from token
-      const { data: { user }, error: userError } = await insforge.auth.getUser();
+      const { data: userData, error: userError } = await insforge.auth.getCurrentUser();
+      const user = userData?.user;
       if (userError || !user) throw new Error(&apos;Unauthorized&apos;);
 
-      const { data, error } = await insforge.database.from(&apos;blogs&apos;).insert([{
+      const { data, error } = await insforge.database.from(&apos;blog&apos;).insert([{
         ...body,
         author_id: user.id,
         created_at: new Date().toISOString(),
@@ -51229,7 +51284,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ blog: data }), { status: 201, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      return new Response(JSON.stringify({ blog: data }), { status: 201, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     if (req.method === &apos;PATCH&apos;) {
@@ -51238,14 +51293,14 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const body = await req.json();
 
       const { data, error } = await insforge.database
-        .from(&apos;blogs&apos;)
+        .from(&apos;blog&apos;)
         .update({ ...body, updated_at: new Date().toISOString() })
         .eq(&apos;id&apos;, id)
         .select()
         .single();
 
       if (error) throw error;
-      return new Response(JSON.stringify({ blog: data }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      return new Response(JSON.stringify({ blog: data }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     if (req.method === &apos;DELETE&apos;) {
@@ -51253,18 +51308,18 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const id = url.pathname.split(&apos;/&apos;).pop();
 
       const { error } = await insforge.database
-        .from(&apos;blogs&apos;)
+        .from(&apos;blog&apos;)
         .delete()
         .eq(&apos;id&apos;, id);
 
       if (error) throw error;
-      return new Response(null, { status: 204 });
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405 });
   } catch (err: any) {
     console.error(&apos;Admin Blogs Edge Function Error:&apos;, err);
-    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 }
 </content>
@@ -51273,7 +51328,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
 
 const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
-const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
   const authHeader = req.headers.get(&apos;Authorization&apos;);
@@ -51293,10 +51348,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const page = parseInt(url.searchParams.get(&apos;page&apos;) || &apos;0&apos;);
       const limit = parseInt(url.searchParams.get(&apos;limit&apos;) || &apos;20&apos;);
 
-      let query = insforge.database.from(&apos;candidate_profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos; });
+      let query = insforge.database.from(&apos;candidate_profiles&apos;).select(&apos;*, profiles(name, email)&apos;, { count: &apos;exact&apos; });
 
       if (search) {
-        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+        query = query.or(`profiles.name.ilike.%${search}%,profiles.email.ilike.%${search}%`);
       }
       if (status &amp;&amp; status !== &apos;all&apos;) {
         query = query.eq(&apos;status&apos;, status);
@@ -51428,18 +51483,30 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
 
 const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
-const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   const authHeader = req.headers.get(&apos;Authorization&apos;);
   const token = authHeader?.split(&apos; &apos;)[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401 });
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   try {
-    const { action, limit = 10 } = await req.json();
+    const { action, limit = 10 } = await req.json().catch(() =&gt; ({ action: &apos;get-summary&apos; }));
     const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
 
     if (action === &apos;get-summary&apos;) {
@@ -51450,14 +51517,13 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         { count: totalRecruiters },
         { data: appsByStatus },
         { data: activities },
-        // Alerts
         { count: pendingRecruiters },
         { count: pendingJobs },
       ] = await Promise.all([
         insforge.database.from(&apos;jobs&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
         insforge.database.from(&apos;applications&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
-        insforge.database.from(&apos;candidate_profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
-        insforge.database.from(&apos;company_profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
+        insforge.database.from(&apos;profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }).eq(&apos;role&apos;, &apos;candidate&apos;),
+        insforge.database.from(&apos;profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }).eq(&apos;role&apos;, &apos;recruiter&apos;),
         insforge.database.from(&apos;applications&apos;).select(&apos;status&apos;),
         insforge.database.from(&apos;activity&apos;).select(&apos;*&apos;).order(&apos;created_at&apos;, { ascending: false }).limit(limit),
         insforge.database.from(&apos;access_requests&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }).eq(&apos;status&apos;, &apos;pending&apos;),
@@ -51476,8 +51542,8 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         alerts: {
           pendingRecruiters: pendingRecruiters || 0,
           pendingJobs: pendingJobs || 0,
-          reportedJobs: 0, // Placeholder
-          newUsers24h: 5, // Placeholder
+          reportedJobs: 0,
+          newUsers24h: 5,
         },
         activities: activities || [],
         statusBreakdown: {
@@ -51488,71 +51554,13 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
           offer: appsByStatus?.filter((a: any) =&gt; a.status === &apos;offer&apos;).length || 0,
           rejected: appsByStatus?.filter((a: any) =&gt; a.status === &apos;rejected&apos;).length || 0,
         }
-      }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
-    }
-
-    if (action === &apos;get-reports&apos;) {
-       // Similar to above but with funnel and growth
-       const [
-        { count: totalJobs },
-        { count: totalApplications },
-        { count: totalCandidates },
-        { count: totalRecruiters },
-        { data: appsByStatus },
-      ] = await Promise.all([
-        insforge.database.from(&apos;jobs&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
-        insforge.database.from(&apos;applications&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
-        insforge.database.from(&apos;candidate_profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
-        insforge.database.from(&apos;company_profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }),
-        insforge.database.from(&apos;applications&apos;).select(&apos;status&apos;),
-      ]);
-
-      const funnel = {
-        jobsPosted: totalJobs || 0,
-        applications: totalApplications || 0,
-        reviewed: appsByStatus?.filter((a: any) =&gt; a.status === &apos;reviewing&apos;).length || 0,
-        shortlisted: appsByStatus?.filter((a: any) =&gt; a.status === &apos;shortlisted&apos;).length || 0,
-        hired: appsByStatus?.filter((a: any) =&gt; a.status === &apos;offer&apos;).length || 0,
-      };
-
-      const growth = [
-        { date: &apos;Week 1&apos;, count: 12 },
-        { date: &apos;Week 2&apos;, count: 18 },
-        { date: &apos;Week 3&apos;, count: 15 },
-        { date: &apos;Week 4&apos;, count: 25 },
-      ];
-
-      return new Response(JSON.stringify({
-        metrics: {
-          totalJobs: totalJobs || 0,
-          totalApplications: totalApplications || 0,
-          totalCandidates: totalCandidates || 0,
-          totalRecruiters: totalRecruiters || 0,
-          avgTimeToHire: &apos;12 days&apos;,
-          appsPerJob: totalJobs ? (totalApplications || 0) / (totalJobs || 0) : 0,
-        },
-        funnel,
-        growth,
-        topSkills: [
-          { name: &apos;React&apos;, count: 45 },
-          { name: &apos;Node.js&apos;, count: 32 },
-          { name: &apos;TypeScript&apos;, count: 28 },
-        ],
-        statusBreakdown: {
-          applied: appsByStatus?.filter((a: any) =&gt; a.status === &apos;applied&apos;).length || 0,
-          reviewing: appsByStatus?.filter((a: any) =&gt; a.status === &apos;reviewing&apos;).length || 0,
-          shortlisted: appsByStatus?.filter((a: any) =&gt; a.status === &apos;shortlisted&apos;).length || 0,
-          interview: appsByStatus?.filter((a: any) =&gt; a.status === &apos;interview&apos;).length || 0,
-          offer: appsByStatus?.filter((a: any) =&gt; a.status === &apos;offer&apos;).length || 0,
-          rejected: appsByStatus?.filter((a: any) =&gt; a.status === &apos;rejected&apos;).length || 0,
-        }
-      }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     return new Response(JSON.stringify({ error: &apos;Invalid action&apos; }), { status: 400 });
   } catch (err: any) {
     console.error(&apos;Admin Dashboard Edge Function Error:&apos;, err);
-    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 }
 </content>
@@ -51713,14 +51721,26 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
 
 const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
-const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, PUT, DELETE, OPTIONS, PATCH&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   const authHeader = req.headers.get(&apos;Authorization&apos;);
   const token = authHeader?.split(&apos; &apos;)[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401 });
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   try {
@@ -51734,7 +51754,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const limit = parseInt(url.searchParams.get(&apos;limit&apos;) || &apos;20&apos;);
       const includeMeta = url.searchParams.get(&apos;includeMeta&apos;) === &apos;true&apos;;
 
-      let query = insforge.database.from(&apos;jobs&apos;).select(&apos;*, company_profiles(name, logo_url)&apos;, { count: &apos;exact&apos; });
+      let query = insforge.database.from(&apos;jobs&apos;).select(&apos;*, companies(name, logo_url)&apos;, { count: &apos;exact&apos; });
 
       if (search) {
         query = query.ilike(&apos;title&apos;, `%${search}%`);
@@ -51749,10 +51769,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 
       if (jobsError) throw jobsError;
 
-      let companies = [];
+      let companies: any[] = [];
       if (includeMeta) {
         const { data: companyData, error: companyError } = await insforge.database
-          .from(&apos;company_profiles&apos;)
+          .from(&apos;companies&apos;)
           .select(&apos;id, name&apos;);
         if (companyError) throw companyError;
         companies = companyData;
@@ -51788,7 +51808,8 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
       }
 
-      const { data: { user }, error: userError } = await insforge.auth.getUser();
+      const { data: authData, error: userError } = await insforge.auth.getCurrentUser();
+      const user = authData?.user;
       if (userError || !user) throw new Error(&apos;Unauthorized&apos;);
 
       const { data, error } = await insforge.database.from(&apos;jobs&apos;).insert([{
@@ -51834,7 +51855,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405 });
   } catch (err: any) {
     console.error(&apos;Admin Jobs Edge Function Error:&apos;, err);
-    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { 
+      status: 500, 
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } 
+    });
   }
 }
 </content>
@@ -51910,14 +51934,26 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
 
 const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
-const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, PATCH, DELETE, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   const authHeader = req.headers.get(&apos;Authorization&apos;);
   const token = authHeader?.split(&apos; &apos;)[1];
 
   if (!token) {
-    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401 });
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   try {
@@ -51930,10 +51966,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const page = parseInt(url.searchParams.get(&apos;page&apos;) || &apos;0&apos;);
       const limit = parseInt(url.searchParams.get(&apos;limit&apos;) || &apos;20&apos;);
 
-      let query = insforge.database.from(&apos;recruiter_profiles&apos;).select(&apos;*&apos;, { count: &apos;exact&apos; });
+      let query = insforge.database.from(&apos;recruiter_profiles&apos;).select(&apos;*, profiles(name, email), companies(name)&apos;, { count: &apos;exact&apos; });
 
       if (search) {
-        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+        query = query.or(`profiles.name.ilike.%${search}%,profiles.email.ilike.%${search}%`);
       }
       if (status &amp;&amp; status !== &apos;all&apos;) {
         query = query.eq(&apos;status&apos;, status);
@@ -51945,7 +51981,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ recruiters, total }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      return new Response(JSON.stringify({ recruiters, total }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     if (req.method === &apos;PATCH&apos;) {
@@ -51961,7 +51997,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
          .single();
 
        if (error) throw error;
-       return new Response(JSON.stringify({ recruiter: data }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+       return new Response(JSON.stringify({ recruiter: data }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     if (req.method === &apos;DELETE&apos;) {
@@ -51974,13 +52010,13 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
          .eq(&apos;id&apos;, id);
 
        if (error) throw error;
-       return new Response(null, { status: 204 });
+       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405 });
+    return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   } catch (err: any) {
     console.error(&apos;Admin Recruiters Edge Function Error:&apos;, err);
-    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 }
 </content>
@@ -52176,20 +52212,43 @@ function parseCookies(header: string | null) {
 }
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  console.log(`[auth-session] v2 - Handled ${req.method} request`);
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, PUT, DELETE, OPTIONS, PATCH&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { 
+      status: 204,
+      headers: corsHeaders 
+    });
+  }
+
   try {
     if (req.method === &apos;GET&apos;) {
       const cookies = parseCookies(req.headers.get(&apos;cookie&apos;));
       const token = cookies[&apos;tm_access_token&apos;] || req.headers.get(&apos;Authorization&apos;)?.split(&apos; &apos;)[1];
 
       if (!token) {
-        return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+        console.error(&apos;[auth-session] No token found in cookies or headers&apos;);
+        return new Response(JSON.stringify({ error: &apos;No token&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
       }
 
       const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
       const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
-      if (authError || !authData?.user || authData.user.id === &apos;project-admin-with-api-key&apos;) {
-        return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      if (authError) {
+        console.error(&apos;[auth-session] Auth verify error:&apos;, authError);
+        return new Response(JSON.stringify({ error: &apos;Auth failed&apos;, details: authError.message }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      }
+
+      if (!authData?.user || authData.user.id === &apos;project-admin-with-api-key&apos;) {
+        console.error(&apos;[auth-session] Invalid user or admin-key detected&apos;);
+        return new Response(JSON.stringify({ error: &apos;Invalid user&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
       }
 
       const { data: profile } = await insforge.database
@@ -52213,7 +52272,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 
       return new Response(JSON.stringify({ user, requiresMfa }), {
         status: 200,
-        headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+        headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
       });
     }
 
@@ -52222,11 +52281,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const { token, role, adminAccess } = body;
 
       if (!token || !role) {
-        return new Response(JSON.stringify({ error: &apos;Missing required token or role&apos; }), { status: 400, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+        return new Response(JSON.stringify({ error: &apos;Missing required token or role&apos; }), { status: 400, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
       }
 
-      const isSecure = Deno.env.get(&apos;NODE_ENV&apos;) === &apos;production&apos;;
-      const cookieOptions = `Path=/; HttpOnly; SameSite=Lax${isSecure ? &apos;; Secure&apos; : &apos;&apos;}`;
+      const cookieOptions = `Path=/; HttpOnly; SameSite=None; Secure`;
 
       const headers = new Headers();
       headers.append(&apos;Set-Cookie&apos;, `tm_access_token=${token}; ${cookieOptions}`);
@@ -52235,6 +52293,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         headers.append(&apos;Set-Cookie&apos;, `tm_admin_access=true; ${cookieOptions}`);
       }
       headers.append(&apos;Content-Type&apos;, &apos;application/json&apos;);
+      Object.entries(corsHeaders).forEach(([k, v]) =&gt; headers.set(k, v));
 
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
@@ -52252,21 +52311,22 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         }
       }
 
-      const clearOptions = `Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${Deno.env.get(&apos;NODE_ENV&apos;) === &apos;production&apos; ? &apos;; Secure&apos; : &apos;&apos;}`;
+      const clearOptions = `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
       const headers = new Headers();
       headers.append(&apos;Set-Cookie&apos;, `tm_access_token=; ${clearOptions}`);
       headers.append(&apos;Set-Cookie&apos;, `tm_role=; ${clearOptions}`);
       headers.append(&apos;Set-Cookie&apos;, `tm_admin_access=; ${clearOptions}`);
       headers.append(&apos;Set-Cookie&apos;, `mfa_verified=; ${clearOptions}`);
       headers.append(&apos;Content-Type&apos;, &apos;application/json&apos;);
+      Object.entries(corsHeaders).forEach(([k, v]) =&gt; headers.set(k, v));
 
       return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     }
 
-    return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos; }), { status: 500, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos; }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 }
 </content>
@@ -52278,10 +52338,22 @@ const baseUrl = Deno.env.get(&apos;INSFORGE_URL&apos;) || Deno.env.get(&apos;NEX
 const anonKey = Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== &apos;POST&apos;) {
     return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { 
       status: 405,
-      headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
     });
   }
 
@@ -52291,7 +52363,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     if (!email || !password || !role || !name) {
       return new Response(JSON.stringify({ error: &apos;Missing required fields&apos; }), { 
         status: 400,
-        headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+        headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
       });
     }
 
@@ -52307,7 +52379,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     if (signupError) {
       return new Response(JSON.stringify({ error: signupError.message }), { 
         status: 400,
-        headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+        headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
       });
     }
 
@@ -52326,7 +52398,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message }), { 
           status: 400,
-          headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+          headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
         });
       }
     }
@@ -52337,13 +52409,13 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       accessToken: data?.accessToken 
     }), { 
       status: 200,
-      headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
     });
   } catch (err) {
     console.error(&apos;Signup API Error:&apos;, err);
     return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos; }), { 
       status: 500,
-      headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
     });
   }
 }
@@ -52356,10 +52428,22 @@ const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.g
 const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== &apos;POST&apos;) {
     return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { 
       status: 405,
-      headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
     });
   }
 
@@ -52369,7 +52453,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     if (!email || !otp) {
       return new Response(JSON.stringify({ error: &apos;Missing email or OTP&apos; }), { 
         status: 400,
-        headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+        headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
       });
     }
 
@@ -52383,19 +52467,19 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), { 
         status: 400,
-        headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+        headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
       });
     }
 
     return new Response(JSON.stringify({ data }), { 
       status: 200,
-      headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
     });
   } catch (err) {
     console.error(&apos;Verification API Error:&apos;, err);
     return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos; }), { 
       status: 500,
-      headers: { &apos;Content-Type&apos;: &apos;application/json&apos; }
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; }
     });
   }
 }
@@ -52885,6 +52969,87 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 }
 </content>
     </file>
+    <file path="insforge\functions\candidate-dashboard\index.ts" type="code">
+      <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
+
+const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
+const serviceKey = Deno.env.get(&apos;INSFORGE_SERVICE_KEY&apos;)!;
+
+export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
+  const authHeader = req.headers.get(&apos;Authorization&apos;);
+  const token = authHeader?.split(&apos; &apos;)[1];
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
+  }
+
+  try {
+    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
+
+    if (authError || !authData?.user || authData.user.id === &apos;project-admin-with-api-key&apos;) {
+      return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    }
+
+    const userId = authData.user.id;
+    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+
+    // Fetch everything in parallel
+    const [profileRes, candidateProfileRes, appsRes, interviewsRes, jobsRes, activityRes] = await Promise.all([
+      // 1. Profile
+      insforgeAdmin.database.from(&apos;profiles&apos;).select(&apos;*&apos;).eq(&apos;id&apos;, userId).single(),
+      // 2. Candidate Profile
+      insforgeAdmin.database.from(&apos;candidate_profiles&apos;).select(&apos;*&apos;).eq(&apos;user_id&apos;, userId).single(),
+      // 3. Applications Count
+      insforgeAdmin.database.from(&apos;applications&apos;).select(&apos;*&apos;, { count: &apos;exact&apos;, head: true }).eq(&apos;candidate_id&apos;, userId),
+      // 4. Interviews
+      insforgeAdmin.database.from(&apos;interviews&apos;)
+        .select(&apos;*, applications(jobs(title, companies(name)))&apos;)
+        .eq(&apos;candidate_id&apos;, userId)
+        .order(&apos;scheduled_at&apos;, { ascending: true }),
+      // 5. Recommended Jobs (Active)
+      insforgeAdmin.database.from(&apos;jobs&apos;).select(&apos;*, companies(name)&apos;).eq(&apos;status&apos;, &apos;active&apos;).limit(3),
+      // 6. Recent Activity
+      insforgeAdmin.database.from(&apos;activity&apos;).select(&apos;*&apos;).eq(&apos;user_id&apos;, userId).order(&apos;created_at&apos;, { ascending: false }).limit(5)
+    ]);
+
+    const dashboardData = {
+      profile: profileRes.data,
+      candidateProfile: candidateProfileRes.data,
+      appCount: appsRes.count || 0,
+      interviews: interviewsRes.data || [],
+      jobs: jobsRes.data || [],
+      activity: activityRes.data || [],
+    };
+
+    return new Response(JSON.stringify(dashboardData), { 
+      status: 200, 
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } 
+    });
+
+  } catch (err: any) {
+    console.error(&apos;Candidate Dashboard Error:&apos;, err);
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { 
+      status: 500, 
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } 
+    });
+  }
+}
+</content>
+    </file>
     <file path="insforge\functions\candidate-profile\index.ts" type="code">
       <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
 import { z } from &apos;npm:zod&apos;;
@@ -53038,7 +53203,7 @@ function buildResponse(profileRow: Record&lt;string, unknown&gt;, candidateRow: 
       location: getStringValue(profileRow, &apos;location&apos;),
       role_id: getNullableStringValue(profileRow, &apos;role_id&apos;),
       public_id: getStringValue(profileRow, &apos;public_id&apos;) || undefined,
-      is_onboarded: profileRow?.completed_onboarding === true,
+      is_onboarded: profileRow?.is_onboarded === true,
     },
     candidateProfile: normalizedCandidate,
   };
@@ -53049,16 +53214,33 @@ const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.
 const serviceKey = Deno.env.get(&apos;INSFORGE_SERVICE_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, PUT, DELETE, OPTIONS, PATCH&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { 
+      status: 204,
+      headers: corsHeaders 
+    });
+  }
+
+  console.log(`[candidate-profile] ${req.method} request received`);
+
   const token = req.headers.get(&apos;Authorization&apos;)?.replace(&apos;Bearer &apos;, &apos;&apos;);
   if (!token) {
-    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
   const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
   if (authError || !authData?.user || authData.user.id === &apos;project-admin-with-api-key&apos;) {
-    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   const user = authData.user;
@@ -53076,11 +53258,11 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
           email: user.email,
           role: role,
           name: user.profile?.name || (user.metadata?.full_name as string) || &apos;&apos;,
-          completed_onboarding: false,
+          is_onboarded: false,
         });
 
         if (insertError) {
-          return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+          return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
         }
 
         const { data: newProfile } = await insforgeAdmin.database.from(&apos;profiles&apos;).select(&apos;*&apos;).eq(&apos;id&apos;, user.id).single();
@@ -53110,9 +53292,10 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         bundle.candidateProfile = { ...autofilled, profile_strength: nextStrength };
       }
 
-      return new Response(JSON.stringify(bundle), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      return new Response(JSON.stringify(bundle), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos;, details: err.message }), { status: 500, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      console.error(`[candidate-profile] GET error:`, err);
+      return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos;, details: err.message }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
   }
 
@@ -53121,13 +53304,13 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       const payload = await req.json();
       const validation = candidateProfileSchema.safeParse(payload);
       if (!validation.success) {
-        return new Response(JSON.stringify({ error: &apos;Invalid payload&apos;, errors: validation.error.flatten().fieldErrors }), { status: 400, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+        return new Response(JSON.stringify({ error: &apos;Invalid payload&apos;, errors: validation.error.flatten().fieldErrors }), { status: 400, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
       }
 
       const body = validation.data;
       const { data: profileRow } = await insforgeAdmin.database.from(&apos;profiles&apos;).select(&apos;*&apos;).eq(&apos;id&apos;, user.id).single();
       if (!profileRow) {
-        return new Response(JSON.stringify({ error: &apos;Profile not found&apos; }), { status: 404, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+        return new Response(JSON.stringify({ error: &apos;Profile not found&apos; }), { status: 404, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
       }
 
       const lookup = await findCandidateProfile(insforgeAdmin.database, user.id);
@@ -53144,11 +53327,11 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
 
       const { error: profileError } = await insforgeAdmin.database
         .from(&apos;profiles&apos;)
-        .update({ ...nextProfile, completed_onboarding: true })
+        .update({ ...nextProfile, is_onboarded: true })
         .eq(&apos;id&apos;, user.id);
         
       if (profileError) {
-        return new Response(JSON.stringify({ error: profileError.message }), { status: 400, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+        return new Response(JSON.stringify({ error: profileError.message }), { status: 400, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
       }
 
       const candidatePayload = { ...mergedCandidate, profile_strength: profileStrength };
@@ -53162,13 +53345,14 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
       return new Response(JSON.stringify({
         profile: { ...existingBundle.profile, ...nextProfile },
         candidateProfile: { ...mergedCandidate, profile_strength: profileStrength }
-      }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos;, details: err.message }), { status: 500, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      console.error(`[candidate-profile] GET error:`, err);
+      return new Response(JSON.stringify({ error: &apos;Internal Server Error&apos;, details: err.message }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
   }
 
-  return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+  return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
 }
 </content>
     </file>
@@ -53433,8 +53617,20 @@ const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.g
 const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
 
 export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== &apos;GET&apos;) {
-    return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    return new Response(JSON.stringify({ error: &apos;Method not allowed&apos; }), { status: 405, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 
   try {
@@ -53443,10 +53639,13 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     const validation = jobFilterSchema.safeParse(params);
 
     if (!validation.success) {
-      return new Response(JSON.stringify({ error: &apos;Invalid query parameters&apos;, details: validation.error.flatten().fieldErrors }), { status: 400, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+      return new Response(JSON.stringify({ error: &apos;Invalid query parameters&apos;, details: validation.error.flatten().fieldErrors }), { status: 400, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
     }
 
     const filters = validation.data;
+    if (!baseUrl || !anonKey) {
+      throw new Error(&apos;Missing InsForge environment variables (URL or AnonKey)&apos;);
+    }
     const client = createClient({ baseUrl, anonKey });
 
     const page = filters.page || 0;
@@ -53493,7 +53692,7 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     }
 
     const jobs = (data || []).map((job) =&gt; serializeJob(job as JobRecord));
-    
+
     return new Response(JSON.stringify({
       data: jobs,
       pagination: {
@@ -53503,10 +53702,11 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
         totalPages: Math.ceil((count || 0) / limit),
         hasMore: (page + 1) * limit &lt; (count || 0),
       }
-    }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    }), { status: 200, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    console.error(&apos;Jobs Edge Function Error:&apos;, err);
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { status: 500, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
   }
 }
 </content>
@@ -53858,6 +54058,83 @@ export default async function handler(req: Request): Promise&lt;Response&gt; {
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err?.message || &apos;Failed to complete onboarding&apos; }), { status: 500, headers: { &apos;Content-Type&apos;: &apos;application/json&apos; } });
+  }
+}
+</content>
+    </file>
+    <file path="insforge\functions\recruiter-dashboard\index.ts" type="code">
+      <content>import { createClient } from &apos;npm:@insforge/sdk&apos;;
+
+const baseUrl = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_URL&apos;) || Deno.env.get(&apos;INSFORGE_URL&apos;)!;
+const anonKey = Deno.env.get(&apos;NEXT_PUBLIC_INSFORGE_ANON_KEY&apos;) || Deno.env.get(&apos;INSFORGE_ANON_KEY&apos;)!;
+const serviceKey = Deno.env.get(&apos;INSFORGE_SERVICE_KEY&apos;)!;
+
+export default async function handler(req: Request): Promise&lt;Response&gt; {
+  const origin = req.headers.get(&apos;Origin&apos;) || &apos;http://localhost:3000&apos;;
+  const corsHeaders: Record&lt;string, string&gt; = {
+    &apos;Access-Control-Allow-Origin&apos;: origin,
+    &apos;Access-Control-Allow-Methods&apos;: &apos;GET, POST, OPTIONS&apos;,
+    &apos;Access-Control-Allow-Headers&apos;: &apos;Content-Type, Authorization, x-client-info&apos;,
+    &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,
+  };
+
+  if (req.method === &apos;OPTIONS&apos;) {
+    return new Response(&apos;ok&apos;, { status: 204, headers: corsHeaders });
+  }
+
+  const authHeader = req.headers.get(&apos;Authorization&apos;);
+  const token = authHeader?.split(&apos; &apos;)[1];
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
+  }
+
+  try {
+    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
+
+    if (authError || !authData?.user || authData.user.id === &apos;project-admin-with-api-key&apos;) {
+      return new Response(JSON.stringify({ error: &apos;Unauthorized&apos; }), { status: 401, headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } });
+    }
+
+    const userId = authData.user.id;
+    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+
+    // Fetch everything in parallel
+    const [profileRes, recruiterProfileRes, jobsRes, appsRes, activityRes] = await Promise.all([
+      // 1. Profile
+      insforgeAdmin.database.from(&apos;profiles&apos;).select(&apos;*&apos;).eq(&apos;id&apos;, userId).single(),
+      // 2. Recruiter Profile + Company
+      insforgeAdmin.database.from(&apos;recruiter_profiles&apos;).select(&apos;*, companies(*)&apos;).eq(&apos;user_id&apos;, userId).single(),
+      // 3. Active Jobs Count &amp; Data
+      insforgeAdmin.database.from(&apos;jobs&apos;).select(&apos;*&apos;, { count: &apos;exact&apos; }).eq(&apos;created_by&apos;, userId).order(&apos;created_at&apos;, { ascending: false }),
+      // 4. Total Applications for their jobs
+      insforgeAdmin.database.from(&apos;applications&apos;).select(&apos;*, jobs!inner(*)&apos;).eq(&apos;jobs.created_by&apos;, userId),
+      // 5. Recent Activity
+      insforgeAdmin.database.from(&apos;activity&apos;).select(&apos;*&apos;).eq(&apos;user_id&apos;, userId).order(&apos;created_at&apos;, { ascending: false }).limit(5)
+    ]);
+
+    const dashboardData = {
+      profile: profileRes.data,
+      recruiterProfile: recruiterProfileRes.data,
+      activeJobsCount: jobsRes.count || 0,
+      totalAppsCount: appsRes.data?.length || 0,
+      recentJobs: jobsRes.data || [], // Use actual jobs
+      recentApps: appsRes.data?.slice(0, 5) || [],
+      activity: activityRes.data || [],
+    };
+
+    return new Response(JSON.stringify(dashboardData), { 
+      status: 200, 
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } 
+    });
+
+  } catch (err: any) {
+    console.error(&apos;Recruiter Dashboard Error:&apos;, err);
+    return new Response(JSON.stringify({ error: err.message || &apos;Internal Server Error&apos; }), { 
+      status: 500, 
+      headers: { ...corsHeaders, &apos;Content-Type&apos;: &apos;application/json&apos; } 
+    });
   }
 }
 </content>
@@ -54242,7 +54519,7 @@ export function generateAdminToken(): string {
 </content>
     </file>
     <file path="lib\api\admin.ts" type="code">
-      <content>import { insforge } from &apos;@/lib/insforge&apos;;
+      <content>import { insforge, invokeFunction } from &apos;@/lib/insforge&apos;;
 
 /**
  * lib/api/admin.ts
@@ -54272,7 +54549,7 @@ function buildUrl(slug: string, params: Record&lt;string, any&gt;): string {
  * Fetches all applications with detailed job and candidate joins.
  */
 export async function getAllApplications(filters: AdminFilters = {}) {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-applications&apos;, filters), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-applications&apos;, filters), {
     method: &apos;GET&apos;
   });
 
@@ -54284,7 +54561,7 @@ export async function getAllApplications(filters: AdminFilters = {}) {
  * Gets aggregated application statistics.
  */
 export async function getApplicationStats() {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-dashboard&apos;, { type: &apos;application-stats&apos; }), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-dashboard&apos;, { type: &apos;application-stats&apos; }), {
     method: &apos;GET&apos;
   });
 
@@ -54296,7 +54573,7 @@ export async function getApplicationStats() {
  * Fetches all jobs regardless of status or approval.
  */
 export async function getAllJobs(filters: AdminFilters = {}) {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-jobs&apos;, filters), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-jobs&apos;, filters), {
     method: &apos;GET&apos;
   });
 
@@ -54308,7 +54585,7 @@ export async function getAllJobs(filters: AdminFilters = {}) {
  * Fetches all candidate profiles.
  */
 export async function getAllCandidates(filters: AdminFilters = {}) {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-candidates&apos;, filters), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-candidates&apos;, filters), {
     method: &apos;GET&apos;
   });
 
@@ -54326,7 +54603,7 @@ export async function getAllCandidates(filters: AdminFilters = {}) {
  * Fetches all recruiter profiles.
  */
 export async function getAllRecruiters(filters: AdminFilters = {}) {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-recruiters&apos;, filters), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-recruiters&apos;, filters), {
     method: &apos;GET&apos;
   });
 
@@ -54344,7 +54621,7 @@ export async function getAllRecruiters(filters: AdminFilters = {}) {
  * Gets overview statistics for the admin dashboard with trends.
  */
 export async function getPlatformStats() {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-dashboard&apos;, { type: &apos;platform-overview&apos; }), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-dashboard&apos;, { type: &apos;platform-overview&apos; }), {
     method: &apos;GET&apos;
   });
 
@@ -54356,7 +54633,7 @@ export async function getPlatformStats() {
  * Approves a job post.
  */
 export async function approveJob(id: string) {
-  const { error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;PATCH&apos;,
     body: { is_approved: true, status: &apos;active&apos; }
   });
@@ -54368,7 +54645,7 @@ export async function approveJob(id: string) {
  * Pauses a job post.
  */
 export async function pauseJob(id: string) {
-  const { error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;PATCH&apos;,
     body: { status: &apos;paused&apos; }
   });
@@ -54380,7 +54657,7 @@ export async function pauseJob(id: string) {
  * Closes a job post.
  */
 export async function closeJob(id: string) {
-  const { error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;PATCH&apos;,
     body: { status: &apos;closed&apos; }
   });
@@ -54392,7 +54669,7 @@ export async function closeJob(id: string) {
  * Rejects a job post.
  */
 export async function rejectJob(id: string, reason: string) {
-  const { error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;PATCH&apos;,
     body: { status: &apos;closed&apos;, is_approved: false, recruiter_notes: reason }
   });
@@ -54404,7 +54681,7 @@ export async function rejectJob(id: string, reason: string) {
  * Create a new job as admin (auto-approved).
  */
 export async function createAdminJob(jobData: any) {
-  const { data, error } = await insforge.functions.invoke(&apos;admin-jobs&apos;, {
+  const { data, error } = await invokeFunction(&apos;admin-jobs&apos;, {
     method: &apos;POST&apos;,
     body: { ...jobData, is_approved: true, status: &apos;active&apos; }
   });
@@ -54417,7 +54694,7 @@ export async function createAdminJob(jobData: any) {
  * Soft delete a job.
  */
 export async function deleteJob(id: string) {
-  const { error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;DELETE&apos;
   });
 
@@ -54428,7 +54705,7 @@ export async function deleteJob(id: string) {
  * Fetches all companies for selection.
  */
 export async function getAllCompanies() {
-  const { data, error } = await insforge.functions.invoke(&apos;admin-companies&apos;);
+  const { data, error } = await invokeFunction(&apos;admin-companies&apos;);
 
   if (error) throw new Error(`Fetch companies failed: ${error.message}`);
   return data.items || [];
@@ -54438,7 +54715,7 @@ export async function getAllCompanies() {
  * Fetches a single job by ID using admin context.
  */
 export async function getAdminJobById(id: string) {
-  const { data, error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { data, error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;GET&apos;
   });
 
@@ -54450,7 +54727,7 @@ export async function getAdminJobById(id: string) {
  * Updates an existing job as admin.
  */
 export async function updateAdminJob(id: string, jobData: any) {
-  const { data, error } = await insforge.functions.invoke(`admin-jobs/${id}`, {
+  const { data, error } = await invokeFunction(`admin-jobs/${id}`, {
     method: &apos;PATCH&apos;,
     body: jobData
   });
@@ -54463,7 +54740,7 @@ export async function updateAdminJob(id: string, jobData: any) {
  * Approves a recruiter profile.
  */
 export async function approveRecruiter(id: string) {
-  const { error } = await insforge.functions.invoke(&apos;admin-recruiter&apos;, {
+  const { error } = await invokeFunction(&apos;admin-recruiter&apos;, {
     method: &apos;POST&apos;,
     body: { action: &apos;approve&apos;, id }
   });
@@ -54475,7 +54752,7 @@ export async function approveRecruiter(id: string) {
  * Suspends a user account.
  */
 export async function suspendUser(id: string) {
-  const { error } = await insforge.functions.invoke(`admin-candidates/${id}`, {
+  const { error } = await invokeFunction(`admin-candidates/${id}`, {
     method: &apos;PATCH&apos;,
     body: { is_active: false }
   });
@@ -54487,7 +54764,7 @@ export async function suspendUser(id: string) {
  * Updates application status and optionally adds notes.
  */
 export async function updateApplicationStatus(id: string, status: string, notes?: string) {
-  const { error } = await insforge.functions.invoke(`admin-applications/${id}`, {
+  const { error } = await invokeFunction(`admin-applications/${id}`, {
     method: &apos;PATCH&apos;,
     body: { status, recruiter_notes: notes }
   });
@@ -54499,7 +54776,7 @@ export async function updateApplicationStatus(id: string, status: string, notes?
  * Shortlists an application and notifies the candidate.
  */
 export async function shortlistApplication(id: string) {
-  const { error } = await insforge.functions.invoke(&apos;admin-applications&apos;, {
+  const { error } = await invokeFunction(&apos;admin-applications&apos;, {
     method: &apos;POST&apos;,
     body: { action: &apos;shortlist&apos;, id }
   });
@@ -54511,7 +54788,7 @@ export async function shortlistApplication(id: string) {
  * Rejects an application and notifies the candidate.
  */
 export async function rejectApplication(id: string, reason: string) {
-  const { error } = await insforge.functions.invoke(&apos;admin-applications&apos;, {
+  const { error } = await invokeFunction(&apos;admin-applications&apos;, {
     method: &apos;POST&apos;,
     body: { action: &apos;reject&apos;, id, reason }
   });
@@ -54523,7 +54800,7 @@ export async function rejectApplication(id: string, reason: string) {
  * Fetches platform audit logs.
  */
 export async function getAuditLogs(filters: AdminFilters = {}) {
-  const { data, error } = await insforge.functions.invoke(buildUrl(&apos;admin-audit-logs&apos;, filters), {
+  const { data, error } = await invokeFunction(buildUrl(&apos;admin-audit-logs&apos;, filters), {
     method: &apos;GET&apos;
   });
 
@@ -54610,7 +54887,7 @@ export const AISuggestApi = {
 </content>
     </file>
     <file path="lib\api\applications.ts" type="code">
-      <content>import { insforge } from &apos;../insforge&apos;;
+      <content>import { insforge, invokeFunction } from &apos;../insforge&apos;;
 
 export type ApplicationStatus =
   | &apos;applied&apos;
@@ -54657,7 +54934,7 @@ function buildUrl(slug: string, params: Record&lt;string, any&gt;): string {
 
 export async function applyToJob(jobId: string, coverLetter?: string): Promise&lt;{ success: boolean; applicationId?: string; error?: string }&gt; {
   try {
-    const { data, error } = await insforge.functions.invoke(&apos;candidate-applications&apos;, {
+    const { data, error } = await invokeFunction(&apos;candidate-applications&apos;, {
       method: &apos;POST&apos;,
       body: { jobId, coverLetter }
     });
@@ -54673,7 +54950,7 @@ export async function applyToJob(jobId: string, coverLetter?: string): Promise&l
 }
 
 export async function getMyApplications(): Promise&lt;Application[]&gt; {
-  const { data, error } = await insforge.functions.invoke(&apos;candidate-applications&apos;, {
+  const { data, error } = await invokeFunction(&apos;candidate-applications&apos;, {
     method: &apos;GET&apos;
   });
 
@@ -54685,7 +54962,7 @@ export async function getMyApplications(): Promise&lt;Application[]&gt; {
 }
 
 export async function withdrawApplication(id: string): Promise&lt;void&gt; {
-  const { error } = await insforge.functions.invoke(`candidate-applications-id?id=${id}`, {
+  const { error } = await invokeFunction(`candidate-applications-id?id=${id}`, {
     method: &apos;DELETE&apos;
   });
 
@@ -54695,12 +54972,12 @@ export async function withdrawApplication(id: string): Promise&lt;void&gt; {
 }
 
 export async function checkAlreadyApplied(jobId: string): Promise&lt;ApplicationStatus | null&gt; {
-  const { data, error } = await insforge.functions.invoke(`candidate-applications?jobId=${jobId}`, {
+  const { data, error } = await invokeFunction(`candidate-applications?jobId=${jobId}`, {
     method: &apos;GET&apos;
   });
 
   if (error) {
-    if (error.statusCode === 401 || error.statusCode === 403) return null;
+    if (error.status === 401 || error.status === 403) return null;
     return null;
   }
 
@@ -55505,7 +55782,8 @@ export const InterviewsApi = {
 </content>
     </file>
     <file path="lib\api\jobs.ts" type="code">
-      <content>import { insforge, handleApiCall } from &apos;./index&apos;;
+      <content>import { insforge, invokeFunction } from &apos;../insforge&apos;;
+import { handleApiCall } from &apos;./index&apos;;
 
 export interface Job {
     id: string;
@@ -55562,7 +55840,7 @@ function buildUrl(slug: string, params: Record&lt;string, any&gt;): string {
  * Fetch approved/active jobs via Edge Function
  */
 export async function getApprovedJobs(filters: JobFilters = {}): Promise&lt;Job[]&gt; {
-    const { data, error } = await insforge.functions.invoke(buildUrl(&apos;jobs&apos;, filters), {
+    const { data, error } = await invokeFunction(buildUrl(&apos;jobs&apos;, filters), {
         method: &apos;GET&apos;
     });
 
@@ -55574,12 +55852,12 @@ export async function getApprovedJobs(filters: JobFilters = {}): Promise&lt;Job[
  * Fetch a single job by ID via Edge Function
  */
 export async function getJobById(id: string): Promise&lt;Job | null&gt; {
-    const { data, error } = await insforge.functions.invoke(`jobs-id?id=${id}`, {
+    const { data, error } = await invokeFunction(`jobs-id?id=${id}`, {
         method: &apos;GET&apos;
     });
 
     if (error) {
-        if (error.statusCode === 404) return null;
+        if (error.status === 404) return null;
         throw error;
     }
     return data?.job as Job;
@@ -55589,8 +55867,8 @@ export async function getJobById(id: string): Promise&lt;Job | null&gt; {
  * Legacy support for JobsApi object pattern
  */
 export const JobsApi = {
-    fetchAll: async (filters?: JobFilters) =&gt; handleApiCall(() =&gt; getApprovedJobs(filters)),
-    fetchById: async (id: string) =&gt; handleApiCall(() =&gt; getJobById(id)),
+    fetchAll: async (filters?: JobFilters) =&gt; invokeFunction(buildUrl(&apos;jobs&apos;, filters || {}), { method: &apos;GET&apos; }),
+    fetchById: async (id: string) =&gt; invokeFunction(`jobs-id?id=${id}`, { method: &apos;GET&apos; }),
     create: async (job: Partial&lt;Job&gt;) =&gt; {
         return handleApiCall(async () =&gt; 
             insforge.database
@@ -55776,21 +56054,25 @@ export function getOffset(page: number, limit: number): number {
 </content>
     </file>
     <file path="lib\api\profile.ts" type="code">
-      <content>import { insforge } from &apos;@/lib/insforge&apos;;
+      <content>import { insforge, invokeFunction } from &apos;@/lib/insforge&apos;;
 import type { UserProfile, CandidateProfile } from &apos;@/types/user&apos;;
 
 /**
  * Fetches the current user&apos;s profile with joined candidate details via Edge Function.
  */
-export async function getMyProfile(): Promise&lt;UserProfile&gt; {
-  const { data, error } = await insforge.functions.invoke(&apos;candidate-profile&apos;);
+export async function getMyProfile(token?: string): Promise&lt;UserProfile&gt; {
+  const { data, error } = await invokeFunction(&apos;candidate-profile&apos;, {
+    method: &apos;GET&apos;,
+    headers: token ? { &apos;Authorization&apos;: `Bearer ${token}` } : {}
+  });
 
   if (error) {
     throw new Error(`Failed to fetch profile: ${error.message}`);
   }
 
+
+
   // The Edge Function returns { profile, candidateProfile }
-  // We merge them for the frontend UserProfile type if necessary
   return {
     ...data.profile,
     candidate_profiles: data.candidateProfile
@@ -55800,36 +56082,28 @@ export async function getMyProfile(): Promise&lt;UserProfile&gt; {
 /**
  * Updates the profile (base or candidate) via Edge Function.
  */
-export async function updateProfile(data: Partial&lt;UserProfile&gt;): Promise&lt;void&gt; {
-  const { error } = await insforge.functions.invoke(&apos;candidate-profile&apos;, {
+export async function updateProfile(bundle: { profile?: Partial&lt;UserProfile&gt;; candidateProfile?: Partial&lt;CandidateProfile&gt; }): Promise&lt;UserProfile&gt; {
+  const { data, error } = await invokeFunction(&apos;candidate-profile&apos;, {
     method: &apos;PUT&apos;,
-    body: { profile: data }
+    body: bundle
   });
 
   if (error) {
     throw new Error(`Failed to update profile: ${error.message}`);
   }
-}
 
-/**
- * Updates the candidate-specific profile details via Edge Function.
- */
-export async function updateCandidateProfile(data: Partial&lt;CandidateProfile&gt;): Promise&lt;void&gt; {
-  const { error } = await insforge.functions.invoke(&apos;candidate-profile&apos;, {
-    method: &apos;PUT&apos;,
-    body: { candidateProfile: data }
-  });
 
-  if (error) {
-    throw new Error(`Failed to update candidate profile: ${error.message}`);
-  }
+  return {
+    ...data.profile,
+    candidate_profiles: data.candidateProfile
+  } as unknown as UserProfile;
 }
 
 /**
  * Marks onboarding as complete via Edge Function.
  */
 export async function completeOnboarding(): Promise&lt;void&gt; {
-  const { error } = await insforge.functions.invoke(&apos;profile-complete-onboarding&apos;, {
+  const { error } = await invokeFunction(&apos;profile-complete-onboarding&apos;, {
     method: &apos;POST&apos;
   });
 
@@ -56348,7 +56622,7 @@ interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) =&gt; Promise&lt;{ error?: string; user?: User | null }&gt;;
+  signIn: (email: string, password: string) =&gt; Promise&lt;{ error?: string; user?: User | null; accessToken?: string }&gt;;
   signUp: (email: string, password: string, role: UserRole, name: string) =&gt; Promise&lt;{ error?: string; requireEmailVerification?: boolean }&gt;;
   signOut: () =&gt; Promise&lt;void&gt;;
   logout: () =&gt; Promise&lt;void&gt;;
@@ -56394,18 +56668,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const syncAuthCookies = useCallback(async (token: string, authUser: Pick&lt;User, &apos;role&apos; | &apos;email&apos;&gt;) =&gt; {
     clearAuthCookies();
+
+    // Set token in local cookie so invokeFunction can find it immediately
+    const isSecure = typeof window !== &apos;undefined&apos; &amp;&amp; window.location.protocol === &apos;https:&apos;;
+    document.cookie = `tm_access_token=${token}; path=/; SameSite=None; ${isSecure ? &apos;Secure;&apos; : &apos;&apos;} max-age=${60 * 60 * 24 * 7}`;
+
     const adminAccess = authUser.role === &apos;admin&apos; || authUser.role === &apos;super_admin&apos; || isAdminEmail(authUser.email);
-    
+
     // Call the auth-session edge function to set cookies in the function domain
-    await insforge.functions.invoke(&apos;auth-session&apos;, {
+    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+    await fetch(`${baseUrl}/functions/auth-session`, {
       method: &apos;POST&apos;,
-      body: {
+      headers: {
+        &apos;Content-Type&apos;: &apos;application/json&apos;,
+        &apos;Authorization&apos;: `Bearer ${token}`,
+        &apos;x-client-info&apos;: &apos;talentmesh-web&apos;
+      },
+      body: JSON.stringify({
         token,
         role: authUser.role,
         adminAccess,
-      },
+      }),
+      credentials: &apos;include&apos;
     }).catch(console.error);
   }, [clearAuthCookies]);
+
 
   const cacheUser = useCallback((authUser: User | null) =&gt; {
     if (typeof window === &apos;undefined&apos;) {
@@ -56502,12 +56789,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      // Use the auth-session edge function to check current session
-      const { data: payload, error } = await insforge.functions.invoke(&apos;auth-session&apos;, {
-        method: &apos;GET&apos;
+      // Extract token from cookies for verification
+      let token;
+      if (typeof window !== &apos;undefined&apos;) {
+        const match = document.cookie.match(/tm_access_token=([^;]+)/);
+        token = match ? match[1] : null;
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+      const response = await fetch(`${baseUrl}/functions/auth-session`, {
+        method: &apos;GET&apos;,
+        headers: {
+          &apos;x-client-info&apos;: &apos;talentmesh-web&apos;,
+          ...(token ? { &apos;Authorization&apos;: `Bearer ${token}` } : {})
+        },
+        credentials: &apos;include&apos;
       });
 
-      if (error || !payload?.user) {
+
+      if (!response.ok) {
+        clearAuthCookies();
+        setUser(null);
+        return null;
+      }
+
+      const payload = await response.json();
+
+      if (!payload?.user) {
         clearAuthCookies();
         setUser(null);
         return null;
@@ -56518,6 +56826,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax`;
       if (resolvedUser.role === &apos;admin&apos; || resolvedUser.role === &apos;super_admin&apos; || isAdminEmail(resolvedUser.email)) {
         document.cookie = &apos;tm_admin_access=true; path=/; SameSite=Lax&apos;;
+      }
+
+      // Sync token to local cookie if returned by session refresh
+      if (payload.token) {
+        const isSecure = typeof window !== &apos;undefined&apos; &amp;&amp; window.location.protocol === &apos;https:&apos;;
+        document.cookie = `tm_access_token=${payload.token}; path=/; SameSite=None; ${isSecure ? &apos;Secure;&apos; : &apos;&apos;} max-age=${60 * 60 * 24 * 7}`;
       }
 
       setUser(resolvedUser);
@@ -56536,6 +56850,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [cacheUser, clearAuthCookies]);
 
+  // Session Refresh Interval (every 10 minutes to prevent 15m expiry)
+  useEffect(() =&gt; {
+    if (user) {
+      const interval = setInterval(() =&gt; {
+        console.log(&apos;[AuthContext] Proactive session refresh...&apos;);
+        refreshUser();
+      }, 1000 * 60 * 10);
+      return () =&gt; clearInterval(interval);
+    }
+  }, [user, refreshUser]);
+
   useEffect(() =&gt; {
     let hasLoadedCached = false;
     try {
@@ -56551,7 +56876,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Auto-refresh if we have a cached user OR a matching access cookie.
     // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
     const hasAccessToken = document.cookie.includes(&apos;tm_access_token&apos;);
-    const isAuthPage = typeof window !== &apos;undefined&apos; &amp;&amp; 
+    const isAuthPage = typeof window !== &apos;undefined&apos; &amp;&amp;
       (window.location.pathname === &apos;/auth/callback&apos; || window.location.pathname === &apos;/login&apos;);
 
     if ((hasLoadedCached || hasAccessToken) &amp;&amp; !isAuthPage) {
@@ -56587,11 +56912,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await syncAuthCookies(data.accessToken, fullUser);
       setUser(fullUser);
       cacheUser(fullUser);
-      return { user: fullUser };
+      return { user: fullUser, accessToken: data.accessToken };
     } catch {
       return { error: &apos;An unexpected error occurred during sign in.&apos; };
     }
   };
+
 
   const signUp = async (email: string, password: string, role: UserRole, name: string) =&gt; {
     try {
@@ -56616,7 +56942,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toISOString(),
           mfa_enabled: false
         };
-        
+
         await syncAuthCookies(data.accessToken, fullUser);
         setUser(fullUser);
         cacheUser(fullUser);
@@ -56631,10 +56957,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () =&gt; {
     await insforge.auth.signOut();
     // Call the auth-session edge function to clear cookies
-    await insforge.functions.invoke(&apos;auth-session&apos;, {
-      method: &apos;DELETE&apos;
+    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+    await fetch(`${baseUrl}/functions/auth-session`, {
+      method: &apos;DELETE&apos;,
+      headers: {
+        &apos;x-client-info&apos;: &apos;talentmesh-web&apos;
+      },
+      credentials: &apos;include&apos;
     }).catch(() =&gt; undefined);
-    
+
     clearAuthCookies();
     setUser(null);
     window.location.replace(&apos;/login&apos;);
@@ -57461,6 +57792,84 @@ export const insforge = createClient({
   baseUrl: supabaseUrl,
   anonKey: supabaseAnonKey,
 });
+
+/**
+ * Helper to invoke Edge Functions manually to bypass SDK URL construction bug.
+ */
+export async function invokeFunction(slug: string, options: { 
+  method?: &apos;GET&apos; | &apos;POST&apos; | &apos;PUT&apos; | &apos;PATCH&apos; | &apos;DELETE&apos;;
+  body?: any;
+  headers?: Record&lt;string, string&gt;;
+  queries?: Record&lt;string, string | undefined&gt;;
+  path?: string;
+} = {}) {
+  const { method = &apos;POST&apos;, body, headers = {}, queries = {}, path = &apos;&apos; } = options;
+  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+  
+  // Construct URL with path and queries
+  let url = `${baseUrl}/functions/${slug}${path}`;
+  const queryParams = new URLSearchParams();
+  Object.entries(queries).forEach(([key, value]) =&gt; {
+    if (value !== undefined &amp;&amp; value !== null) {
+      queryParams.append(key, value);
+    }
+  });
+  const queryString = queryParams.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
+  
+  // Use session token if available (Prioritize passed headers &gt; Cookies)
+  let authHeader = headers[&apos;Authorization&apos;] || headers[&apos;authorization&apos;];
+  
+  if (!authHeader &amp;&amp; typeof window !== &apos;undefined&apos;) {
+    const cookieArr = document.cookie.split(&apos;;&apos;);
+    for (let i = 0; i &lt; cookieArr.length; i++) {
+      const cookie = cookieArr[i].trim();
+      if (cookie.startsWith(&apos;tm_access_token=&apos;)) {
+        const token = cookie.substring(&apos;tm_access_token=&apos;.length);
+        if (token) {
+          // Decode if needed (some cookies might be encoded)
+          const decodedToken = token.startsWith(&apos;Bearer%20&apos;) ? decodeURIComponent(token).substring(7) : token;
+          authHeader = `Bearer ${decodedToken}`;
+          break;
+        }
+      }
+    }
+  }
+
+  const finalHeaders: Record&lt;string, string&gt; = {
+    &apos;Content-Type&apos;: &apos;application/json&apos;,
+    &apos;x-client-info&apos;: &apos;talentmesh-web&apos;,
+    ...headers
+  };
+
+  if (authHeader) {
+    finalHeaders[&apos;Authorization&apos;] = authHeader;
+  }
+
+  // GET requests cannot have a body
+  const fetchOptions: RequestInit = {
+    method,
+    headers: finalHeaders,
+    credentials: &apos;include&apos;,
+  };
+
+  if (method !== &apos;GET&apos; &amp;&amp; body) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(url, fetchOptions);
+
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() =&gt; ({}));
+    return { data: null, error: { message: errorData.error || response.statusText, status: response.status } };
+  }
+
+  const data = await response.json();
+  return { data, error: null };
+}
 
 /**
  * Helper to fetch the current active session
@@ -59584,366 +59993,186 @@ export type ScoringResult = z.infer&lt;typeof ScoreSchema&gt;;
 </content>
     </file>
     <file path="metadata.json" type="config">
-      <content>��{ 
- 
-     &quot; a u t h &quot; :   { 
- 
-         &quot; o A u t h P r o v i d e r s &quot; :   [ 
- 
-             &quot; g o o g l e &quot; , 
- 
-             &quot; l i n k e d i n &quot; 
- 
-         ] , 
- 
-         &quot; r e q u i r e E m a i l V e r i f i c a t i o n &quot; :   t r u e , 
- 
-         &quot; p a s s w o r d M i n L e n g t h &quot; :   6 , 
- 
-         &quot; r e q u i r e N u m b e r &quot; :   f a l s e , 
- 
-         &quot; r e q u i r e L o w e r c a s e &quot; :   f a l s e , 
- 
-         &quot; r e q u i r e U p p e r c a s e &quot; :   f a l s e , 
- 
-         &quot; r e q u i r e S p e c i a l C h a r &quot; :   f a l s e , 
- 
-         &quot; v e r i f y E m a i l M e t h o d &quot; :   &quot; c o d e &quot; , 
- 
-         &quot; r e s e t P a s s w o r d M e t h o d &quot; :   &quot; c o d e &quot; 
- 
-     } , 
- 
-     &quot; d a t a b a s e &quot; :   { 
- 
-         &quot; t a b l e s &quot; :   [ 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; a c t i v i t y &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   1 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; a d m i n _ i n v i t e s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; a d m i n _ p e r m i s s i o n s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; a p p l i c a t i o n &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; a p p l i c a t i o n s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; a u d i t _ l o g s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; b l o g &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; c a n d i d a t e _ p r o f i l e s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   1 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; c a n d i d a t e p r o f i l e &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; c o m p a n i e s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; c o m p a n y p r o f i l e &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   1 3 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; i n t e r v i e w &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; i n t e r v i e w s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; j o b &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   6 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; j o b s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; m e s s a g e s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; n o t i f i c a t i o n s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; p r o f i l e s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   5 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; r e c r u i t e r _ p r o f i l e s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } , 
- 
-             { 
- 
-                 &quot; t a b l e N a m e &quot; :   &quot; s a v e d _ j o b s &quot; , 
- 
-                 &quot; r e c o r d C o u n t &quot; :   0 
- 
-             } 
- 
-         ] , 
- 
-         &quot; t o t a l S i z e I n G B &quot; :   0 . 0 1 0 1 8 9 8 1 5 4 2 4 3 8 2 6 8 7 , 
- 
-         &quot; h i n t &quot; :   &quot; T o   r e t r i e v e   d e t a i l e d   s c h e m a   i n f o r m a t i o n   f o r   a   s p e c i f i c   t a b l e ,   c a l l   t h e   g e t - t a b l e - s c h e m a   t o o l   w i t h   t h e   t a b l e   n a m e . &quot; 
- 
-     } , 
- 
-     &quot; s t o r a g e &quot; :   { 
- 
-         &quot; b u c k e t s &quot; :   [ 
- 
-             { 
- 
-                 &quot; n a m e &quot; :   &quot; r e s u m e s &quot; , 
- 
-                 &quot; p u b l i c &quot; :   t r u e , 
- 
-                 &quot; c r e a t e d A t &quot; :   &quot; 2 0 2 6 - 0 3 - 2 6 T 1 0 : 4 9 : 1 4 . 9 0 4 Z &quot; , 
- 
-                 &quot; o b j e c t C o u n t &quot; :   1 
- 
-             } 
- 
-         ] , 
- 
-         &quot; t o t a l S i z e I n G B &quot; :   0 . 0 0 1 1 5 5 1 2 0 3 2 0 6 1 8 1 5 2 6 
- 
-     } , 
- 
-     &quot; f u n c t i o n s &quot; :   [ ] , 
- 
-     &quot; a i I n t e g r a t i o n &quot; :   { 
- 
-         &quot; m o d e l s &quot; :   [ 
- 
-             { 
- 
-                 &quot; i n p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; o u t p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; 
- 
-                 ] , 
- 
-                 &quot; m o d e l I d &quot; :   &quot; d e e p s e e k / d e e p s e e k - v 3 . 2 &quot; 
- 
-             } , 
- 
-             { 
- 
-                 &quot; i n p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; o u t p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; 
- 
-                 ] , 
- 
-                 &quot; m o d e l I d &quot; :   &quot; m i n i m a x / m i n i m a x - m 2 . 1 &quot; 
- 
-             } , 
- 
-             { 
- 
-                 &quot; i n p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; o u t p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; 
- 
-                 ] , 
- 
-                 &quot; m o d e l I d &quot; :   &quot; x - a i / g r o k - 4 . 1 - f a s t &quot; 
- 
-             } , 
- 
-             { 
- 
-                 &quot; i n p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; o u t p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; 
- 
-                 ] , 
- 
-                 &quot; m o d e l I d &quot; :   &quot; a n t h r o p i c / c l a u d e - s o n n e t - 4 . 5 &quot; 
- 
-             } , 
- 
-             { 
- 
-                 &quot; i n p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; o u t p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; 
- 
-                 ] , 
- 
-                 &quot; m o d e l I d &quot; :   &quot; o p e n a i / g p t - 4 o - m i n i &quot; 
- 
-             } , 
- 
-             { 
- 
-                 &quot; i n p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; o u t p u t M o d a l i t y &quot; :   [ 
- 
-                     &quot; t e x t &quot; , 
- 
-                     &quot; i m a g e &quot; 
- 
-                 ] , 
- 
-                 &quot; m o d e l I d &quot; :   &quot; g o o g l e / g e m i n i - 3 - p r o - i m a g e - p r e v i e w &quot; 
- 
-             } 
- 
-         ] 
- 
-     } , 
- 
-     &quot; v e r s i o n &quot; :   &quot; 1 . 0 . 0 &quot; 
- 
- } 
- 
+      <content>��{  
+     &quot; a u t h &quot; :   {  
+         &quot; o A u t h P r o v i d e r s &quot; :   [  
+             &quot; g o o g l e &quot; ,  
+             &quot; l i n k e d i n &quot;  
+         ] ,  
+         &quot; r e q u i r e E m a i l V e r i f i c a t i o n &quot; :   t r u e ,  
+         &quot; p a s s w o r d M i n L e n g t h &quot; :   6 ,  
+         &quot; r e q u i r e N u m b e r &quot; :   f a l s e ,  
+         &quot; r e q u i r e L o w e r c a s e &quot; :   f a l s e ,  
+         &quot; r e q u i r e U p p e r c a s e &quot; :   f a l s e ,  
+         &quot; r e q u i r e S p e c i a l C h a r &quot; :   f a l s e ,  
+         &quot; v e r i f y E m a i l M e t h o d &quot; :   &quot; c o d e &quot; ,  
+         &quot; r e s e t P a s s w o r d M e t h o d &quot; :   &quot; c o d e &quot;  
+     } ,  
+     &quot; d a t a b a s e &quot; :   {  
+         &quot; t a b l e s &quot; :   [  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; a c t i v i t y &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   1  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; a d m i n _ i n v i t e s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; a d m i n _ p e r m i s s i o n s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; a p p l i c a t i o n &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; a p p l i c a t i o n s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; a u d i t _ l o g s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; b l o g &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; c a n d i d a t e _ p r o f i l e s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   1  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; c a n d i d a t e p r o f i l e &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; c o m p a n i e s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; c o m p a n y p r o f i l e &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   1 3  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; i n t e r v i e w &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; i n t e r v i e w s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; j o b &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   6  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; j o b s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; m e s s a g e s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; n o t i f i c a t i o n s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; p r o f i l e s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   5  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; r e c r u i t e r _ p r o f i l e s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             } ,  
+             {  
+                 &quot; t a b l e N a m e &quot; :   &quot; s a v e d _ j o b s &quot; ,  
+                 &quot; r e c o r d C o u n t &quot; :   0  
+             }  
+         ] ,  
+         &quot; t o t a l S i z e I n G B &quot; :   0 . 0 1 0 1 8 9 8 1 5 4 2 4 3 8 2 6 8 7 ,  
+         &quot; h i n t &quot; :   &quot; T o   r e t r i e v e   d e t a i l e d   s c h e m a   i n f o r m a t i o n   f o r   a   s p e c i f i c   t a b l e ,   c a l l   t h e   g e t - t a b l e - s c h e m a   t o o l   w i t h   t h e   t a b l e   n a m e . &quot;  
+     } ,  
+     &quot; s t o r a g e &quot; :   {  
+         &quot; b u c k e t s &quot; :   [  
+             {  
+                 &quot; n a m e &quot; :   &quot; r e s u m e s &quot; ,  
+                 &quot; p u b l i c &quot; :   t r u e ,  
+                 &quot; c r e a t e d A t &quot; :   &quot; 2 0 2 6 - 0 3 - 2 6 T 1 0 : 4 9 : 1 4 . 9 0 4 Z &quot; ,  
+                 &quot; o b j e c t C o u n t &quot; :   1  
+             }  
+         ] ,  
+         &quot; t o t a l S i z e I n G B &quot; :   0 . 0 0 1 1 5 5 1 2 0 3 2 0 6 1 8 1 5 2 6  
+     } ,  
+     &quot; f u n c t i o n s &quot; :   [ ] ,  
+     &quot; a i I n t e g r a t i o n &quot; :   {  
+         &quot; m o d e l s &quot; :   [  
+             {  
+                 &quot; i n p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; o u t p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot;  
+                 ] ,  
+                 &quot; m o d e l I d &quot; :   &quot; d e e p s e e k / d e e p s e e k - v 3 . 2 &quot;  
+             } ,  
+             {  
+                 &quot; i n p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; o u t p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot;  
+                 ] ,  
+                 &quot; m o d e l I d &quot; :   &quot; m i n i m a x / m i n i m a x - m 2 . 1 &quot;  
+             } ,  
+             {  
+                 &quot; i n p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; o u t p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot;  
+                 ] ,  
+                 &quot; m o d e l I d &quot; :   &quot; x - a i / g r o k - 4 . 1 - f a s t &quot;  
+             } ,  
+             {  
+                 &quot; i n p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; o u t p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot;  
+                 ] ,  
+                 &quot; m o d e l I d &quot; :   &quot; a n t h r o p i c / c l a u d e - s o n n e t - 4 . 5 &quot;  
+             } ,  
+             {  
+                 &quot; i n p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; o u t p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot;  
+                 ] ,  
+                 &quot; m o d e l I d &quot; :   &quot; o p e n a i / g p t - 4 o - m i n i &quot;  
+             } ,  
+             {  
+                 &quot; i n p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; o u t p u t M o d a l i t y &quot; :   [  
+                     &quot; t e x t &quot; ,  
+                     &quot; i m a g e &quot;  
+                 ] ,  
+                 &quot; m o d e l I d &quot; :   &quot; g o o g l e / g e m i n i - 3 - p r o - i m a g e - p r e v i e w &quot;  
+             }  
+         ]  
+     } ,  
+     &quot; v e r s i o n &quot; :   &quot; 1 . 0 . 0 &quot;  
+ }  
  </content>
     </file>
     <file path="next-env.d.ts" type="code">
@@ -60061,7 +60290,7 @@ export default nextConfig;
     &quot;@daily-co/daily-js&quot;: &quot;^0.89.1&quot;,
     &quot;@emotion/react&quot;: &quot;^11.14.0&quot;,
     &quot;@emotion/styled&quot;: &quot;^11.14.1&quot;,
-    &quot;@insforge/sdk&quot;: &quot;^1.2.2&quot;,
+    &quot;@insforge/sdk&quot;: &quot;^1.2.6&quot;,
     &quot;@mui/icons-material&quot;: &quot;^7.3.8&quot;,
     &quot;@mui/material&quot;: &quot;^7.3.8&quot;,
     &quot;@radix-ui/react-popover&quot;: &quot;^1.1.15&quot;,
@@ -60958,6 +61187,9 @@ export const config = {
 };
 </content>
     </file>
+    <file path="public\blueprint.html" type="code">
+      <content>&lt;html&gt;&lt;head&gt;&lt;title&gt;TM Blueprint&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;Blueprint&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;</content>
+    </file>
     <file path="README.md" type="code">
       <content># TalentMesh — AI-Powered Recruiting Portal
 
@@ -61382,6 +61614,30 @@ try {
   const message = err instanceof Error ? err.message : String(err);
   console.log(&apos;✅ Validation failed correctly:&apos;, message);
 }
+</content>
+    </file>
+    <file path="scratch\test_dashboard.js" type="code">
+      <content>
+const axios = require(&apos;axios&apos;);
+const baseUrl = &apos;https://tnthhoxvzhhldatshskx.region.insforge.app&apos;; // I&apos;ll get the real URL from env if I can, but let&apos;s assume it&apos;s this based on context
+const anonKey = &apos;...&apos;; // I&apos;ll use the one from lib/insforge.ts if I can find it or just mock the call
+
+async function test() {
+  try {
+    const response = await axios.post(`${baseUrl}/functions/admin-dashboard`, {
+      action: &apos;get-summary&apos;
+    }, {
+      headers: {
+        &apos;Authorization&apos;: `Bearer ${process.env.ADMIN_KEY}`, // I don&apos;t have this, so I&apos;ll just look at the code again
+        &apos;Content-Type&apos;: &apos;application/json&apos;
+      }
+    });
+    console.log(JSON.stringify(response.data, null, 2));
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+  }
+}
+// test();
 </content>
     </file>
     <file path="scripts\create-admin.ts" type="code">
@@ -63210,8 +63466,10 @@ export interface UserProfile {
   location?: string;
   bio?: string;
   avatar_url?: string;
+  is_onboarded?: boolean;
   candidate_profiles?: CandidateProfile;
 }
+
 </content>
     </file>
     <file path="vercel.json" type="config">

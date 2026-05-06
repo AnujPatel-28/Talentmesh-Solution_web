@@ -1,23 +1,18 @@
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import type { UserProfile, CandidateProfile } from '@/types/user';
 
 /**
  * Fetches the current user's profile with joined candidate details via Edge Function.
  */
-export async function getMyProfile(): Promise<UserProfile> {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  const response = await fetch(`${baseUrl}/functions/candidate-profile`, {
+export async function getMyProfile(token?: string): Promise<UserProfile> {
+  const { data, error } = await invokeFunction('candidate-profile', {
     method: 'GET',
-    headers: {
-      'x-client-info': 'talentmesh-web'
-    }
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch profile: ${response.statusText}`);
+  if (error) {
+    throw new Error(`Failed to fetch profile: ${error.message}`);
   }
-
-  const data = await response.json();
 
   // The Edge Function returns { profile, candidateProfile }
   return {
@@ -27,24 +22,36 @@ export async function getMyProfile(): Promise<UserProfile> {
 }
 
 /**
- * Updates the profile (base or candidate) via Edge Function.
+ * Updates the base profile details.
  */
-export async function updateProfile(bundle: { profile?: Partial<UserProfile>; candidateProfile?: Partial<CandidateProfile> }): Promise<UserProfile> {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  const response = await fetch(`${baseUrl}/functions/candidate-profile`, {
+export async function updateProfile(profileUpdates: Partial<UserProfile>): Promise<UserProfile> {
+  const { data, error } = await invokeFunction('candidate-profile', {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-client-info': 'talentmesh-web'
-    },
-    body: JSON.stringify(bundle)
+    body: { profile: profileUpdates }
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to update profile: ${response.statusText}`);
+  if (error) {
+    throw new Error(`Failed to update profile: ${error.message}`);
   }
 
-  const data = await response.json();
+  return {
+    ...data.profile,
+    candidate_profiles: data.candidateProfile
+  } as unknown as UserProfile;
+}
+
+/**
+ * Updates the candidate-specific profile details.
+ */
+export async function updateCandidateProfile(candidateUpdates: Partial<CandidateProfile>): Promise<UserProfile> {
+  const { data, error } = await invokeFunction('candidate-profile', {
+    method: 'PUT',
+    body: { candidateProfile: candidateUpdates }
+  });
+
+  if (error) {
+    throw new Error(`Failed to update candidate profile: ${error.message}`);
+  }
 
   return {
     ...data.profile,
@@ -56,41 +63,39 @@ export async function updateProfile(bundle: { profile?: Partial<UserProfile>; ca
  * Marks onboarding as complete via Edge Function.
  */
 export async function completeOnboarding(): Promise<void> {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  const response = await fetch(`${baseUrl}/functions/profile-complete-onboarding`, {
-    method: 'POST',
-    headers: {
-      'x-client-info': 'talentmesh-web'
-    }
+  const { error } = await invokeFunction('profile-complete-onboarding', {
+    method: 'POST'
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to complete onboarding: ${response.statusText}`);
+  if (error) {
+    throw new Error(`Failed to complete onboarding: ${error.message}`);
   }
 }
 
 /**
  * Logic to calculate profile strength percentage 0-100.
- * (Keeping this for client-side UI feedback if needed, but the server is now authoritative)
  */
 export function calculateProfileStrength(profile: any): number {
   if (!profile) return 0;
   
+  const cp = profile.candidate_profiles || profile;
+  const p = profile.candidate_profiles ? profile : {};
+
   const rules = [
-    { field: 'headline', weight: 5 },
-    { field: 'bio', weight: 10 },
-    { field: 'skills', weight: 15, check: (v: any) => Array.isArray(v) && v.length >= 3 },
-    { field: 'experience_years', weight: 5, check: (v: any) => v != null && v >= 0 },
-    { field: 'resume_url', weight: 20 },
-    { field: 'education', weight: 10, check: (v: any) => Array.isArray(v) && v.length > 0 },
-    { field: 'work_history', weight: 20, check: (v: any) => Array.isArray(v) && v.length > 0 },
-    { field: 'job_types', weight: 10, check: (v: any) => Array.isArray(v) && v.length > 0 },
-    { field: 'preferred_locations', weight: 5, check: (v: any) => Array.isArray(v) && v.length > 0 },
+    { field: 'headline', weight: 10, source: 'cp' },
+    { field: 'about', weight: 10, source: 'p' },
+    { field: 'skills', weight: 15, source: 'cp', check: (v: any) => Array.isArray(v) && v.length >= 3 },
+    { field: 'experience_years', weight: 10, source: 'cp', check: (v: any) => v != null && v >= 0 },
+    { field: 'resume_url', weight: 20, source: 'cp' },
+    { field: 'education', weight: 10, source: 'cp', check: (v: any) => v != null },
+    { field: 'location', weight: 10, source: 'p' },
+    { field: 'name', weight: 15, source: 'p' },
   ];
 
   let strength = 0;
   rules.forEach(rule => {
-    const value = profile[rule.field];
+    const src = rule.source === 'cp' ? cp : p;
+    const value = src[rule.field];
     const isValid = rule.check ? rule.check(value) : !!value;
     if (isValid) {
       strength += rule.weight;
@@ -98,11 +103,4 @@ export function calculateProfileStrength(profile: any): number {
   });
 
   return Math.min(strength, 100);
-}
-
-/**
- * Updates just the candidate profile details.
- */
-export async function updateCandidateProfile(candidateProfile: Partial<CandidateProfile>): Promise<UserProfile> {
-  return updateProfile({ candidateProfile });
 }

@@ -56,8 +56,9 @@ function buildUrl(slug: string, params: Record<string, any>): string {
  * Fetch approved/active jobs via Edge Function
  */
 export async function getApprovedJobs(filters: JobFilters = {}): Promise<Job[]> {
-    const { data, error } = await invokeFunction(buildUrl('jobs', filters), {
-        method: 'GET'
+    const { data, error } = await invokeFunction('jobs', {
+        method: 'GET',
+        queries: filters as any
     });
 
     if (error) throw error;

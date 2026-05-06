@@ -4,10 +4,22 @@ const baseUrl = Deno.env.get('INSFORGE_URL') || Deno.env.get('NEXT_PUBLIC_INSFOR
 const anonKey = Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
 
 export default async function handler(req: Request): Promise<Response> {
+  const origin = req.headers.get('Origin') || 'http://localhost:3000';
+  const corsHeaders: Record<string, string> = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
       status: 405,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
@@ -17,7 +29,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (!email || !password || !role || !name) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -33,7 +45,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (signupError) {
       return new Response(JSON.stringify({ error: signupError.message }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -52,7 +64,7 @@ export default async function handler(req: Request): Promise<Response> {
       if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message }), { 
           status: 400,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
     }
@@ -63,13 +75,13 @@ export default async function handler(req: Request): Promise<Response> {
       accessToken: data?.accessToken 
     }), { 
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (err) {
     console.error('Signup API Error:', err);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), { 
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 }

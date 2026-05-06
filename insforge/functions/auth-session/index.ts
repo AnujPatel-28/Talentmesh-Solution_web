@@ -13,7 +13,8 @@ function parseCookies(header: string | null) {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  const origin = req.headers.get('Origin') || '*';
+  console.log(`[auth-session] v2 - Handled ${req.method} request`);
+  const origin = req.headers.get('Origin') || 'http://localhost:3000';
   const corsHeaders: Record<string, string> = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
@@ -34,14 +35,21 @@ export default async function handler(req: Request): Promise<Response> {
       const token = cookies['tm_access_token'] || req.headers.get('Authorization')?.split(' ')[1];
 
       if (!token) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.error('[auth-session] No token found in cookies or headers');
+        return new Response(JSON.stringify({ error: 'No token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
       const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
-      if (authError || !authData?.user || authData.user.id === 'project-admin-with-api-key') {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      if (authError) {
+        console.error('[auth-session] Auth verify error:', authError);
+        return new Response(JSON.stringify({ error: 'Auth failed', details: authError.message }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (!authData?.user || authData.user.id === 'project-admin-with-api-key') {
+        console.error('[auth-session] Invalid user or admin-key detected');
+        return new Response(JSON.stringify({ error: 'Invalid user' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const { data: profile } = await insforge.database
@@ -77,8 +85,7 @@ export default async function handler(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ error: 'Missing required token or role' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const isSecure = Deno.env.get('NODE_ENV') === 'production';
-      const cookieOptions = `Path=/; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+      const cookieOptions = `Path=/; HttpOnly; SameSite=None; Secure`;
 
       const headers = new Headers();
       headers.append('Set-Cookie', `tm_access_token=${token}; ${cookieOptions}`);
@@ -105,7 +112,7 @@ export default async function handler(req: Request): Promise<Response> {
         }
       }
 
-      const clearOptions = `Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${Deno.env.get('NODE_ENV') === 'production' ? '; Secure' : ''}`;
+      const clearOptions = `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
       const headers = new Headers();
       headers.append('Set-Cookie', `tm_access_token=; ${clearOptions}`);
       headers.append('Set-Cookie', `tm_role=; ${clearOptions}`);

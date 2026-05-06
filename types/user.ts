@@ -29,8 +29,10 @@ export interface UserProfile {
   role: string | UserRole;
   phone?: string;
   location?: string;
-  bio?: string;
+  about?: string;
   avatar_url?: string;
+  is_onboarded?: boolean;
   candidate_profiles?: CandidateProfile;
   completed_onboarding?: boolean;
 }
+

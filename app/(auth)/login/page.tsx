@@ -86,10 +86,12 @@ export default function LoginPage() {
 
             // Redirect based on profile
             let profile;
-            try {
-                profile = await getMyProfile();
-            } catch (err) {
-                console.error('Failed to fetch profile during auto-login:', err);
+            if (!isAdminEmail) {
+                try {
+                    profile = await getMyProfile(result.accessToken);
+                } catch (err) {
+                    console.error('Failed to fetch profile during auto-login:', err);
+                }
             }
 
             if (!profile) {
@@ -108,7 +110,7 @@ export default function LoginPage() {
                 router.push('/dashboard/admin');
             } else if (profile.role === 'recruiter') {
                 router.push('/dashboard/recruiter');
-            } else if (!profile.completed_onboarding) {
+            } else if (!profile.is_onboarded) {
                 router.push('/onboarding/candidate');
             } else {
                 router.push(`/dashboard/candidate/${profile.id}`);
@@ -157,19 +159,17 @@ export default function LoginPage() {
             // 3. Success — let middleware redirect to the right dashboard based on role.
             // router.refresh() re-requests the current page (/login); the middleware
             // sees the authenticated user and redirects to /dashboard/{role}.
-            // 🔥 STEP 1 — Fetch profile
+            // 🔥 STEP 1 — Fetch profile (Skip for Admins)
             let profile;
-            try {
-                profile = await getMyProfile();
-            } catch (err) {
-                console.error('Failed to fetch profile during login:', err);
-                if (isAdminEmail) {
-                    router.push('/dashboard/admin');
+            if (!isAdminEmail) {
+                try {
+                    profile = await getMyProfile(result.accessToken);
+                } catch (err) {
+                    console.error('Failed to fetch profile during login:', err);
+                    setError('Failed to load profile. Please try again.');
+                    setIsLoading(false);
                     return;
                 }
-                setError('Failed to load profile. Please try again.');
-                setIsLoading(false);
-                return;
             }
 
             if (!profile) {
@@ -190,8 +190,9 @@ export default function LoginPage() {
             const destination = isAdminRole 
                 ? '/dashboard/admin' 
                 : profile.role === 'recruiter'
-                ? (profile.completed_onboarding ? '/dashboard/recruiter' : '/onboarding/recruiter/setup')
-                : (profile.completed_onboarding ? `/dashboard/candidate/${profile.id}` : '/onboarding/candidate');
+                ? (profile.is_onboarded ? '/dashboard/recruiter' : '/onboarding/recruiter/setup')
+                : (profile.is_onboarded ? `/dashboard/candidate/${profile.id}` : '/onboarding/candidate');
+
 
             setTimeout(() => {
                 window.location.href = destination;
