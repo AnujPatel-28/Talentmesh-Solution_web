@@ -43,7 +43,7 @@ export default function RecruiterJobsPage() {
         <div className={styles.jobsPage}>
             <div className={styles.pageHead}>
                 <h1 className={styles.pageTitle}>Job Postings</h1>
-                <Link href="/dashboard/recruiter/jobs/post-job" className={styles.createBtn}>
+                <Link href={`/dashboard/recruiter/${user?.id}/jobs/post-job`} className={styles.createBtn}>
                     {IC.plus} Post a New Job
                 </Link>
             </div>
@@ -64,8 +64,9 @@ export default function RecruiterJobsPage() {
                             </div>
                         </div>
                         <div className={styles.jobPostActions}>
-                            <button className={styles.editBtn}>Edit</button>
-                            <button className={styles.editBtn}>View Applicants</button>
+                            <Link href={`/dashboard/recruiter/${user?.id}/jobs/${j.id}`} className={styles.editBtn}>
+                                View & Manage
+                            </Link>
                         </div>
                     </div>
                 ))

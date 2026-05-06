@@ -1,6 +1,8 @@
 "use client";
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styles from '../../../shared-dashboard.module.css';
+import { invokeFunction } from '@/lib/insforge';
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 
 const IC = {
     mapPin: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>,
@@ -9,35 +11,64 @@ const IC = {
 };
 
 export default function CandidatesPage() {
-    const candidates = [
-        { name: 'Arjun Patel', role: 'Senior Frontend Engineer', loc: 'Bangalore, IN', match: 96, skills: ['React', 'TypeScript', 'Next.js', 'CSS'] },
-        { name: 'Priya Sharma', role: 'Full Stack Developer', loc: 'Mumbai, IN', match: 92, skills: ['Node.js', 'React', 'PostgreSQL'] },
-        { name: 'Alex Johnson', role: 'UI/UX Designer', loc: 'San Francisco, CA', match: 89, skills: ['Figma', 'Adobe XD', 'Prototyping'] },
-        { name: 'Ravi Kumar', role: 'Backend Developer', loc: 'Hyderabad, IN', match: 87, skills: ['Python', 'Django', 'Docker'] },
-        { name: 'Emily Chen', role: 'Data Scientist', loc: 'Seattle, WA', match: 85, skills: ['Python', 'ML', 'TensorFlow'] },
-        { name: 'David Park', role: 'DevOps Engineer', loc: 'Remote', match: 82, skills: ['AWS', 'Kubernetes', 'CI/CD'] },
-    ];
+    const [candidates, setCandidates] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const fetching = useRef(false);
+
+    const fetchCandidates = async (pageNum: number) => {
+        if (fetching.current) return;
+        fetching.current = true;
+        try {
+            const { data, error } = await invokeFunction('candidates', {
+                method: 'GET',
+                queries: { page: pageNum.toString() }
+            });
+
+            if (error) {
+                console.error('Error fetching candidates:', error);
+                return;
+            }
+
+            if (data) {
+                setCandidates(prev => pageNum === 0 ? data.data : [...prev, ...data.data]);
+                setHasMore(data.hasMore);
+            }
+        } catch (err) {
+            console.error('Fetch error:', err);
+        } finally {
+            setLoading(false);
+            fetching.current = false;
+        }
+    };
+
+    useEffect(() => {
+        fetchCandidates(0);
+    }, []);
+
+    if (loading) return <HomeSkeleton />;
 
     return (
         <div className={styles.candPage}>
             <div className={styles.pageHead}>
-                <h1 className={styles.pageTitle}>Candidates</h1>
+                <h1 className={styles.pageTitle}>Candidates ({candidates.length})</h1>
             </div>
             <div className={styles.candGrid}>
-                {candidates.map((c, i) => (
+                {candidates.length > 0 ? candidates.map((c, i) => (
                     <div key={i} className={styles.candFullCard}>
                         <div className={styles.candFullHead}>
-                            <div className={styles.candFullAvatar}>{c.name.split(' ').map(n => n[0]).join('')}</div>
+                            <div className={styles.candFullAvatar}>{c.name.split(' ').map((n: string) => n[0]).join('')}</div>
                             <div>
                                 <div className={styles.candFullName}>{c.name}</div>
                                 <div className={styles.candFullRole}>{c.role}</div>
                             </div>
                         </div>
                         <div className={styles.candFullTags}>
-                            {c.skills.map(s => <span key={s} className={styles.candFullTag}>{s}</span>)}
+                            {c.skills.slice(0, 4).map((s: string) => <span key={s} className={styles.candFullTag}>{s}</span>)}
                         </div>
                         <div className={styles.candFullFoot}>
-                            <span className={styles.candFullLoc}>{IC.mapPin} {c.loc}</span>
+                            <span className={styles.candFullLoc}>{IC.mapPin} {c.location || 'Remote'}</span>
                             <span className={styles.candFullMatch}>{IC.star} {c.match}% match</span>
                         </div>
                         <div className={styles.candFullActions}>
@@ -45,8 +76,24 @@ export default function CandidatesPage() {
                             <button className={styles.candSaveBtn}>{IC.bookmark}</button>
                         </div>
                     </div>
-                ))}
+                )) : (
+                    <p style={{ textAlign: 'center', gridColumn: '1 / -1', padding: '4rem', color: '#64748b' }}>No candidates found.</p>
+                )}
             </div>
+            {hasMore && (
+                <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                    <button 
+                        onClick={() => {
+                            const next = page + 1;
+                            setPage(next);
+                            fetchCandidates(next);
+                        }}
+                        className={styles.viewAll}
+                    >
+                        Load More
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styles from '../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatTime, formatShortDate } from '@/lib/utils/date-utils';
 
@@ -21,7 +21,8 @@ const IC = {
 
 export default function RecruiterHome({ params }: { params: Promise<{ role_id: string }> }) {
     const { role_id } = React.use(params) || {};
-    const { user: authUser } = useAuth();
+    const { user: authUser, isLoading: authLoading } = useAuth();
+    const fetching = useRef(false);
     const [jobs, setJobs] = useState<any[]>([]);
     const [candidates, setCandidates] = useState<any[]>([]);
     const [interviews, setInterviews] = useState<any[]>([]);
@@ -29,56 +30,44 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (authLoading) return;
+        if (!authUser) return;
+
         async function fetchData() {
+            if (fetching.current) return;
+            fetching.current = true;
             try {
-                // Fetch Jobs
-                const { data: jobData } = await insforge.database
-                    .from('jobs')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                const openJobs = jobData || [];
-                setJobs(openJobs);
-
-                // Fetch Candidates (mocking top matches)
-                const { data: candData } = await insforge.database
-                    .from('candidate_profiles')
-                    .select('*')
-                    .order('ai_karma', { ascending: false })
-                    .limit(3);
-                setCandidates(candData || []);
-
-                // Fetch Today's Interviews
-                const { data: intData } = await insforge.database
-                    .from('interviews')
-                    .select('*')
-                    .limit(2);
+                const { data: dash, error: dError } = await invokeFunction('recruiter-dashboard');
                 
-                const mappedInterviews = (intData || []).map((i: any) => ({
-                    ...i,
-                    scheduledAt: i.scheduled_at
-                }));
-                setInterviews(mappedInterviews);
+                if (dError) {
+                    console.error('Dashboard fetch error:', dError.message);
+                    return;
+                }
 
-                // Calculate Stats
-                const totalApplicants = openJobs.reduce((acc, j) => acc + (j.applicants || 0), 0);
-                setStats({
-                    open: openJobs.length,
-                    applicants: totalApplicants,
-                    interviews: 6, // Hardcoded for now
-                    hires: 15
-                });
+                if (dash) {
+                    setJobs(dash.recentJobs || []);
+                    setCandidates(dash.topCandidates || []);
+                    setStats({
+                        open: dash.stats.openJobs || 0,
+                        applicants: dash.stats.totalApplicants || 0,
+                        interviews: dash.stats.interviewsThisWeek || 0,
+                        hires: dash.stats.hires || 0
+                    });
+                    // Store pipeline for rendering
+                    (window as any).__pipeline = dash.pipeline;
+                }
 
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
                 setLoading(false);
+                fetching.current = false;
             }
         }
         fetchData();
-    }, []);
+    }, [authLoading, authUser?.id]);
 
-    if (loading) {
+    if (authLoading || loading) {
         return <HomeSkeleton />;
     }
 
@@ -154,14 +143,15 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                         <div className={styles.card}>
                             <h2 className={styles.cardTitle}>Hiring Pipeline</h2>
                             <div className={styles.pipelineBar}>
-                                {[
-                                    { label: 'Screening', count: 48, width: '35%', color: '#3b82f6' },
-                                    { label: 'Interview', count: 22, width: '25%', color: '#7c3aed' },
-                                    { label: 'Assessment', count: 14, width: '20%', color: '#f59e0b' },
-                                    { label: 'Offer', count: 8, width: '20%', color: '#10b981' },
-                                ].map((s, i) => (
+                                {((window as any).__pipeline || [
+                                    { label: 'Applied', count: 0, width: '20%', color: '#3b82f6' },
+                                    { label: 'Reviewing', count: 0, width: '20%', color: '#6366f1' },
+                                    { label: 'Shortlisted', count: 0, width: '20%', color: '#7c3aed' },
+                                    { label: 'Interviewing', count: 0, width: '20%', color: '#f59e0b' },
+                                    { label: 'Offered', count: 0, width: '20%', color: '#10b981' },
+                                ]).map((s: any, i: number) => (
                                     <div key={i} className={styles.pipeSegment}>
-                                        <div className={styles.pipeBar} style={{ width: s.width, background: s.color }} />
+                                        <div className={styles.pipeBar} style={{ width: s.count > 0 ? '100%' : '5%', background: s.color }} />
                                         <div className={styles.pipeMeta}>
                                             <span className={styles.pipeLabel}>{s.label}</span>
                                             <span className={styles.pipeCount}>{s.count}</span>
@@ -185,7 +175,7 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                         <span className={styles.candName}>{c.name}</span>
                                         <span className={styles.candMeta}>{c.role} · {c.skills?.slice(0, 2).join(', ')}</span>
                                     </div>
-                                    <span className={styles.candMatch}>{Math.min(100, (c.ai_karma / 5) || 90).toFixed(0)}%</span>
+                                    <span className={styles.candMatch}>{c.match}%</span>
                                 </div>
                             ))}
                         </div>
