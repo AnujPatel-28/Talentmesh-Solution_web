@@ -26,34 +26,67 @@ export async function invokeFunction(slug: string, options: {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   headers?: Record<string, string>;
+  queries?: Record<string, string | undefined>;
+  path?: string;
 } = {}) {
-  const { method = 'POST', body, headers = {} } = options;
+  const { method = 'POST', body, headers = {}, queries = {}, path = '' } = options;
   const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
   
-  // Use session token if available
-  let authHeader = headers['Authorization'];
+  // Construct URL with path and queries
+  let url = `${baseUrl}/functions/${slug}${path}`;
+  const queryParams = new URLSearchParams();
+  Object.entries(queries).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      queryParams.append(key, value);
+    }
+  });
+  const queryString = queryParams.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
+  
+  // Use session token if available (Prioritize passed headers > Cookies)
+  let authHeader = headers['Authorization'] || headers['authorization'];
+  
   if (!authHeader && typeof window !== 'undefined') {
-    const cookies = document.cookie.split(';').reduce((res, item) => {
-      const [k, v] = item.split('=');
-      res[k.trim()] = v;
-      return res;
-    }, {} as Record<string, string>);
-    const token = cookies['tm_access_token'];
-    if (token) {
-      authHeader = `Bearer ${token}`;
+    const cookieArr = document.cookie.split(';');
+    for (let i = 0; i < cookieArr.length; i++) {
+      const cookie = cookieArr[i].trim();
+      if (cookie.startsWith('tm_access_token=')) {
+        const token = cookie.substring('tm_access_token='.length);
+        if (token) {
+          // Decode if needed (some cookies might be encoded)
+          const decodedToken = token.startsWith('Bearer%20') ? decodeURIComponent(token).substring(7) : token;
+          authHeader = `Bearer ${decodedToken}`;
+          break;
+        }
+      }
     }
   }
 
-  const response = await fetch(`${baseUrl}/functions/${slug}`, {
+  const finalHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-client-info': 'talentmesh-web',
+    ...headers
+  };
+
+  if (authHeader) {
+    finalHeaders['Authorization'] = authHeader;
+  }
+
+  // GET requests cannot have a body
+  const fetchOptions: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(authHeader ? { 'Authorization': authHeader } : {}),
-      'x-client-info': 'talentmesh-web',
-      ...headers
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
+    headers: finalHeaders,
+    credentials: 'include',
+  };
+
+  if (method !== 'GET' && body) {
+    fetchOptions.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(url, fetchOptions);
+
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

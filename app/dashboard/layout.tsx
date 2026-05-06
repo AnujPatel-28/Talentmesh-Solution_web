@@ -5,9 +5,10 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSearch, SearchProvider } from '@/context/SearchContext';
-import { insforge } from '@/lib/insforge';
 import SearchOverlay from '@/components/candidate/SearchOverlay';
 import CenteredLoader from '@/components/ui/CenteredLoader';
+import { insforge, invokeFunction } from '@/lib/insforge';
+
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import styles from './dashboard-layout.module.css';
 
@@ -119,7 +120,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user: authUser, isAdmin, signOut, isLoading } = useAuth();
+    const { user: authUser, isAdmin, signOut, isLoading, isInitialized } = useAuth();
+    const isSuperAdmin = pathname.includes('/dashboard/admin');
+    const isRecruiter = pathname.includes('/dashboard/recruiter');
     const { openSearch } = useSearch();
     const [isSigningOut, setIsSigningOut] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
@@ -129,34 +132,40 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const [notifCount, setNotifCount] = useState(0);
 
     React.useEffect(() => {
-        if (isAdmin) {
-            const fetchCounts = async () => {
-                try {
-                    const [reportsRes, alertsRes] = await Promise.all([
-                        fetch('/api/admin/reports'),
-                        fetch('/api/admin/alerts')
-                    ]);
-                    if (reportsRes.ok) {
-                        const data = await reportsRes.json();
+        if (!isInitialized || !authUser) return;
+
+        const fetchStats = async () => {
+            try {
+                if (isAdmin) {
+                    const { data } = await invokeFunction('admin-dashboard', { method: 'POST', body: { action: 'get-summary' } });
+                    if (data) {
                         setAdminCounts({
                             jobs: data.metrics?.totalJobs || 0,
                             candidates: data.metrics?.totalCandidates || 0,
                             recruiters: data.metrics?.totalRecruiters || 0
                         });
+                        setNotifCount((data.alerts?.pendingRecruiters || 0) + (data.alerts?.pendingJobs || 0) + (data.alerts?.reportedJobs || 0));
                     }
-                    if (alertsRes.ok) {
-                        const alerts = await alertsRes.json();
-                        setNotifCount((alerts.pendingRecruiters || 0) + (alerts.pendingJobs || 0) + (alerts.reportedJobs || 0));
+                } else if (isRecruiter) {
+                    const { data } = await invokeFunction('recruiter-dashboard');
+                    if (data) {
+                        setAdminCounts({ jobs: data.activeJobsCount || 0, candidates: data.totalApplications || 0, recruiters: 0 });
                     }
-                } catch (err) {
-                    console.error(err);
+                } else {
+                    const { data } = await invokeFunction('candidate-dashboard');
+                    if (data) {
+                        setNotifCount(data.appCount || 0);
+                    }
                 }
-            };
-            fetchCounts();
-            const interval = setInterval(fetchCounts, 60000);
-            return () => clearInterval(interval);
-        }
-    }, [isAdmin]);
+            } catch (err) {
+                console.error('Failed to fetch dashboard stats:', err);
+            }
+        };
+
+        fetchStats();
+        const interval = setInterval(fetchStats, 300000); // 5 mins
+        return () => clearInterval(interval);
+    }, [isAdmin, isRecruiter, authUser, isInitialized]);
 
     // Setup realtime live notifications
     React.useEffect(() => {
@@ -166,7 +175,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         const setupRealtime = async () => {
             try {
                 await insforge.realtime.connect();
-                
+
                 if (isAdmin) {
                     await insforge.realtime.subscribe('admin:alerts');
                     insforge.realtime.on('new_alert', () => {
@@ -199,15 +208,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const isSuperAdmin = pathname.includes('/dashboard/admin');
-    const isRecruiter = pathname.includes('/dashboard/recruiter');
-    
+
     // Extract ID from path if authUser is not yet loaded to show correct sidebar
     const pathSegments = pathname.split('/');
-    const roleIdFromPath = pathSegments.find(s => 
+    const roleIdFromPath = pathSegments.find(s =>
         s.length === 36 || /^(cand|rec|adm)_[a-z0-9]+$/i.test(s)
     ) || '';
-    
+
     const roleId = authUser?.id || roleIdFromPath;
     const navItems = isSuperAdmin ? [
         { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
@@ -227,7 +234,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const pageTitle = (() => {
         const segments = pathname.split('/').filter(Boolean);
         const last = segments[segments.length - 1];
-        
+
         // Helper to check for UUIDs or custom IDs (like cand_...)
         const isID = (str: string) => {
             if (!str) return false;
@@ -258,12 +265,18 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     }, []);
 
     React.useEffect(() => {
-        const isDedicatedBranch = pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/recruiter');
+        // Prevent redirect while loading
+        if (!isInitialized) return;
 
-        if (!isDedicatedBranch && !isLoading && !authUser) {
+        const isDedicatedBranch = pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/recruiter');
+        const hasToken = typeof window !== 'undefined' && document.cookie.includes('tm_access_token');
+
+        // Only redirect if we are sure there is no session
+        if (!isDedicatedBranch && !authUser && !hasToken) {
             router.push('/login');
         }
     }, [isLoading, authUser, router, pathname]);
+
 
     const isRecruiterBranch = pathname.startsWith('/dashboard/recruiter');
 
@@ -273,7 +286,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     // Shell rendering logic
     const renderContent = () => {
-        if (isLoading) {
+        if (!isInitialized) {
             return <HomeSkeleton />;
         }
         if (!authUser) {
@@ -343,7 +356,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         <span className={styles.navIcon}>{Icons.settings}</span>
                         {!collapsed && <span className={styles.navLabel}>Settings</span>}
                     </Link>
-                    
+
                     {!isAdmin && (
                         <button onClick={handleSignOut} disabled={isSigningOut} className={`${styles.navLink} ${styles.logoutBtn}`}>
                             <span className={styles.navIcon}>
@@ -361,26 +374,26 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
                     {isAdmin ? (
                         <div className={styles.adminMiniCard}>
-                             {!collapsed && (
+                            {!collapsed && (
                                 <div className={styles.adminMiniCardInner}>
-                                   <div className={`${styles.userAvatar} ${styles.adminAvatar}`}>{user.initials}</div>
-                                   <div className={styles.userMeta}>
-                                       <span className={styles.userName}>{user.name}</span>
-                                       <span className={styles.userEmail}>{user.email}</span>
-                                   </div>
-                                   <div className={styles.lockIcon}>
-                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                                   </div>
+                                    <div className={`${styles.userAvatar} ${styles.adminAvatar}`}>{user.initials}</div>
+                                    <div className={styles.userMeta}>
+                                        <span className={styles.userName}>{user.name}</span>
+                                        <span className={styles.userEmail}>{user.email}</span>
+                                    </div>
+                                    <div className={styles.lockIcon}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                    </div>
                                 </div>
-                             )}
-                             <button 
-                                onClick={handleSignOut} 
-                                disabled={isSigningOut} 
+                            )}
+                            <button
+                                onClick={handleSignOut}
+                                disabled={isSigningOut}
                                 className={styles.adminSignOutBtn}
                                 style={{ display: collapsed ? 'flex' : 'block', justifyContent: 'center' }}
-                             >
+                            >
                                 {isSigningOut ? '...' : collapsed ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg> : 'Sign Out'}
-                             </button>
+                            </button>
                         </div>
                     ) : (
                         <div className={styles.userCard}>
@@ -436,9 +449,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                             <div className={styles.notifItem}>No new notifications. You're all caught up!</div>
                                         )}
                                     </div>
-                                    <Link 
-                                        href={isSuperAdmin ? '/dashboard/admin/notifications' : isRecruiter ? '/dashboard/recruiter/notifications' : `/dashboard/candidate/${roleId}/notifications`} 
-                                        className={styles.notifFooter} 
+                                    <Link
+                                        href={isSuperAdmin ? '/dashboard/admin/notifications' : isRecruiter ? '/dashboard/recruiter/notifications' : `/dashboard/candidate/${roleId}/notifications`}
+                                        className={styles.notifFooter}
                                         onClick={() => setIsNotifOpen(false)}
                                     >
                                         View all notifications
@@ -446,7 +459,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                 </div>
                             )}
                         </div>
-                        <Link 
+                        <Link
                             href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : `/dashboard/candidate/${roleId}/profile`}
                             className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : ''}`}
                         >
