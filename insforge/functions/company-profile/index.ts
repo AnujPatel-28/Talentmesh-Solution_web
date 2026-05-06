@@ -4,19 +4,22 @@ const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFOR
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
-  'Access-Control-Allow-Credentials': 'true',
-};
-
 export default async function handler(req: Request): Promise<Response> {
+  const origin = req.headers.get('Origin') || '*';
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.replace('Bearer ', '');
+  
   if (!token) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
   }
@@ -48,12 +51,6 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'POST' || req.method === 'PUT') {
       const body = await req.json();
       
-      const { data: existing } = await insforgeAdmin.database
-        .from('company_profiles')
-        .select('id')
-        .eq('recruiter_id', userId)
-        .single();
-
       const { data: company, error } = await insforgeAdmin.database
         .from('company_profiles')
         .upsert({
@@ -66,6 +63,14 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (error) {
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+      }
+
+      // Atomic update: ensure recruiter profile is linked to this company
+      if (company?.id) {
+        await insforgeAdmin.database
+          .from('profiles')
+          .update({ company_id: company.id })
+          .eq('id', userId);
       }
 
       return new Response(JSON.stringify({ company }), { 
