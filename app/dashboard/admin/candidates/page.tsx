@@ -46,13 +46,18 @@ export default function AdminCandidatesPage() {
     setLoading(true);
     setError('');
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke('admin-candidates', {
-        method: 'GET',
-        queries: {
+      const cleanParams = Object.fromEntries(
+        Object.entries({
           search: q || undefined,
           page: p.toString(),
           limit: '20'
-        }
+        }).filter(([_, v]) => v !== undefined && v !== null)
+      );
+      const queryStr = new URLSearchParams(cleanParams as any).toString();
+      const slug = queryStr ? `admin-candidates?${queryStr}` : 'admin-candidates';
+
+      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
+        method: 'GET'
       });
       
       if (fetchError) throw new Error(fetchError.message);
@@ -75,10 +80,9 @@ export default function AdminCandidatesPage() {
 
   const updateCandidate = async (user: AdminCandidate, payload: Partial<AdminCandidate>) => {
     try {
-      const { data, error: updateError } = await insforge.functions.invoke('admin-candidates', {
+      const { data, error: updateError } = await insforge.functions.invoke(`admin-candidates/${user.id}`, {
         method: 'PATCH',
-        body: payload,
-        path: `/${user.id}`
+        body: payload
       });
       
       if (updateError) throw new Error(updateError.message);

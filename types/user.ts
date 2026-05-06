@@ -32,4 +32,5 @@ export interface UserProfile {
   bio?: string;
   avatar_url?: string;
   candidate_profiles?: CandidateProfile;
+  completed_onboarding?: boolean;
 }

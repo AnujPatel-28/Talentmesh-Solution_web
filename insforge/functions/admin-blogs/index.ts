@@ -42,7 +42,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method === 'POST') {
       const body = await req.json();
       // Get user from token
-      const { data: { user }, error: userError } = await insforge.auth.getUser();
+      const { data: { user }, error: userError } = await insforge.auth.getCurrentUser();
       if (userError || !user) throw new Error('Unauthorized');
 
       const { data, error } = await insforge.database.from('blogs').insert([{

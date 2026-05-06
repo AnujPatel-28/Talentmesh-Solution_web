@@ -136,15 +136,20 @@ export default function AdminJobsPage() {
   const fetchJobs = useCallback(async (p = page, s = filterStatus, q = search) => {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke('admin-jobs', {
-        method: 'GET',
-        queries: {
+      const cleanParams = Object.fromEntries(
+        Object.entries({
           includeMeta: 'true',
           search: q || undefined,
           status: s !== 'all' ? s : undefined,
           page: p.toString(),
           limit: '20',
-        }
+        }).filter(([_, v]) => v !== undefined && v !== null)
+      );
+      const queryStr = new URLSearchParams(cleanParams as any).toString();
+      const slug = queryStr ? `admin-jobs?${queryStr}` : 'admin-jobs';
+
+      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
+        method: 'GET'
       });
 
       if (fetchError) throw new Error(fetchError.message);
@@ -266,10 +271,10 @@ export default function AdminJobsPage() {
 
       console.log('[Job Creation] Payload ready:', payload);
 
-      const { data, error: saveError } = await insforge.functions.invoke('admin-jobs', {
+      const slug = selectedJob ? `admin-jobs/${selectedJob.id}` : 'admin-jobs';
+      const { data, error: saveError } = await insforge.functions.invoke(slug, {
         method: selectedJob ? 'PATCH' : 'POST',
-        body: payload,
-        path: selectedJob ? `/${selectedJob.id}` : undefined
+        body: payload
       });
 
       if (saveError) throw new Error(saveError.message);

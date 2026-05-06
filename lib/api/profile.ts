@@ -100,3 +100,9 @@ export function calculateProfileStrength(profile: any): number {
   return Math.min(strength, 100);
 }
 
+/**
+ * Updates just the candidate profile details.
+ */
+export async function updateCandidateProfile(candidateProfile: Partial<CandidateProfile>): Promise<UserProfile> {
+  return updateProfile({ candidateProfile });
+}

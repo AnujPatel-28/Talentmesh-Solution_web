@@ -53,7 +53,7 @@ export const AISuggestApi = {
         });
 
         const content = completion.choices[0].message.content;
-        const parsed = JSON.parse(content.match(/\[.*\]/s)?.[0] || '[]');
+        const parsed = JSON.parse(content.replace(/[\s\S]*?(\[[\s\S]*\])[\s\S]*/, '$1') || '[]');
         
         const suggestions: Suggestion[] = parsed.map((label: string) => ({
           label,

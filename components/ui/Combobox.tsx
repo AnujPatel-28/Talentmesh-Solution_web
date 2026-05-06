@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Box, Typography, TextField, List, ListItem, ListItemText, CircularProgress, Paper, InputAdornment, Chip } from '@mui/material';
+import { Box, Typography, TextField, List, ListItemButton, ListItemText, CircularProgress, Paper, InputAdornment, Chip } from '@mui/material';
 import { Search, ChevronDown, Check, Sparkles } from 'lucide-react';
 
 export interface SuggestionItem {
@@ -135,9 +135,8 @@ export function Combobox({
             ) : (
               <List disablePadding>
                 {suggestions.map((item, index) => (
-                  <ListItem
+                  <ListItemButton
                     key={`${item.label}-${index}`}
-                    button
                     onClick={() => {
                         onSelect(item);
                         setIsOpen(false);
@@ -184,7 +183,7 @@ export function Combobox({
                     )}
                     
                     {selectedIndex === index && <Check size={14} color="#2563eb" />}
-                  </ListItem>
+                  </ListItemButton>
                 ))}
               </List>
             )}

@@ -24,9 +24,9 @@ export interface CandidateSettingsBundle {
     name: string;
     phone: string;
     location: string;
-    role_id: string | null;
+    role: string | null;
     public_id?: string;
-    is_onboarded: boolean;
+    completed_onboarding: boolean;
   };
   candidateProfile: CandidateProfileFormData;
 }

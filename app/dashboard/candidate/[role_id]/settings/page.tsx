@@ -25,7 +25,7 @@ const IC = {
 type ToggleItem = { label: string; desc: string; on: boolean };
 
 const EMPTY_STATE: CandidateSettingsBundle = {
-    profile: { id: '', email: '', name: '', phone: '', location: '', role_id: null, is_onboarded: false },
+    profile: { id: '', email: '', name: '', phone: '', location: '', role: null, completed_onboarding: false },
     candidateProfile: {
         headline: '', skills: [], experience_years: null, education: '', resume_url: '',
         linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
@@ -69,10 +69,27 @@ export default function CandidateSettingsPage() {
                         name: profile.name || '',
                         phone: profile.phone || '',
                         location: profile.location || '',
-                        role_id: profile.role_id,
-                        is_onboarded: profile.is_onboarded || false,
+                        role: profile.role,
+                        completed_onboarding: profile.completed_onboarding || false,
                     },
-                    candidateProfile: profile.candidate_profiles || {
+                    candidateProfile: profile.candidate_profiles ? {
+                        headline: profile.candidate_profiles.headline || '',
+                        skills: profile.candidate_profiles.skills || [],
+                        experience_years: profile.candidate_profiles.experience_years ?? null,
+                        education: (profile.candidate_profiles.education as any) || '',
+                        resume_url: profile.candidate_profiles.resume_url || '',
+                        linkedin_url: profile.candidate_profiles.linkedin_url || '',
+                        github_url: profile.candidate_profiles.github_url || '',
+                        portfolio_url: profile.candidate_profiles.portfolio_url || '',
+                        salary_min: profile.candidate_profiles.salary_min ?? null,
+                        salary_max: profile.candidate_profiles.salary_max ?? null,
+                        currency: profile.candidate_profiles.currency || 'USD',
+                        open_to_remote: profile.candidate_profiles.open_to_remote ?? true,
+                        is_visible: profile.candidate_profiles.is_visible ?? true,
+                        preferred_locations: profile.candidate_profiles.preferred_locations || [],
+                        job_type: profile.candidate_profiles.job_types?.[0] || '',
+                        profile_strength: profile.candidate_profiles.profile_strength || 0,
+                    } : {
                         headline: '', skills: [], experience_years: null, education: '', resume_url: '',
                         linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
                         currency: 'USD', open_to_remote: true, is_visible: true, preferred_locations: [],
@@ -97,8 +114,11 @@ export default function CandidateSettingsPage() {
         setMessage({ text: '', type: 'success' });
         try {
             await saveProfileSDK({
-                profile: form.profile,
-                candidateProfile: form.candidateProfile
+                profile: {
+                    ...form.profile,
+                    role: form.profile.role === null ? undefined : form.profile.role,
+                },
+                candidateProfile: form.candidateProfile as any
             });
             
             // Re-fetch to ensure sync
@@ -110,10 +130,27 @@ export default function CandidateSettingsPage() {
                     name: updatedProfile.name || '',
                     phone: updatedProfile.phone || '',
                     location: updatedProfile.location || '',
-                    role_id: updatedProfile.role_id,
-                    is_onboarded: updatedProfile.is_onboarded || false,
+                    role: updatedProfile.role,
+                    completed_onboarding: updatedProfile.completed_onboarding || false,
                 },
-                candidateProfile: updatedProfile.candidate_profiles || form.candidateProfile
+                candidateProfile: updatedProfile.candidate_profiles ? {
+                    headline: updatedProfile.candidate_profiles.headline || '',
+                    skills: updatedProfile.candidate_profiles.skills || [],
+                    experience_years: updatedProfile.candidate_profiles.experience_years ?? null,
+                    education: (updatedProfile.candidate_profiles.education as any) || '',
+                    resume_url: updatedProfile.candidate_profiles.resume_url || '',
+                    linkedin_url: updatedProfile.candidate_profiles.linkedin_url || '',
+                    github_url: updatedProfile.candidate_profiles.github_url || '',
+                    portfolio_url: updatedProfile.candidate_profiles.portfolio_url || '',
+                    salary_min: updatedProfile.candidate_profiles.salary_min ?? null,
+                    salary_max: updatedProfile.candidate_profiles.salary_max ?? null,
+                    currency: updatedProfile.candidate_profiles.currency || 'USD',
+                    open_to_remote: updatedProfile.candidate_profiles.open_to_remote ?? true,
+                    is_visible: updatedProfile.candidate_profiles.is_visible ?? true,
+                    preferred_locations: updatedProfile.candidate_profiles.preferred_locations || [],
+                    job_type: updatedProfile.candidate_profiles.job_types?.[0] || '',
+                    profile_strength: updatedProfile.candidate_profiles.profile_strength || 0,
+                } : form.candidateProfile
             };
             setForm(updatedBundle);
             

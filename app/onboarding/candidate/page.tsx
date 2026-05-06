@@ -25,8 +25,8 @@ const EMPTY_STATE: CandidateSettingsBundle = {
         name: '',
         phone: '',
         location: '',
-        role_id: null,
-        is_onboarded: false,
+        role: null,
+        completed_onboarding: false,
     },
     candidateProfile: getDefaultCandidateProfile(),
 };
@@ -75,10 +75,10 @@ export default function CandidateOnboardingPage() {
                         name: profile.name || '',
                         phone: profile.phone || '',
                         location: profile.location || '',
-                        role_id: profile.role_id,
-                        is_onboarded: profile.is_onboarded || false,
+                        role: profile.role,
+                        completed_onboarding: profile.completed_onboarding || false,
                     },
-                    candidateProfile: profile.candidate_profiles || getDefaultCandidateProfile()
+                    candidateProfile: (profile.candidate_profiles as any) || getDefaultCandidateProfile()
                 };
 
                 setForm(bundle);
@@ -207,8 +207,11 @@ export default function CandidateOnboardingPage() {
 
             // 3. Save to API via Edge Function
             await saveProfile({
-                profile: payload.profile,
-                candidateProfile: payload.candidateProfile
+                profile: {
+                    ...payload.profile,
+                    role: payload.profile.role === null ? undefined : payload.profile.role,
+                },
+                candidateProfile: payload.candidateProfile as any
             });
 
             setUploadProgress(100);

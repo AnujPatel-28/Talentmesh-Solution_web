@@ -35,6 +35,9 @@ export const ResumeFlowContainer: React.FC<ResumeFlowContainerProps> = ({ onComp
       const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL?.replace('ap-southeast.', 'functions.');
       const url = `${baseUrl}/resume-parse`;
 
+      const formData = new FormData();
+      formData.append('file', file);
+
       const response = await fetch(url, {
         method: 'POST',
         body: formData,

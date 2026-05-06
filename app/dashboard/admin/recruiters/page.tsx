@@ -40,14 +40,19 @@ export default function AdminRecruitersPage() {
   const fetchRecruiters = useCallback(async (p = page, q = search, s = statusFilter) => {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke('admin-recruiters', {
-        method: 'GET',
-        queries: {
+      const cleanParams = Object.fromEntries(
+        Object.entries({
           search: q || undefined,
           status: s !== 'all' ? s : undefined,
           page: p.toString(),
           limit: '20'
-        }
+        }).filter(([_, v]) => v !== undefined && v !== null)
+      );
+      const queryStr = new URLSearchParams(cleanParams as any).toString();
+      const slug = queryStr ? `admin-recruiters?${queryStr}` : 'admin-recruiters';
+
+      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
+        method: 'GET'
       });
       
       if (fetchError) throw new Error(fetchError.message);
@@ -70,10 +75,9 @@ export default function AdminRecruitersPage() {
 
   const toggleStatus = async (user: AdminRecruiter) => {
     try {
-      const { data, error: updateError } = await insforge.functions.invoke('admin-recruiters', {
+      const { data, error: updateError } = await insforge.functions.invoke(`admin-recruiters/${user.id}`, {
         method: 'PATCH',
-        body: { is_active: !user.is_active },
-        path: `/${user.id}`
+        body: { is_active: !user.is_active }
       });
       
       if (updateError) throw new Error(updateError.message);
@@ -96,10 +100,9 @@ export default function AdminRecruitersPage() {
       // but it currently targets recruiter_profiles (based on my index.ts write).
       // Let's check index.ts for admin-recruiters.
       
-      const { data, error: updateError } = await insforge.functions.invoke('admin-recruiters', {
+      const { data, error: updateError } = await insforge.functions.invoke(`admin-recruiters/${profileId}`, {
         method: 'PATCH',
-        body: { is_approved: true },
-        path: `/${profileId}`
+        body: { is_approved: true }
       });
       
       if (updateError) throw new Error(updateError.message);

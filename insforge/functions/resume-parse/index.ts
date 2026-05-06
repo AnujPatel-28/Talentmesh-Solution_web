@@ -44,7 +44,6 @@ export default async function handler(req: Request): Promise<Response> {
     const { data: aiResponse, error: aiError } = await insforge.ai.chat.completions.create({
       model: 'gpt-4o', // or whatever model InsForge supports
       messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' }
     });
 
     if (aiError) {

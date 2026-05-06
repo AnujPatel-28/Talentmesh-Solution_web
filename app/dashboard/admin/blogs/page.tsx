@@ -87,12 +87,17 @@ export default function AdminBlogsPage() {
   const fetchPosts = useCallback(async (currentSearch = search, currentStatus = status) => {
     setLoading(true);
     try {
-      const { data, error: fetchError } = await insforge.functions.invoke('admin-blogs', {
-        method: 'GET',
-        queries: {
+      const cleanParams = Object.fromEntries(
+        Object.entries({
           search: currentSearch || undefined,
           status: currentStatus !== 'all' ? currentStatus : undefined,
-        }
+        }).filter(([_, v]) => v !== undefined && v !== null)
+      );
+      const queryStr = new URLSearchParams(cleanParams as any).toString();
+      const slug = queryStr ? `admin-blogs?${queryStr}` : 'admin-blogs';
+
+      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
+        method: 'GET'
       });
       
       if (fetchError) throw new Error(fetchError.message);
@@ -143,10 +148,10 @@ export default function AdminBlogsPage() {
     setSaving(true);
     setError('');
     try {
-      const { data, error: saveError } = await insforge.functions.invoke('admin-blogs', {
+      const slug = selectedPost ? `admin-blogs/${selectedPost.id}` : 'admin-blogs';
+      const { data, error: saveError } = await insforge.functions.invoke(slug, {
         method: selectedPost ? 'PATCH' : 'POST',
-        body: form,
-        path: selectedPost ? `/${selectedPost.id}` : undefined
+        body: form
       });
       
       if (saveError) throw new Error(saveError.message);
@@ -166,9 +171,8 @@ export default function AdminBlogsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
     try {
-      const { error: deleteError } = await insforge.functions.invoke('admin-blogs', {
-        method: 'DELETE',
-        path: `/${id}`
+      const { error: deleteError } = await insforge.functions.invoke(`admin-blogs/${id}`, {
+        method: 'DELETE'
       });
       if (deleteError) throw new Error(deleteError.message);
       

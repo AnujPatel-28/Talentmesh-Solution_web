@@ -17,6 +17,7 @@ export const InterviewApi = {
    */
   async generateInterviewQuestions(job: Job, candidate: any): Promise<ApiState<Question[]>> {
     return handleApiCall(async () => {
+      const anyJob = job as any;
       const prompt = `
         You are a world-class Technical Interviewer for TalentMesh.
         Based on the Job Description and the Candidate's Profile provided below, generate 5-8 high-quality interview questions.
@@ -25,11 +26,11 @@ export const InterviewApi = {
         Focus your questions on these gaps or on verifying their high-priority skills.
 
         JOB CONTEXT:
-        Title: ${job.title}
-        Type: ${job.type}
-        Requirements: ${Array.isArray(job.requirements) ? job.requirements.join(', ') : 'Not specified'}
-        Skills Required: ${Array.isArray((job as any).skills_required) ? (job as any).skills_required.join(', ') : 'Not specified'}
-        Description: ${job.description || 'Not specified'}
+        Title: ${anyJob.title}
+        Type: ${anyJob.type}
+        Requirements: ${Array.isArray(anyJob.requirements) ? anyJob.requirements.join(', ') : 'Not specified'}
+        Skills Required: ${Array.isArray(anyJob.skills_required) ? anyJob.skills_required.join(', ') : 'Not specified'}
+        Description: ${anyJob.description || 'Not specified'}
 
         CANDIDATE PROFILE:
         Name: ${candidate.name}

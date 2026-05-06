@@ -95,10 +95,12 @@ export default function ProfilePage() {
         try {
             // Update profiles
             await updateProfile({
-                name: profile.name,
-                phone: profile.phone,
-                location: profile.location,
-                bio: profile.bio,
+                profile: {
+                    name: profile.name,
+                    phone: profile.phone,
+                    location: profile.location,
+                    bio: profile.bio,
+                }
             });
 
             // Update candidate_profiles
@@ -128,7 +130,7 @@ export default function ProfilePage() {
             if (type === 'avatar') {
                 url = await uploadAvatar(file, user.id);
                 setProfile(prev => prev ? { ...prev, avatar_url: url } : null);
-                await updateProfile({ avatar_url: url });
+                await updateProfile({ profile: { avatar_url: url } });
             } else {
                 url = await uploadResume(file, user.id);
                 setProfile(prev => {
