@@ -49,13 +49,12 @@ export default function ProfilePage() {
             const data = await getMyProfile();
             setProfile(prev => {
                 if (!prev || !isEditing) return data;
-                // Preserve local changes while updating metadata (like strength/urls)
                 return {
                     ...data,
                     name: prev.name,
                     phone: prev.phone,
                     location: prev.location,
-                    bio: prev.bio,
+                    about: prev.about,
                     candidate_profiles: data.candidate_profiles ? {
                         ...data.candidate_profiles,
                         headline: prev.candidate_profiles?.headline || data.candidate_profiles.headline,
@@ -76,12 +75,11 @@ export default function ProfilePage() {
         setIsSaving(true);
         setErrors({});
 
-        // Merge profiles and candidate_profiles for validation
         const validationData = {
             name: profile.name,
             phone: profile.phone,
             location: profile.location,
-            bio: profile.bio,
+            about: profile.about,
             ...profile.candidate_profiles
         };
 
@@ -93,22 +91,17 @@ export default function ProfilePage() {
         }
 
         try {
-            // Update profiles
             await updateProfile({
-                profile: {
-                    name: profile.name,
-                    phone: profile.phone,
-                    location: profile.location,
-                    bio: profile.bio,
-                }
+                name: profile.name,
+                phone: profile.phone,
+                location: profile.location,
+                about: profile.about,
             });
 
-            // Update candidate_profiles
             if (profile.candidate_profiles) {
                 await updateCandidateProfile(profile.candidate_profiles);
             }
 
-            // Refresh data
             await fetchProfile();
             setIsEditing(false);
             setToast({ message: 'Profile updated successfully!', type: 'success' });
@@ -130,7 +123,7 @@ export default function ProfilePage() {
             if (type === 'avatar') {
                 url = await uploadAvatar(file, user.id);
                 setProfile(prev => prev ? { ...prev, avatar_url: url } : null);
-                await updateProfile({ profile: { avatar_url: url } });
+                await updateProfile({ avatar_url: url });
             } else {
                 url = await uploadResume(file, user.id);
                 setProfile(prev => {
@@ -143,7 +136,7 @@ export default function ProfilePage() {
                 await updateCandidateProfile({ resume_url: url });
             }
             setUploadProgress(prev => ({ ...prev, [type]: 100 }));
-            await fetchProfile(); // Refresh for strength update
+            await fetchProfile();
             setTimeout(() => setUploadProgress(prev => ({ ...prev, [type]: 0 })), 2000);
         } catch (error: any) {
             setToast({ message: error.message, type: 'error' });
@@ -160,7 +153,6 @@ export default function ProfilePage() {
     return (
         <div className={styles.profilePage}>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-            {/* Left Sidebar */}
             <div className={styles.profileSidebar}>
                 <div className={styles.profileCard}>
                     <div
@@ -238,7 +230,7 @@ export default function ProfilePage() {
                     </span>
 
                     <div className={styles.strengthMissing}>
-                        {!profile.bio && <button onClick={() => setIsEditing(true)}>• Add a bio</button>}
+                        {!profile.about && <button onClick={() => setIsEditing(true)}>• Add a bio</button>}
                         {!cp?.resume_url && <button onClick={() => resumeInputRef.current?.click()}>• Upload resume</button>}
                         {(cp?.skills?.length || 0) < 3 && <button onClick={() => setIsEditing(true)}>• Add more skills</button>}
                     </div>
@@ -288,7 +280,6 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            {/* Main Content */}
             <div className={styles.profileMain}>
                 <div className={styles.profileActions}>
                     <div className={styles.profileActionCard} onClick={() => resumeInputRef.current?.click()}>
@@ -324,7 +315,6 @@ export default function ProfilePage() {
                     )}
                 </div>
 
-                {/* Personal Info Edit Section */}
                 {isEditing && (
                     <div className={styles.profileSection}>
                         <h2 className={styles.sectionTitle}>Personal Details</h2>
@@ -354,11 +344,11 @@ export default function ProfilePage() {
                                     placeholder="e.g. London, UK"
                                 />
                             </div>
-                            <div className={styles.fieldFull}>
+                             <div className={styles.fieldFull}>
                                 <label>Bio</label>
                                 <textarea
-                                    value={profile.bio || ''}
-                                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                                    value={profile.about || ''}
+                                    onChange={(e) => setProfile({ ...profile, about: e.target.value })}
                                     placeholder="Tell recruiters about yourself..."
                                 />
                             </div>
@@ -366,7 +356,6 @@ export default function ProfilePage() {
                     </div>
                 )}
 
-                {/* Professional Info */}
                 <div className={styles.profileSection}>
                     <div className={styles.sectionHead}>
                         <h2 className={styles.sectionTitle}>{IC.briefcase} Professional Info</h2>
@@ -392,7 +381,6 @@ export default function ProfilePage() {
                     )}
                 </div>
 
-                {/* Skills Section */}
                 <div className={styles.profileSection}>
                     <div className={styles.sectionHead}>
                         <h2 className={styles.sectionTitle}>{IC.target} Skills</h2>
@@ -428,7 +416,6 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* Job Preferences */}
                 <div className={styles.profileSection}>
                     <h2 className={styles.sectionTitle}>Job Preferences</h2>
                     <div className={styles.editGrid}>

@@ -1,10 +1,10 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatTime, formatShortDate } from '@/lib/utils/date-utils';
 
@@ -40,12 +40,16 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
     const [interviewCount, setInterviewCount] = useState(0);
     const [nextInterview, setNextInterview] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const fetching = useRef(false);
 
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
     useEffect(() => {
-        // 0. Auth Guard
-        if (!authLoading && !authUser) {
+        // 0. Wait for session restoration
+        if (authLoading) return;
+
+        // 1. Auth Guard
+        if (!authUser) {
             router.replace('/login');
             return;
         }
@@ -69,83 +73,41 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
         }
 
         async function fetchData() {
+            if (fetching.current) return;
+            fetching.current = true;
             setLoading(true);
             try {
-                // Fetch Profile
-                const { data: profileData, error: pError } = await insforge.database
-                    .from('candidate_profiles')
-                    .select('*')
-                    .eq('id', role_id)
-                    .single();
+                // Fetch All Dashboard Data via Unified Function
+                const { data: dash, error: dError } = await invokeFunction('candidate-dashboard');
                 
-                if (pError) console.warn('Profile fetch error:', pError.message);
-                setProfile(profileData);
-
-                // Fetch App Count
-                const { count: aCount, error: appsError } = await insforge.database
-                    .from('applications')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('candidate_id', role_id);
-                
-                if (appsError) console.warn('Apps count error:', appsError.message);
-                setAppCount(aCount || 0);
-
-                // Fetch Interview Count & Next Interview
-                const { data: interviews, count: iCount, error: intError } = await insforge.database
-                    .from('interviews')
-                    .select(`
-                        *,
-                        applications (
-                            id,
-                            jobs (
-                                id,
-                                title,
-                                companies (
-                                    name
-                                )
-                            )
-                        )
-                    `)
-                    .eq('candidate_id', role_id)
-                    .order('scheduled_at', { ascending: true });
-                
-                if (intError) console.warn('Interviews fetch error:', intError.message);
-                setInterviewCount(iCount || 0);
-                if (interviews && interviews.length > 0) {
-                    setNextInterview({
-                        ...interviews[0],
-                        scheduledAt: interviews[0].scheduled_at
-                    });
+                if (dError) {
+                    console.error('Dashboard fetch error:', dError.message);
+                    return;
                 }
 
-                // Fetch Jobs with Company details
-                const { data: jobsData, error: jobsError } = await insforge.database
-                    .from('jobs')
-                    .select('*, companies(name)')
-                    .eq('status', 'active')
-                    .limit(3);
-                
-                if (jobsError) console.warn('Jobs fetch error:', jobsError.message);
-                setJobs(jobsData || []);
+                if (dash) {
+                    setProfile(dash.candidateProfile);
+                    setAppCount(dash.appCount);
+                    setJobs(dash.jobs || []);
+                    setActivity(dash.activity || []);
 
-                // Fetch Activity
-                const { data: actData, error: actError } = await insforge.database
-                    .from('activity')
-                    .select('*')
-                    .eq('user_id', role_id)
-                    .order('created_at', { ascending: false })
-                    .limit(5);
-                
-                if (actError) console.warn('Activity fetch error:', actError.message);
-                setActivity(actData || []);
+                    if (dash.interviews && dash.interviews.length > 0) {
+                        setInterviewCount(dash.interviews.length);
+                        setNextInterview({
+                            ...dash.interviews[0],
+                            scheduledAt: dash.interviews[0].scheduled_at
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('Unexpected dashboard fetch error:', error);
             } finally {
                 setLoading(false);
+                fetching.current = false;
             }
         }
         fetchData();
-    }, [role_id, authUser, router]);
+    }, [authLoading, authUser?.id, role_id, router]);
 
     if (loading) {
         return <HomeSkeleton />;

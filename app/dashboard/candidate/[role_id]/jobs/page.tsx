@@ -65,6 +65,7 @@ export default function JobsPage() {
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
+    const isMounted = React.useRef(false);
 
     const [search, setSearch] = useState('');
     const [type, setType] = useState('');
@@ -120,10 +121,16 @@ export default function JobsPage() {
 
     // Handle filters with debounce for search
     React.useEffect(() => {
+        if (!isMounted.current) {
+            isMounted.current = true;
+            fetchJobsList(0, true);
+            return;
+        }
+
         const timer = setTimeout(() => {
             setPage(0);
             fetchJobsList(0, true);
-        }, 400);
+        }, 500);
         return () => clearTimeout(timer);
     }, [search, type, location]);
 
