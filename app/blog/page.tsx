@@ -5,8 +5,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import styles from './blog.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { invokeFunction } from '@/lib/insforge';
 
 const IconSparkle = () => (
+// ... (omitted icon code for brevity in targetContent but I need to match precisely)
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
         <path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915L12 3Z" />
     </svg>
@@ -28,13 +30,12 @@ export default function BlogPage() {
     useEffect(() => {
         async function fetchPosts() {
             try {
-                const response = await fetch('/api/blogs?limit=100', { cache: 'no-store' });
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Failed to fetch posts');
+                const { data, error } = await invokeFunction('blogs', { method: 'GET', path: '?limit=100' });
+                if (error) {
+                    throw new Error(error.message || 'Failed to fetch posts');
                 }
-                setPosts(payload.blogs || []);
-            } catch (err) {
+                setPosts(data?.blogs || []);
+            } catch (err: any) {
                 console.error('Fetch posts error:', err);
             } finally {
                 setLoading(false);

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import styles from '../blog.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { SafeBlogContent } from '@/components/blog/SafeBlogContent';
+import { invokeFunction } from '@/lib/insforge';
 
 const IconArrowLeft = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -29,21 +30,19 @@ export default function BlogDetailPage() {
     useEffect(() => {
         async function fetchPost() {
             try {
-                const [postResponse, relatedResponse] = await Promise.all([
-                    fetch(`/api/blogs/${slug}`, { cache: 'no-store' }),
-                    fetch('/api/blogs?limit=12', { cache: 'no-store' }),
+                const [postRes, relatedRes] = await Promise.all([
+                    invokeFunction('blogs-slug', { method: 'GET', path: `?slug=${slug}` }),
+                    invokeFunction('blogs', { method: 'GET', path: '?limit=12' }),
                 ]);
-                const postPayload = await postResponse.json();
-                const relatedPayload = await relatedResponse.json();
 
-                if (!postResponse.ok || !postPayload.blog) {
+                if (postRes.error || !postRes.data?.blog) {
                     throw new Error('Not found');
                 }
 
-                setPost(postPayload.blog);
+                setPost(postRes.data.blog);
                 setRelated(
-                    (relatedPayload.blogs || [])
-                        .filter((entry: any) => entry.id !== postPayload.blog.id && entry.category === postPayload.blog.category)
+                    (relatedRes.data?.blogs || [])
+                        .filter((entry: any) => entry.id !== postRes.data.blog.id && entry.category === postRes.data.blog.category)
                         .slice(0, 3),
                 );
             } catch (err) {

@@ -3,12 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { 
-  getMessages, 
-  sendMessage as sendMsgApi, 
-  markAsRead as markReadApi, 
-  type Message 
-} from '@/lib/api/messages';
+import { invokeFunction } from '@/lib/insforge';
+
+export type Message = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  job_id?: string;
+};
 
 export function useMessages(receiverId: string | null) {
   const { user } = useAuth();
@@ -24,10 +29,16 @@ export function useMessages(receiverId: string | null) {
 
     setLoading(true);
     try {
-      const data = await getMessages(user.id, receiverId);
-      setMessages(data);
+      const res = await invokeFunction('messages', { 
+        method: 'GET', 
+        queries: { receiverId } 
+      });
+      setMessages(res.data || []);
       // Auto mark as read
-      await markReadApi(user.id, receiverId);
+      await invokeFunction('messages-mark-read', { 
+        method: 'POST', 
+        body: { receiverId } 
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -53,7 +64,10 @@ export function useMessages(receiverId: string | null) {
         });
         
         if (newMsg.receiver_id === user.id) {
-          markReadApi(user.id, receiverId).catch(console.error);
+          invokeFunction('messages-mark-read', { 
+            method: 'POST', 
+            body: { receiverId } 
+          }).catch(console.error);
         }
       }
     };
@@ -80,7 +94,13 @@ export function useMessages(receiverId: string | null) {
     if (!user || !receiverId) return;
 
     try {
-      const newMsg = await sendMsgApi(user.id, receiverId, content, jobId);
+      const res = await invokeFunction('messages', {
+        method: 'POST',
+        body: { receiverId, content, jobId }
+      });
+      const newMsg = res.data;
+      if (!newMsg) throw new Error('Failed to send message');
+      
       setMessages(prev => {
         if (prev.find(m => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
@@ -97,7 +117,10 @@ export function useMessages(receiverId: string | null) {
     loading,
     error,
     sendMessage,
-    markAsRead: () => user && receiverId && markReadApi(user.id, receiverId),
+    markAsRead: () => user && receiverId && invokeFunction('messages-mark-read', { 
+      method: 'POST', 
+      body: { receiverId } 
+    }),
     refresh: fetchMessages
   };
 }

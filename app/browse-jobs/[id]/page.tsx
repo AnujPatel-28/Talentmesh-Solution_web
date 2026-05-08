@@ -5,8 +5,8 @@ import Link from 'next/link';
 import styles from './jobDetail.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { BlogFeed } from '@/components/sections';
+import { invokeFunction } from '@/lib/insforge';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
-import { applyToJob, checkAlreadyApplied } from '@/lib/api/applications';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const Ico = {
@@ -42,16 +42,23 @@ export default function JobDetailPage() {
     useEffect(() => {
         async function fetchJob() {
             try {
-                const response = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Failed to fetch job');
+                const { data, error } = await invokeFunction('jobs-slug', {
+                    method: 'GET',
+                    queries: { id: jobId }
+                });
+
+                if (error) {
+                    throw new Error(error.message || 'Failed to fetch job');
                 }
-                setJob(payload.job);
+                
+                setJob(data?.job || data);
 
                 if (user) {
-                    const status = await checkAlreadyApplied(jobId);
-                    if (status) setApplied(true);
+                    const { data: appStatus } = await invokeFunction('candidate-applications', {
+                        method: 'GET',
+                        queries: { jobId }
+                    });
+                    if (appStatus?.status) setApplied(true);
                 }
             } catch (err) {
                 console.error('Error fetching job:', err);
@@ -74,16 +81,20 @@ export default function JobDetailPage() {
         }
         setIsApplying(true);
         try {
-            const result = await applyToJob(jobId);
-            if (!result.success) {
-                throw new Error(result.error || 'Failed to apply.');
+            const { error: applyError } = await invokeFunction('candidate-applications', {
+                method: 'POST',
+                body: { jobId }
+            });
+
+            if (applyError) {
+                throw new Error(applyError.message || 'Failed to apply.');
             }
 
             setApplied(true);
             alert('Application sent successfully!');
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert('Failed to apply. Please try again.');
+            alert(err.message || 'Failed to apply. Please try again.');
         } finally {
             setIsApplying(false);
         }

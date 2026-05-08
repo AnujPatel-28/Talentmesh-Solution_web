@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import styles from './jobs.module.css';
 import { BlogFeed } from '@/components/sections';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { invokeFunction } from '@/lib/insforge';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const Ico = {
@@ -55,13 +56,17 @@ export default function BrowseJobsPage() {
     useEffect(() => {
         async function fetchJobs() {
             try {
-                const response = await fetch('/api/jobs?limit=100', { cache: 'no-store' });
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Failed to fetch jobs');
+                const { data, error } = await invokeFunction('jobs', { 
+                    method: 'GET',
+                    queries: { limit: '100' }
+                });
+
+                if (error) {
+                    throw new Error(error.message || 'Failed to fetch jobs');
                 }
-                // Mapping fix: API returns paginated data in the 'data' field
-                setJobs(payload.data || []);
+                
+                // Mapping fix: API returns data directly or in 'data' field depending on function implementation
+                setJobs(data?.data || data || []);
             } catch (err) {
                 console.error('Error fetching jobs:', err);
             } finally {

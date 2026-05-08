@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { invokeFunction } from '@/lib/insforge';
 import styles from './sections.module.css'; // Using standard section styles
 
 interface BlogPost {
@@ -57,12 +58,11 @@ export const BlogFeed = () => {
     useEffect(() => {
         async function fetchPosts() {
             try {
-                const response = await fetch('/api/blogs?limit=3', { cache: 'no-store' });
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.error || 'Failed to fetch posts');
+                const { data, error } = await invokeFunction('blogs', { method: 'GET', path: '?limit=3' });
+                if (error) {
+                    throw new Error(error.message || 'Failed to fetch posts');
                 }
-                setPosts(payload.blogs && payload.blogs.length > 0 ? payload.blogs : MOCK_POSTS);
+                setPosts(data?.blogs && data.blogs.length > 0 ? data.blogs : MOCK_POSTS);
             } catch (err) {
                 console.error('Blog feed error:', err);
                 setPosts(MOCK_POSTS);
