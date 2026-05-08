@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from '../candidates/candidates.module.css'; // Reusing established styles
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
+import { AdminButton } from '../_components/AdminForm';
 
 
 type RecruiterProfile = {
@@ -39,6 +41,7 @@ export default function AdminRecruitersPage() {
   const [totalCount, setTotalCount] = useState(0);
 
   const [previewUser, setPreviewUser] = useState<AdminRecruiter | null>(null);
+  const [showCompanyRegister, setShowCompanyRegister] = useState(false);
 
   const fetchRecruiters = useCallback(async (p = page, q = search, s = statusFilter) => {
     setLoading(true);
@@ -155,6 +158,7 @@ export default function AdminRecruitersPage() {
             <option value="all">All Recruiters</option>
             <option value="pending">Pending Approval</option>
           </select>
+          <AdminButton onClick={() => setShowCompanyRegister(true)}>Register Company</AdminButton>
         </div>
       </div>
 
@@ -287,6 +291,26 @@ export default function AdminRecruitersPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCompanyRegister && (
+        <div className={styles.drawerOverlay} onClick={() => setShowCompanyRegister(false)}>
+          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
+            <header className={styles.drawerHeader}>
+              <h2>Register New Company</h2>
+              <button className={styles.drawerClose} onClick={() => setShowCompanyRegister(false)}>×</button>
+            </header>
+            <div className={styles.drawerContent} style={{ padding: '2rem' }}>
+              <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '2rem' }}>
+                Establish a new organizational entity. You can then associate recruiters with this company.
+              </p>
+              <CompanyRegisterForm 
+                onSuccess={() => setShowCompanyRegister(false)}
+                onCancel={() => setShowCompanyRegister(false)}
+              />
             </div>
           </div>
         </div>

@@ -12,7 +12,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || anonKey;
+    const insforge = createClient({ 
+      baseUrl, 
+      anonKey: serviceKey,
+      isServerMode: true 
+    });
     
     if (req.method === 'GET') {
       const url = new URL(req.url);

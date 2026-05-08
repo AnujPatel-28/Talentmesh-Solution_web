@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from './applications.module.css';
+import { invokeFunction } from '@/lib/insforge';
 
 type AdminApplication = {
   id: string;
@@ -62,18 +63,22 @@ export default function AdminApplicationsPage() {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({
-        status: currentStatus,
-        search: q,
-        page: p.toString(),
-        limit: '20',
+      const { data, error } = await invokeFunction('admin-applications', {
+        method: 'GET',
+        queries: {
+          status: currentStatus,
+          search: q,
+          page: p.toString(),
+          limit: '20',
+        }
       });
-      const res = await fetch(`/api/admin/applications?${params.toString()}`);
-      const data = await res.json();
-      if (res.ok) {
+
+      if (!error) {
         setApplications(data.applications || []);
         // Assuming the API might be updated to return total soon, for now we list
         setTotal(data.applications?.length || 0); 
+      } else {
+        setError(error.message || 'Failed to sync applications pipeline');
       }
     } catch (err: any) {
       setError('Failed to sync applications pipeline');
@@ -89,14 +94,16 @@ export default function AdminApplicationsPage() {
   const handleStatusUpdate = async (appId: string, nextStatus: string) => {
     setUpdatingId(appId);
     try {
-      const res = await fetch(`/api/admin/applications/${appId}`, {
+      const { error } = await invokeFunction('admin-applications', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
+        path: `/${appId}`,
+        body: { status: nextStatus },
       });
-      if (res.ok) {
+      if (!error) {
         setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: nextStatus } : a));
         if (selectedApp?.id === appId) setSelectedApp({ ...selectedApp, status: nextStatus });
+      } else {
+        setError(error.message || 'Status update failed');
       }
     } catch (err) {
       setError('Status update failed');

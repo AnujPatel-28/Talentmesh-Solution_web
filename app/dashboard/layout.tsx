@@ -174,7 +174,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         let active = true;
         const setupRealtime = async () => {
             try {
-                await insforge.realtime.connect();
+                // Ensure connect() doesn't block forever
+                const connectPromise = insforge.realtime.connect();
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Realtime timeout')), 8000));
+                
+                await Promise.race([connectPromise, timeoutPromise]);
 
                 if (isAdmin) {
                     await insforge.realtime.subscribe('admin:alerts');
@@ -188,7 +192,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     });
                 }
             } catch (err) {
-                console.error('Failed to setup realtime notifications:', err);
+                // Silently fail realtime to avoid blocking UI cards
+                console.warn('Realtime notifications connection issues:', err);
             }
         };
 

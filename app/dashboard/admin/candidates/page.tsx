@@ -49,24 +49,13 @@ export default function AdminCandidatesPage() {
     setLoading(true);
     setError('');
     try {
-<<<<<<< HEAD
-      const cleanParams = Object.fromEntries(
-        Object.entries({
-=======
       const { data, error: fetchError } = await invokeFunction('admin-candidates', {
         method: 'GET',
         queries: {
->>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
           search: q || undefined,
           page: p.toString(),
           limit: '20'
-        }).filter(([_, v]) => v !== undefined && v !== null)
-      );
-      const queryStr = new URLSearchParams(cleanParams as any).toString();
-      const slug = queryStr ? `admin-candidates?${queryStr}` : 'admin-candidates';
-
-      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
-        method: 'GET'
+        }
       });
 
       
@@ -92,12 +81,9 @@ export default function AdminCandidatesPage() {
 
   const updateCandidate = async (user: AdminCandidate, payload: Partial<AdminCandidate>) => {
     try {
-<<<<<<< HEAD
-      const { data, error: updateError } = await insforge.functions.invoke(`admin-candidates/${user.id}`, {
-=======
       const { data, error: updateError } = await invokeFunction('admin-candidates', {
->>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
         method: 'PATCH',
+        path: `/${user.id}`,
         body: payload
       });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import styles from './audit-logs.module.css';
+import { invokeFunction } from '@/lib/insforge';
 
 type AuditLog = {
   id: string;
@@ -29,10 +30,11 @@ export default function AdminAuditLogsPage() {
   const fetchLogs = async (q = search) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ search: q, page: '0' });
-      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
+      const { data, error } = await invokeFunction('admin-audit-logs', {
+        method: 'GET',
+        queries: { search: q, page: '0' }
+      });
+      if (!error) {
         setLogs(data.logs || []);
       }
     } catch (err) {

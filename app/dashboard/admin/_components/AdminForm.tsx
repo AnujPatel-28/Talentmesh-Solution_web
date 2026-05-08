@@ -99,3 +99,28 @@ export const AdminButton: React.FC<AdminButtonProps> = ({
     </button>
   );
 };
+
+interface AdminTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+}
+
+export const AdminTextArea: React.FC<AdminTextAreaProps> = ({ label, ...props }) => (
+  <div style={{ marginBottom: '20px' }}>
+    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>{label}</label>
+    <textarea
+      {...props}
+      style={{
+        width: '100%',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid #e2e8f0',
+        fontSize: '0.95rem',
+        outline: 'none',
+        transition: 'border-color 0.2s',
+        minHeight: '100px',
+        resize: 'vertical',
+        ...props.style
+      }}
+    />
+  </div>
+);

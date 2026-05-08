@@ -19,7 +19,7 @@ import {
   ChevronDown,
   ArrowRight
 } from 'lucide-react';
-import { insforge } from '@/lib/insforge';
+import { invokeFunction } from '@/lib/insforge';
 
 interface RequestAccessFormProps {
   onBack: () => void;
@@ -105,10 +105,9 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
     }
 
     try {
-      const response = await fetch('/api/recruiter/request', {
+      const { data, error: apiError } = await invokeFunction('recruiter-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           full_name: formData.fullName,
           company_name: formData.companyName,
           company_website: formData.companyWebsite,
@@ -122,20 +121,14 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
           hiring_timeline: formData.hiringTimeline,
           additional_notes: formData.additionalNotes,
           request_type: variant === 'call' ? 'discovery_call' : 'access_application'
-        })
+        }
       });
 
-      const { data, error: apiError } = await response.json();
-
-      if (apiError || !response.ok) {
-        throw new Error(apiError || 'Failed to submit request');
+      if (apiError) {
+        throw new Error(apiError.message || 'Failed to submit request');
       }
 
-      if (data && (data.success || data.data?.success)) {
-        setIsSubmitted(true);
-      } else {
-        setIsSubmitted(true); // Fallback for success
-      }
+      setIsSubmitted(true);
     } catch (err: any) {
       setError(err.message || 'Failed to submit request. Please try again.');
     } finally {

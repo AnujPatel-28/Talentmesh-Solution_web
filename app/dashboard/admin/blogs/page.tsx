@@ -92,23 +92,12 @@ export default function AdminBlogsPage() {
   const fetchPosts = useCallback(async (currentSearch = search, currentStatus = status) => {
     setLoading(true);
     try {
-<<<<<<< HEAD
-      const cleanParams = Object.fromEntries(
-        Object.entries({
-=======
       const { data, error: fetchError } = await invokeFunction('admin-blogs', {
         method: 'GET',
         queries: {
->>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
           search: currentSearch || undefined,
           status: currentStatus !== 'all' ? currentStatus : undefined,
-        }).filter(([_, v]) => v !== undefined && v !== null)
-      );
-      const queryStr = new URLSearchParams(cleanParams as any).toString();
-      const slug = queryStr ? `admin-blogs?${queryStr}` : 'admin-blogs';
-
-      const { data, error: fetchError } = await insforge.functions.invoke(slug, {
-        method: 'GET'
+        }
       });
 
       
@@ -160,13 +149,9 @@ export default function AdminBlogsPage() {
     setSaving(true);
     setError('');
     try {
-<<<<<<< HEAD
-      const slug = selectedPost ? `admin-blogs/${selectedPost.id}` : 'admin-blogs';
-      const { data, error: saveError } = await insforge.functions.invoke(slug, {
-=======
       const { data, error: saveError } = await invokeFunction('admin-blogs', {
->>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
         method: selectedPost ? 'PATCH' : 'POST',
+        path: selectedPost ? `/${selectedPost.id}` : undefined,
         body: form
       });
 
@@ -188,14 +173,9 @@ export default function AdminBlogsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return;
     try {
-<<<<<<< HEAD
-      const { error: deleteError } = await insforge.functions.invoke(`admin-blogs/${id}`, {
-        method: 'DELETE'
-=======
       const { error: deleteError } = await invokeFunction('admin-blogs', {
         method: 'DELETE',
         path: `/${id}`
->>>>>>> 4fa1385 (admin: implement job approval workflow and dashboard management)
       });
 
       if (deleteError) throw new Error(deleteError.message);

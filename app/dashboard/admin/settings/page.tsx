@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import styles from './settings.module.css';
+import { invokeFunction } from '@/lib/insforge';
 
 type PlatformSettings = {
   general: any;
@@ -29,14 +30,12 @@ export default function AdminSettingsPage() {
     setLoading(true);
     try {
       const [sRes, aRes] = await Promise.all([
-        fetch('/api/admin/settings'),
-        fetch('/api/admin/settings?section=admins')
+        invokeFunction('admin-settings', { method: 'GET' }),
+        invokeFunction('admin-settings', { method: 'GET', queries: { section: 'admins' } })
       ]);
-      if (sRes.ok) setSettings(await sRes.json());
-      if (aRes.ok) {
-        const { admins } = await aRes.json();
-        setAdmins(admins);
-      }
+      
+      if (!sRes.error) setSettings(sRes.data);
+      if (!aRes.error) setAdmins(aRes.data.admins);
     } catch (err) {
       setMessage({ text: 'Internal registry sync failed', type: 'error' });
     } finally {
@@ -50,12 +49,11 @@ export default function AdminSettingsPage() {
 
   const updateSetting = async (key: string, value: any) => {
     try {
-      const res = await fetch('/api/admin/settings', {
+      const { data, error } = await invokeFunction('admin-settings', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value }),
+        body: { key, value },
       });
-      if (res.ok) {
+      if (!error) {
         setSettings(prev => prev ? { ...prev, [key]: value } : null);
 
         // Handle maintenance cookie for middleware performance
@@ -89,18 +87,16 @@ export default function AdminSettingsPage() {
   const addAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/settings', {
+      const { data, error } = await invokeFunction('admin-settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newAdminEmail, action: 'add_admin' }),
+        body: { email: newAdminEmail, action: 'add_admin' },
       });
-      if (res.ok) {
+      if (!error) {
         setNewAdminEmail('');
         fetchAll();
         setMessage({ text: 'Administrative access granted', type: 'success' });
       } else {
-        const data = await res.json();
-        setMessage({ text: data.error, type: 'error' });
+        setMessage({ text: error.message, type: 'error' });
       }
     } catch (err) {
       setMessage({ text: 'Network failure', type: 'error' });
@@ -110,12 +106,11 @@ export default function AdminSettingsPage() {
   const removeAdmin = async (id: string) => {
     if (!confirm('Are you sure you want to revoke administrative access for this user?')) return;
     try {
-      const res = await fetch('/api/admin/settings', {
+      const { error } = await invokeFunction('admin-settings', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: { id },
       });
-      if (res.ok) {
+      if (!error) {
         fetchAll();
         setMessage({ text: 'Admin privileges revoked', type: 'info' });
       }

@@ -1,96 +1,83 @@
 import { createClient } from 'npm:@insforge/sdk';
 
-const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
+const INSFORGE_URL = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
+const INSFORGE_ANON_KEY = Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
+const INSFORGE_ADMIN_KEY = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY');
 
-export default async function handler(req: Request): Promise<Response> {
-  const origin = req.headers.get('Origin') || '*';
-  const corsHeaders: Record<string, string> = {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
+export default async function handler(request: Request): Promise<Response> {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
-    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Credentials': 'false',
+    'Content-Type': 'application/json'
   };
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 204, headers: corsHeaders });
-  }
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.split(' ')[1];
-
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader) return new Response(JSON.stringify({ error: 'Missing auth' }), { status: 401, headers: corsHeaders });
 
   try {
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
-    
-    if (req.method === 'GET') {
-      const url = new URL(req.url);
+    const userRes = await fetch(`${INSFORGE_URL}/api/auth/user`, {
+      headers: { 
+        'Authorization': authHeader,
+        'apikey': INSFORGE_ANON_KEY
+      }
+    });
+
+    if (!userRes.ok) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    const userData = await userRes.json();
+    if (userData.role !== 'admin') return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: corsHeaders });
+
+    const db = createClient({
+      baseUrl: INSFORGE_URL,
+      anonKey: INSFORGE_ADMIN_KEY || INSFORGE_ANON_KEY,
+      isServerMode: true
+    });
+
+    const url = new URL(request.url);
+
+    if (request.method === 'GET') {
       const search = url.searchParams.get('search');
       const status = url.searchParams.get('status');
-      const isApproved = url.searchParams.get('is_approved');
       const page = parseInt(url.searchParams.get('page') || '0');
       const limit = parseInt(url.searchParams.get('limit') || '20');
 
-      let query = insforge.database.from('jobs').select('*, companies:company_profiles(name, logo_url)', { count: 'exact' });
+      let query = db.database.from('jobs').select('*, companies!jobs_company_id_fkey(*)', { count: 'exact' });
 
-      if (search) {
-        query = query.ilike('title', `%${search}%`);
-      }
-      if (status && status !== 'all') {
-        query = query.eq('status', status);
-      }
-      if (isApproved !== null) {
-        query = query.eq('is_approved', isApproved === 'true');
-      }
+      if (search) query = query.ilike('title', `%${search}%`);
+      if (status) query = query.eq('status', status);
 
-      const { data: jobs, count: total, error: jobsError } = await query
+      const { data, count, error } = await query
         .order('created_at', { ascending: false })
         .range(page * limit, (page + 1) * limit - 1);
 
-      if (jobsError) throw jobsError;
-
-      return new Response(JSON.stringify({ items: jobs, total, page, limit }), { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+      if (error) throw error;
+      return new Response(JSON.stringify({ jobs: data, total: count }), { status: 200, headers: corsHeaders });
     }
 
-    if (req.method === 'POST') {
-      const body = await req.json();
-      
-      if (body.action === 'approve') {
-        const { error } = await insforge.database
-          .from('jobs')
-          .update({ is_approved: true, status: 'active', updated_at: new Date().toISOString() })
-          .eq('id', body.id);
-        if (error) throw error;
-        return new Response(JSON.stringify({ success: true }), { status: 200, headers: corsHeaders });
-      }
+    if (request.method === 'PATCH') {
+      const id = url.searchParams.get('id');
+      const body = await request.json();
+      if (!id) return new Response(JSON.stringify({ error: 'ID required' }), { status: 400, headers: corsHeaders });
 
-      if (body.action === 'bulk-delete') {
-        const { error } = await insforge.database.from('jobs').delete().in('id', body.ids);
-        if (error) throw error;
-        return new Response(null, { status: 204, headers: corsHeaders });
-      }
-
-      const { data, error } = await insforge.database.from('jobs').insert([{
-        ...body,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }]).select().single();
-
+      const { data, error } = await db.database.from('jobs').update(body).eq('id', id).select().single();
       if (error) throw error;
-      return new Response(JSON.stringify({ job: data }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ job: data }), { status: 200, headers: corsHeaders });
+    }
+
+    if (request.method === 'DELETE') {
+      const id = url.searchParams.get('id');
+      if (!id) return new Response(JSON.stringify({ error: 'ID required' }), { status: 400, headers: corsHeaders });
+      const { error } = await db.database.from('jobs').delete().eq('id', id);
+      if (error) throw error;
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 }
