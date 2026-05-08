@@ -4,7 +4,16 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styles from './messages.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useMessages } from '@/lib/hooks/useMessages';
-import { getConversations, type Conversation } from '@/lib/api/messages';
+import { invokeFunction } from '@/lib/insforge';
+
+export type Conversation = {
+    partner_id: string;
+    partner_name: string;
+    partner_avatar: string | null;
+    last_message: string;
+    last_message_time: string;
+    unread_count: number;
+};
 import { formatDistanceToNow } from 'date-fns';
 
 export default function MessagesPage() {
@@ -21,8 +30,8 @@ export default function MessagesPage() {
     const loadConversations = async () => {
         if (!user) return;
         try {
-            const data = await getConversations(user.id);
-            setConversations(data);
+            const res = await invokeFunction('conversations', { method: 'GET' });
+            setConversations(res.data || []);
         } catch (err) {
             console.error('Error loading conversations:', err);
         } finally {

@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getJobById, type Job } from '@/lib/api/jobs';
-import { checkAlreadyApplied, type ApplicationStatus } from '@/lib/api/applications';
+import { invokeFunction } from '@/lib/insforge';
+import type { ApplicationStatus } from '@/types/user';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import ApplyModal from '@/components/candidate/ApplyModal';
@@ -41,6 +41,37 @@ const formatExperience = (min: number | null, max: number | null) => {
     return min !== null ? `${min}+ years` : `Up to ${max} years`;
 };
 
+interface Job {
+    id: string;
+    title: string;
+    description: string;
+    location: string;
+    salary_min: number | null;
+    salary_max: number | null;
+    currency: string;
+    experience_min: number | null;
+    experience_max: number | null;
+    skills_required: string[];
+    requirements: string[];
+    created_at: string;
+    applications_count?: number;
+    companies?: {
+        name: string;
+        logo_url: string | null;
+    };
+    type?: string;
+    job_type?: string;
+    work_mode?: string;
+    department?: string;
+}
+
+interface CandidateProfile {
+    name: string;
+    email: string;
+    headline: string;
+    skills: string[];
+}
+
 export default function DashboardJobDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -52,17 +83,18 @@ export default function DashboardJobDetailPage() {
     const [appStatus, setAppStatus] = useState<ApplicationStatus | null>(null);
     const [isSaved, setIsSaved] = useState(false);
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-    const [candidateProfile, setCandidateProfile] = useState<any>(null);
+    const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [jobData, status] = await Promise.all([
-                getJobById(jobId),
-                checkAlreadyApplied(jobId)
+            const [jobRes, statusRes] = await Promise.all([
+                invokeFunction('jobs-id', { method: 'GET', queries: { id: jobId } }),
+                invokeFunction('candidate-applications', { method: 'GET', queries: { jobId } })
             ]);
-            setJob(jobData);
-            setAppStatus(status);
+            
+            if (jobRes.data) setJob(jobRes.data.job || jobRes.data);
+            if (statusRes.data?.status) setAppStatus(statusRes.data.status);
 
             if (user) {
                 const [savedResponse, profileResponse] = await Promise.all([
@@ -289,7 +321,7 @@ export default function DashboardJobDetailPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Briefcase /> Type</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{job.type}</span>
+                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem' }}>{job.job_type || job.type}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: '#64748b', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Ico.Salary /> Salary</span>

@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { getMyApplications, withdrawApplication, type Application, type ApplicationStatus } from '@/lib/api/applications';
+import { invokeFunction } from '@/lib/insforge';
+import type { Application, ApplicationStatus } from '@/types/user';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
@@ -27,6 +28,7 @@ const STATUS_MAP: Record<ApplicationStatus, { label: string, color: string, stag
     accepted: { label: 'Accepted', color: '#10b981', stage: 5 },
     rejected: { label: 'Not Selected', color: '#ef4444', stage: 0 },
     withdrawn: { label: 'Withdrawn', color: '#64748b', stage: 0 },
+    active: { label: 'Active', color: '#3b82f6', stage: 1 },
 };
 
 export default function ApplicationsPage() {
@@ -34,7 +36,7 @@ export default function ApplicationsPage() {
     const params = useParams();
     const router = useRouter();
     const roleId = params.role_id;
-    
+
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'all' | 'active' | 'rejected' | 'withdrawn'>('all');
@@ -42,8 +44,9 @@ export default function ApplicationsPage() {
 
     const fetchData = async () => {
         try {
-            const data = await getMyApplications();
-            setApplications(data);
+            const { data, error } = await invokeFunction('candidate-applications', { method: 'GET' });
+            if (error) throw new Error(error.message);
+            setApplications(data?.applications || []);
         } catch (err) {
             console.error('Failed to fetch applications:', err);
         } finally {
@@ -75,12 +78,16 @@ export default function ApplicationsPage() {
         e.preventDefault();
         e.stopPropagation();
         if (!confirm('Are you sure you want to withdraw this application?')) return;
-        
+
         const originalApps = [...applications];
         setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'withdrawn' } : app));
-        
+
         try {
-            await withdrawApplication(id);
+            const { error: withdrawError } = await invokeFunction('candidate-applications-id', {
+                method: 'DELETE',
+                queries: { id }
+            });
+            if (withdrawError) throw new Error(withdrawError.message);
             setToast({ message: 'Application withdrawn successfully', type: 'success' });
         } catch (err) {
             setApplications(originalApps);
@@ -150,15 +157,15 @@ export default function ApplicationsPage() {
                     filteredApps.map(app => {
                         const statusInfo = STATUS_MAP[app.status];
                         const isTerminal = ['rejected', 'withdrawn', 'accepted'].includes(app.status);
-                        
+
                         return (
-                            <Link 
-                                key={app.id} 
+                            <Link
+                                key={app.id}
                                 href={`/dashboard/candidate/${roleId}/applications/${app.id}`}
-                                style={{ 
-                                    background: 'white', 
-                                    border: '1px solid #e2e8f0', 
-                                    borderRadius: '16px', 
+                                style={{
+                                    background: 'white',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '16px',
                                     padding: '1.5rem',
                                     transition: 'transform 0.2s, box-shadow 0.2s',
                                     display: 'flex',
@@ -170,8 +177,8 @@ export default function ApplicationsPage() {
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                        <div style={{ 
-                                            width: '56px', height: '56px', borderRadius: '12px', 
+                                        <div style={{
+                                            width: '56px', height: '56px', borderRadius: '12px',
                                             background: '#f1f5f9', border: '1px solid #e2e8f0',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontWeight: 800, color: 'var(--primary-blue)', overflow: 'hidden'
@@ -192,8 +199,8 @@ export default function ApplicationsPage() {
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
-                                        <span style={{ 
-                                            background: (statusInfo?.color || '#64748b') + '15', 
+                                        <span style={{
+                                            background: (statusInfo?.color || '#64748b') + '15',
                                             color: statusInfo?.color || '#64748b',
                                             padding: '0.4rem 0.8rem',
                                             borderRadius: '8px',
@@ -215,9 +222,9 @@ export default function ApplicationsPage() {
                                     <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                                             {['Applied', 'Review', 'Shortlist', 'Interview', 'Offer'].map((s, idx) => (
-                                                <span key={s} style={{ 
-                                                    fontSize: '0.7rem', 
-                                                    fontWeight: 700, 
+                                                <span key={s} style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 700,
                                                     color: (statusInfo?.stage || 0) > idx ? 'var(--primary-blue)' : '#94a3b8',
                                                     textTransform: 'uppercase'
                                                 }}>{s}</span>
@@ -225,8 +232,8 @@ export default function ApplicationsPage() {
                                         </div>
                                         <div style={{ display: 'flex', gap: '4px', height: '6px' }}>
                                             {[1, 2, 3, 4, 5].map(step => (
-                                                <div key={step} style={{ 
-                                                    flex: 1, 
+                                                <div key={step} style={{
+                                                    flex: 1,
                                                     background: (statusInfo?.stage || 0) >= step ? 'var(--primary-blue)' : '#e2e8f0',
                                                     borderRadius: '4px'
                                                 }} />
@@ -243,10 +250,10 @@ export default function ApplicationsPage() {
 
                                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                                     {['applied', 'reviewing', 'shortlisted'].includes(app.status) && (
-                                        <button 
+                                        <button
                                             onClick={(e) => handleWithdraw(app.id, e)}
-                                            style={{ 
-                                                padding: '0.6rem 1rem', borderRadius: '10px', 
+                                            style={{
+                                                padding: '0.6rem 1rem', borderRadius: '10px',
                                                 background: 'white', border: '1px solid #e2e8f0',
                                                 color: '#ef4444', fontWeight: 600, fontSize: '0.85rem',
                                                 cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem'
@@ -255,8 +262,8 @@ export default function ApplicationsPage() {
                                             <IC.Withdraw /> Withdraw
                                         </button>
                                     )}
-                                    <div style={{ 
-                                        padding: '0.6rem 1rem', borderRadius: '10px', 
+                                    <div style={{
+                                        padding: '0.6rem 1rem', borderRadius: '10px',
                                         background: '#f1f5f9', color: '#475569',
                                         textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
                                         display: 'flex', alignItems: 'center', gap: '0.4rem'

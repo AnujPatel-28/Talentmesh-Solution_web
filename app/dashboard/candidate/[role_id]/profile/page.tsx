@@ -2,9 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from '../../../shared-dashboard.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { getMyProfile, updateProfile, updateCandidateProfile, calculateProfileStrength } from '@/lib/api/profile';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import type { UserProfile, CandidateProfile } from '@/types/user';
-import { uploadAvatar, uploadResume } from '@/lib/api/storage';
 import { validateCandidateProfile } from '@/lib/validation/candidate';
 import Toast from '@/components/ui/Toast';
 
@@ -44,9 +43,25 @@ export default function ProfilePage() {
         fetchProfile();
     }, []);
 
+    const updateCandidateProfile = async (updates: Partial<CandidateProfile>) => {
+        try {
+            const { error } = await invokeFunction('candidate-profile', {
+                method: 'PUT',
+                body: { candidateProfile: updates }
+            });
+            if (error) throw new Error(error.message);
+            return { success: true };
+        } catch (error: any) {
+            setToast({ message: 'Failed to update profile: ' + error.message, type: 'error' });
+            return { success: false, error };
+        }
+    };
+
     const fetchProfile = async () => {
         try {
-            const data = await getMyProfile();
+            const { data, error } = await invokeFunction('candidate-profile', { method: 'GET' });
+            if (error) throw new Error(error.message);
+            
             setProfile(prev => {
                 if (!prev || !isEditing) return data;
                 return {
@@ -91,16 +106,19 @@ export default function ProfilePage() {
         }
 
         try {
-            await updateProfile({
-                name: profile.name,
-                phone: profile.phone,
-                location: profile.location,
-                about: profile.about,
+            const { error: saveError } = await invokeFunction('candidate-profile', {
+                method: 'PUT',
+                body: {
+                    profile: {
+                        name: profile.name,
+                        phone: profile.phone,
+                        location: profile.location,
+                    },
+                    candidateProfile: profile.candidate_profiles
+                }
             });
 
-            if (profile.candidate_profiles) {
-                await updateCandidateProfile(profile.candidate_profiles);
-            }
+            if (saveError) throw new Error(saveError.message);
 
             await fetchProfile();
             setIsEditing(false);
@@ -120,12 +138,23 @@ export default function ProfilePage() {
 
         try {
             let url = '';
+            const bucketName = type === 'avatar' ? 'avatars' : 'resumes';
+            
+            const { data: uploadData, error: uploadError } = await insforge.storage
+                .from(bucketName)
+                .uploadAuto(file);
+                
+            if (uploadError) throw new Error(uploadError.message);
+            url = uploadData?.url || '';
+
             if (type === 'avatar') {
-                url = await uploadAvatar(file, user.id);
                 setProfile(prev => prev ? { ...prev, avatar_url: url } : null);
-                await updateProfile({ avatar_url: url });
+                // Profile update via edge function
+                await invokeFunction('candidate-profile', {
+                    method: 'PUT',
+                    body: { profile: { avatar_url: url } }
+                });
             } else {
-                url = await uploadResume(file, user.id);
                 setProfile(prev => {
                     if (!prev) return null;
                     return {
@@ -133,6 +162,7 @@ export default function ProfilePage() {
                         candidate_profiles: prev.candidate_profiles ? { ...prev.candidate_profiles, resume_url: url } : undefined
                     };
                 });
+                // Profile update via helper
                 await updateCandidateProfile({ resume_url: url });
             }
             setUploadProgress(prev => ({ ...prev, [type]: 100 }));

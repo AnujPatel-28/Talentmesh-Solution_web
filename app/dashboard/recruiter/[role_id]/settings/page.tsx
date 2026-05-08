@@ -1,8 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { invokeFunction } from '@/lib/insforge';
-import { uploadAvatar } from '@/lib/api/storage';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import { FormSkeleton } from '@/components/ui/DashboardSkeleton';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
@@ -85,7 +84,14 @@ export default function RecruiterSettingsPage() {
 
         setUploadProgress(prev => ({ ...prev, [type]: 10 }));
         try {
-            const url = await uploadAvatar(file, user.id); // Reusing uploadAvatar for logo too for simplicity
+            const bucketName = type === 'avatar' ? 'avatars' : 'company-logos';
+            const { data: uploadData, error: uploadError } = await insforge.storage
+                .from(bucketName)
+                .uploadAuto(file);
+
+            if (uploadError) throw new Error(uploadError.message);
+            const url = uploadData?.url || '';
+
             setProfile(prev => ({ ...prev, [type === 'avatar' ? 'avatar_url' : 'logo_url']: url }));
             setUploadProgress(prev => ({ ...prev, [type]: 100 }));
             setTimeout(() => setUploadProgress(prev => ({ ...prev, [type]: 0 })), 2000);

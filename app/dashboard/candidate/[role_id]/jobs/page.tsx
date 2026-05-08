@@ -19,8 +19,7 @@ const IC = {
     cal: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
 };
 
-import { getApprovedJobs, type Job } from '@/lib/api/jobs';
-import { getMyApplications } from '@/lib/api/applications';
+import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -57,7 +56,7 @@ export default function JobsPage() {
     const router = useRouter();
     const params = useParams();
     const { openSearch } = useSearch();
-    const [jobs, setJobs] = useState<Job[]>([]);
+    const [jobs, setJobs] = useState<any[]>([]);
     const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -75,11 +74,11 @@ export default function JobsPage() {
     const fetchAppliedIds = async () => {
         if (!user) return;
         try {
-            const apps = await getMyApplications();
-            setAppliedIds(new Set(apps.map(a => a.job_id)));
+            const res = await invokeFunction('candidate-applications', { method: 'GET' });
+            if (res.data) {
+                setAppliedIds(new Set(res.data.map((a: any) => a.job_id)));
+            }
         } catch (err: any) {
-            // Silently fail - badge won't show but jobs still load
-            // This handles JWT expiry / token errors gracefully
             console.warn('Could not fetch applied IDs (non-critical):', err?.message);
         }
     };
@@ -90,12 +89,17 @@ export default function JobsPage() {
         setError(null);
 
         try {
-            const results = await getApprovedJobs({
-                search: search || undefined,
-                type: type || undefined,
-                location: location || undefined,
-                page: pageNum
+            const res = await invokeFunction('jobs', {
+                method: 'GET',
+                queries: {
+                    search: search || undefined,
+                    type: type || undefined,
+                    location: location || undefined,
+                    page: pageNum.toString()
+                }
             });
+
+            const results = res.data?.jobs || res.data || [];
 
             if (isNewSearch) {
                 setJobs(results);

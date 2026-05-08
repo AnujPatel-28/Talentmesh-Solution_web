@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { completeRecruiterSetup } from '@/lib/api/recruiter';
+import { invokeFunction } from '@/lib/insforge';
 import styles from '../../onboarding.module.css';
 
 export default function RecruiterSetup() {
@@ -25,7 +25,7 @@ export default function RecruiterSetup() {
         setError('');
 
         try {
-            await completeRecruiterSetup(formData);
+            await invokeFunction('recruiter-profile', { method: 'POST', body: formData });
             router.push('/onboarding/recruiter/interests');
         } catch (err: any) {
             setError(err.message || 'Failed to save profile. Please try again.');

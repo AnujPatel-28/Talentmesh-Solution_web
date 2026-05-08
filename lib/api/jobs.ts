@@ -1,117 +1,86 @@
-import { insforge, invokeFunction } from '../insforge';
-import { handleApiCall } from './index';
+import { insforge } from '@/lib/insforge';
 
 export interface Job {
-    id: string;
-    title: string;
-    description: string;
-    requirements: string[];
-    skills_required: string[];
-    location: string;
-    type: string;
-    department?: string;
-    salary_min: number | null;
-    salary_max: number | null;
-    currency: string;
-    experience_min: number | null;
-    experience_max: number | null;
-    status: 'active' | 'paused' | 'closed' | 'draft';
-    created_at: string;
-    updated_at: string;
-    applications_count?: number;
-    companies?: {
-        name: string;
-        logo_url: string | null;
-    };
-    salary?: string;
-    posted_days?: number;
-    ai_match_rate?: number;
-    company_profiles?: any;
+  id: string;
+  title: string;
+  description?: string;
+  type?: string;
+  location?: string;
+  salary_min?: number;
+  salary_max?: number;
+  industry?: string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+  recruiter_id?: string;
+  company_id?: string;
+  companies?: {
+    name?: string;
+    logo_url?: string;
+  };
 }
 
-export interface JobFilters {
-    search?: string;
-    type?: string;
-    location?: string;
-    industry?: string;
-    salary_min?: number;
-    salary_max?: number;
-    date_posted?: string;
-    page?: number;
-    limit?: number;
+export interface GetApprovedJobsOptions {
+  search?: string;
+  type?: string;
+  location?: string;
+  salary_min?: number;
+  salary_max?: number;
+  industry?: string;
+  date_posted?: string; // '24h' | '7d' | '30d'
+  limit?: number;
 }
 
-/**
- * Helper to build a URL with query parameters for Edge Functions
- */
-function buildUrl(slug: string, params: Record<string, any>): string {
-    const cleanParams = Object.fromEntries(
-        Object.entries(params).filter(([_, v]) => v !== undefined && v !== null)
-    );
-    const query = new URLSearchParams(cleanParams as any).toString();
-    return query ? `${slug}?${query}` : slug;
-}
+export async function getApprovedJobs(options: GetApprovedJobsOptions = {}): Promise<Job[]> {
+  try {
+    let query = insforge.database
+      .from('jobs')
+      .select('id,title,type,location,salary_min,salary_max,industry,status,created_at,company_id,companies(name,logo_url)')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(options.limit ?? 30);
 
-/**
- * Fetch approved/active jobs via Edge Function
- */
-export async function getApprovedJobs(filters: JobFilters = {}): Promise<Job[]> {
-    const { data, error } = await invokeFunction('jobs', {
-        method: 'GET',
-        queries: filters as any
-    });
+    if (options.search) {
+      // text search across title and description using ilike
+      query = query.ilike('title', `%${options.search}%`);
+    }
+    if (options.type) {
+      query = query.eq('type', options.type);
+    }
+    if (options.location) {
+      query = query.ilike('location', `%${options.location}%`);
+    }
+    if (options.salary_min !== undefined) {
+      query = query.gte('salary_min', options.salary_min);
+    }
+    if (options.salary_max !== undefined) {
+      query = query.lte('salary_max', options.salary_max);
+    }
+    if (options.industry) {
+      query = query.eq('industry', options.industry);
+    }
+    if (options.date_posted && options.date_posted !== 'all') {
+      const now = new Date();
+      let since: Date;
+      if (options.date_posted === '24h') {
+        since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      } else if (options.date_posted === '7d') {
+        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else {
+        // 30d
+        since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+      query = query.gte('created_at', since.toISOString());
+    }
 
-    if (error) throw error;
-    return (data?.data || []) as Job[];
-}
-
-/**
- * Fetch a single job by ID via Edge Function
- */
-export async function getJobById(id: string): Promise<Job | null> {
-    const { data, error } = await invokeFunction(`jobs-id?id=${id}`, {
-        method: 'GET'
-    });
-
+    const { data, error } = await query;
     if (error) {
-        if (error.status === 404) return null;
-        throw error;
+      console.error('[getApprovedJobs] DB error:', error.message);
+      return [];
     }
-    return data?.job as Job;
+    return (data as Job[]) ?? [];
+  } catch (err) {
+    console.error('[getApprovedJobs] Unexpected error:', err);
+    return [];
+  }
 }
-
-/**
- * Legacy support for JobsApi object pattern
- */
-export const JobsApi = {
-    fetchAll: async (filters?: JobFilters) => invokeFunction(buildUrl('jobs', filters || {}), { method: 'GET' }),
-    fetchById: async (id: string) => invokeFunction(`jobs-id?id=${id}`, { method: 'GET' }),
-    create: async (job: Partial<Job>) => {
-        return handleApiCall(async () => 
-            insforge.database
-                .from('jobs')
-                .insert([job])
-                .select()
-                .single() as any
-        );
-    },
-    update: async (id: string, updates: Partial<Job>) => {
-        return handleApiCall(async () => 
-            insforge.database
-                .from('jobs')
-                .update(updates)
-                .eq('id', id)
-                .select()
-                .single() as any
-        );
-    },
-    delete: async (id: string) => {
-        return handleApiCall(async () => 
-            insforge.database
-                .from('jobs')
-                .delete()
-                .eq('id', id) as any
-        );
-    }
-};
-

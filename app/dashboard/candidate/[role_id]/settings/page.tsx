@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
-import { getMyProfile, updateProfile as saveProfileSDK } from '@/lib/api/profile';
+import { invokeFunction } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
@@ -61,7 +61,10 @@ export default function CandidateSettingsPage() {
     useEffect(() => {
         async function fetchData() {
             try {
-                const profile = await getMyProfile();
+                const res = await invokeFunction('candidate-profile', { method: 'GET' });
+                const profile = res.data;
+                if (!profile) throw new Error('Profile not found');
+
                 const bundle: CandidateSettingsBundle = {
                     profile: {
                         id: profile.id,
@@ -113,16 +116,22 @@ export default function CandidateSettingsPage() {
         setSaving(true);
         setMessage({ text: '', type: 'success' });
         try {
-            await saveProfileSDK({
-                profile: {
-                    ...form.profile,
-                    role: form.profile.role === null ? undefined : form.profile.role,
-                },
-                candidateProfile: form.candidateProfile as any
+            await invokeFunction('candidate-profile', {
+                method: 'POST',
+                body: {
+                    profile: {
+                        ...form.profile,
+                        role: form.profile.role === null ? undefined : form.profile.role,
+                    },
+                    candidateProfile: form.candidateProfile
+                }
             });
             
             // Re-fetch to ensure sync
-            const updatedProfile = await getMyProfile();
+            const res = await invokeFunction('candidate-profile', { method: 'GET' });
+            const updatedProfile = res.data;
+            if (!updatedProfile) throw new Error('Updated profile not found');
+
             const updatedBundle: CandidateSettingsBundle = {
                 profile: {
                     id: updatedProfile.id,

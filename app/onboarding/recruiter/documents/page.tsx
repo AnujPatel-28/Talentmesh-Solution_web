@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from '../../onboarding.module.css';
+import { invokeFunction } from '@/lib/insforge';
 
 export default function RecruiterDocuments() {
     const { user, refreshUser } = useAuth();
@@ -17,7 +18,10 @@ export default function RecruiterDocuments() {
     const handleFinish = async () => {
         setIsLoading(true);
         try {
-            await fetch('/api/profile/complete-onboarding', { method: 'POST' });
+            await invokeFunction('recruiter-profile', { 
+                method: 'POST',
+                body: { action: 'complete_onboarding' }
+            });
             
             // 🔄 Refresh user state to sync is_onboarded
             const updatedUser = await refreshUser();
@@ -118,7 +122,10 @@ export default function RecruiterDocuments() {
 
             <p className={styles.skipLink}>
                 <button className={styles.skipBtn} onClick={async () => {
-                    await fetch('/api/profile/complete-onboarding', { method: 'POST' });
+                    await invokeFunction('recruiter-profile', { 
+                        method: 'POST',
+                        body: { action: 'complete_onboarding' }
+                    });
                     const updatedUser = await refreshUser();
                     router.push(`/dashboard/recruiter/${updatedUser?.public_id || user?.public_id || user?.role_id || 'recruiter'}`);
                 }}>Skip for now</button>

@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper';
 import { ResumeUploader } from '@/components/resume/ResumeUploader';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { uploadResume } from '@/lib/api/storage';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
 import { getDefaultCandidateProfile } from '@/lib/candidate-profile';
-import { getMyProfile, updateProfile as saveProfile } from '@/lib/api/profile';
 
 import styles from '../onboarding.module.css';
 
@@ -65,24 +64,12 @@ export default function CandidateOnboardingPage() {
 
         const fetchProfile = async () => {
             try {
-                const profile = await getMyProfile();
+                const { data: profile, error: profileError } = await invokeFunction('candidate-profile', { method: 'GET' });
 
-                // Construct full bundle from profile and candidate_profiles
-                const bundle: CandidateSettingsBundle = {
-                    profile: {
-                        id: profile.id,
-                        email: profile.email,
-                        name: profile.name || '',
-                        phone: profile.phone || '',
-                        location: profile.location || '',
-                        role: profile.role,
-                        completed_onboarding: profile.completed_onboarding || false,
-                    },
-                    candidateProfile: (profile.candidate_profiles as any) || getDefaultCandidateProfile()
-                };
+                if (profileError) throw new Error(profileError.message);
 
-                setForm(bundle);
-                setStep(getFirstIncompleteStep(bundle));
+                setForm(profile as CandidateSettingsBundle);
+                setStep(getFirstIncompleteStep(profile as CandidateSettingsBundle));
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to load onboarding data';
                 setError(message);
@@ -192,13 +179,22 @@ export default function CandidateOnboardingPage() {
             // 1. Upload resume if selected
             if (resume) {
                 setUploadProgress(20);
-                finalResumeUrl = await uploadResume(resume, user.id);
+                const { data: uploadData, error: uploadError } = await insforge.storage
+                    .from('resumes')
+                    .uploadAuto(resume);
+
+                if (uploadError) throw new Error('Resume upload failed: ' + uploadError.message);
+                finalResumeUrl = uploadData?.url || null;
                 setUploadProgress(60);
             }
 
             // 2. Prepare payload
             const payload = {
-                ...form,
+                profile: {
+                    name: form.profile.name,
+                    phone: form.profile.phone,
+                    location: form.profile.location,
+                },
                 candidateProfile: {
                     ...form.candidateProfile,
                     resume_url: finalResumeUrl,
@@ -206,17 +202,16 @@ export default function CandidateOnboardingPage() {
             };
 
             // 3. Save to API via Edge Function
-            await saveProfile({
-                profile: {
-                    ...payload.profile,
-                    role: payload.profile.role === null ? undefined : payload.profile.role,
-                },
-                candidateProfile: payload.candidateProfile as any
+            const { error: saveError } = await invokeFunction('candidate-profile', {
+                method: 'PUT',
+                body: payload
             });
 
+            if (saveError) throw new Error(saveError.message);
+
             setUploadProgress(100);
-            
-            // Redirect to dashboard using user UUID
+
+            // Redirect to dashboard
             router.push(`/dashboard/candidate/${user.id}`);
         } catch (err: any) {
             setError(err.message || 'An error occurred during save');
@@ -342,7 +337,7 @@ export default function CandidateOnboardingPage() {
                 <div className={styles.section}>
                     <div className={styles.fieldGroup}>
                         <label className={styles.label}>Resume (PDF or DOCX)</label>
-                        <ResumeUploader 
+                        <ResumeUploader
                             onUpload={(f) => setResume(f)}
                             onClear={() => setResume(null)}
                             existingUrl={form.candidateProfile.resume_url ?? undefined}

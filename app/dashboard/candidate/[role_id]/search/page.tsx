@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getApprovedJobs, type Job } from '@/lib/api/jobs';
+import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
@@ -23,7 +23,7 @@ export default function AdvancedSearchPage() {
     const searchParams = useSearchParams();
     const { user } = useAuth();
 
-    const [jobs, setJobs] = useState<Job[]>([]);
+    const [jobs, setJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
     const [activeFilters, setActiveFilters] = useState({
@@ -36,12 +36,15 @@ export default function AdvancedSearchPage() {
     const fetchJobs = useCallback(async () => {
         setLoading(true);
         try {
-            const results = await getApprovedJobs({
-                search: searchQuery || undefined,
-                type: activeFilters.type || undefined,
-                location: activeFilters.location || undefined,
-                // Add more filters as API supports them
+            const res = await invokeFunction('jobs', {
+                method: 'GET',
+                queries: {
+                    search: searchQuery || undefined,
+                    type: activeFilters.type || undefined,
+                    location: activeFilters.location || undefined,
+                }
             });
+            const results = res.data?.jobs || res.data || [];
             setJobs(results);
         } catch (err) {
             console.error(err);
