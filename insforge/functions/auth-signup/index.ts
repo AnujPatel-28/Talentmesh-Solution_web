@@ -49,18 +49,20 @@ export default async function handler(req: Request): Promise<Response> {
       });
     }
 
-    if (data?.user) {
+    const user = data?.user || (data as any)?.session?.user;
+    const accessToken = data?.accessToken || (data as any)?.session?.access_token;
+
+    if (user) {
       // 2. Create the profile record
       const { error: profileError } = await insforge.database
         .from('profiles')
         .insert([{
-          id: data.user.id,
-          email: data.user.email,
+          id: user.id,
+          email: user.email,
           role,
           name,
           completed_onboarding: false,
         }]);
-
       if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message }), { 
           status: 400,
@@ -71,8 +73,8 @@ export default async function handler(req: Request): Promise<Response> {
 
     return new Response(JSON.stringify({ 
       requireEmailVerification: data?.requireEmailVerification,
-      user: data?.user,
-      accessToken: data?.accessToken 
+      user,
+      accessToken
     }), { 
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
