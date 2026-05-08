@@ -79,6 +79,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    if (!insforgeUrl) return [];
+    return [
+      {
+        source: "/api/v1/remote/:path*",
+        destination: `${insforgeUrl}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

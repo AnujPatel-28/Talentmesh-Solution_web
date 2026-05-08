@@ -36,3 +36,24 @@ export interface UserProfile {
   completed_onboarding?: boolean;
 }
 
+export type JobType = 'full-time' | 'part-time' | 'contract' | 'remote' | 'hybrid';
+
+export type ApplicationStatus = 'applied' | 'reviewing' | 'shortlisted' | 'interview' | 'offer' | 'accepted' | 'rejected' | 'withdrawn' | 'active';
+
+export interface Application {
+    id: string;
+    status: ApplicationStatus;
+    applied_at: string;
+    updated_at?: string;
+    jobs: {
+        id: string;
+        title: string;
+        location: string;
+        type: string;
+        companies: {
+            name: string;
+            logo_url: string | null;
+        };
+    };
+}
+
