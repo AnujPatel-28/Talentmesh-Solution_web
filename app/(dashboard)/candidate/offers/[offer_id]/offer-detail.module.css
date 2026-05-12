@@ -1,0 +1,319 @@
+.pageContainer {
+  padding: 2rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.backLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 600;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #2563eb;
+}
+
+.offerPaper {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .offerPaper {
+    padding: 1.5rem;
+  }
+}
+
+.paperHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 1.5rem;
+}
+
+.companyInfo h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.companyInfo p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.printBtn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.letterBody {
+  color: #334155;
+  line-height: 1.8;
+  font-size: 1rem;
+}
+
+.letterBody p {
+  margin-bottom: 1.5rem;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 16px;
+  margin: 2rem 0;
+}
+
+@media (max-width: 640px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detailLabel {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.detailValue {
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 1.1rem;
+}
+
+.responseSection {
+  margin-top: 3rem;
+  border-top: 2px solid #f1f5f9;
+  padding-top: 3rem;
+}
+
+.responseTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.actionCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .actionCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.actionCard {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s;
+}
+
+.cardAccept { border-color: #10b98122; }
+.cardAccept:hover { border-color: #10b981; background: #f0fdf4; }
+
+.cardNegotiate { border-color: #f59e0b22; }
+.cardNegotiate:hover { border-color: #f59e0b; background: #fffbeb; }
+
+.cardDecline { border-color: #94a3b822; }
+.cardDecline:hover { border-color: #94a3b8; background: #f8fafc; }
+
+.iconCircle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+}
+
+.iconAccept { background: #dcfce7; color: #166534; }
+.iconNegotiate { background: #ffedd5; color: #9a3412; }
+.iconDecline { background: #f1f5f9; color: #475569; }
+
+.actionCard h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.actionCard p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.actionBtn {
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+.btnAccept { background: #10b981; color: white; }
+.btnNegotiate { background: #f59e0b; color: white; }
+.btnDecline { background: #94a3b8; color: white; }
+
+.negotiateForm {
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.inputGroup {
+  margin-bottom: 1rem;
+}
+
+.inputGroup label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  height: 100px;
+  resize: none;
+}
+
+/* Success / Next Steps */
+.nextSteps {
+  margin-top: 3rem;
+  background: #f0fdf4;
+  border: 2px solid #10b981;
+  border-radius: 24px;
+  padding: 2.5rem;
+}
+
+.nextSteps h2 {
+  color: #166534;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stepsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.stepItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.stepIcon {
+  color: #10b981;
+  margin-top: 0.2rem;
+}
+
+.stepText {
+  color: #166534;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Confetti Animation */
+.confettiContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #f00;
+  top: -20px;
+  animation: fall linear forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(720deg);
+  }
+}
+
+@media print {
+  .backLink, .responseSection, .printBtn {
+    display: none !important;
+  }
+  .pageContainer {
+    padding: 0;
+    margin: 0;
+    max-width: none;
+  }
+  .offerPaper {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+}

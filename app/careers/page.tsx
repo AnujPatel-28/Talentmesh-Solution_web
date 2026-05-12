@@ -11,6 +11,8 @@ import LaptopOutlinedIcon from '@mui/icons-material/LaptopOutlined';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import styles from './careers.module.css';
 
+import { SectionHeader } from '@/components/ui';
+
 export default function CareersPage() {
     return (
         <main className={styles.page}>
@@ -39,11 +41,11 @@ export default function CareersPage() {
                             />
                         </div>
                         <div className={styles.cultureContent}>
-                            <span className={styles.cultureSectionTag}>Workplace Evolution</span>
-                            <h2 className={styles.cultureTitle}>As remote as you are.</h2>
-                            <p className={styles.cultureDesc}>
-                                We believe that the best talent shouldn&apos;t be restricted by geography. TalentMesh is a remote-first organization with hubs in Ahmedabad, San Francisco, and London.
-                            </p>
+                            <SectionHeader
+                                tag="Workplace Evolution"
+                                title="As remote as you are."
+                                description="We believe that the best talent shouldn't be restricted by geography. TalentMesh is a remote-first organization with hubs in Ahmedabad, San Francisco, and London."
+                            />
                             <ul className={styles.perksList}>
                                 {[
                                     { icon: <LaptopOutlinedIcon sx={{ fontSize: 18 }} />, text: "Remote-first culture with flex-hours" },
@@ -65,10 +67,12 @@ export default function CareersPage() {
             <AnimateOnScroll animation="fadeUp" delay={100}>
                 <section className={styles.positionsSection}>
                     <div className="premium-container">
-                        <div className={styles.positionsHeader}>
-                            <h2 className={styles.positionsTitle}>Open Positions</h2>
-                            <p className={styles.positionsSubtitle}>Find your next challenge and grow with us.</p>
-                        </div>
+                        <SectionHeader
+                            centered
+                            tag="Opportunities"
+                            title="Open Positions"
+                            description="Find your next challenge and grow with us."
+                        />
                         <JobListings />
                     </div>
                 </section>
@@ -77,7 +81,13 @@ export default function CareersPage() {
             {/* ── Benefits Matrix ── */}
             <AnimateOnScroll animation="fadeUp" delay={150}>
                 <section className={styles.benefitsSection}>
-                    <div className={styles.benefitsGrid}>
+                    <div className="premium-container">
+                        <SectionHeader
+                            centered
+                            tag="Perks"
+                            title="Benefits of joining the mesh."
+                        />
+                        <div className={styles.benefitsGrid}>
                         {[
                             { icon: <BoltOutlinedIcon />, title: "Learning", text: "$2.5k annual learning budget." },
                             { icon: <LocalCafeOutlinedIcon />, title: "Perks", text: "Healthy snacks & coffee stipends." },
@@ -90,6 +100,7 @@ export default function CareersPage() {
                                 <p className={styles.benefitText}>{item.text}</p>
                             </div>
                         ))}
+                        </div>
                     </div>
                 </section>
             </AnimateOnScroll>

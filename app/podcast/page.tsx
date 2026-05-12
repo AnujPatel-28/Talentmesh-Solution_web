@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './podcast.module.css';
 
+import { SectionHeader } from '@/components/ui';
+
 const IconSparkle = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
         <path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915L12 3Z" />
@@ -117,17 +119,13 @@ export default function PodcastPage() {
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroContent}>
-                        <div className={styles.badge}>
-                            <IconSparkle /> New Episode Every Week • 28K Listeners
-                        </div>
-                        <h1 className={styles.heroTitle}>
-                            The TalentMesh<br />
-                            <span className={styles.heroHighlight}>Podcast.</span>
-                        </h1>
-                        <p className={styles.heroDesc}>
-                            Unfiltered conversations with the world's top hiring leaders, founders,
-                            and engineers on the future of talent, tech, and work.
-                        </p>
+                        <SectionHeader
+                            light
+                            centered
+                            tag="New Episode Every Week • 28K Listeners"
+                            title={<>The TalentMesh <span className={styles.heroHighlight}>Podcast.</span></>}
+                            description="Unfiltered conversations with the world's top hiring leaders, founders, and engineers on the future of talent, tech, and work."
+                        />
                         <div className={styles.platforms}>
                             {PLATFORMS.map((p, i) => (
                                 <a key={i} href={p.href} className={styles.platformPill} target="_blank" rel="noopener noreferrer">

@@ -8,6 +8,7 @@ import { AdminStatCard } from '../_components/AdminStatCard';
 import { AdminInput, AdminSelect, AdminButton } from '../_components/AdminForm';
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useRouter } from 'next/navigation';
 
 
 type CompanyOption = {
@@ -112,6 +113,35 @@ function toFormState(job?: AdminJob | null): JobFormState {
 }
 
 export default function AdminJobsPage() {
+  const router = useRouter();
+  // CSV Export Utility
+  const downloadCSV = (rows: string[][], filename: string) => {
+    const csv = rows.map(r => r.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportJobsCSV = (data: AdminJob[]) => {
+    const headers = ['Title', 'Company', 'Location', 'Type', 'Status', 'Approved', 'Salary Min', 'Salary Max', 'Currency', 'Joined Date']
+    const rows = data.map(j => [
+      j.title,
+      (j as any).companies?.name || 'Unknown',
+      j.location,
+      j.type,
+      j.status,
+      j.is_approved ? 'Yes' : 'No',
+      j.salary_min?.toString() || '',
+      j.salary_max?.toString() || '',
+      j.currency || 'INR',
+      j.created_at ? new Date(j.created_at).toLocaleDateString('en-IN') : 'N/A'
+    ])
+    downloadCSV([headers, ...rows], `jobs-export-${Date.now()}.csv`)
+  }
   const { user, isLoading: authLoading } = useAuth();
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -321,7 +351,25 @@ export default function AdminJobsPage() {
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard/admin' }, { label: 'Jobs' }]}
         actions={
           <>
-            <AdminButton variant="secondary" onClick={() => { }}>Export Data</AdminButton>
+            <AdminButton variant="secondary" onClick={() => router.push('/dashboard/admin/job-approvals')} style={{ position: 'relative' }}>
+              Review Queue
+              {summary.pending > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  background: '#ef4444',
+                  color: 'white',
+                  fontSize: '0.7rem',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  border: '2px solid white'
+                }}>
+                  {summary.pending}
+                </span>
+              )}
+            </AdminButton>
+            <AdminButton variant="secondary" onClick={() => exportJobsCSV(jobs)}>Export CSV</AdminButton>
             <AdminButton onClick={resetForm}>Create Live Role</AdminButton>
           </>
         }

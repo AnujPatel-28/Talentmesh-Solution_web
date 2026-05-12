@@ -44,28 +44,10 @@ export function getSessionCookieOptions() {
   };
 }
 
-export function getAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-}
 
-export function isWhitelistedAdminEmail(email: string | null | undefined): boolean {
-  if (!email) {
-    return false;
-  }
-
-  return getAdminEmails().includes(email.trim().toLowerCase());
-}
-
-export function normalizeRole(role: string | null | undefined, email: string | null | undefined): UserRole {
-  if ((role === 'admin' || role === 'super_admin' || role === 'recruiter' || role === 'candidate')) {
+export function normalizeRole(role: string | null | undefined): UserRole {
+  if (role === 'admin' || role === 'super_admin' || role === 'recruiter') {
     return role;
-  }
-
-  if (isWhitelistedAdminEmail(email)) {
-    return 'admin';
   }
 
   return 'candidate';
@@ -88,7 +70,7 @@ export function createPublicInsforgeClient() {
 }
 
 function mapProfileToUser(userId: string, email: string, profile: ProfileRecord | null): User {
-  const resolvedRole = normalizeRole(profile?.role, email);
+  const resolvedRole = normalizeRole(profile?.role);
 
   return {
     id: userId,

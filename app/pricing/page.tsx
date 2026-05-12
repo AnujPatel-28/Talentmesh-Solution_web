@@ -1,8 +1,14 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { createClient } from '@insforge/sdk';
 import styles from './pricing.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+
+const insforge = createClient({
+    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || '',
+    anonKey: process.env.NEXT_PUBLIC_ANON_KEY || ''
+});
 
 // --- Premium Custom Icons ---
 const IconCheck = () => (
@@ -37,57 +43,41 @@ const IconSparkle = () => (
 
 const PARTNERS = ["Neural Networks", "Quantum Systems", "Fintech Infrastructure", "Distributed Ledger", "Autonomous Robotics", "Cloud Native", "Edge Computing", "Cyber Defense"];
 
-const PLANS = [
-    {
-        name: "Core Sourcing",
-        price: "499",
-        desc: "Essential AI-driven sourcing for early stage startups and small teams.",
-        features: [
-            "5 Active Job Protocols",
-            "Aura AI Sourcing Engine",
-            "Basic Skill Vetting",
-            "Email Support",
-            "Candidate CRM",
-            "Core Analytics"
-        ],
-        button: "Start Core",
-        primary: false
-    },
-    {
-        name: "Growth Stack",
-        price: "1,299",
-        desc: "Automated technical vetting for rapidly scaling engineering organizations.",
-        features: [
-            "Unlimited Job Protocols",
-            "Priority AI Slots",
-            "Biometric Skill Verification",
-            "24/7 Dedicated Support",
-            "ATS Sync Integration",
-            "Advanced Market IQ"
-        ],
-        button: "Get Early Access",
-        primary: true,
-        popular: true
-    },
-    {
-        name: "Enterprise",
-        price: "Custom",
-        desc: "Bespoke talent acquisition strategies for global technology ecosystems.",
-        features: [
-            "White-glove Stealth Sourcing",
-            "Custom ML Model Training",
-            "Full Security Compliance",
-            "Executive Search Portal",
-            "Unlimited Multi-user",
-            "SLA & Priority Access"
-        ],
-        button: "Schedule a Consult",
-        primary: false
-    }
-];
+interface Plan {
+    id: string;
+    name: string;
+    tagline: string;
+    price_monthly_inr: number | null;
+    is_popular: boolean;
+    features: string[];
+    cta_label: string;
+    cta_url: string;
+}
 
-// HMR Trigger: Refreshing module tree...
 export default function PricingPage() {
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchPlans() {
+            try {
+                const { data, error } = await insforge.database
+                    .from('subscription_plans')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('display_order', { ascending: true });
+
+                if (error) throw error;
+                setPlans(data || []);
+            } catch (err) {
+                console.error('Fetch Error:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchPlans();
+    }, []);
+
     return (
         <main style={{ background: '#fff' }}>
             {/* 1. Hero Section */}
@@ -123,16 +113,22 @@ export default function PricingPage() {
                 <section className={styles.pricingSection}>
                     <div className="premium-container">
                         <div className={styles.pricingGrid}>
-                            {PLANS.map((plan, i) => (
-                                <div key={i} className={styles.pricingCard}>
-                                    {plan.popular && <div className={styles.popularBadge}>Most Precision</div>}
+                            {isLoading ? (
+                                <div style={{ textAlign: 'center', gridColumn: '1/-1', padding: '4rem', color: '#64748b' }}>
+                                    Optimizing pricing models...
+                                </div>
+                            ) : plans.map((plan, i) => (
+                                <div key={plan.id} className={styles.pricingCard}>
+                                    {plan.is_popular && <div className={styles.popularBadge}>Most Precision</div>}
                                     <h3 className={styles.planName}>{plan.name}</h3>
                                     <div className={styles.planPrice}>
-                                        {plan.price !== "Custom" && <span className={styles.currency}>$</span>}
-                                        <span className={styles.amount}>{plan.price}</span>
-                                        {plan.price !== "Custom" && <span className={styles.period}>/mo</span>}
+                                        {plan.price_monthly_inr !== null && <span className={styles.currency}>₹</span>}
+                                        <span className={styles.amount}>
+                                            {plan.price_monthly_inr !== null ? plan.price_monthly_inr.toLocaleString() : "Custom"}
+                                        </span>
+                                        {plan.price_monthly_inr !== null && <span className={styles.period}>/mo</span>}
                                     </div>
-                                    <p className={styles.planDesc}>{plan.desc}</p>
+                                    <p className={styles.planDesc}>{plan.tagline}</p>
 
                                     <ul className={styles.featureList}>
                                         {plan.features.map((feature, idx) => (
@@ -144,10 +140,10 @@ export default function PricingPage() {
                                     </ul>
 
                                     <Link
-                                        href="/register"
-                                        className={`${styles.planBtn} ${plan.primary ? styles.primaryBtn : ''}`}
+                                        href={plan.cta_url}
+                                        className={`${styles.planBtn} ${plan.is_popular ? styles.primaryBtn : ''}`}
                                     >
-                                        {plan.button}
+                                        {plan.cta_label}
                                     </Link>
                                 </div>
                             ))}

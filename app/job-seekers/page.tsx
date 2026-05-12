@@ -4,6 +4,8 @@ import Link from 'next/link';
 import styles from './job-seekers.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
+import { SectionHeader } from '@/components/ui';
+
 const IconSparkle = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none">
         <path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915L12 3Z" />
@@ -90,17 +92,13 @@ export default function JobSeekersPage() {
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroContent}>
-                        <div className={styles.badge}>
-                            <IconSparkle /> Free for Candidates • Zero Applications Required
-                        </div>
-                        <h1 className={styles.heroTitle}>
-                            Your career,<br />
-                            <span className={styles.heroHighlight}>supercharged.</span>
-                        </h1>
-                        <p className={styles.heroDesc}>
-                            Stop applying. Start being found. TalentMesh's AI surfaces the right role at
-                            the right company — before it even hits the market.
-                        </p>
+                        <SectionHeader
+                            light
+                            centered
+                            tag="Free for Candidates"
+                            title={<>Your career, <span className={styles.heroHighlight}>supercharged.</span></>}
+                            description="Stop applying. Start being found. TalentMesh's AI surfaces the right role at the right company — before it even hits the market."
+                        />
                         <div className={styles.heroCtas}>
                             <Link href="/browse-jobs" className={styles.primaryCta}>
                                 Browse Jobs <IconArrowRight />
@@ -133,13 +131,12 @@ export default function JobSeekersPage() {
             <AnimateOnScroll animation="fadeUp">
                 <section className={styles.howSection}>
                     <div className="premium-container">
-                        <div className={styles.sectionHeader}>
-                            <span className={styles.sectionTag}>The Process</span>
-                            <h2 className={styles.sectionTitle}>Three steps to your next role.</h2>
-                            <p className={styles.sectionDesc}>
-                                No cover letters. No rejection emails. Just precision matching.
-                            </p>
-                        </div>
+                        <SectionHeader
+                            centered
+                            tag="The Process"
+                            title="Three steps to your next role."
+                            description="No cover letters. No rejection emails. Just precision matching."
+                        />
                         <div className={styles.stepsGrid}>
                             {STEPS.map((step, i) => (
                                 <div key={i} className={styles.stepCard}>
@@ -158,10 +155,11 @@ export default function JobSeekersPage() {
             <AnimateOnScroll animation="fadeUp" delay={100}>
                 <section className={styles.benefitsSection}>
                     <div className="premium-container">
-                        <div className={styles.sectionHeader}>
-                            <span className={styles.sectionTag}>What You Get</span>
-                            <h2 className={styles.sectionTitle}>Everything you need to land the role.</h2>
-                        </div>
+                        <SectionHeader
+                            centered
+                            tag="What You Get"
+                            title="Everything you need to land the role."
+                        />
                         <div className={styles.benefitsGrid}>
                             {BENEFITS.map((b, i) => (
                                 <div key={i} className={styles.benefitCard}>
@@ -179,10 +177,12 @@ export default function JobSeekersPage() {
             <AnimateOnScroll animation="blurIn">
                 <section className={styles.testimonialsSection}>
                     <div className="premium-container">
-                        <div className={styles.sectionHeader} style={{ textAlign: 'center' }}>
-                            <span className={styles.sectionTag}>Success Stories</span>
-                            <h2 className={styles.sectionTitle} style={{ color: '#fff' }}>Real outcomes. Real people.</h2>
-                        </div>
+                        <SectionHeader
+                            light
+                            centered
+                            tag="Success Stories"
+                            title="Real outcomes. Real people."
+                        />
                         <div className={styles.testimonialsGrid}>
                             {TESTIMONIALS.map((t, i) => (
                                 <div key={i} className={styles.testimonialCard}>

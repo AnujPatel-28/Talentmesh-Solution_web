@@ -20,6 +20,15 @@ export const insforge = createClient({
 });
 
 /**
+ * Direct client that bypasses the local proxy.
+ * Use ONLY for public data fetching (like blogs) to avoid CORS/proxy header issues.
+ */
+export const directInsforge = createClient({
+  baseUrl: supabaseUrl,
+  anonKey: supabaseAnonKey,
+});
+
+/**
  * Helper to invoke Edge Functions manually to bypass SDK URL construction bug.
  */
 export async function invokeFunction(slug: string, options: { 
@@ -95,6 +104,21 @@ export async function invokeFunction(slug: string, options: {
     fetchOptions.body = JSON.stringify(body);
   }
 
+  // Block mutations during impersonation for security
+  if (typeof window !== 'undefined' && method !== 'GET') {
+    const isImpersonating = document.cookie.includes('tm_impersonating_user_id=');
+    if (isImpersonating) {
+      console.warn('Mutation blocked: You are in READ-ONLY impersonation mode.');
+      return { 
+        data: null, 
+        error: { 
+          message: 'Action blocked: You are in read-only impersonation mode. Please exit impersonation to perform this action.', 
+          status: 403 
+        } 
+      };
+    }
+  }
+
   // 15-second timeout — fail fast rather than hanging until the browser gives up (~60-120s)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -103,6 +127,27 @@ export async function invokeFunction(slug: string, options: {
   let response: Response;
   try {
     response = await fetch(url, fetchOptions);
+    
+    // 🔥 Automatic Token Refresh on 401
+    if (response.status === 401 && typeof window !== 'undefined') {
+      console.warn(`[invokeFunction] 401 Unauthorized for ${slug}. Attempting token refresh...`);
+      const newToken = await refreshAccessToken();
+      
+      if (newToken) {
+        // Success — update headers and retry once
+        const retryHeaders = { ...finalHeaders, 'Authorization': `Bearer ${newToken}` };
+        const retryOptions = { ...fetchOptions, headers: retryHeaders };
+        
+        const retryResponse = await fetch(url, retryOptions);
+        if (retryResponse.ok || retryResponse.status !== 401) {
+          response = retryResponse;
+        }
+      } else {
+        // Refresh failed — session is truly dead
+        console.error('[invokeFunction] Token refresh failed. Dispatching session-expiry.');
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
+    }
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err?.name === 'AbortError') {

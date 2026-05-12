@@ -25,7 +25,8 @@ export default function RecruiterJobsPage() {
                 const { data } = await insforge.database
                     .from('jobs')
                     .select('*, applications(count)')
-                    .eq('company_id', user.company_id);
+                    .eq('recruiter_id', user.id)
+                    .order('created_at', { ascending: false });
                 
                 setJobs(data || []);
             } catch (err) {

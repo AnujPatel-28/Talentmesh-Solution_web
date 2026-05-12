@@ -7,10 +7,9 @@
 
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
 .hero {
-    background: linear-gradient(135deg, var(--alice-blue, #E3F2FD) 0%, var(--light-ice-blue, #F0F7FF) 100%);
-    padding: clamp(48px, 10vh, 60px) 16px clamp(40px, 8vh, 52px);
-    text-align: center;
-    border-bottom: 1px solid var(--sky-blue, #90CAF9);
+    background: radial-gradient(circle at 50% -20%, var(--alice-blue, #E3F2FD), var(--light-ice-blue, #F0F7FF));
+    padding: clamp(80px, 15vh, 120px) 16px clamp(60px, 10vh, 80px);
+    border-bottom: 1px solid rgba(144, 202, 249, 0.2);
 }
 
 .heroInner {

@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styles from '../../../shared-dashboard.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
+import ProfileStrengthWidget from '@/components/candidate/ProfileStrengthWidget';
+import ResumeManager from '@/components/candidate/ResumeManager';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import type { UserProfile, CandidateProfile } from '@/types/user';
 import { validateCandidateProfile } from '@/lib/validation/candidate';
@@ -154,16 +156,6 @@ export default function ProfilePage() {
                     method: 'PUT',
                     body: { profile: { avatar_url: url } }
                 });
-            } else {
-                setProfile(prev => {
-                    if (!prev) return null;
-                    return {
-                        ...prev,
-                        candidate_profiles: prev.candidate_profiles ? { ...prev.candidate_profiles, resume_url: url } : undefined
-                    };
-                });
-                // Profile update via helper
-                await updateCandidateProfile({ resume_url: url });
             }
             setUploadProgress(prev => ({ ...prev, [type]: 100 }));
             await fetchProfile();
@@ -237,34 +229,22 @@ export default function ProfilePage() {
                     )}
                 </div>
 
-                <div className={styles.scoreCard}>
-                    <div className={styles.scoreHeader}>
-                        <span className={styles.scoreTitle}>Profile Strength</span>
-                        <span className={styles.scoreBadge}>
-                            {strength < 30 ? 'Basic' : strength < 70 ? 'Intermediate' : 'Expert'}
-                        </span>
-                    </div>
-                    <div className={styles.scoreRing}>
-                        <svg className={styles.ringSvg} viewBox="0 0 100 100">
-                            <circle className={styles.ringBg} cx="50" cy="50" r="45" />
-                            <circle
-                                className={styles.ringBar}
-                                cx="50" cy="50" r="45"
-                                style={{ strokeDashoffset: 283 - (283 * strength) / 100 }}
-                            />
-                        </svg>
-                        <span className={styles.scoreNum}>{strength}%</span>
-                    </div>
-                    <span className={styles.scoreText}>
-                        {strength < 100 ? 'Complete your profile to stand out to recruiters.' : 'Your profile is 100% complete!'}
-                    </span>
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <ProfileStrengthWidget 
+                        variant="full"
+                        candidate={{
+                            avatar_url: profile.avatar_url,
+                            resume_url: cp?.resume_url,
+                            bio: profile.about,
+                            skills: cp?.skills,
+                            experience: cp?.work_history,
+                            education: cp?.education,
+                            location: profile.location
+                        }}
+                    />
+                </div>
 
-                    <div className={styles.strengthMissing}>
-                        {!profile.about && <button onClick={() => setIsEditing(true)}>• Add a bio</button>}
-                        {!cp?.resume_url && <button onClick={() => resumeInputRef.current?.click()}>• Upload resume</button>}
-                        {(cp?.skills?.length || 0) < 3 && <button onClick={() => setIsEditing(true)}>• Add more skills</button>}
-                    </div>
-
+                <div className={styles.openToggleCard}>
                     <div className={styles.openToggle}>
                         <div>
                             <span className={styles.openLabel}>Open to Work</span>
@@ -311,39 +291,7 @@ export default function ProfilePage() {
             </div>
 
             <div className={styles.profileMain}>
-                <div className={styles.profileActions}>
-                    <div className={styles.profileActionCard} onClick={() => resumeInputRef.current?.click()}>
-                        <div>
-                            <div className={styles.profileActionLabel}>{IC.file} Resume</div>
-                            <div className={styles.profileActionHint}>
-                                {cp?.resume_url ? 'Click to update resume' : 'Not uploaded yet'}
-                            </div>
-                        </div>
-                        {cp?.resume_url && (
-                            <a
-                                href={cp.resume_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={styles.actionIcon}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {IC.extLink}
-                            </a>
-                        )}
-                        <input
-                            type="file"
-                            ref={resumeInputRef}
-                            style={{ display: 'none' }}
-                            accept=".pdf"
-                            onChange={(e) => handleFileUpload(e, 'resume')}
-                        />
-                    </div>
-                    {uploadProgress.resume > 0 && (
-                        <div className={styles.uploadProgress}>
-                            <div className={styles.progressFill} style={{ width: `${uploadProgress.resume}%` }} />
-                        </div>
-                    )}
-                </div>
+                <ResumeManager candidateId={profile.id} />
 
                 {isEditing && (
                     <div className={styles.profileSection}>

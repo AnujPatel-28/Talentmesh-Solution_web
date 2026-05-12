@@ -6,6 +6,8 @@ import styles from './jobs.module.css';
 import { BlogFeed } from '@/components/sections';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
+import { SectionHeader } from '@/components/ui';
+import { useSavedJobs } from '@/hooks/useSavedJobs';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const Ico = {
@@ -49,7 +51,8 @@ export default function BrowseJobsPage() {
     const [activeExps, setActiveExps] = useState<string[]>([]);
     const [activeCountries, setActiveCountries] = useState<string[]>([]);
     const [dateFilter, setDateFilter] = useState('');
-    const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+    
+    const { isSaved, toggleSave } = useSavedJobs(user?.id || null);
     const [page, setPage] = useState(1);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -65,7 +68,6 @@ export default function BrowseJobsPage() {
                     throw new Error(error.message || 'Failed to fetch jobs');
                 }
                 
-                // Mapping fix: API returns data directly or in 'data' field depending on function implementation
                 setJobs(data?.data || data || []);
             } catch (err) {
                 console.error('Error fetching jobs:', err);
@@ -75,7 +77,6 @@ export default function BrowseJobsPage() {
         }
         fetchJobs();
 
-        // Close menu on click outside
         const closeMenu = () => setActiveMenuId(null);
         window.addEventListener('click', closeMenu);
         return () => window.removeEventListener('click', closeMenu);
@@ -102,10 +103,6 @@ export default function BrowseJobsPage() {
 
     const pages = Math.ceil(filtered.length / JOBS_PER_PAGE);
     const paginated = filtered.slice((page - 1) * JOBS_PER_PAGE, page * JOBS_PER_PAGE);
-
-    const toggleSave = useCallback((id: string) => {
-        setSavedJobs(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-    }, []);
 
     const handleCopyLink = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
@@ -136,14 +133,16 @@ export default function BrowseJobsPage() {
 
     return (
         <main className={styles.page}>
-            {/* ── HERO ── */}
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroContent}>
-                        <h1 className={styles.heroTitle}>Find Your Next Opportunity</h1>
-                        <p className={styles.heroSub}>Browse thousands of roles matched to your skills by our AI engine.</p>
+                        <SectionHeader
+                            centered
+                            tag="Opportunities"
+                            title={<>Find Your Next <span className="text-gradient">Opportunity</span></>}
+                            description="Browse thousands of roles matched to your skills by our AI engine."
+                        />
 
-                        {/* Search Bar */}
                         <div className={styles.searchCard}>
                             <div className={styles.searchField}>
                                 <Ico.Search />
@@ -167,7 +166,6 @@ export default function BrowseJobsPage() {
                             <button className={styles.searchBtn}><Ico.Search /> Search</button>
                         </div>
 
-                        {/* Popular Tags */}
                         <div className={styles.popularTags}>
                             <span className={styles.popularLabel}>Popular:</span>
                             {POPULAR_TAGS.map(tag => (
@@ -178,13 +176,9 @@ export default function BrowseJobsPage() {
                 </div>
             </section>
 
-            {/* ── BODY ── */}
             <div className="premium-container">
                 <div className={styles.body}>
-
-                    {/* ── Sidebar ── */}
                     <>
-                        {/* Mobile overlay */}
                         {filterOpen && <div className={styles.overlay} onClick={() => setFilterOpen(false)} />}
                         <aside className={`${styles.sidebar} ${filterOpen ? styles.sidebarOpen : ''}`}>
                             <div className={styles.sidebarHead}>
@@ -211,12 +205,9 @@ export default function BrowseJobsPage() {
                         </aside>
                     </>
 
-                    {/* ── Main Content ── */}
                     <div className={styles.main}>
-                        {/* Mobile filter toggle */}
                         <button className={styles.mobileFilterBtn} onClick={() => setFilterOpen(true)}><Ico.Filter /> Filters {(activeTypes.length + activeInds.length) > 0 && <span className={styles.filterCount}>{activeTypes.length + activeInds.length}</span>}</button>
 
-                        {/* Category chips */}
                         <div className={styles.categoryRow}>
                             {CATEGORY_CHIPS.map(c => (
                                 <button key={c} className={`${styles.categoryChip} ${category === c ? styles.categoryChipActive : ''}`}
@@ -224,90 +215,91 @@ export default function BrowseJobsPage() {
                             ))}
                         </div>
 
-                        {/* Results header */}
                         <div className={styles.resultsHdr}>
                             <span className={styles.resultsCount}><strong>{filtered.length}</strong> jobs found</span>
                             <span className={styles.aiPill}><Ico.Sparkle /> AI Match Enabled</span>
                         </div>
 
-                        {/* Job Cards */}
                         {paginated.length > 0 ? (
                             <div className={styles.jobGrid}>
-                                {paginated.map(job => (
-                                    <Link key={job.id} href={`/browse-jobs/${job.id}`} className={`${styles.jobCard} glass-card`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                        <div className={styles.cardTop}>
-                                            <div className={styles.jobLogo} style={{ background: job.company_profiles?.color || '#0D47A1' }}>{job.company_profiles?.initials || job.company_profiles?.company_name?.[0]}</div>
-                                            <div className={styles.jobInfo}>
-                                                <div className={styles.jobTitle}>{job.title}</div>
-                                                <div className={styles.jobMeta}>
-                                                    <span>{job.company_profiles?.company_name}</span>
-                                                    <span className={styles.metaDot}>·</span>
-                                                    <Ico.Location /><span>{job.location}</span>
+                                {paginated.map(job => {
+                                    const saved = isSaved(job.id);
+                                    return (
+                                        <Link key={job.id} href={`/browse-jobs/${job.id}`} className={`${styles.jobCard} glass-card`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                            <div className={styles.cardTop}>
+                                                <div className={styles.jobLogo} style={{ background: job.company_profiles?.color || '#0D47A1' }}>{job.company_profiles?.initials || job.company_profiles?.company_name?.[0]}</div>
+                                                <div className={styles.jobInfo}>
+                                                    <div className={styles.jobTitle}>{job.title}</div>
+                                                    <div className={styles.jobMeta}>
+                                                        <span>{job.company_profiles?.company_name}</span>
+                                                        <span className={styles.metaDot}>·</span>
+                                                        <Ico.Location /><span>{job.location}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div className={styles.actionsBox}>
-                                                <button
-                                                    className={`${styles.saveBtn} ${savedJobs.has(job.id) ? styles.saveBtnActive : ''}`}
-                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSave(job.id); }}
-                                                    aria-label={savedJobs.has(job.id) ? 'Unsave' : 'Save job'}>
-                                                    {savedJobs.has(job.id) ? <Ico.HeartFill /> : <Ico.Heart />}
-                                                </button>
-
-                                                <div className={styles.menuWrapper}>
+                                                <div className={styles.actionsBox}>
                                                     <button
-                                                        className={styles.moreBtn}
-                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveMenuId(activeMenuId === job.id ? null : job.id); }}
-                                                        aria-label="More actions">
-                                                        <Ico.More />
+                                                        className={`${styles.saveBtn} ${saved ? styles.saveBtnActive : ''}`}
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSave(job.id); }}
+                                                        aria-label={saved ? 'Unsave' : 'Save job'}>
+                                                        {saved ? <Ico.HeartFill /> : <Ico.Heart />}
                                                     </button>
-                                                    
-                                                    {activeMenuId === job.id && (
-                                                        <div className={styles.dropdown} onClick={e => e.stopPropagation()}>
-                                                            <button className={styles.menuItem} onClick={(e) => handleShare(e, job)}>
-                                                                <Ico.Share /> Share Opportunity
-                                                            </button>
-                                                            <button className={styles.menuItem} onClick={(e) => handleCopyLink(e, job.id)}>
-                                                                <Ico.Copy /> Duplicate Link
-                                                            </button>
-                                                            <div className={styles.menuDivider} />
-                                                            <Link href={`/browse-jobs/${job.id}`} target="_blank" className={styles.menuItem} onClick={e => e.stopPropagation()}>
-                                                                <Ico.ArrowR /> Ecosystem Intelligence
-                                                            </Link>
-                                                        </div>
-                                                    )}
+
+                                                    <div className={styles.menuWrapper}>
+                                                        <button
+                                                            className={styles.moreBtn}
+                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveMenuId(activeMenuId === job.id ? null : job.id); }}
+                                                            aria-label="More actions">
+                                                            <Ico.More />
+                                                        </button>
+                                                        
+                                                        {activeMenuId === job.id && (
+                                                            <div className={styles.dropdown} onClick={e => e.stopPropagation()}>
+                                                                <button className={styles.menuItem} onClick={(e) => handleShare(e, job)}>
+                                                                    <Ico.Share /> Share Opportunity
+                                                                </button>
+                                                                <button className={styles.menuItem} onClick={(e) => handleCopyLink(e, job.id)}>
+                                                                    <Ico.Copy /> Duplicate Link
+                                                                </button>
+                                                                <div className={styles.menuDivider} />
+                                                                <Link href={`/browse-jobs/${job.id}`} target="_blank" className={styles.menuItem} onClick={e => e.stopPropagation()}>
+                                                                    <Ico.ArrowR /> Ecosystem Intelligence
+                                                                </Link>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className={styles.badgeRow}>
-                                            <span className={`${styles.typeBadge} ${styles[`type_${job.type?.replace('-', '').replace(' ', '')}`]}`}>{job.type}</span>
-                                            <span className={styles.salaryBadge}>{job.salary}</span>
-                                            {job.ai_match_rate >= 80 && (
-                                                <span className={styles.matchBadge} style={{ color: matchColor(job.ai_match_rate) }}>
-                                                    <Ico.Sparkle /> {job.ai_match_rate}% Match
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className={styles.cardFooter}>
-                                            <span className={styles.postedMeta}><Ico.Clock />{job.posted_days || 0} days ago</span>
-                                            <div className={styles.cardActions}>
-                                                <span className={styles.applyBtn} onClick={(e) => { 
-                                                    e.preventDefault(); 
-                                                    if (!user) {
-                                                        router.push('/signup');
-                                                    } else {
-                                                        router.push(`/browse-jobs/${job.id}`);
-                                                    }
-                                                }}>
-                                                    Quick Apply
-                                                </span>
-                                                <span className={styles.viewBtn}>View <Ico.ArrowR /></span>
+                                            <div className={styles.badgeRow}>
+                                                <span className={`${styles.typeBadge} ${styles[`type_${job.type?.replace('-', '').replace(' ', '')}`]}`}>{job.type}</span>
+                                                <span className={styles.salaryBadge}>{job.salary}</span>
+                                                {job.ai_match_rate >= 80 && (
+                                                    <span className={styles.matchBadge} style={{ color: matchColor(job.ai_match_rate) }}>
+                                                        <Ico.Sparkle /> {job.ai_match_rate}% Match
+                                                    </span>
+                                                )}
                                             </div>
-                                        </div>
-                                    </Link>
-                                ))}
+
+                                            <div className={styles.cardFooter}>
+                                                <span className={styles.postedMeta}><Ico.Clock />{job.posted_days || 0} days ago</span>
+                                                <div className={styles.cardActions}>
+                                                    <span className={styles.applyBtn} onClick={(e) => { 
+                                                        e.preventDefault(); 
+                                                        if (!user) {
+                                                            router.push('/signup');
+                                                        } else {
+                                                            router.push(`/browse-jobs/${job.id}`);
+                                                        }
+                                                    }}>
+                                                        Quick Apply
+                                                    </span>
+                                                    <span className={styles.viewBtn}>View <Ico.ArrowR /></span>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className={styles.emptyState}>
@@ -316,7 +308,6 @@ export default function BrowseJobsPage() {
                             </div>
                         )}
 
-                        {/* Pagination */}
                         {pages > 1 && (
                             <div className={styles.pagination}>
                                 {Array.from({ length: pages }, (_, i) => i + 1).map(p => (

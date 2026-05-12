@@ -40,6 +40,8 @@ const INNOVATION_ITEMS = [
     'Automated Technical Assessments',
 ];
 
+import { SectionHeader } from '@/components/ui';
+
 export default function AboutPage() {
     return (
         <main className={styles.page}>
@@ -95,14 +97,11 @@ export default function AboutPage() {
                             </div>
                         </div>
                         <div>
-                            <span className={styles.storyTag}>Our Mission</span>
-                            <h2 className={styles.storyTitle}>Abolishing recruitment friction.</h2>
-                            <p className={styles.storyText}>
-                                Recruitment hasn&apos;t changed in 30 years, but the speed of business has. We exist to close the gap between &quot;need&quot; and &quot;hired&quot; using a proprietary neural network.
-                            </p>
-                            <p className={styles.storyText}>
-                                We don&apos;t care about your past titles. We care about your future trajectory. TalentMesh is designed to find where you belong, not just where you fit.
-                            </p>
+                            <SectionHeader
+                                tag="Our Mission"
+                                title="Abolishing recruitment friction."
+                                description={<>Recruitment hasn&apos;t changed in 30 years, but the speed of business has. We exist to close the gap between &quot;need&quot; and &quot;hired&quot; using a proprietary neural network.<br/><br/>We don&apos;t care about your past titles. We care about your future trajectory. TalentMesh is designed to find where you belong, not just where you fit.</>}
+                            />
                         </div>
                     </div>
                 </section>
@@ -115,10 +114,13 @@ export default function AboutPage() {
             <AnimateOnScroll animation="blurIn">
                 <section className="premium-section" style={{ background: 'linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 50%, #081428 100%)', color: '#fff', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                     <div className="premium-container">
-                        <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '2rem', letterSpacing: '-0.04em' }}>Global Talent Infrastructure</h2>
-                        <p style={{ opacity: 0.5, fontSize: '1.25rem', maxWidth: '700px', margin: '0 auto 5rem' }}>
-                            Moving beyond local borders. We connect the world&apos;s best engineers with the world&apos;s most innovative companies.
-                        </p>
+                        <SectionHeader
+                            light
+                            centered
+                            tag="Connectivity"
+                            title="Global Talent Infrastructure"
+                            description="Moving beyond local borders. We connect the world's best engineers with the world's most innovative companies."
+                        />
                         <div className="premium-grid-4">
                             {[
                                 { label: 'Active Regions', val: '52' },
@@ -140,11 +142,11 @@ export default function AboutPage() {
                 <section className={styles.storySection}>
                     <div className={styles.storyGrid}>
                         <div>
-                            <span className={styles.storyTag}>Innovation Labs</span>
-                            <h2 className={styles.storyTitle}>Always evolving.</h2>
-                            <p className={styles.storyText}>
-                                Our R&D team is constantly iterating on our neural matching engine. We are moving towards a future where bias is mathematically impossible.
-                            </p>
+                            <SectionHeader
+                                tag="Innovation"
+                                title={<>Building the Future of <span className="text-gradient">Human Talent.</span></>}
+                                description="TalentMesh was born from a simple realization: the traditional recruitment process is broken for both sides. We decided to fix it using data science and empathy."
+                            />
                             <ul className={styles.innovationList}>
                                 {INNOVATION_ITEMS.map((item, id) => (
                                     <li key={id} className={styles.innovationItem}>

@@ -58,11 +58,21 @@ export const BlogFeed = () => {
     useEffect(() => {
         async function fetchPosts() {
             try {
-                const { data, error } = await invokeFunction('blogs', { method: 'GET', path: '?limit=3' });
+                // 🔥 Fix: Using the 'blogs' edge function via invokeFunction instead of direct database queries.
+                // This is more robust and consistent with the main blog page.
+                const { data, error } = await invokeFunction('blogs', { 
+                    method: 'GET', 
+                    path: '?limit=3' 
+                });
+                
                 if (error) {
+                    console.error('Edge function fetch error:', error);
                     throw new Error(error.message || 'Failed to fetch posts');
                 }
-                setPosts(data?.blogs && data.blogs.length > 0 ? data.blogs : MOCK_POSTS);
+
+                // The 'blogs' function returns data in { blogs: [...] } format
+                const blogPosts = data?.blogs || [];
+                setPosts(blogPosts.length > 0 ? blogPosts : MOCK_POSTS);
             } catch (err) {
                 console.error('Blog feed error:', err);
                 setPosts(MOCK_POSTS);
@@ -117,20 +127,44 @@ export const BlogFeed = () => {
                                         {post.category}
                                     </span>
                                 </div>
-                                <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
-                                        {new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                <div style={{ padding: '1.75rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary-blue)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            {post.category}
+                                        </span>
+                                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                            {new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </span>
                                     </div>
-                                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem', lineHeight: '1.4' }}>
+                                    <h3 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem', lineHeight: '1.3', letterSpacing: '-0.01em' }}>
                                         {post.title}
                                     </h3>
-                                    <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1.5rem', lineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    <p style={{ 
+                                        fontSize: '0.95rem', 
+                                        color: '#64748b', 
+                                        marginBottom: '2rem', 
+                                        WebkitLineClamp: 3, 
+                                        display: '-webkit-box', 
+                                        WebkitBoxOrient: 'vertical', 
+                                        overflow: 'hidden',
+                                        lineHeight: '1.6'
+                                    }}>
                                         {post.excerpt}
                                     </p>
-                                    <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary-blue)', fontWeight: 700, fontSize: '0.9rem' }}>
-                                        Read More <IconArrowRight />
+                                    <div style={{ 
+                                        marginTop: 'auto', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '0.6rem', 
+                                        color: 'var(--primary-blue)', 
+                                        fontWeight: 700, 
+                                        fontSize: '0.95rem',
+                                        transition: 'gap 0.2s ease'
+                                    }} className="read-more-link">
+                                        Read Story <IconArrowRight />
                                     </div>
                                 </div>
+
                             </div>
                         </Link>
                     ))}

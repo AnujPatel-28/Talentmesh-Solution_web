@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { insforge } from '@/lib/insforge';
+import { insforge, getSession } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './set-password.module.css';
 import { z } from 'zod';
@@ -36,7 +36,7 @@ export default function SetPasswordPage() {
     // 1. Initial Session Check (Invite creates a session)
     useEffect(() => {
         const checkSession = async () => {
-            const { data: sessionData } = await insforge.auth.refreshSession();
+            const sessionData = await getSession();
             const sessionUser = sessionData?.user;
 
             if (!sessionUser) {
@@ -83,7 +83,7 @@ export default function SetPasswordPage() {
         setIsSubmitting(true);
 
         try {
-            const { data: sessionData } = await insforge.auth.refreshSession();
+            const sessionData = await getSession();
             const accessToken = sessionData?.accessToken;
             const sessionUser = sessionData?.user;
             

@@ -55,12 +55,10 @@ export default function CandidateOnboardingPage() {
     const [locationInput, setLocationInput] = useState('');
 
     useEffect(() => {
-        if (authLoading) return;
+        if (authLoading || !user) return;
 
-        if (!user) {
-            router.replace('/login?redirect=/onboarding/candidate');
-            return;
-        }
+        // 🔥 IMPORTANT: Only fetch if candidate to avoid 401s for admins/recruiters
+        if (user.role !== 'candidate') return;
 
         const fetchProfile = async () => {
             try {
@@ -159,8 +157,8 @@ export default function CandidateOnboardingPage() {
     const [uploadProgress, setUploadProgress] = useState(0);
 
     const handleContinue = async () => {
-        if (!user?.id) {
-            setError('You must be logged in before finishing setup.');
+        if (!user) {
+            setError('Your session has expired. Please log in again.');
             return;
         }
 

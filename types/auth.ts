@@ -15,4 +15,6 @@ export interface User {
   password_set_at?: string;
   phone?: string | null;
   location?: string | null;
+  onboarding_completed?: boolean;
+  onboarding_step?: number;
 }

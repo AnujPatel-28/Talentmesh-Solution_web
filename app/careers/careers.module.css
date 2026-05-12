@@ -10,7 +10,7 @@
 
 /* ── Culture Section ── */
 .cultureSection {
-    padding: clamp(4rem, 10vh, 8rem) 16px;
+    padding: clamp(6rem, 15vh, 10rem) 16px;
 }
 
 .cultureGrid {

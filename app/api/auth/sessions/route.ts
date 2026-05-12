@@ -53,6 +53,31 @@ export async function POST(request: NextRequest) {
   return response;
 }
 
-export async function GET() {
-  return NextResponse.json({ status: 'ok' });
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get('tm_access_token')?.value;
+
+  if (!token) {
+    return NextResponse.json({ user: null }, { status: 200 });
+  }
+
+  try {
+    const { data, error } = await fetch(`${INSFORGE_URL.replace(/\/$/, '')}/api/auth/sessions`, {
+      method: 'GET',
+      headers: {
+        'apikey': ANON_KEY,
+        'Authorization': `Bearer ${token}`,
+        'x-client-info': 'talentmesh-web',
+      },
+    }).then(res => res.json());
+
+    if (error || !data?.user) {
+      return NextResponse.json({ user: null }, { status: 200 });
+    }
+
+    return NextResponse.json({ user: data.user }, { status: 200 });
+  } catch (err) {
+    console.error('[sessions] GET Error:', err);
+    return NextResponse.json({ user: null }, { status: 200 });
+  }
 }
+

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import ProfileStrengthWidget from '@/components/candidate/ProfileStrengthWidget';
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -35,11 +36,13 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
     const { user: authUser, isLoading: authLoading } = useAuth();
     const [profile, setProfile] = useState<any>(null);
     const [jobs, setJobs] = useState<any[]>([]);
+    const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
     const [activity, setActivity] = useState<any[]>([]);
     const [appCount, setAppCount] = useState(0);
     const [interviewCount, setInterviewCount] = useState(0);
     const [nextInterview, setNextInterview] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [recommendationsLoading, setRecommendationsLoading] = useState(true);
     const fetching = useRef(false);
 
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -66,9 +69,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
 
         // 3. Final safety: Don't query if still not a UUID
         if (!isUUID(role_id)) {
-            // If we have authUser but it's still missing or loading, just wait
             if (!authUser) return;
-            // If authUser is loaded but we're still here, it might be a broken session
             return;
         }
 
@@ -106,7 +107,38 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                 fetching.current = false;
             }
         }
+
+        async function fetchRecommendations() {
+            if (!role_id) return;
+            setRecommendationsLoading(true);
+            try {
+                const { data, error } = await invokeFunction('recommendations', {
+                    body: { candidate_id: role_id, limit: 6 }
+                });
+
+                if (!error && data && Array.isArray(data) && data.length > 0) {
+                    setRecommendedJobs(data);
+                } else {
+                    const { data: fallbackJobs, error: fallbackError } = await insforge.database
+                        .from('jobs')
+                        .select('*, companies(name, logo_url)')
+                        .eq('status', 'active')
+                        .order('created_at', { ascending: false })
+                        .limit(6);
+                    
+                    if (!fallbackError) {
+                        setRecommendedJobs(fallbackJobs || []);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching recommendations:', err);
+            } finally {
+                setRecommendationsLoading(false);
+            }
+        }
+        
         fetchData();
+        fetchRecommendations();
     }, [authLoading, authUser?.id, role_id, router]);
 
     if (loading) {
@@ -151,6 +183,80 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                         <span className={styles.statHint}>
                             {nextInterview ? `Next: ${formatShortDate(nextInterview.scheduledAt)}, ${formatTime(nextInterview.scheduledAt)}` : 'No upcoming interviews'}
                         </span>
+                    </div>
+                </div>
+            </AnimateOnScroll>
+
+            {/* Recommended for You Section */}
+            <AnimateOnScroll animation="fadeUp" delay={150}>
+                <div className={styles.recommendedSection}>
+                    <div className={styles.recommendedHeader}>
+                        <div className={styles.recommendedTitleRow}>
+                            <h3 className={styles.cardTitle}>Recommended for You</h3>
+                            <div className={styles.auraBadge}>
+                                <span>✦</span>
+                                <span>Aura AI</span>
+                            </div>
+                        </div>
+                        <button 
+                            className={styles.viewAll} 
+                            onClick={() => router.push(`/dashboard/candidate/${role_id}/search`)}
+                        >
+                            View All
+                        </button>
+                    </div>
+
+                    <div className={styles.recommendedScroll}>
+                        {recommendationsLoading ? (
+                            Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className={styles.skeletonCard} />
+                            ))
+                        ) : recommendedJobs.length > 0 ? (
+                            recommendedJobs.map((job) => (
+                                <div key={job.id} className={styles.recommendedCard}>
+                                    <div className={styles.recCardTop}>
+                                        <div className={styles.recLogo}>
+                                            {job.companies?.logo_url ? (
+                                                <img src={job.companies.logo_url} alt={job.companies.name} style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} />
+                                            ) : (
+                                                <span>{job.companies?.name?.[0] || 'J'}</span>
+                                            )}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <h4 className={styles.recTitle}>{job.title}</h4>
+                                            <div className={styles.recMeta}>{job.companies?.name} • {job.location}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                        {job.salary_max ? `₹${(job.salary_max/1000).toFixed(0)}k` : 'Salary Undisclosed'}
+                                    </div>
+
+                                    <div className={styles.recFooter}>
+                                        <div className={styles.recMatch}>
+                                            {job.match_score ? `${job.match_score}% Match` : 'New Match'}
+                                        </div>
+                                        <button 
+                                            className={styles.recView}
+                                            onClick={() => router.push(`/dashboard/candidate/${role_id}/jobs/${job.id}`)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                        >
+                                            View Job
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className={styles.recommendedEmpty} style={{ width: '100%' }}>
+                                <p className={styles.emptyText}>Discover jobs matching your specific skills</p>
+                                <button 
+                                    className={styles.viewJobBtn}
+                                    onClick={() => router.push(`/dashboard/candidate/${role_id}/search`)}
+                                >
+                                    Browse All Jobs
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </AnimateOnScroll>
@@ -233,6 +339,22 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
                                     <p>No interviews scheduled</p>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Profile Strength Widget */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <ProfileStrengthWidget 
+                                variant="compact"
+                                candidate={{
+                                    avatar_url: profile?.avatar_url,
+                                    resume_url: profile?.candidate_profiles?.resume_url,
+                                    bio: profile?.about,
+                                    skills: profile?.candidate_profiles?.skills,
+                                    experience: profile?.candidate_profiles?.work_history,
+                                    education: profile?.candidate_profiles?.education,
+                                    location: profile?.location
+                                }}
+                            />
                         </div>
 
                         {/* Quick Actions */}

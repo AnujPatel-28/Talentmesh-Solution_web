@@ -3,21 +3,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import { getMyProfile } from '@/lib/api/profile';
 import styles from './login.module.css';
 
-// Admin email list from .env — updateable via NEXT_PUBLIC_ADMIN_EMAILS
-const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
 
 export default function LoginPage() {
     const router = useRouter();
-    const { signIn } = useAuth();
+    const searchParams = useSearchParams();
+    const { signIn, signOut } = useAuth();
+
+    const reason = searchParams.get('reason');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -86,25 +84,18 @@ export default function LoginPage() {
 
             // Redirect based on profile
             let profile;
-            if (!isAdminEmail) {
-                try {
-                    profile = await getMyProfile(result.accessToken);
-                } catch (err) {
-                    console.error('Failed to fetch profile during auto-login:', err);
-                }
+            try {
+                profile = await getMyProfile(result.accessToken);
+            } catch (err) {
+                console.error('Failed to fetch profile during auto-login:', err);
             }
-
+            
             if (!profile) {
-                // New admin — no candidate profile, redirect to admin dashboard
-                if (isAdminEmail) {
-                    router.push('/dashboard/admin');
-                } else {
-                    router.push('/onboarding/candidate');
-                }
+                router.push('/onboarding/candidate');
                 return;
             }
 
-            const isAdminRole = isAdminEmail || profile.role === 'admin' || profile.role === 'super_admin';
+            const isAdminRole = profile.role === 'admin' || profile.role === 'super_admin';
 
             if (isAdminRole) {
                 router.push('/dashboard/admin');
@@ -121,8 +112,6 @@ export default function LoginPage() {
         }
     };
 
-    // Detect admin email as the user types
-    const isAdminEmail = ADMIN_EMAILS.includes(email.trim().toLowerCase());
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -156,43 +145,38 @@ export default function LoginPage() {
                 return;
             }
 
-            // 3. Success — let middleware redirect to the right dashboard based on role.
-            // router.refresh() re-requests the current page (/login); the middleware
             // sees the authenticated user and redirects to /dashboard/{role}.
-            // 🔥 STEP 1 — Fetch profile (Skip for Admins)
-            let profile;
-            if (!isAdminEmail) {
-                try {
-                    profile = await getMyProfile(result.accessToken);
-                } catch (err) {
-                    console.error('Failed to fetch profile during login:', err);
-                    setError('Failed to load profile. Please try again.');
-                    setIsLoading(false);
-                    return;
+            // 🔥 STEP 1 — Use user from signIn result first, fallback to getMyProfile
+            const userFromAuth = result.user;
+            let profile: any = userFromAuth;
+            
+            try {
+
+                const fetchedProfile = await getMyProfile(result.accessToken);
+                if (fetchedProfile) {
+                    profile = fetchedProfile;
                 }
+            } catch (err) {
+                console.error('Failed to fetch detailed profile during login:', err);
+                // We still have userFromAuth, so we can continue
             }
 
-            if (!profile) {
-                // No profile found, redirect based on admin status
-                if (isAdminEmail) {
-                    router.push('/dashboard/admin');
-                } else {
-                    router.push('/onboarding/candidate');
-                }
-                return;
-            }
+            const role = profile?.role || 'candidate';
+            const isAdminRole = role === 'admin' || role === 'super_admin';
 
-            const isAdminRole = isAdminEmail || profile.role === 'admin' || profile.role === 'super_admin';
-
-            console.log(`Login successful. User role: ${profile.role}. Redirecting...`);
+            console.log(`Login successful. User role: ${role}. Redirecting...`);
 
             // 🔥 STEP 2 — Redirect logic with safety delay for cookie persistence
-            const destination = isAdminRole 
-                ? '/dashboard/admin' 
-                : profile.role === 'recruiter'
-                ? (profile.is_onboarded ? '/dashboard/recruiter' : '/onboarding/recruiter/setup')
-                : (profile.is_onboarded ? `/dashboard/candidate/${profile.id}` : '/onboarding/candidate');
-
+            let destination = '/dashboard/candidate';
+            
+            if (isAdminRole) {
+                destination = '/dashboard/admin';
+            } else if (role === 'recruiter') {
+                destination = (profile as any)?.is_onboarded ? '/dashboard/recruiter' : '/onboarding/recruiter/setup';
+            } else {
+                // Candidate
+                destination = (profile as any)?.is_onboarded ? `/dashboard/candidate/${profile.id}` : '/onboarding/candidate';
+            }
 
             setTimeout(() => {
                 window.location.href = destination;
@@ -234,6 +218,7 @@ export default function LoginPage() {
                         unoptimized
                         priority
                         className={styles.logoImg}
+                        style={{ height: 'auto' }}
                     />
                 </Link>
 
@@ -264,6 +249,12 @@ export default function LoginPage() {
                     <span className={styles.dividerText}>or</span>
                     <span className={styles.dividerLine} />
                 </div>
+
+                {reason === 'session_expired' && (
+                    <div className={styles.sessionExpiredBanner}>
+                        Your session expired. Please log in again.
+                    </div>
+                )}
 
                 {error && (
                     <div className={styles.errorMessage} data-testid="login-error" role="alert">
@@ -348,22 +339,6 @@ export default function LoginPage() {
                     <div className={styles.fieldGroup}>
                         <div className={styles.labelRow}>
                             <label className={styles.label} htmlFor="email">Email address</label>
-                            {/* Show admin badge when admin email is detected */}
-                            {isAdminEmail && (
-                                <span style={{
-                                    fontSize: '0.68rem',
-                                    fontWeight: 700,
-                                    color: '#6366f1',
-                                    background: 'rgba(99,102,241,0.08)',
-                                    border: '1px solid rgba(99,102,241,0.2)',
-                                    borderRadius: '100px',
-                                    padding: '2px 8px',
-                                    letterSpacing: '0.04em',
-                                    textTransform: 'uppercase',
-                                }}>
-                                    Admin Account
-                                </span>
-                            )}
                         </div>
                         <div className={styles.inputWrap}>
                             <input
@@ -384,7 +359,7 @@ export default function LoginPage() {
                             <label className={styles.label} htmlFor="password">Password</label>
                             {/* Dynamically route admin emails to the admin forgot-password page */}
                             <Link
-                                href={isAdminEmail ? '/admin/forgot-password' : '/forgot-password'}
+                                href="/forgot-password"
                                 className={styles.forgotLink}
                             >
                                 Forgot password?

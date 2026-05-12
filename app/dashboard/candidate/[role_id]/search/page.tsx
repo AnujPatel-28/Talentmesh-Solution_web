@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { invokeFunction } from '@/lib/insforge';
-import { useAuth } from '@/lib/auth/AuthContext';
 import Toast from '@/components/ui/Toast';
+import { useAuth } from '@/lib/auth/AuthContext';
+import AlertModal from '@/components/candidate/AlertModal';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
@@ -15,6 +16,7 @@ const IC = {
     Clock: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
     Dots: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>,
     Briefcase: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /></svg>,
+    Bell: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>,
 };
 
 export default function AdvancedSearchPage() {
@@ -32,6 +34,7 @@ export default function AdvancedSearchPage() {
         experience: searchParams.get('exp') || '',
     });
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+    const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
 
     const fetchJobs = useCallback(async () => {
         setLoading(true);
@@ -62,6 +65,26 @@ export default function AdvancedSearchPage() {
         const url = `${window.location.origin}/dashboard/candidate/${params.role_id}/jobs/${jobId}`;
         navigator.clipboard.writeText(url);
         setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+    };
+
+    const handleSaveAlert = async (formData: any) => {
+        if (!user) return;
+        try {
+            const { error } = await insforge.database
+                .from('job_alerts')
+                .insert([{
+                    ...formData,
+                    candidate_id: user.id,
+                    label: formData.label || `${formData.keywords || 'Jobs'} in ${formData.location || 'Anywhere'}`
+                }]);
+
+            if (error) throw error;
+            setIsAlertModalOpen(false);
+            setToast({ message: 'Job alert saved successfully!', type: 'success' });
+        } catch (err) {
+            console.error(err);
+            setToast({ message: 'Failed to save alert', type: 'error' });
+        }
     };
 
     return (
@@ -153,6 +176,13 @@ export default function AdvancedSearchPage() {
                 <main>
                     <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Showing <strong>{jobs.length}</strong> jobs matching your criteria</p>
+                        <button 
+                            className={styles.secondaryBtn}
+                            onClick={() => setIsAlertModalOpen(true)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem' }}
+                        >
+                            <IC.Bell /> Save This Search
+                        </button>
                     </div>
 
                     {loading ? (
@@ -206,6 +236,19 @@ export default function AdvancedSearchPage() {
                     )}
                 </main>
             </div>
+
+            {isAlertModalOpen && (
+                <AlertModal 
+                    alert={{
+                        keywords: searchQuery,
+                        location: activeFilters.location,
+                        job_type: activeFilters.type ? [activeFilters.type] : [],
+                        experience_level: activeFilters.experience
+                    }}
+                    onClose={() => setIsAlertModalOpen(false)}
+                    onSave={handleSaveAlert}
+                />
+            )}
         </div>
     );
 }

@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { insforge } from '@/lib/insforge';
+import { insforge, directInsforge } from '@/lib/insforge';
 import type { User, UserRole } from '@/types/auth';
 
 interface AuthContextType {
@@ -17,26 +17,13 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<User | null>;
   login: (token: string, user: User) => void;
+  isImpersonating: boolean;
+  impersonatedUser?: { id: string; role: string } | null;
+  adminId?: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return adminEmails.includes(email.trim().toLowerCase());
-}
-
-function normalizeRole(role: UserRole, email: string): UserRole {
-  if (isAdminEmail(email)) {
-    return 'admin';
-  }
-
-  return role;
-}
 
 const USER_STORAGE_KEY = 'tm_user';
 
@@ -44,14 +31,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [impersonatedUser, setImpersonatedUser] = useState<{ id: string; role: string } | null>(null);
+  const [adminId, setAdminId] = useState<string | null>(null);
   const router = useRouter();
 
+  const isImpersonating = !!impersonatedUser && !!adminId;
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const clearAuthCookies = useCallback(() => {
     document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'tm_admin_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'impersonating_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'impersonating_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = 'admin_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(USER_STORAGE_KEY);
     }
@@ -64,11 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
     document.cookie = `tm_access_token=${token}; path=/; SameSite=None; ${isSecure ? 'Secure;' : ''} max-age=${60 * 60 * 24 * 7}`;
 
-    const adminAccess = authUser.role === 'admin' || authUser.role === 'super_admin' || isAdminEmail(authUser.email);
+    const adminAccess = authUser.role === 'admin' || authUser.role === 'super_admin';
 
     // Call the auth-session edge function to set cookies in the function domain
     const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-    await fetch(`${baseUrl}/functions/auth-session`, {
+    const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
+    await fetch(authEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,18 +98,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     metadata?: Record<string, unknown>,
   ): Promise<User | null> => {
     try {
+      // 🔥 Fix: Use the authenticated client (insforge) instead of the anonymous one (directInsforge)
+      // to ensure we can read the profile even if RLS is enabled.
       const { data: profile, error } = await insforge.database
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
+
       if (error || !profile) {
-        const fallbackRole = normalizeRole(((metadata?.role as UserRole) || 'candidate'), email);
+        const fallbackRole: UserRole = (metadata?.role as UserRole) || 'candidate';
         const fallbackName = email.split('@')[0];
 
         try {
-          const { data: createdProfile, error: insertError } = await insforge.database
+          const { data: createdProfile, error: insertError } = await directInsforge.database
             .from('profiles')
             /* changed this .insert([{
               id: userId,
@@ -128,7 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               email,
               role: fallbackRole,
               name: fallbackName,
-              completed_onboarding: false,
+              onboarding_completed: false,
+              onboarding_step: 0,
             }])
             .select()
             .single();
@@ -137,13 +135,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return {
               id: userId,
               email,
-              role: normalizeRole(createdProfile.role as UserRole, email),
+              role: createdProfile.role as UserRole,
               name: createdProfile.name || fallbackName,
               avatar_url: createdProfile.avatar_url || null,
               company_id: createdProfile.company_id,
               created_at: createdProfile.created_at,
               mfa_enabled: createdProfile.mfa_enabled || false,
               password_set_at: createdProfile.password_set_at,
+              onboarding_completed: createdProfile.onboarding_completed || false,
+              onboarding_step: createdProfile.onboarding_step || 0,
             };
           }
         } catch {
@@ -156,19 +156,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: fallbackRole,
           name: fallbackName,
           avatar_url: null,
+          onboarding_completed: false,
+          onboarding_step: 0,
         };
       }
 
       return {
         id: userId,
         email,
-        role: normalizeRole(((profile.role as UserRole) || 'candidate'), email),
+        role: (profile.role as UserRole) || 'candidate',
         name: profile.name || '',
         avatar_url: profile.avatar_url || null,
         company_id: profile.company_id,
         created_at: profile.created_at,
         mfa_enabled: profile.mfa_enabled || false,
         password_set_at: profile.password_set_at,
+        onboarding_completed: profile.onboarding_completed || false,
+        onboarding_step: profile.onboarding_step || 0,
       };
     } catch (err) {
       console.error('Unexpected error fetching profile:', err);
@@ -187,8 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token = match ? match[1] : null;
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-      const response = await fetch(`${baseUrl}/functions/auth-session`, {
+      const authEndpoint = '/api/v1/remote/functions/auth-session';
+      const response = await fetch(authEndpoint, {
         method: 'GET',
         headers: {
           'x-client-info': 'talentmesh-web',
@@ -215,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const resolvedUser = payload.user as User;
 
       document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax`;
-      if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin' || isAdminEmail(resolvedUser.email)) {
+      if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin') {
         document.cookie = 'tm_admin_access=true; path=/; SameSite=Lax';
       }
 
@@ -225,16 +229,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.cookie = `tm_access_token=${payload.token}; path=/; SameSite=None; ${isSecure ? 'Secure;' : ''} max-age=${60 * 60 * 24 * 7}`;
       }
 
+      // Check impersonation status from cookies
+      if (typeof window !== 'undefined') {
+        const impId = document.cookie.match(/impersonating_user_id=([^;]+)/)?.[1];
+        const impRole = document.cookie.match(/impersonating_user_role=([^;]+)/)?.[1];
+        const admId = document.cookie.match(/admin_user_id=([^;]+)/)?.[1];
+
+        if (impId && impRole && admId) {
+          setImpersonatedUser({ id: impId, role: impRole });
+          setAdminId(admId);
+        } else {
+          setImpersonatedUser(null);
+          setAdminId(null);
+        }
+      }
+
       setUser(resolvedUser);
       cacheUser(resolvedUser);
-
-      // Feature 17: Proactive prefetch of dashboard to reduce redirect lag
-      if (typeof window !== 'undefined') {
-        const dashboardPath = resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin'
-          ? '/dashboard/admin'
-          : `/dashboard/${resolvedUser.role}/${resolvedUser.id}`;
-        router.prefetch(dashboardPath);
-      }
 
       return resolvedUser;
     } catch (err) {
@@ -251,42 +262,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [cacheUser, clearAuthCookies]);
 
-  // Session Refresh Interval (every 10 minutes to prevent 15m expiry)
-  useEffect(() => {
-    if (user) {
-      const interval = setInterval(() => {
-        console.log('[AuthContext] Proactive session refresh...');
-        refreshUser();
-      }, 1000 * 60 * 10);
-      return () => clearInterval(interval);
-    }
-  }, [user, refreshUser]);
+  const signOut = async () => {
+    await insforge.auth.signOut();
+    // Call the auth-session edge function to clear cookies
+    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+    const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
+    await fetch(authEndpoint, {
+      method: 'DELETE',
+      headers: {
+        'x-client-info': 'talentmesh-web'
+      },
+      credentials: 'include'
+    }).catch(() => undefined);
 
-  useEffect(() => {
-    let hasLoadedCached = false;
-    try {
-      const cached = window.sessionStorage.getItem(USER_STORAGE_KEY);
-      if (cached) {
-        setUser(JSON.parse(cached) as User);
-        hasLoadedCached = true;
-      }
-    } catch {
-      window.sessionStorage.removeItem(USER_STORAGE_KEY);
-    }
-
-    // Auto-refresh if we have a cached user OR a matching access cookie.
-    // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
-    const hasAccessToken = document.cookie.includes('tm_access_token');
-    const isAuthPage = typeof window !== 'undefined' &&
-      (window.location.pathname === '/auth/callback' || window.location.pathname === '/login');
-
-    if ((hasLoadedCached || hasAccessToken) && !isAuthPage) {
-      refreshUser();
-    } else {
-      setIsLoading(false);
-      setIsInitialized(true);
-    }
-  }, [refreshUser]);
+    clearAuthCookies();
+    setUser(null);
+    window.location.replace('/login');
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -338,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const fullUser: User = {
           id: data.user.id,
           email: data.user.email,
-          role: normalizeRole(role, email),
+          role: role,
           name: name,
           avatar_url: null,
           created_at: new Date().toISOString(),
@@ -356,22 +348,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signOut = async () => {
-    await insforge.auth.signOut();
-    // Call the auth-session edge function to clear cookies
-    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-    await fetch(`${baseUrl}/functions/auth-session`, {
-      method: 'DELETE',
-      headers: {
-        'x-client-info': 'talentmesh-web'
-      },
-      credentials: 'include'
-    }).catch(() => undefined);
+  // Session Refresh Interval (every 10 minutes to prevent 15m expiry)
+  useEffect(() => {
+    if (user) {
+      const interval = setInterval(() => {
+        console.log('[AuthContext] Proactive session refresh...');
+        refreshUser();
+      }, 1000 * 60 * 10);
+      return () => clearInterval(interval);
+    }
+  }, [user, refreshUser]);
 
-    clearAuthCookies();
-    setUser(null);
-    window.location.replace('/login');
-  };
+  useEffect(() => {
+    let hasLoadedCached = false;
+    try {
+      const cached = window.sessionStorage.getItem(USER_STORAGE_KEY);
+      if (cached) {
+        setUser(JSON.parse(cached) as User);
+        hasLoadedCached = true;
+      }
+    } catch {
+      window.sessionStorage.removeItem(USER_STORAGE_KEY);
+    }
+
+    // Auto-refresh if we have a cached user OR a matching access cookie.
+    // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
+    const hasAccessToken = document.cookie.includes('tm_access_token');
+    const isAuthPage = typeof window !== 'undefined' &&
+      (window.location.pathname === '/auth/callback' || window.location.pathname === '/login');
+
+    if ((hasLoadedCached || hasAccessToken) && !isAuthPage) {
+      refreshUser();
+    } else {
+      setIsLoading(false);
+      setIsInitialized(true);
+    }
+  }, [refreshUser]);
+
+  // 🔥 Listen for session-expired events from invokeFunction
+  useEffect(() => {
+    const handleExpiry = () => {
+      console.warn('[AuthContext] Session expired event received. Signing out...');
+      signOut();
+      router.push('/login?reason=session_expired');
+    };
+
+    window.addEventListener('auth:session-expired', handleExpiry);
+    return () => window.removeEventListener('auth:session-expired', handleExpiry);
+  }, [signOut, router]);
+
+  // 🔥 Auth state is handled via proactive refresh and manual sign out calls.
+  // InsForge SDK does not provide a separate onAuthStateChange listener like Supabase.
+
+
 
   const login = useCallback(async (token: string, authUser: User) => {
     await syncAuthCookies(token, authUser);
@@ -380,7 +409,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [cacheUser, syncAuthCookies]);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isLoading, isInitialized, signIn, signUp, signOut, logout: signOut, refreshUser, login }}>
+    <AuthContext.Provider value={{
+      user,
+      isAdmin,
+      isLoading,
+      isInitialized,
+      signIn,
+      signUp,
+      signOut,
+      logout: signOut,
+      refreshUser,
+      login,
+      isImpersonating,
+      impersonatedUser,
+      adminId
+    }}>
       {children}
     </AuthContext.Provider>
   );

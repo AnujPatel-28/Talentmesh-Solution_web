@@ -109,6 +109,33 @@ export default function AdminCandidatesPage() {
     await updateCandidate(user, { status });
   };
 
+  const handleImpersonate = async (targetUser: AdminCandidate) => {
+    const confirmMsg = `You are about to view the platform as ${targetUser.name} (${targetUser.email}).\n\nAll actions will be READ-ONLY and this session will be logged.\n\nContinue?`;
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch('/api/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: targetUser.id, 
+          userRole: 'candidate' 
+        })
+      });
+
+      if (res.ok) {
+        window.location.href = `/dashboard/candidate/${targetUser.id}`;
+      } else {
+        const err = await res.json();
+        alert(`Impersonation failed: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Impersonation error:', err);
+      alert('Failed to start impersonation session.');
+    }
+  };
+
   const getProfile = (candidate: AdminCandidate): CandidateProfile | null => {
     if (!candidate.candidate_profiles) return null;
     if (Array.isArray(candidate.candidate_profiles)) {
@@ -118,6 +145,36 @@ export default function AdminCandidatesPage() {
   };
 
   const currentProfile = previewUser ? getProfile(previewUser) : null;
+
+  // CSV Export Utility
+  const downloadCSV = (rows: string[][], filename: string) => {
+    const csv = rows.map(r => r.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportCandidatesCSV = (data: AdminCandidate[]) => {
+    const headers = ['Name', 'Email', 'Location', 'Headline', 'Skills', 'Status', 'Active', 'Joined Date']
+    const rows = data.map(c => {
+      const p = getProfile(c)
+      return [
+        c.name || 'Anonymous',
+        c.email,
+        c.location || 'Remote',
+        p?.headline || '',
+        (p?.skills || []).join('; '),
+        c.status,
+        c.is_active ? 'Yes' : 'No',
+        new Date(c.created_at).toLocaleDateString('en-IN')
+      ]
+    })
+    downloadCSV([headers, ...rows], `candidates-export-${Date.now()}.csv`)
+  }
 
   return (
     <section className={styles.page}>
@@ -134,15 +191,20 @@ export default function AdminCandidatesPage() {
       </header>
 
       <div className={styles.toolbarRow}>
-        <form className={styles.toolbar} onSubmit={e => { e.preventDefault(); setPage(0); fetchCandidates(0); }}>
-          <input
-            className={styles.searchInput}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Filter by name, email or keyword..."
-          />
-          <button type="submit" className={styles.primaryButton}>Search</button>
-        </form>
+        <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+          <form className={styles.toolbar} onSubmit={e => { e.preventDefault(); setPage(0); fetchCandidates(0); }}>
+            <input
+              className={styles.searchInput}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Filter by name, email or keyword..."
+            />
+            <button type="submit" className={styles.primaryButton}>Search</button>
+          </form>
+          <button onClick={() => exportCandidatesCSV(candidates)} className={styles.exportBtn}>
+            ↓ Export CSV
+          </button>
+        </div>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -188,7 +250,16 @@ export default function AdminCandidatesPage() {
                       {candidate.is_active ? 'Active' : 'Deactivated'}
                     </span>
                   </div>
-                  <button className={styles.actionBtn}>Open Profile →</button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className={styles.actionBtn} 
+                      style={{ background: '#f1f5f9', color: '#475569' }}
+                      onClick={(e) => { e.stopPropagation(); handleImpersonate(candidate); }}
+                    >
+                      View as User
+                    </button>
+                    <button className={styles.actionBtn}>Open Profile →</button>
+                  </div>
                 </div>
               </article>
             );
@@ -307,6 +378,15 @@ export default function AdminCandidatesPage() {
                     Candidate is awaiting initial profile review.
                   </p>
                 )}
+                <div style={{ marginTop: '1.5rem', display: 'grid' }}>
+                  <button 
+                    className={styles.pageButton} 
+                    style={{ background: '#f8fafc', fontWeight: 700 }}
+                    onClick={() => handleImpersonate(previewUser)}
+                  >
+                    🔍 Enter Impersonation Mode
+                  </button>
+                </div>
               </section>
             </div>
           </div>

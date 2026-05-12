@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { insforge } from '@/lib/insforge';
 import { logAction } from '@/lib/admin/audit';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './mfa-verify.module.css';
@@ -12,31 +13,66 @@ export default function MFAVerifyPage() {
     const router = useRouter();
     const { user } = useAuth();
     const [code, setCode] = useState('');
+    const [factorId, setFactorId] = useState<string | null>(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isBackup, setIsBackup] = useState(false);
     const [attempts, setAttempts] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Fetch the TOTP factor ID on mount
+    useEffect(() => {
+        async function getFactor() {
+            try {
+                const { data, error: factorsError } = await (insforge.auth as any).mfa.listFactors();
+                if (factorsError) throw factorsError;
+
+                const totpFactor = data.all.find(
+                    (f: any) => f.factor_type === 'totp' && f.status === 'verified'
+                );
+
+                if (totpFactor) {
+                    setFactorId(totpFactor.id);
+                } else {
+                    setError('No verified TOTP factor found. Please contact support.');
+                }
+            } catch (err: any) {
+                console.error('MFA Factor error:', err);
+                setError('Failed to initialize MFA. Please refresh or try again.');
+            }
+        }
+        getFactor();
+    }, []);
+
     useEffect(() => {
         if (inputRef.current) inputRef.current.focus();
     }, [isBackup]);
 
     const handleVerify = async (val: string) => {
+        if (!factorId) {
+            setError('MFA session not initialized. Please refresh.');
+            return;
+        }
         if (val.length !== 6 && !isBackup) return;
         
         setIsLoading(true);
         setError('');
 
         try {
-            const res = await fetch('/api/mfa/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: val }),
-            });
-            const payload = await res.json();
+            // Step 1: Create a challenge for the factor
+            const { data: challengeData, error: challengeError } = 
+                await (insforge.auth as any).mfa.challenge({ factorId });
+            
+            if (challengeError) throw challengeError;
 
-            if (!res.ok) {
+            // Step 2: Verify the challenge with the user-provided code
+            const { error: verifyError } = await (insforge.auth as any).mfa.verify({
+                factorId,
+                challengeId: challengeData.id,
+                code: val.trim()
+            });
+
+            if (verifyError) {
                 if (user) {
                     await logAction({
                         adminId: user.id,
@@ -47,9 +83,9 @@ export default function MFAVerifyPage() {
                 const newAttempts = attempts + 1;
                 setAttempts(newAttempts);
                 if (newAttempts >= 5) {
-                    setError(payload.error || 'Too many failed attempts. Account locked for 15 minutes.');
+                    setError('Too many failed attempts. Account locked for 15 minutes.');
                 } else {
-                    setError(payload.error || `Incorrect code. ${5 - newAttempts} attempts remaining.`);
+                    setError(verifyError.message || `Incorrect code. ${5 - newAttempts} attempts remaining.`);
                 }
                 setCode('');
                 return;
@@ -64,10 +100,12 @@ export default function MFAVerifyPage() {
                 });
             }
 
+            // Redirect based on role
             const dest = user?.role === 'super_admin' || user?.role === 'admin'
                        ? '/dashboard/admin'
                        : user?.role === 'recruiter' ? '/dashboard/recruiter' 
-                       : '/dashboard/candidate';
+                       : user?.id ? `/dashboard/candidate/${user.id}` : '/dashboard/candidate';
+            
             router.push(dest);
         } catch (err: any) {
             setError(err.message || 'Verification failed');

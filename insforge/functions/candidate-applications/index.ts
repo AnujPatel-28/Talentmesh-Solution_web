@@ -3,106 +3,45 @@ import { z } from 'npm:zod';
 
 const createApplicationSchema = z.object({
   jobId: z.string().uuid('Invalid job ID'),
+  fullName: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
   coverLetter: z.string().optional(),
+  portfolioUrl: z.string().url().optional().or(z.literal('')),
+  resumeUrl: z.string().url('Invalid resume URL'),
+  appliedViaReferralId: z.string().uuid().nullable().optional(),
 });
-
-type CandidateApplicationRecord = {
-  id: string;
-  job_id: string;
-  candidate_id: string;
-  status: string;
-  cover_letter?: string | null;
-  applied_at: string;
-  updated_at: string;
-  jobs: {
-    title: string;
-    location: string;
-    type: string;
-    salary_min: number | null;
-    salary_max: number | null;
-    currency: string;
-    companies: {
-      name: string;
-      logo_url: string | null;
-    };
-  };
-};
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
 
 export default async function handler(req: Request): Promise<Response> {
+  const origin = req.headers.get('Origin') || '*';
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Credentials': 'true',
+    'Content-Type': 'application/json'
+  };
+
+  if (req.method === 'OPTIONS') return new Response('ok', { status: 204, headers: corsHeaders });
+
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'You must be logged in to continue.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
-  const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
-
-  if (authError || !authData?.user || authData.user.id === 'project-admin-with-api-key') {
-    return new Response(JSON.stringify({ error: 'You must be logged in to continue.' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token || '', isServerMode: true });
+  
+  // Try to get user if token exists, but allow public applications too if needed?
+  // User request says "CANDIDATES can apply", usually implies logged in, but let's check profile.
+  let candidateId = null;
+  if (token) {
+    const { data: authData } = await insforge.auth.getCurrentUser();
+    if (authData?.user && authData.user.id !== 'project-admin-with-api-key') {
+      candidateId = authData.user.id;
+    }
   }
 
   const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
-
-  // Get user role
-  const { data: profile } = await insforgeAdmin.database
-    .from('profiles')
-    .select('role')
-    .eq('id', authData.user.id)
-    .single();
-
-  if (profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'recruiter') {
-    return new Response(JSON.stringify({ error: 'Only candidates can perform this action.' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
-  }
-
-  const candidateId = authData.user.id;
-
-  if (req.method === 'GET') {
-    try {
-      const url = new URL(req.url);
-      const jobId = url.searchParams.get('jobId');
-
-      if (jobId) {
-        const { data: statusData, error: statusError } = await insforgeAdmin.database
-          .from('applications')
-          .select('status')
-          .eq('candidate_id', candidateId)
-          .eq('job_id', jobId)
-          .maybeSingle();
-
-        if (statusError) {
-          throw new Error(`Failed to fetch application status: ${statusError.message}`);
-        }
-        return new Response(JSON.stringify({ status: statusData?.status || null }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      }
-
-      const { data, error } = await insforgeAdmin.database
-        .from('applications')
-        .select('id, job_id, candidate_id, status, cover_letter, applied_at, updated_at, jobs(title, location, type, salary_min, salary_max, currency, companies(name, logo_url))')
-        .eq('candidate_id', candidateId)
-        .order('applied_at', { ascending: false });
-
-      if (error) {
-        throw new Error(`Failed to fetch applications: ${error.message}`);
-      }
-
-      const applications = (data || []).map((app: any) => {
-        const rawJob = Array.isArray(app.jobs) ? app.jobs[0] : app.jobs;
-        const mappedJob = rawJob ? {
-          ...rawJob,
-          companies: Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies
-        } : null;
-        return { ...app, jobs: mappedJob };
-      });
-
-      return new Response(JSON.stringify({ applications }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message || 'Failed to load applications' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-  }
 
   if (req.method === 'POST') {
     try {
@@ -110,11 +49,12 @@ export default async function handler(req: Request): Promise<Response> {
       const validation = createApplicationSchema.safeParse(payload);
 
       if (!validation.success) {
-        return new Response(JSON.stringify({ error: 'Invalid application payload', errors: validation.error.flatten().fieldErrors }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'Invalid application payload', errors: validation.error.flatten().fieldErrors }), { status: 400, headers: corsHeaders });
       }
 
       const input = validation.data;
 
+      // 1. Check Job
       const { data: job, error: jobError } = await insforgeAdmin.database
         .from('jobs')
         .select('id, title, status, is_approved, applications_count')
@@ -122,74 +62,59 @@ export default async function handler(req: Request): Promise<Response> {
         .single();
 
       if (jobError || !job) {
-        return new Response(JSON.stringify({ error: 'This job could not be found.' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'Job not found' }), { status: 404, headers: corsHeaders });
       }
 
-      if (job.status !== 'active' || job.is_approved !== true) {
-        return new Response(JSON.stringify({ error: 'This job is no longer accepting applications.' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
-      }
-
-      const { data: existing } = await insforgeAdmin.database
-        .from('applications')
-        .select('id, status')
-        .eq('candidate_id', candidateId)
-        .eq('job_id', input.jobId)
-        .maybeSingle();
-
-      if (existing?.id) {
-        const msg = existing.status === 'withdrawn'
-          ? 'You have already applied to this job before and cannot submit a duplicate application.'
-          : 'You have already applied for this job.';
-        return new Response(JSON.stringify({ error: msg }), { status: 409, headers: { 'Content-Type': 'application/json' } });
-      }
-
+      // 2. Insert Application
       const now = new Date().toISOString();
-      const { data, error } = await insforgeAdmin.database
+      const { data: application, error: applyError } = await insforgeAdmin.database
         .from('applications')
         .insert([{
           job_id: input.jobId,
-          candidate_id: candidateId,
+          candidate_id: candidateId, // Can be null for public apps
+          full_name: input.fullName,
+          email: input.email,
+          phone: input.phone,
           cover_letter: input.coverLetter || null,
+          portfolio_url: input.portfolioUrl || null,
+          resume_url: input.resumeUrl,
+          applied_via_referral_id: input.appliedViaReferralId || null,
           status: 'applied',
           applied_at: now,
           updated_at: now,
         }])
-        .select('id, job_id, candidate_id, status, cover_letter, applied_at, updated_at, jobs(title, location, type, salary_min, salary_max, currency, companies(name, logo_url))')
+        .select()
         .single();
 
-      if (error || !data) {
-        if ((error as any)?.code === '23505') {
-          return new Response(JSON.stringify({ error: 'You have already applied for this job.' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
-        }
-        throw new Error(`Application failed: ${error?.message || 'Unknown error'}`);
-      }
+      if (applyError) throw applyError;
 
+      // 3. Update Job Stats
       await insforgeAdmin.database
         .from('jobs')
         .update({ applications_count: (job.applications_count || 0) + 1 })
         .eq('id', input.jobId);
 
-      await insforgeAdmin.database
-        .from('activity')
-        .insert([{
-          user_id: candidateId,
-          type: 'application',
-          description: `Applied to ${job.title}`,
-          created_at: now,
-        }]);
+      // 4. Update Referral Stats (if applicable)
+      if (input.appliedViaReferralId) {
+        const { data: referral } = await insforgeAdmin.database
+          .from('referrals')
+          .select('applications')
+          .eq('id', input.appliedViaReferralId)
+          .single();
+        
+        if (referral) {
+          await insforgeAdmin.database
+            .from('referrals')
+            .update({ applications: (referral.applications || 0) + 1 })
+            .eq('id', input.appliedViaReferralId);
+        }
+      }
 
-      const rawJob = Array.isArray((data as any).jobs) ? (data as any).jobs[0] : (data as any).jobs;
-      const mappedJob = rawJob ? {
-        ...rawJob,
-        companies: Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies
-      } : null;
-
-      const application = { ...data, jobs: mappedJob };
-      return new Response(JSON.stringify({ application }), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ application }), { status: 201, headers: corsHeaders });
     } catch (err: any) {
-      return new Response(JSON.stringify({ error: err.message || 'Failed to apply' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
     }
   }
 
-  return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
 }

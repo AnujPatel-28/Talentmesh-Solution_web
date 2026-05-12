@@ -1,7 +1,9 @@
 "use client";
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
+
 import styles from '../../onboarding.module.css';
 
 export default function RecruiterSetup() {
@@ -14,6 +16,25 @@ export default function RecruiterSetup() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
+
+    const { user, isLoading: authLoading } = useAuth();
+
+    React.useEffect(() => {
+        if (authLoading) return;
+        if (!user) {
+            router.replace('/login?redirect=/onboarding/recruiter/setup');
+            return;
+        }
+        if (user.role === 'admin' || user.role === 'super_admin') {
+            router.replace('/dashboard/admin');
+            return;
+        }
+        if (user.role === 'candidate') {
+            router.replace('/dashboard/candidate');
+            return;
+        }
+    }, [user, authLoading, router]);
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));

@@ -116,6 +116,33 @@ export default function AdminRecruitersPage() {
     }
   };
 
+  const handleImpersonate = async (targetUser: AdminRecruiter) => {
+    const confirmMsg = `You are about to view the platform as ${targetUser.name} (${targetUser.email}).\n\nAll actions will be READ-ONLY and this session will be logged.\n\nContinue?`;
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch('/api/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: targetUser.id, 
+          userRole: 'recruiter' 
+        })
+      });
+
+      if (res.ok) {
+        window.location.href = `/dashboard/recruiter/${targetUser.id}`;
+      } else {
+        const err = await res.json();
+        alert(`Impersonation failed: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Impersonation error:', err);
+      alert('Failed to start impersonation session.');
+    }
+  };
+
   const getProfile = (recruiter: AdminRecruiter): RecruiterProfile | null => {
     if (!recruiter.recruiter_profiles) return null;
     if (Array.isArray(recruiter.recruiter_profiles)) {
@@ -123,6 +150,36 @@ export default function AdminRecruitersPage() {
     }
     return recruiter.recruiter_profiles;
   };
+
+  // CSV Export Utility
+  const downloadCSV = (rows: string[][], filename: string) => {
+    const csv = rows.map(r => r.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportRecruitersCSV = (data: AdminRecruiter[]) => {
+    const headers = ['Name', 'Email', 'Company', 'Industry', 'Size', 'Approved', 'Active', 'Joined Date']
+    const rows = data.map(r => {
+      const p = getProfile(r)
+      return [
+        r.name || 'Anonymous',
+        r.email,
+        p?.company_name || 'Individual',
+        p?.industry || '',
+        p?.company_size || '',
+        p?.is_approved ? 'Yes' : 'No',
+        r.is_active ? 'Yes' : 'No',
+        new Date(r.created_at).toLocaleDateString('en-IN')
+      ]
+    })
+    downloadCSV([headers, ...rows], `recruiters-export-${Date.now()}.csv`)
+  }
 
   return (
     <section className={styles.page}>
@@ -159,6 +216,9 @@ export default function AdminRecruitersPage() {
             <option value="pending">Pending Approval</option>
           </select>
           <AdminButton onClick={() => setShowCompanyRegister(true)}>Register Company</AdminButton>
+          <button onClick={() => exportRecruitersCSV(recruiters)} className={styles.exportBtn}>
+            ↓ Export CSV
+          </button>
         </div>
       </div>
 
@@ -204,7 +264,16 @@ export default function AdminRecruitersPage() {
                       {recruiter.is_active ? 'Active Account' : 'Suspended'}
                     </span>
                   </div>
-                  <button className={styles.actionBtn}>Audit Profile →</button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className={styles.actionBtn} 
+                      style={{ background: '#f1f5f9', color: '#475569' }}
+                      onClick={(e) => { e.stopPropagation(); handleImpersonate(recruiter); }}
+                    >
+                      View as User
+                    </button>
+                    <button className={styles.actionBtn}>Audit Profile →</button>
+                  </div>
                 </div>
               </article>
             );
@@ -274,6 +343,15 @@ export default function AdminRecruitersPage() {
                   {getProfile(previewUser)?.website_url && (
                     <div><strong>Website:</strong> <a href={getProfile(previewUser)?.website_url} target="_blank" style={{ color: '#3b82f6' }}>{getProfile(previewUser)?.website_url}</a></div>
                   )}
+                </div>
+                <div style={{ marginTop: '1.5rem', display: 'grid' }}>
+                  <button 
+                    className={styles.pageButton} 
+                    style={{ background: '#f8fafc', fontWeight: 700 }}
+                    onClick={() => handleImpersonate(previewUser)}
+                  >
+                    🔍 Enter Impersonation Mode
+                  </button>
                 </div>
               </section>
 

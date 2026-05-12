@@ -200,6 +200,18 @@
     cursor: pointer;
 }
 
+.sessionExpiredBanner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    text-align: center;
+    font-weight: 500;
+}
+
 /* Social Row */
 .socialRow {
     display: flex;

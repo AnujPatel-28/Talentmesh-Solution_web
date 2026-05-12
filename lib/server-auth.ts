@@ -5,16 +5,6 @@ import { cookies } from 'next/headers';
 
 import type { User } from '@/types/auth';
 
-function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-
-  const envEmails = process.env.ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
-  return envEmails
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(email.toLowerCase());
-}
 
 export async function getServerUser(): Promise<User | null> {
   const cookieStore = await cookies();
@@ -41,15 +31,14 @@ export async function getServerUser(): Promise<User | null> {
     .eq('id', user.id)
     .single();
 
-  // Favor DB profile role, then Auth Metadata role, then email match, then candidate
   const authMetadataRole = (user.metadata as any)?.role;
-  const role = profile?.role || authMetadataRole || (isAdminEmail(user.email) ? 'admin' : 'candidate');
+  const role = profile?.role || authMetadataRole || 'candidate';
 
   return {
     id: user.id,
     email: user.email!,
     name: profile?.name || user.email?.split('@')[0] || '',
-    role: isAdminEmail(user.email) && !['admin', 'super_admin'].includes(role) ? 'admin' : role,
+    role: role,
     avatar_url: profile?.avatar_url || null,
     company_id: profile?.company_id,
     created_at: profile?.created_at,

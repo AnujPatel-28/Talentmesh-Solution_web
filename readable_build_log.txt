@@ -1,0 +1,154 @@
+﻿Γû▓ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 14.2s
+  Running TypeScript ...
+node.exe : Failed to 
+compile.
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Failed    
+ to compile.:Stri    
+ng) [], RemoteEx    
+ception
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+./app/jobs/page.tsx:2
+90:22
+Type error: No 
+overload matches 
+this call.
+  Overload 1 of 2, 
+'(props: { 
+component: 
+ElementType<any, 
+keyof 
+IntrinsicElements>; 
+} & GridBaseProps & 
+{ sx?: 
+SxProps<Theme> | 
+undefined; } & 
+SystemProps<...> & 
+Omit<...>): Element 
+| null', gave the 
+following error.
+    Property 
+'component' is 
+missing in type '{ 
+children: Element[]; 
+item: true; xs: 
+number; md: number; 
+sx: { position: { 
+md: "sticky"; }; 
+top: number; height: 
+string; }; }' but 
+required in type '{ 
+component: 
+ElementType<any, 
+keyof 
+IntrinsicElements>; 
+}'.
+  Overload 2 of 2, 
+'(props: DefaultCompo
+nentProps<GridTypeMap
+<{}, "div">>): 
+Element | null', 
+gave the following 
+error.
+    Type '{ 
+children: Element[]; 
+item: true; xs: 
+number; md: number; 
+sx: { position: { 
+md: "sticky"; }; 
+top: number; height: 
+string; }; }' is not 
+assignable to type 
+'IntrinsicAttributes 
+& GridBaseProps & { 
+sx?: SxProps<Theme> 
+| undefined; } & 
+SystemProps<Theme> & 
+Omit<...>'.
+      Property 
+'item' does not 
+exist on type 
+'IntrinsicAttributes 
+& GridBaseProps & { 
+sx?: SxProps<Theme> 
+| undefined; } & 
+SystemProps<Theme> & 
+Omit<...>'.
+
+[0m [90m 288 
+|[39m               
+  [33m<[39m[33mGri
+d[39m container spac
+ing[33m=[39m{[35m4
+[39m}[33m>[39m
+ [90m 289 |[39m    
+                 
+{[90m/* LEFT 
+SIDEBAR */[39m}
+[31m[1m>[22m[39m
+[90m 290 |[39m      
+               [33m<
+[39m[33mGrid[39m 
+item xs[33m=[39m{[
+35m12[39m} md[33m=
+[39m{[35m3[39m} 
+sx[33m=[39m{{ 
+position[33m:[39m 
+{ md[33m:[39m 
+[32m'sticky'[39m 
+}[33m,[39m 
+top[33m:[39m [35m1
+80[39m[33m,[39m 
+height[33m:[39m [3
+2m'fit-content'[39m 
+}}[33m>[39m
+ [90m     |[39m    
+                  
+[31m[1m^[22m[39m
+ [90m 291 |[39m    
+                     
+[33m<[39m[33mTypog
+raphy[39m variant[3
+3m=[39m[32m"h6"[39
+m fontWeight[33m=[3
+9m{[35m900[39m} 
+sx[33m=[39m{{ 
+mb[33m:[39m [35m2
+[39m[33m,[39m 
+display[33m:[39m [
+32m'flex'[39m[33m,
+[39m alignItems[33m:
+[39m [32m'center'[
+39m[33m,[39m 
+gap[33m:[39m 
+[35m1[39m 
+}}[33m>[39m
+ [90m 292 |[39m    
+                     
+    [33mFilters[39m
+ [90m 293 |[39m    
+                     
+[33m<[39m[33m/[39
+m[33mTypography[39m
+[33m>[39m[0m
+Next.js build worker 
+exited with code: 1 
+and signal: null

@@ -8,9 +8,9 @@
 
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
 .hero {
-    background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--alice-blue, #E3F2FD), var(--light-ice-blue, #F0F7FF));
-    padding: clamp(40px, 8vh, 56px) 16px clamp(32px, 6vh, 48px);
-    border-bottom: 1px solid var(--sky-blue, #90CAF9);
+    background: radial-gradient(circle at 50% -20%, var(--alice-blue, #E3F2FD), var(--background));
+    padding: clamp(80px, 15vh, 120px) 16px clamp(60px, 10vh, 80px);
+    border-bottom: 1px solid rgba(144, 202, 249, 0.2);
 }
 
 .heroContent {
@@ -37,13 +37,22 @@
 .searchCard {
     display: flex;
     align-items: center;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow);
     overflow: hidden;
-    max-width: 780px;
+    max-width: 900px;
     margin: 0 auto;
-    border: 1px solid rgba(144, 202, 249, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    transition: var(--transition-smooth);
+}
+
+.searchCard:focus-within {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--primary-blue);
 }
 
 .searchField {
@@ -401,20 +410,21 @@
 
 .jobCard {
     background: white;
-    border-radius: 14px;
-    border: 1px solid var(--sky-blue, #90CAF9);
-    padding: 20px;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(144, 202, 249, 0.2);
+    padding: 28px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    gap: 20px;
+    transition: var(--transition-smooth);
     cursor: pointer;
+    box-shadow: var(--shadow-sm);
 }
 
 .jobCard:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.10);
-    border-color: rgba(255, 255, 255, 0.8);
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--primary-blue);
 }
 
 .cardTop {

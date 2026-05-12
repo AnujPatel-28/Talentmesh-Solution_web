@@ -1,0 +1,199 @@
+.timelineContainer {
+  padding: 24px 0;
+  width: 100%;
+}
+
+.timeline {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  padding: 24px 0;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.timelineTrack {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e5e7eb;
+  z-index: 0;
+}
+
+.timelineProgress {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  height: 2px;
+  background: #2563EB;
+  z-index: 1;
+  transition: width 0.5s ease;
+}
+
+.stageNode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+}
+
+.nodeCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.3s;
+  background: #fff;
+}
+
+.nodeCircle.completed {
+  background: #2563EB;
+  border: 2px solid #2563EB;
+  color: white;
+}
+
+.nodeCircle.current {
+  background: #eff6ff;
+  border: 2px solid #2563EB;
+  color: #2563EB;
+  animation: pulse 2s infinite;
+}
+
+.nodeCircle.pending {
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  color: #d1d5db;
+}
+
+.nodeCircle.terminal {
+  background: #fee2e2;
+  border: 2px solid #ef4444;
+  color: #ef4444;
+}
+
+.nodeCircle.withdrawn {
+  background: #f3f4f6;
+  border: 2px solid #6b7280;
+  color: #6b7280;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+}
+
+.stageLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stageDate {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 2px;
+  text-align: center;
+}
+
+/* Vertical timeline on mobile */
+@media (max-width: 768px) {
+  .timeline {
+    flex-direction: column;
+    gap: 32px;
+    padding-left: 16px;
+  }
+  
+  .timelineTrack {
+    width: 2px;
+    height: 100%;
+    top: 0;
+    left: 31px;
+  }
+  
+  .timelineProgress {
+    width: 2px;
+    left: 31px;
+    top: 0;
+  }
+  
+  .stageNode {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+    text-align: left;
+    width: 100%;
+  }
+  
+  .stageInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .stageLabel {
+    margin-top: 0;
+    text-align: left;
+    font-size: 14px;
+  }
+  
+  .stageDate {
+    text-align: left;
+    font-size: 12px;
+  }
+}
+
+/* Log Section */
+.logContainer {
+  margin-top: 40px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 24px;
+}
+
+.logTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+}
+
+.logList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.logItem {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #475569;
+  align-items: flex-start;
+}
+
+.logBullet {
+  color: #2563EB;
+  font-weight: bold;
+}
+
+.logDate {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  min-width: 80px;
+}
+
+.logMessage {
+  flex: 1;
+}

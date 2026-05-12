@@ -33,6 +33,8 @@ const STATS = [
     { val: '48hr', label: 'Response Time' },
 ];
 
+import { SectionHeader } from '@/components/ui';
+
 export default function CareerAdvicePage() {
     const [form, setForm] = useState({
         fullName: '', email: '', phone: '', status: '', currentTitle: '', industry: '', expYears: '',
@@ -55,10 +57,12 @@ export default function CareerAdvicePage() {
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroInner}>
-                        <h1 className={styles.heroTitle}>Get Personalised Career Guidance</h1>
-                        <p className={styles.heroSub}>
-                            Not sure where to take your career next? Fill in the form below and a TalentMesh career specialist will personally contact you with tailored advice.
-                        </p>
+                        <SectionHeader
+                            centered
+                            tag="Career Services"
+                            title={<>Expert Guidance for Your <span className="text-gradient">Career Path</span></>}
+                            description="From resume reviews to interview preparation, our experts are here to help you navigate your next big move."
+                        />
                         <div className={styles.trustNote}>
                             <ClockIco />
                             <span>Our team typically responds within <strong>24–48 hours.</strong></span>
@@ -207,7 +211,11 @@ export default function CareerAdvicePage() {
             {/* ── HOW IT WORKS ── */}
             <section className={styles.howSection}>
                 <div className="premium-container">
-                    <h2 className={styles.sectionTitle}>How It Works</h2>
+                    <SectionHeader
+                        centered
+                        tag="Process"
+                        title="How it works"
+                    />
                     <div className={styles.stepsRow}>
                         {STEPS.map((step, idx) => (
                             <React.Fragment key={step.n}>
@@ -226,7 +234,12 @@ export default function CareerAdvicePage() {
             {/* ── TESTIMONIALS ── */}
             <section className={styles.trustSection}>
                 <div className="premium-container">
-                    <h2 className={styles.sectionTitle}>What Candidates Say</h2>
+                    <SectionHeader
+                        centered
+                        tag="Testimonials"
+                        title="What Candidates Say"
+                        description="Trusted by hundreds of professionals seeking their next career milestone."
+                    />
                     <div className={styles.testiGrid}>
                         {TESTIMONIALS.map((t, i) => (
                             <div key={i} className={`${styles.testiCard} glass-card`}>

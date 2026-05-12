@@ -4,3 +4,4 @@ export { default as Marquee } from './Marquee/Marquee';
 export { default as PremiumCardGrid } from './PremiumCardGrid/PremiumCardGrid';
 export { default as ValueShowcase } from './ValueShowcase/ValueShowcase';
 export { default as InfoLayout } from './InfoLayout/InfoLayout';
+export { default as SectionHeader } from './SectionHeader/SectionHeader';

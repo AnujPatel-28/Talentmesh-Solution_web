@@ -61,8 +61,21 @@ export async function inviteAdmin(email: string, invitedByAdminId: string): Prom
       // We don't fail the whole operation if the log insert fails, but it's good to know
     }
 
-    // 4. Update ADMIN_EMAILS env var note
-    console.log('ACTION REQUIRED: Add ' + email + ' to ADMIN_EMAILS env var in Vercel/Production environment.');
+    // 4. Create/Update the profile with admin role
+    const { error: profileError } = await insforgeAdmin.database
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        email,
+        role: 'admin',
+        name: email.split('@')[0],
+        is_onboarded: true
+      }, { onConflict: 'email' });
+
+    if (profileError) {
+      console.error('Error creating admin profile:', profileError.message);
+      return { success: false, error: 'User created but profile role assignment failed: ' + profileError.message };
+    }
 
     return { success: true };
 

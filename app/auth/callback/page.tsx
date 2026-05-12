@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { insforge } from '@/lib/insforge';
+import { insforge, getSession } from '@/lib/insforge';
 
 import { useAuth } from '@/lib/auth/AuthContext';
 
@@ -19,21 +19,17 @@ function AuthCallbackContent() {
         await insforge.auth.getCurrentUser();
 
         // 2. Refresh the session using the httpOnly cookie
-        let { data: sessionData, error } = await insforge.auth.refreshSession();
-        let session = sessionData;
+        let session = await getSession();
 
         // 3. Handle potential CSRF or initial failure
-        if (error || !session) {
-          if (error?.message?.includes('CSRF') || !session) {
-            console.warn('Initial session refresh failed, retrying once...', error?.message);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            ({ data: sessionData, error } = await insforge.auth.refreshSession());
-            session = sessionData;
-          }
+        if (!session) {
+          console.warn('Initial session refresh failed, retrying once...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          session = await getSession();
         }
 
-        if (error || !session) {
-          console.error('Session retrieval error:', error?.message);
+        if (!session) {
+          console.error('Session retrieval error: No session returned after refresh.');
           router.push('/login?error=session_fetch_failed');
           return;
         }

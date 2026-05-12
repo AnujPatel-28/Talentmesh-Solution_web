@@ -16,6 +16,8 @@ const FAQ = [
     { q: 'Can we schedule a live demo?', a: 'Absolutely. Use the form to request a demo and our team will coordinate a session.' },
 ];
 
+import { SectionHeader } from '@/components/ui';
+
 export default function ContactPage() {
     const [open, setOpen] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
@@ -76,11 +78,11 @@ export default function ContactPage() {
 
     return (
         <main className={styles.page}>
-            <PageHeader
-                title="Let's build"
-                highlight="together"
-                description="Have a question or looking for a partnership? Our team is ready to assist you."
-                breadcrumb="Contact Us"
+            <SectionHeader
+                centered
+                tag="Get in Touch"
+                title={<>Let&apos;s Build the Future <span className="text-gradient">Together</span></>}
+                description="Have questions about our architectural approach or need a custom solution? Our team is ready to assist you."
             />
 
             {/* ── Content ── */}
@@ -237,8 +239,12 @@ export default function ContactPage() {
             {/* ── FAQ ── */}
             <AnimateOnScroll animation="fadeUp" delay={100}>
                 <section className={styles.faqSection}>
-                    <div className={styles.faqContainer}>
-                        <h2 className={styles.faqTitle}>Common Questions</h2>
+                <div className="premium-container">
+                    <SectionHeader
+                        centered
+                        tag="Support"
+                        title="Common Questions"
+                    />
                         <div className={styles.faqList}>
                             {FAQ.map((f, i) => (
                                 <div key={i} className={styles.faqItem}>

@@ -50,14 +50,30 @@ async function main() {
       process.exit(1);
     }
 
-    // Since we can't directly set the role via signUp options in some SDK versions,
-    // we assume the 'handle_new_user' trigger or metadata handling is in place.
-    // The user's prompt specifically asked for data: { role: 'admin', name: ADMIN_NAME }
-    // However, @insforge/sdk signUp usually takes (options: { email, password, name, ... })
+    if (!data || !data.user) {
+      console.error('Signup failed: No user data returned');
+      process.exit(1);
+    }
+
+    // 2. Create the profile with admin role
+    const { error: profileError } = await insforge.database
+      .from('profiles')
+      .upsert({
+        id: data.user.id,
+        email,
+        role: 'admin',
+        name: name,
+        is_onboarded: true
+      }, { onConflict: 'email' });
+
+    if (profileError) {
+        console.error('Error creating admin profile:', profileError.message);
+        process.exit(1);
+    }
     
     console.log(`\n✓ Admin account created for ${email}`);
-    console.log(`✓ Add this email to your ADMIN_EMAILS env var: ${email}`);
-    console.log('✓ You can now log in at /admin/login');
+    console.log('✓ Profile set with "admin" role.');
+    console.log('✓ You can now log in at /login');
 
   } catch (err: any) {
     console.error('An unexpected error occurred:', err.message);

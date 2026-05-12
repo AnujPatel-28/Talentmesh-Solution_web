@@ -7,6 +7,8 @@ import styles from './blog.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 import { invokeFunction } from '@/lib/insforge';
 
+import { SectionHeader } from '@/components/ui';
+
 const IconSparkle = () => (
 // ... (omitted icon code for brevity in targetContent but I need to match precisely)
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -67,16 +69,13 @@ export default function BlogPage() {
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroContent}>
-                        <div className={styles.badge}>
-                            <IconSparkle /> Updated Daily • 12.4k Readers
-                        </div>
-                        <h1 className={styles.title}>
-                            Insights &{' '}
-                            <span className={styles.highlight}>perspectives.</span>
-                        </h1>
-                        <p className={styles.description}>
-                            The latest thinking on AI, hiring, and the future of work — from the TalentMesh team and industry leaders.
-                        </p>
+                        <SectionHeader
+                            light
+                            centered
+                            tag="Updated Daily • 12.4k Readers"
+                            title={<>Insights & <span className={styles.highlight}>perspectives.</span></>}
+                            description="The latest thinking on AI, hiring, and the future of work — from the TalentMesh team and industry leaders."
+                        />
                         <div className={styles.searchBar}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />

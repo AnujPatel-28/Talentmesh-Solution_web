@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { insforge } from '@/lib/insforge';
 import styles from './setup-mfa.module.css';
 
 export default function SetupMFAPage() {
@@ -18,24 +19,23 @@ export default function SetupMFAPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
 
-    // 1. Enrollment Initiation — call our API route
+    // 1. Enrollment Initiation — use SDK
     const startEnrollment = async () => {
         setIsLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/mfa/enroll', { method: 'POST' });
-            const data = await res.json();
+            const { data, error: enrollError } = await (insforge.auth as any).mfa.enroll({
+                factorType: 'totp'
+            });
 
-            if (!res.ok) throw new Error(data.error || 'Enrollment failed');
+            if (enrollError) throw enrollError;
 
             setFactorId(data.id);
-            setSecret(data.secret);
-            // Build a QR code image URL from the TOTP URI
-            setQrUri(
-                `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.uri)}`
-            );
+            setSecret(data.totp.secret);
+            setQrUri(data.totp.qr_code);
             setStep('enroll');
         } catch (err: any) {
+            console.error('MFA Enrollment error:', err);
             setError(err.message || 'Failed to start MFA enrollment');
         } finally {
             setIsLoading(false);
@@ -46,7 +46,7 @@ export default function SetupMFAPage() {
         startEnrollment();
     }, []);
 
-    // 2. Verification — call our verify API route
+    // 2. Verification — use SDK challenge/verify
     const handleVerifyEnrollment = async (e: FormEvent) => {
         e.preventDefault();
         if (verifyCode.length !== 6) return;
@@ -55,17 +55,28 @@ export default function SetupMFAPage() {
         setError('');
 
         try {
-            const res = await fetch('/api/mfa/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ factorId, code: verifyCode }),
+            // Step 1: Challenge
+            const { data: challengeData, error: challengeError } = 
+                await (insforge.auth as any).mfa.challenge({ factorId });
+            
+            if (challengeError) throw challengeError;
+
+            // Step 2: Verify
+            const { error: verifyError } = await (insforge.auth as any).mfa.verify({
+                factorId,
+                challengeId: challengeData.id,
+                code: verifyCode.trim()
             });
-            const data = await res.json();
 
-            if (!res.ok) throw new Error(data.error || 'Verification failed');
+            if (verifyError) throw verifyError;
 
-            // Generate and save backup codes
-            await generateBackupCodes();
+            // Optional: Generate backup codes if supported
+            try {
+                await generateBackupCodes();
+            } catch (bErr) {
+                console.warn('Backup codes failed, but MFA enabled:', bErr);
+            }
+            
             setStep('backup');
         } catch (err: any) {
             setError(err.message || 'Verification failed. Try again.');
@@ -75,16 +86,13 @@ export default function SetupMFAPage() {
     };
 
     const generateBackupCodes = async () => {
-        const res = await fetch('/api/mfa/backup-codes', {
-            method: 'POST',
-            credentials: 'include',
+        // Checking if SDK has specific method, else use edge function if available
+        // Based on metadata, there is an edge function slug 'mfa-backup-codes'
+        const { data, error } = await insforge.functions.invoke('mfa-backup-codes', {
+            method: 'POST'
         });
-        const data = await res.json();
 
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to generate backup codes');
-        }
-
+        if (error) throw error;
         setBackupCodes(data.codes || []);
     };
 

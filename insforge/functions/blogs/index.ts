@@ -51,8 +51,8 @@ function serializeBlog(record: BlogRecord) {
   };
 }
 
-const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL');
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY');
+const INSFORGE_URL = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL');
+const INSFORGE_ANON_KEY = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY');
 
 export default async function(req: Request): Promise<Response> {
   const method = req.method;
@@ -66,7 +66,7 @@ export default async function(req: Request): Promise<Response> {
     'Access-Control-Allow-Headers': allowedHeaders,
     'Access-Control-Allow-Credentials': 'true',
     'Vary': 'Origin, Access-Control-Request-Headers',
-    'X-Debug-Version': 'antigravity-v5'
+    'X-Debug-Version': 'antigravity-v8-hardcoded-fix'
   };
 
   if (method === 'OPTIONS') {
@@ -77,9 +77,17 @@ export default async function(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
+  // Use the explicit public backend URL to avoid networking issues in the Edge Function environment
+  // where localhost might not be reachable or correctly configured.
+  const finalUrl = 'https://sytk3jgv.ap-southeast.insforge.app';
+  const finalKey = INSFORGE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2MjA3OTd9.y20o7ymk12fdERo9hJpnv2rI5PjH8a9aaYnpcbTx5Yc';
+
   try {
-    if (!baseUrl || !anonKey) {
-      throw new Error('Server configuration error');
+    console.log('BLOGS FUNCTION INVOKED. URL:', INSFORGE_URL ? 'PRESENT' : 'MISSING', 'KEY:', INSFORGE_ANON_KEY ? 'PRESENT' : 'MISSING');
+    
+    if (!INSFORGE_URL || !INSFORGE_ANON_KEY) {
+      console.error('SERVER CONFIG MISSING. URL:', INSFORGE_URL, 'KEY:', !!INSFORGE_ANON_KEY);
+      throw new Error(`Server configuration error: URL is ${INSFORGE_URL || 'missing'}`);
     }
 
     const url = new URL(req.url);
@@ -91,12 +99,16 @@ export default async function(req: Request): Promise<Response> {
     }
 
     const filters = validation.data;
-    const client = createClient({ baseUrl, anonKey });
+
+    console.log(`[Blogs] Initializing client with explicit public URL: ${finalUrl}`);
+    const client = createClient({ baseUrl: finalUrl, anonKey: finalKey });
 
     const page = filters.page || 0;
     const limit = filters.limit || 20;
     const start = page * limit;
     const end = start + limit - 1;
+
+    console.log(`[Blogs] Querying database: page=${page}, limit=${limit}, range=${start}-${end}`);
 
     let query = client.database
       .from('blog')
@@ -115,14 +127,20 @@ export default async function(req: Request): Promise<Response> {
     const { data, error } = await query.range(start, end);
 
     if (error) {
-      throw new Error(`Failed to fetch blogs: ${error.message}`);
+      console.error('DATABASE ERROR:', error);
+      throw new Error(`Failed to fetch blogs from DB: ${error.message}`);
     }
 
     const blogs = (data || []).map((entry) => serializeBlog(entry as BlogRecord));
+    console.log(`Successfully fetched ${blogs.length} blogs`);
 
     return new Response(JSON.stringify({ blogs }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err: any) {
     console.error('BLOG FUNCTION EXCEPTION:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ 
+      error: err.message || 'Failed',
+      details: err.stack || null,
+      debug: { url: INSFORGE_URL, usedUrl: finalUrl, hasKey: !!INSFORGE_ANON_KEY }
+    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 }

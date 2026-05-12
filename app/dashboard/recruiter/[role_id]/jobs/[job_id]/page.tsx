@@ -54,6 +54,22 @@ export default function RecruiterJobDetails() {
     if (loading) return <div className={styles.loading}>Loading job details...</div>;
     if (!job) return <div>Job not found</div>;
 
+    // Ownership check
+    if (job.recruiter_id !== user?.id) {
+        return (
+            <div style={{ padding: '3rem', textAlign: 'center', background: 'white', borderRadius: 20, border: '1px solid #eef0f2' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem' }}>Access Denied</h2>
+                <p style={{ color: '#64748b', marginBottom: '2rem' }}>You don't have permission to view this job posting.</p>
+                <button 
+                    onClick={() => router.push(`/dashboard/recruiter/${role_id}/jobs`)}
+                    style={{ padding: '0.8rem 1.5rem', background: 'var(--primary-blue)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 600, cursor: 'pointer' }}
+                >
+                    Back to My Jobs
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div style={{ paddingBottom: '3rem' }}>
             <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', marginBottom: '1.5rem', fontWeight: 600 }}>

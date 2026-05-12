@@ -36,52 +36,8 @@ import { insforge } from '@/lib/insforge';
   return data.url;
 }
 */
-/*export async function uploadResume(file: File, userId: string): Promise<string> {
-  // 1. Validate file type
-  if (file.type !== 'application/pdf') {
-    throw new Error('Only PDF resumes are accepted.');
-  }
+// NOTE: uploadResume is now handled via Edge Functions (see below) to bypass SDK limitations with large files.
 
-  // 2. Validate file size
-  const MAX_SIZE = 5 * 1024 * 1024;
-  if (file.size > MAX_SIZE) {
-    throw new Error('File too large. Max 5MB allowed.');
-  }
-
-  // 3. Generate path
-  const path = `${userId}/${Date.now()}_${file.name}`;
-
-  // 4. Ensure session
-  const { data: sessionData } = await insforge.auth.refreshSession();
-  if (!sessionData?.accessToken) {
-    throw new Error('User not authenticated');
-  }
-
-  // 5. Upload file
-  const { error } = await insforge.storage
-    .from('resumes')
-    .upload(path, file);
-
-  if (error) {
-    console.error('Upload error:', error);
-    throw new Error(error.message);
-  }
-
-  // 6. Get public URL (ONLY THIS) fixed again
-  /*const { data: publicUrlData } = insforge.storage
-    .from('resumes')
-    .getPublicUrl(path);
-
-  return publicUrlData.publicUrl;
-  // 6. Get public URL
-   const result = insforge.storage
-       .from('resumes')
-       .getPublicUrl(path);
-
-       const publicUrl = (result as any).data.publicUrl;
-
-       return publicUrl;
-}*/
 export async function uploadResume(file: File, userId: string): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);

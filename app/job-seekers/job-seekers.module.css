@@ -6,9 +6,13 @@
 /* Hero */
 .hero {
     background: var(--deep-navy);
-    padding: clamp(6rem, 15vh, 10rem) 16px clamp(4rem, 10vh, 8rem);
+    padding: clamp(10rem, 25vh, 15rem) 16px clamp(6rem, 15vh, 10rem);
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .hero::before {
@@ -20,7 +24,8 @@
 
 .heroContent {
     position: relative;
-    max-width: 760px;
+    max-width: 900px;
+    z-index: 2;
 }
 
 .badge {
@@ -66,6 +71,7 @@
     display: flex;
     gap: 1.25rem;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .primaryCta {

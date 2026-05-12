@@ -1,0 +1,140 @@
+.container {
+  padding-bottom: 3rem;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.backBtn:hover {
+  color: #1e293b;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+}
+
+.mainCard {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #eef0f2;
+  margin-bottom: 1.5rem;
+}
+
+.jobTitle {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.metaRow {
+  display: flex;
+  gap: 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.descriptionSection {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: #0f172a;
+}
+
+.description {
+  color: #475569;
+  line-height: 1.6;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sideCard {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #eef0f2;
+}
+
+.statValue {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #2563EB;
+}
+
+.statLabel {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.actionBtn {
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 0.8rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.actionBtn:hover {
+  background: #f1f5f9;
+}
+
+.statusCard {
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  color: #92400e;
+}
+
+.statusValue {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  background: #f59e0b;
+  border-radius: 50%;
+}
+
+.loading {
+  padding: 4rem;
+  text-align: center;
+  color: #64748b;
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

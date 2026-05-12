@@ -8,12 +8,43 @@
   gap: 1.25rem;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+  position: relative;
 }
 
 .card:hover {
   border-color: #3b82f6;
   box-shadow: 0 12px 24px rgba(59, 130, 246, 0.08);
   transform: translateY(-2px);
+}
+
+.saveBtn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
+  color: #94a3b8;
+  padding: 0;
+}
+
+.saveBtn:hover {
+  transform: scale(1.1);
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.saveBtn.saved {
+  border-color: #fee2e2;
+  background: #fff1f2;
 }
 
 .cardTop {

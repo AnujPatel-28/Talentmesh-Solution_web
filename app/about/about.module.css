@@ -74,8 +74,8 @@
 
 /* ── Our Story (Split Layout) ── */
 .storySection {
-    padding: clamp(4rem, 12vh, 8rem) 16px;
-    max-width: 1200px;
+    padding: clamp(6rem, 15vh, 10rem) 16px;
+    max-width: var(--container-xl);
     margin: 0 auto;
 }
 

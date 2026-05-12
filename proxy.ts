@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 
 import {
   createServerSessionClient,
-  isWhitelistedAdminEmail,
   normalizeRole,
 } from '@/lib/auth/server-auth';
 
@@ -53,8 +52,7 @@ export async function proxy(request: NextRequest) {
         }
 
         role = normalizeRole(
-          (profile?.role as string | undefined) || (user.metadata?.role as string | undefined) || role,
-          user.email,
+          (profile?.role as string | undefined) || (user.metadata?.role as string | undefined) || role
         );
         mfaEnabled = profile?.mfa_enabled === true;
       }
@@ -105,7 +103,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (!isAdmin && !hasAdminAccessCookie && !isWhitelistedAdminEmail(user.email ?? '')) {
+    if (!isAdmin && !hasAdminAccessCookie) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
 
@@ -151,9 +149,7 @@ export async function proxy(request: NextRequest) {
 
   // Security: Global Admin API Protection
   if (pathname.startsWith('/api/admin') && !isAdmin && !hasAdminAccessCookie) {
-    if (user && !isWhitelistedAdminEmail(user.email ?? '')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   return NextResponse.next();
