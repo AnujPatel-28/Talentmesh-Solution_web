@@ -17,12 +17,29 @@ export default function AdminSetupForm() {
   const [error, setError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(120);
+
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendCooldown]);
+
+  // 2-minute OTP expiration timer
+  useEffect(() => {
+    if (!otpSentAt) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - otpSentAt) / 1000);
+      const remaining = Math.max(0, 120 - elapsed);
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [otpSentAt]);
 
   const getPasswordStrength = (pass: string) => {
     let score = 0;
@@ -77,6 +94,8 @@ export default function AdminSetupForm() {
       // If email verification is required, show OTP step
       if (data?.requireEmailVerification) {
         setStep('otp');
+        setOtpSentAt(Date.now());
+        setTimeLeft(120);
         setResendCooldown(60);
         setIsLoading(false);
         return;
@@ -93,6 +112,10 @@ export default function AdminSetupForm() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (timeLeft <= 0) {
+      setError('Verification code has expired. Please click "Resend Code" to get a new one.');
+      return;
+    }
     setIsLoading(true);
     setError('');
 
@@ -133,6 +156,8 @@ export default function AdminSetupForm() {
 
     try {
       await insforge.auth.resendVerificationEmail({ email });
+      setOtpSentAt(Date.now());
+      setTimeLeft(120);
       setResendCooldown(60);
     } catch (err: any) {
       setError('Failed to resend code. Please try again.');
@@ -200,11 +225,22 @@ export default function AdminSetupForm() {
               autoFocus
             />
           </div>
+          <div style={{ textAlign: 'center', marginTop: '0.5rem', marginBottom: '1rem' }}>
+            {timeLeft > 0 ? (
+              <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                Code expires in <span style={{ fontWeight: 600, color: '#6366f1' }}>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+              </p>
+            ) : (
+              <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 600 }}>
+                Code has expired. Please click "Resend Code" to get a new one.
+              </p>
+            )}
+          </div>
 
           <button
             type="submit"
             className={styles.submitBtn}
-            disabled={isLoading || otp.length < 6}
+            disabled={isLoading || otp.length < 6 || timeLeft <= 0}
           >
             {isLoading ? (
               <>

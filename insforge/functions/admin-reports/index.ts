@@ -12,7 +12,29 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const serviceKey = req.headers.get('x-insforge-service-key') || Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY');
+    const insforge = createClient({ 
+      baseUrl, 
+      anonKey: serviceKey!,
+      edgeFunctionToken: token,
+      isServerMode: true 
+    });
+
+    const { data: { user }, error: authError } = await insforge.auth.getCurrentUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401 });
+    }
+    const userData = { id: user.id };
+
+    const { data: profile } = await insforge.database
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.id)
+      .single();
+
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
 
     // Aggregated metrics for Admin
     const [
@@ -20,30 +42,40 @@ export default async function handler(req: Request): Promise<Response> {
       { count: totalApplications },
       { count: totalCandidates },
       { count: totalRecruiters },
-      { data: appsByStatus },
+      { count: countApplied },
+      { count: countReviewing },
+      { count: countShortlisted },
+      { count: countInterview },
+      { count: countOffer },
+      { count: countRejected },
     ] = await Promise.all([
       insforge.database.from('jobs').select('*', { count: 'exact', head: true }),
       insforge.database.from('applications').select('*', { count: 'exact', head: true }),
       insforge.database.from('candidate_profiles').select('*', { count: 'exact', head: true }),
-      insforge.database.from('company_profiles').select('*', { count: 'exact', head: true }),
-      insforge.database.from('applications').select('status'),
+      insforge.database.from('companies').select('*', { count: 'exact', head: true }),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'applied'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'reviewing'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'shortlisted'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'interview'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'offer'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
     ]);
 
     const funnel = {
       jobsPosted: totalJobs || 0,
       applications: totalApplications || 0,
-      reviewed: appsByStatus?.filter((a: any) => a.status === 'reviewing').length || 0,
-      shortlisted: appsByStatus?.filter((a: any) => a.status === 'shortlisted').length || 0,
-      hired: appsByStatus?.filter((a: any) => a.status === 'offer').length || 0,
+      reviewed: countReviewing || 0,
+      shortlisted: countShortlisted || 0,
+      hired: countOffer || 0,
     };
 
     const statusBreakdown = {
-      applied: appsByStatus?.filter((a: any) => a.status === 'applied').length || 0,
-      reviewing: appsByStatus?.filter((a: any) => a.status === 'reviewing').length || 0,
-      shortlisted: appsByStatus?.filter((a: any) => a.status === 'shortlisted').length || 0,
-      interview: appsByStatus?.filter((a: any) => a.status === 'interview').length || 0,
-      offer: appsByStatus?.filter((a: any) => a.status === 'offer').length || 0,
-      rejected: appsByStatus?.filter((a: any) => a.status === 'rejected').length || 0,
+      applied: countApplied || 0,
+      reviewing: countReviewing || 0,
+      shortlisted: countShortlisted || 0,
+      interview: countInterview || 0,
+      offer: countOffer || 0,
+      rejected: countRejected || 0,
     };
 
     return new Response(JSON.stringify({
@@ -65,6 +97,6 @@ export default async function handler(req: Request): Promise<Response> {
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   } catch (err: any) {
     console.error('Admin Reports Edge Function Error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
   }
 }

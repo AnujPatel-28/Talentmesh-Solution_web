@@ -101,7 +101,7 @@ export default function AdminDashboardPage() {
   return (
     <div className={styles.dash}>
       <div className={styles.greet}>
-        <h1 className={styles.greetTitle}>Welcome back, {user?.name || user?.email?.split('@')[0] || 'Admin'}!</h1>
+        <h1 className={styles.greetTitle}>Welcome back, {user?.name || 'Admin'}!</h1>
         <p className={styles.greetSub}>System Intelligence Overview: Monitor, moderate, and manage your platform ecosystem.</p>
       </div>
 

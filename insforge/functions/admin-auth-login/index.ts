@@ -57,7 +57,14 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: message }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const { data: profile } = await insforge.database
+  const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
+  const adminDb = createClient({
+    baseUrl,
+    anonKey: serviceKey,
+    isServerMode: true
+  });
+
+  const { data: profile } = await adminDb.database
     .from('profiles')
     .select('role, mfa_enabled, status')
     .eq('id', data.user.id)

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import styles from './settings.module.css';
-import { invokeFunction } from '@/lib/insforge';
+import { invokeFunction, insforge } from '@/lib/insforge';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 type PlatformSettings = {
   general: any;
@@ -19,12 +20,20 @@ type AdminMember = {
 };
 
 export default function AdminSettingsPage() {
+  const { user, refreshUser } = useAuth();
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
   const [admins, setAdmins] = useState<AdminMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ text: '', type: '' });
-
+  const [adminName, setAdminName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
   const [newAdminEmail, setNewAdminEmail] = useState('');
+
+  useEffect(() => {
+    if (user?.name) {
+      setAdminName(user.name);
+    }
+  }, [user]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -70,6 +79,29 @@ export default function AdminSettingsPage() {
       }
     } catch (err) {
       setMessage({ text: 'Persistence failure', type: 'error' });
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id) return;
+    setSavingProfile(true);
+    setMessage({ text: '', type: '' });
+    try {
+      const { error } = await insforge.database
+        .from('profiles')
+        .update({ name: adminName })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await refreshUser();
+      setMessage({ text: 'Personal profile updated successfully!', type: 'success' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    } catch (err: any) {
+      setMessage({ text: err.message || 'Profile update failed', type: 'error' });
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -145,6 +177,35 @@ export default function AdminSettingsPage() {
 
       <div className={styles.settingsGrid}>
         <div className={styles.mainCol}>
+          <div className={styles.card}>
+            <h3 className={styles.chartTitle}>Personal Profile Settings</h3>
+            <form onSubmit={handleSaveProfile}>
+              <div className={styles.formGroup}>
+                <label>Full Name</label>
+                <input
+                  className={styles.input}
+                  value={adminName}
+                  onChange={e => setAdminName(e.target.value)}
+                  placeholder="Administrator Name"
+                  required
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Email Address</label>
+                <input
+                  className={styles.input}
+                  style={{ background: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }}
+                  value={user?.email || ''}
+                  disabled
+                />
+                <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>Email cannot be changed here.</span>
+              </div>
+              <button type="submit" className={styles.primaryButton} disabled={savingProfile}>
+                {savingProfile ? 'Saving...' : 'Update Personal Profile'}
+              </button>
+            </form>
+          </div>
+
           <div className={styles.card}>
             <h3 className={styles.chartTitle}>General Configuration</h3>
             <form onSubmit={handleGeneralSave}>

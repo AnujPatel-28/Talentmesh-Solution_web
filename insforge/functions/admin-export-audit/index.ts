@@ -38,16 +38,16 @@ export default async function handler(req: Request): Promise<Response> {
         .order('created_at', { ascending: false });
 
       if (activeTab === 'login') {
-        query = query.ilike('action', '%security%').or('action.ilike.%login%').or('action.ilike.%mfa%');
+        query = query.or('action.ilike.%security%,action.ilike.%login%,action.ilike.%mfa%');
       } else {
         if (adminId) query = query.eq('actor_id', adminId);
         if (from) query = query.gte('created_at', new Date(from).toISOString());
         if (to) query = query.lte('created_at', new Date(to).toISOString());
         
         if (type !== 'all') {
-          if (type === 'user') query = query.ilike('action', '%user%').or('action.ilike.%recruiter%');
+          if (type === 'user') query = query.or('action.ilike.%user%,action.ilike.%recruiter%');
           if (type === 'job') query = query.ilike('action', '%job%');
-          if (type === 'security') query = query.ilike('action', '%security%').or('action.ilike.%login%').or('action.ilike.%mfa%');
+          if (type === 'security') query = query.or('action.ilike.%security%,action.ilike.%login%,action.ilike.%mfa%');
           if (type === 'settings') query = query.ilike('action', '%settings%');
         }
       }

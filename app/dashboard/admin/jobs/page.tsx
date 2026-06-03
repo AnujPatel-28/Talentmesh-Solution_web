@@ -9,6 +9,7 @@ import { AdminInput, AdminSelect, AdminButton } from '../_components/AdminForm';
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter } from 'next/navigation';
+import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
 
 
 type CompanyOption = {
@@ -154,6 +155,8 @@ export default function AdminJobsPage() {
   const [form, setForm] = useState<JobFormState>(defaultFormState);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showJobForm, setShowJobForm] = useState(false);
+  const [showCompanyForm, setShowCompanyForm] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
@@ -257,12 +260,14 @@ export default function AdminJobsPage() {
     setForm(defaultFormState);
     setSuccess('');
     setError('');
+    setShowJobForm(true);
   };
 
   const handleEdit = (job: AdminJob) => {
     setSelectedJob(job);
     setForm(toFormState(job));
     setPreviewJob(null);
+    setShowJobForm(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -370,16 +375,41 @@ export default function AdminJobsPage() {
               )}
             </AdminButton>
             <AdminButton variant="secondary" onClick={() => exportJobsCSV(jobs)}>Export CSV</AdminButton>
-            <AdminButton onClick={resetForm}>Create Live Role</AdminButton>
+            <AdminButton onClick={() => setShowCompanyForm(true)}>+ Add Company</AdminButton>
+            <AdminButton onClick={resetForm}>+ Create Live Role</AdminButton>
           </>
         }
       />
 
       <div className={styles.stats}>
-        <AdminStatCard label="Total Listings" value={totalCount} color="indigo" />
-        <AdminStatCard label="Pending Review" value={summary.pending} color="amber" />
-        <AdminStatCard label="Active Now" value={summary.active} color="emerald" />
-        <AdminStatCard label="Flagged" value={jobs.filter(j => j.status === 'reported').length} color="rose" />
+        <AdminStatCard 
+          label="Total Listings" 
+          value={totalCount} 
+          color="primary"
+          onClick={() => { setFilterStatus('all'); setPage(0); }}
+          isActive={filterStatus === 'all'}
+        />
+        <AdminStatCard 
+          label="Pending Review" 
+          value={summary.pending} 
+          color="primary"
+          onClick={() => { setFilterStatus('pending'); setPage(0); }}
+          isActive={filterStatus === 'pending'}
+        />
+        <AdminStatCard 
+          label="Active Now" 
+          value={summary.active} 
+          color="primary"
+          onClick={() => { setFilterStatus('active'); setPage(0); }}
+          isActive={filterStatus === 'active'}
+        />
+        <AdminStatCard 
+          label="Flagged" 
+          value={jobs.filter(j => j.status === 'reported').length} 
+          color="primary"
+          onClick={() => { setFilterStatus('reported'); setPage(0); }}
+          isActive={filterStatus === 'reported'}
+        />
       </div>
 
       <div className={styles.grid}>
@@ -445,18 +475,23 @@ export default function AdminJobsPage() {
               )}
           </div>
         </div>
+      </div>
 
-        <div className={styles.formPanel}>
-          <div className={styles.formHeader}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
-              {selectedJob ? 'Refine Listing' : 'Platform Injection'}
-            </h2>
-            <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
-              Directly curate global employment data points.
-            </p>
-          </div>
+      {showJobForm && (
+        <div className={styles.drawerOverlay} onClick={() => setShowJobForm(false)}>
+          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
+            <div className={styles.drawerHeader}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+                {selectedJob ? 'Refine Listing' : 'Platform Injection'}
+              </h2>
+              <button className={styles.drawerClose} onClick={() => setShowJobForm(false)}>×</button>
+            </div>
+            <div className={styles.drawerContent}>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                Directly curate global employment data points.
+              </p>
 
-          <div style={{ padding: '0 1.1rem' }}>
+              <div>
             {error && (
               <div className={styles.errorBanner} style={{ marginTop: '1rem' }}>
                 {error}
@@ -604,14 +639,39 @@ export default function AdminJobsPage() {
             </div>
 
             <div className={styles.formActions} style={{ marginTop: '24px' }}>
-              <AdminButton variant="secondary" type="button" onClick={resetForm}>Reset</AdminButton>
+              <AdminButton variant="secondary" type="button" onClick={() => setShowJobForm(false)}>Cancel</AdminButton>
               <AdminButton type="submit" isLoading={saving}>
                 {selectedJob ? 'Update Ecosystem' : 'Inject Listing'}
               </AdminButton>
             </div>
           </form>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {showCompanyForm && (
+        <div className={styles.drawerOverlay} onClick={() => setShowCompanyForm(false)}>
+          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
+            <div className={styles.drawerHeader}>
+              <h2>Register New Company</h2>
+              <button className={styles.drawerClose} onClick={() => setShowCompanyForm(false)}>×</button>
+            </div>
+            <div className={styles.drawerContent} style={{ padding: '2rem' }}>
+              <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '2rem' }}>
+                Establish a new organizational entity before attaching jobs.
+              </p>
+              <CompanyRegisterForm 
+                onSuccess={() => {
+                  setShowCompanyForm(false);
+                  fetchJobs(0);
+                }}
+                onCancel={() => setShowCompanyForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewJob && (
         <div className={styles.drawerOverlay} onClick={() => setPreviewJob(null)}>

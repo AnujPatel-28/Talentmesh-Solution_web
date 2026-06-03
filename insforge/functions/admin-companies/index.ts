@@ -1,11 +1,10 @@
 import { createClient } from 'npm:@insforge/sdk';
 
-// Environment variables from Deno environment
-const INSFORGE_URL = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const INSFORGE_ANON_KEY = Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
-const INSFORGE_ADMIN_KEY = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY'); // Service role key for RLS bypass
-
 export default async function handler(request: Request): Promise<Response> {
+  const INSFORGE_URL = request.headers.get('x-insforge-url') || Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL') || '';
+  const INSFORGE_ANON_KEY = request.headers.get('x-insforge-anon-key') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || '';
+  const INSFORGE_ADMIN_KEY = request.headers.get('x-insforge-service-key') || Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY'); // Service role key for RLS bypass
+
   // CORS Headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -25,32 +24,36 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   try {
-    // 1. Validate the user session via direct REST call (bypass SDK refresh issues)
-    const userRes = await fetch(`${INSFORGE_URL}/api/auth/user`, {
-      headers: { 
-        'Authorization': authHeader,
-        'apikey': INSFORGE_ANON_KEY
-      }
-    });
-
-    if (!userRes.ok) {
-      const errData = await userRes.json();
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: errData }), { status: 401, headers: corsHeaders });
-    }
-
-    const userData = await userRes.json();
-    
-    // Ensure the user is an admin
-    if (userData.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403, headers: corsHeaders });
-    }
-
-    // 2. Initialize Database Client with Admin Key to bypass RLS
     const db = createClient({
       baseUrl: INSFORGE_URL,
-      anonKey: INSFORGE_ADMIN_KEY || INSFORGE_ANON_KEY, // Use service role key if available
+      anonKey: INSFORGE_ADMIN_KEY || INSFORGE_ANON_KEY,
       isServerMode: true
     });
+
+    const rawToken = authHeader.replace(/^Bearer\s+/i, '');
+    let payload;
+    try {
+      const payloadBase64 = rawToken.split('.')[1];
+      payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401, headers: corsHeaders });
+    }
+
+    const userData = { id: payload.sub };
+
+    const { data: profile, error: profileError } = await db.database
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.id)
+      .single();
+
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, profile not found' }), { status: 401, headers: corsHeaders });
+    }
+
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403, headers: corsHeaders });
+    }
 
     const url = new URL(request.url);
     const action = url.searchParams.get('action');

@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@insforge/sdk';
+import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './UniversalSearch.module.css';
 
 const insforge = createClient({
-    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || '',
-    anonKey: process.env.NEXT_PUBLIC_ANON_KEY || ''
+    baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || ''),
+    anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || ''
 });
 
 interface SearchResult {
@@ -21,6 +22,9 @@ interface SearchResult {
 
 export default function UniversalSearch() {
     const router = useRouter();
+    const { user } = useAuth();
+    const isRecruiter = user?.role === 'recruiter';
+    const roleId = user?.role_id || '';
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<{ [key: string]: SearchResult[] }>({});
     const [isFocused, setIsFocused] = useState(false);
@@ -158,20 +162,34 @@ export default function UniversalSearch() {
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            router.push(`/dashboard/admin/search?q=${encodeURIComponent(query)}`);
+            if (isRecruiter && roleId) {
+                router.push(`/dashboard/recruiter/${roleId}/candidates/search?search=${encodeURIComponent(query)}`);
+            } else {
+                router.push(`/dashboard/admin/search?q=${encodeURIComponent(query)}`);
+            }
             setShowDropdown(false);
         }
     };
 
     const handleResultClick = (result: SearchResult) => {
-        const paths: Record<string, string> = {
-            candidate: `/dashboard/admin/candidates/${result.id}`,
-            recruiter: `/dashboard/admin/recruiters/${result.id}`,
-            job: `/dashboard/admin/jobs/${result.id}`,
-            company: `/dashboard/admin/companies/${result.id}`,
-            application: `/dashboard/admin/applications/${result.id}`
-        };
-        router.push(paths[result.type]);
+        if (isRecruiter && roleId) {
+            const paths: Record<string, string> = {
+                candidate: `/dashboard/recruiter/${roleId}/candidates/search?search=${encodeURIComponent(result.title)}`,
+                job: `/dashboard/recruiter/${roleId}/jobs`,
+                company: `/dashboard/recruiter/${roleId}/company`,
+                application: `/dashboard/recruiter/${roleId}/pipeline`
+            };
+            router.push(paths[result.type] || `/dashboard/recruiter/${roleId}`);
+        } else {
+            const paths: Record<string, string> = {
+                candidate: `/dashboard/admin/candidates/${result.id}`,
+                recruiter: `/dashboard/admin/recruiters/${result.id}`,
+                job: `/dashboard/admin/jobs/${result.id}`,
+                company: `/dashboard/admin/companies/${result.id}`,
+                application: `/dashboard/admin/applications/${result.id}`
+            };
+            router.push(paths[result.type]);
+        }
         setShowDropdown(false);
     };
 

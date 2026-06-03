@@ -109,32 +109,7 @@ export default function AdminCandidatesPage() {
     await updateCandidate(user, { status });
   };
 
-  const handleImpersonate = async (targetUser: AdminCandidate) => {
-    const confirmMsg = `You are about to view the platform as ${targetUser.name} (${targetUser.email}).\n\nAll actions will be READ-ONLY and this session will be logged.\n\nContinue?`;
-    
-    if (!window.confirm(confirmMsg)) return;
 
-    try {
-      const res = await fetch('/api/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: targetUser.id, 
-          userRole: 'candidate' 
-        })
-      });
-
-      if (res.ok) {
-        window.location.href = `/dashboard/candidate/${targetUser.id}`;
-      } else {
-        const err = await res.json();
-        alert(`Impersonation failed: ${err.error || 'Unknown error'}`);
-      }
-    } catch (err) {
-      console.error('Impersonation error:', err);
-      alert('Failed to start impersonation session.');
-    }
-  };
 
   const getProfile = (candidate: AdminCandidate): CandidateProfile | null => {
     if (!candidate.candidate_profiles) return null;
@@ -251,13 +226,7 @@ export default function AdminCandidatesPage() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      className={styles.actionBtn} 
-                      style={{ background: '#f1f5f9', color: '#475569' }}
-                      onClick={(e) => { e.stopPropagation(); handleImpersonate(candidate); }}
-                    >
-                      View as User
-                    </button>
+
                     <button className={styles.actionBtn}>Open Profile →</button>
                   </div>
                 </div>
@@ -286,18 +255,64 @@ export default function AdminCandidatesPage() {
             </header>
             
             <div className={styles.drawerContent}>
-              <div className={styles.statusToggle}>
-                <div className={styles.statusLabel}>
+              <div className={styles.statusToggle} style={{ display: 'grid', gap: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
+                <div>
                   <strong>Account Access</strong>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
                     {previewUser.is_active ? 'Candidate can apply and browse jobs.' : 'Candidate access is currently restricted.'}
                   </p>
                 </div>
-                <div 
-                  className={`${styles.toggleSwitch} ${previewUser.is_active ? styles.toggleActive : ''}`}
-                  onClick={() => toggleStatus(previewUser)}
-                >
-                  <div className={styles.toggleKnob} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus(previewUser)}
+                    style={{
+                      flex: 1,
+                      padding: '0.6rem',
+                      background: previewUser.is_active ? '#fee2e2' : '#dcfce7',
+                      color: previewUser.is_active ? '#991b1b' : '#166534',
+                      border: '1px solid',
+                      borderColor: previewUser.is_active ? '#fca5a5' : '#86efac',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    {previewUser.is_active ? '🔴 Deactivate' : '🟢 Activate'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete candidate ${previewUser.name}?\n\nThis will delete their auth account and all database records, and cannot be undone.`)) {
+                        try {
+                          const { error: delError } = await invokeFunction('admin-candidates', {
+                            method: 'DELETE',
+                            queries: { id: previewUser.id }
+                          });
+                          if (delError) throw new Error(delError.message);
+                          alert('Candidate deleted successfully');
+                          setPreviewUser(null);
+                          fetchCandidates();
+                        } catch (err: any) {
+                          alert('Failed to delete candidate: ' + err.message);
+                        }
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '0.6rem',
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    🗑️ Permanent Delete
+                  </button>
                 </div>
               </div>
 
@@ -378,15 +393,7 @@ export default function AdminCandidatesPage() {
                     Candidate is awaiting initial profile review.
                   </p>
                 )}
-                <div style={{ marginTop: '1.5rem', display: 'grid' }}>
-                  <button 
-                    className={styles.pageButton} 
-                    style={{ background: '#f8fafc', fontWeight: 700 }}
-                    onClick={() => handleImpersonate(previewUser)}
-                  >
-                    🔍 Enter Impersonation Mode
-                  </button>
-                </div>
+
               </section>
             </div>
           </div>

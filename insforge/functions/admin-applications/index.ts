@@ -12,19 +12,37 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || anonKey;
+    const serviceKey = req.headers.get('x-insforge-service-key') || Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY');
     const insforge = createClient({ 
       baseUrl, 
-      anonKey: serviceKey,
+      anonKey: serviceKey!,
+      edgeFunctionToken: token,
       isServerMode: true 
     });
+
+    const { data: { user }, error: authError } = await insforge.auth.getCurrentUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401 });
+    }
+    const userData = { id: user.id };
+
+    const { data: profile } = await insforge.database
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.id)
+      .single();
+
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
     
     if (req.method === 'GET') {
       const url = new URL(req.url);
       const search = url.searchParams.get('search');
       const status = url.searchParams.get('status');
       const page = parseInt(url.searchParams.get('page') || '0');
-      const limit = parseInt(url.searchParams.get('limit') || '20');
+      const requestedLimit = parseInt(url.searchParams.get('limit') || '20');
+      const limit = Math.min(requestedLimit, 100);
 
       let query = insforge.database.from('applications').select('*, jobs(title, companies(name)), profiles(name, email)', { count: 'exact' });
 
@@ -45,6 +63,10 @@ export default async function handler(req: Request): Promise<Response> {
        const url = new URL(req.url);
        const id = url.pathname.split('/').pop();
        const body = await req.json();
+       
+       delete body.id;
+       delete body.created_at;
+       delete body.updated_at;
 
        const { data, error } = await insforge.database
          .from('applications')
@@ -73,6 +95,6 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
   } catch (err: any) {
     console.error('Admin Applications Edge Function Error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
   }
 }
