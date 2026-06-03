@@ -54,3 +54,9 @@ next-env.d.ts
 .roo
 .trae
 .windsurf
+bundles/
+playwright-report/
+scratch/
+test-results/
+check_profiles.js
+check_profiles.mjs
