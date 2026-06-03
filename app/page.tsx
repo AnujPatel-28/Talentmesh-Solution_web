@@ -1,4 +1,4 @@
-import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, Industries, JobListings, UserSegments, SuperhumanPowers, FeaturedJobs, FAQ, BlogFeed } from '@/components/sections';
+import { Hero, Features, HowItWorks, Testimonials, Stats, CTA, Industries, JobListings, UserSegments, SuperhumanPowers, FeaturedJobs, FAQ } from '@/components/sections';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 export default function Home() {
@@ -28,9 +28,6 @@ export default function Home() {
       </AnimateOnScroll>
       <AnimateOnScroll animation="fadeUp">
         <Testimonials />
-      </AnimateOnScroll>
-      <AnimateOnScroll animation="scaleUp">
-        <BlogFeed />
       </AnimateOnScroll>
       <AnimateOnScroll animation="scaleUp">
         <CTA />

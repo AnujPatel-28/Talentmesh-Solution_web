@@ -105,9 +105,12 @@
 }
 
 .navLinkActive {
-    background: transparent;
+    background: rgba(0, 123, 255, 0.05);
     color: var(--primary-blue);
     font-weight: 600;
+    border-left: 3px solid var(--primary-blue);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
 .navLinkActive .navIcon {
@@ -153,6 +156,128 @@
     height: 7px;
     background: #ef4444;
     border-radius: 50%;
+}
+
+/* ── Nav Group (accordion) ── */
+.navGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+.navGroupHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.58rem 0.75rem;
+    border-radius: 10px;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    transition: all 0.18s ease;
+    line-height: 1.618;
+    font-family: inherit;
+    position: relative;
+    white-space: nowrap;
+}
+
+.navGroupHeader:hover {
+    background: transparent;
+    color: #334155;
+}
+
+.navGroupHeader:hover .navIcon {
+    color: var(--primary-blue);
+    filter: drop-shadow(0 0 6px rgba(0, 123, 255, 0.5));
+}
+
+.navGroupActive {
+    background: rgba(0, 123, 255, 0.05);
+    color: var(--primary-blue);
+    font-weight: 600;
+    border-left: 3px solid var(--primary-blue);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.navGroupActive .navIcon {
+    color: var(--primary-blue);
+    filter: drop-shadow(0 0 8px rgba(0, 123, 255, 0.6));
+}
+
+/* Chevron rotation */
+.chevron {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    color: #94a3b8;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+/* Sub-item container — CSS height animation */
+.navSubItems {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition:
+        max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.22s ease;
+}
+
+.navSubItemsOpen {
+    max-height: 500px;
+    opacity: 1;
+}
+
+/* Sub-link */
+.navSubLink {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.42rem 0.75rem 0.42rem 2.618rem; /* φ-indent */
+    color: #64748b;
+    text-decoration: none;
+    font-size: 0.76rem;
+    font-weight: 400;
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+    line-height: 1.618;
+}
+
+.navSubLink:hover {
+    background: #f8fafc;
+    color: var(--primary-blue);
+}
+
+.navSubLinkActive {
+    color: var(--primary-blue);
+    font-weight: 600;
+    background: rgba(0, 123, 255, 0.05);
+}
+
+.subDot {
+    color: #cbd5e1;
+    flex-shrink: 0;
+    transition: color 0.15s, filter 0.15s;
+}
+
+.navSubLinkActive .subDot {
+    color: var(--primary-blue);
+    filter: drop-shadow(0 0 6px rgba(0, 123, 255, 0.6));
+}
+
+.navSubLink:hover .subDot {
+    color: var(--primary-blue);
+    filter: drop-shadow(0 0 4px rgba(0, 123, 255, 0.4));
 }
 
 /* Sidebar bottom */
@@ -612,3 +737,5 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* Admin Active Link Style matching candidate layout style but with Admin Theme */

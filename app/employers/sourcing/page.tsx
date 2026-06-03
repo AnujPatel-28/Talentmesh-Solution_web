@@ -28,9 +28,47 @@ const INDUSTRIES = [
 export default function TalentSourcingPage() {
     const [form, setForm] = useState({ company: '', name: '', email: '', roles: '', count: '', industry: '', timeline: '', budget: '', notes: '' });
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); setSubmitted(true); };
+    const handleSubmit = async (e: React.FormEvent) => { 
+        e.preventDefault(); 
+        setIsSubmitting(true);
+        try {
+            const response = await fetch('https://api.web3forms.com/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 'c755ba58-1a02-45d6-b021-3b66f62eb9fb',
+                    subject: `New Sourcing Hiring Brief from ${form.company}`,
+                    from_name: 'TalentMesh Sourcing',
+                    name: form.name,
+                    email: form.email,
+                    company: form.company,
+                    roles: form.roles,
+                    count: form.count,
+                    industry: form.industry,
+                    timeline: form.timeline,
+                    budget: form.budget,
+                    message: form.notes
+                }),
+            });
+
+            if (response.ok) {
+                setSubmitted(true);
+            } else {
+                alert('Something went wrong. Please try again later.');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Something went wrong. Please check your connection.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <main className={styles.page}>
@@ -133,7 +171,9 @@ export default function TalentSourcingPage() {
                                     <div className={styles.field}><label className={styles.lbl}>Budget Range <em className={styles.opt}>(optional)</em></label><input className={`${styles.input} ${styles.dashed}`} placeholder="e.g. $80k–$120k per hire" value={form.budget} onChange={e => set('budget', e.target.value)} /></div>
                                 </div>
                                 <div className={styles.field}><label className={styles.lbl}>Anything else we should know? <em className={styles.opt}>(optional)</em></label><textarea className={styles.textarea} rows={4} placeholder="Culture fit, deal-breakers, remote policy, etc." value={form.notes} onChange={e => set('notes', e.target.value)} /></div>
-                                <button type="submit" className={styles.submitBtn}>Submit My Hiring Brief</button>
+                                <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                                    {isSubmitting ? 'Submitting...' : 'Submit My Hiring Brief'}
+                                </button>
                             </form>
                         )}
                     </div>

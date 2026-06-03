@@ -1,13 +1,14 @@
 "use client";
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { GlobalErrorBoundary } from '@/components/GlobalErrorBoundary';
 import { useSearch, SearchProvider } from '@/context/SearchContext';
 import SearchOverlay from '@/components/candidate/SearchOverlay';
 import CenteredLoader from '@/components/ui/CenteredLoader';
-import { insforge, invokeFunction } from '@/lib/insforge';
+import { insforge, invokeFunction, directInsforge } from '@/lib/insforge';
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner';
 
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
@@ -140,32 +141,91 @@ const Icons = {
             <line x1="2" x2="22" y1="10" y2="10" />
         </svg>
     ),
+    building: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+            <path d="M9 22v-4h6v4" /><path d="M8 6h.01" /><path d="M16 6h.01" /><path d="M12 6h.01" /><path d="M12 10h.01" /><path d="M12 14h.01" /><path d="M16 10h.01" /><path d="M16 14h.01" /><path d="M8 10h.01" /><path d="M8 14h.01" />
+        </svg>
+    ),
+    fileText: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+        </svg>
+    ),
 };
 
+const ChevronDown = (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
+const DotIcon = (
+    <svg width="5" height="5" viewBox="0 0 5 5" fill="currentColor"><circle cx="2.5" cy="2.5" r="2.5" /></svg>
+);
+
+const PipelineIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /><path d="M15 3v18" />
+    </svg>
+);
+
+const PlugIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22v-5" /><path d="M9 8V2" /><path d="M15 8V2" /><path d="M18 8H6a2 2 0 0 0-2 2v3a6 6 0 0 0 12 0v-3a2 2 0 0 0-2-2Z" />
+    </svg>
+);
+
 /* ─── Nav Definitions ─── */
-interface NavItem { label: string; href: string; icon: React.ReactNode; badge?: number; badgeType?: 'primary' | 'red' }
+interface NavChild { label: string; href: string; }
+interface NavItem { label: string; href: string; icon: React.ReactNode; badge?: number; badgeType?: 'primary' | 'red'; id?: string; children?: NavChild[]; }
 
 const getCandidateNav = (role_id: string, nviteCount?: number, offerCount?: number): NavItem[] => [
-    { label: 'Home', href: `/dashboard/candidate/${role_id}`, icon: Icons.home },
-    { label: 'NVite', href: `/candidate/nvite`, icon: Icons.envelopeStar, badge: nviteCount && nviteCount > 0 ? nviteCount : undefined },
-    { label: 'Offers', href: `/candidate/offers`, icon: Icons.sparkles, badge: offerCount && offerCount > 0 ? offerCount : undefined, badgeType: 'red' },
-    { label: 'Jobs', href: `/dashboard/candidate/${role_id}/jobs`, icon: Icons.briefcase },
-    { label: 'Saved Jobs', href: `/dashboard/candidate/${role_id}/saved-jobs`, icon: Icons.bookmark },
-    { label: 'Job Alerts', href: `/candidate/alerts`, icon: Icons.bell },
-    { label: 'Applications', href: `/dashboard/candidate/${role_id}/applications`, icon: Icons.clipboard, badge: 5 },
+    { label: 'Dashboard', href: `/dashboard/candidate/${role_id}`, icon: Icons.home },
+    { label: 'Find Jobs', href: `/dashboard/candidate/${role_id}/jobs`, icon: Icons.briefcase },
+    { label: 'My Applications', href: `/dashboard/candidate/${role_id}/applications`, icon: Icons.clipboard, badge: 5 },
+    { label: 'NVite Inbox', href: `/candidate/nvite`, icon: Icons.nvite, badge: nviteCount },
+    { label: 'Referrals', href: `/dashboard/candidate/${role_id}/referrals`, icon: Icons.gift },
     { label: 'Messages', href: `/dashboard/candidate/${role_id}/messages`, icon: Icons.messageSquare, badge: 3 },
-    { label: 'Analytics', href: `/dashboard/candidate/${role_id}/analytics`, icon: Icons.barChart },
-    { label: 'Referrals', href: `/dashboard/candidate/${role_id}/referrals`, icon: Icons.activity },
+    { label: 'My Profile', href: `/dashboard/candidate/${role_id}/profile`, icon: Icons.users },
+    { label: 'My Resumes', href: `/dashboard/candidate/${role_id}/resumes`, icon: Icons.fileText },
 ];
 
-const RECRUITER_NAV: NavItem[] = [
-    { label: 'Home', href: '/dashboard/recruiter', icon: Icons.home },
-    { label: 'Job Postings', href: '/dashboard/recruiter/jobs', icon: Icons.edit, badge: 8 },
-    { label: 'Candidates', href: '/dashboard/recruiter/candidates', icon: Icons.users, badge: 12 },
-    { label: 'NVite', href: '/recruiter/nvite', icon: Icons.nvite },
-    { label: 'Offers', href: '/dashboard/recruiter/offers', icon: Icons.gift },
-    { label: 'Interviews', href: '/dashboard/recruiter/interviews', icon: Icons.calendar, badge: 2 },
-    { label: 'Reports', href: '/dashboard/recruiter/reports', icon: Icons.pieChart },
+const getRecruiterNav = (roleId: string): NavItem[] => [
+    { label: 'Home', href: `/dashboard/recruiter/${roleId}`, icon: Icons.home, id: 'home' },
+    {
+        label: 'Jobs', href: `/dashboard/recruiter/${roleId}/jobs`, icon: Icons.edit, id: 'jobs',
+        children: [
+            { label: 'All Job Postings', href: `/dashboard/recruiter/${roleId}/jobs` },
+            { label: 'Create Job', href: `/dashboard/recruiter/${roleId}/jobs/post-job` },
+            { label: 'Draft Jobs', href: `/dashboard/recruiter/${roleId}/jobs/drafts` },
+            { label: 'Published Jobs', href: `/dashboard/recruiter/${roleId}/jobs/published` },
+            { label: 'Expired Jobs', href: `/dashboard/recruiter/${roleId}/jobs/expired` },
+            { label: 'Job Templates', href: `/dashboard/recruiter/${roleId}/jobs/templates` },
+        ],
+    },
+    {
+        label: 'Candidates', href: `/dashboard/recruiter/${roleId}/candidates`, icon: Icons.users, id: 'candidates',
+        children: [
+            { label: 'Candidate List', href: `/dashboard/recruiter/${roleId}/candidates` },
+            { label: 'Candidate Search', href: `/dashboard/recruiter/${roleId}/candidates/search` },
+            { label: 'Saved Candidates', href: `/dashboard/recruiter/${roleId}/candidates/saved` },
+            { label: 'Shortlisted', href: `/dashboard/recruiter/${roleId}/candidates/shortlisted` },
+        ],
+    },
+    { label: 'Hiring Pipeline', href: `/dashboard/recruiter/${roleId}/pipeline`, icon: PipelineIcon, id: 'pipeline' },
+    { label: 'NVite', href: `/dashboard/recruiter/${roleId}/nvite`, icon: Icons.nvite, id: 'nvite' },
+    { label: 'Interviews', href: `/dashboard/recruiter/${roleId}/interviews`, icon: Icons.calendar, id: 'interviews' },
+    {
+        label: 'Communication', href: `/dashboard/recruiter/${roleId}/messages`, icon: Icons.messageSquare, id: 'communication',
+        children: [
+            { label: 'Inbox', href: `/dashboard/recruiter/${roleId}/messages` },
+            { label: 'Notifications', href: `/dashboard/recruiter/${roleId}/notifications` },
+        ],
+    },
+    { label: 'Offers', href: `/dashboard/recruiter/${roleId}/offers`, icon: Icons.gift, id: 'offers' },
+    { label: 'Reports', href: `/dashboard/recruiter/${roleId}/reports`, icon: Icons.pieChart, id: 'reports' },
+    { label: 'Integrations', href: `/dashboard/recruiter/${roleId}/integrations`, icon: PlugIcon, id: 'integrations' },
 ];
 
 const SUPER_ADMIN_NAV = (counts?: { jobs: number, candidates: number, recruiters: number, pendingJobs: number }): NavItem[] => [
@@ -174,12 +234,14 @@ const SUPER_ADMIN_NAV = (counts?: { jobs: number, candidates: number, recruiters
     { label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, badge: counts?.jobs || undefined },
     { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: counts?.candidates || undefined },
     { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: Icons.recruiter, badge: counts?.recruiters || undefined },
+    { label: 'Companies', href: '/dashboard/admin/companies', icon: Icons.building },
     { label: 'Announcements', href: '/dashboard/admin/announcements', icon: Icons.megaphone },
-    { label: 'User Impersonation', href: '/dashboard/admin/impersonate', icon: Icons.users },
     { label: 'Email Templates', href: '/dashboard/admin/email-templates', icon: Icons.envelope },
     { label: 'Subscription Plans', href: '/dashboard/admin/plans', icon: Icons.creditCard },
+    { label: 'Billing / Invoices', href: '/dashboard/admin/billing', icon: Icons.creditCard },
     { label: 'Blogs', href: '/dashboard/admin/blogs', icon: Icons.bookOpen },
     { label: 'Reports', href: '/dashboard/admin/reports', icon: Icons.pieChart },
+    { label: 'Audit Logs', href: '/dashboard/admin/audit-logs', icon: Icons.fileText },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -194,17 +256,19 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const { user: authUser, isAdmin, signOut, isLoading, isInitialized } = useAuth();
-    const isSuperAdmin = pathname.includes('/dashboard/admin');
-    const isRecruiter = pathname.includes('/dashboard/recruiter');
+    const isSuperAdmin = isAdmin || authUser?.role === 'admin' || authUser?.role === 'super_admin' || pathname.includes('/dashboard/admin') || pathname.includes('/admin/dashboard');
+    const isRecruiter = authUser?.role === 'recruiter' || pathname.includes('/dashboard/recruiter') || pathname.includes('/recruiter/dashboard');
     const { openSearch } = useSearch();
     const [isSigningOut, setIsSigningOut] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
     const [adminCounts, setAdminCounts] = useState({ jobs: 0, candidates: 0, recruiters: 0, pendingJobs: 0 });
     const [nviteCount, setNviteCount] = useState(0);
     const [offerCount, setOfferCount] = useState(0);
     const [notifCount, setNotifCount] = useState(0);
+    const isImpersonating = typeof window !== 'undefined' ? document.cookie.includes('tm_impersonating_user_id=') : false;
 
     React.useEffect(() => {
         if (!isInitialized || !authUser) return;
@@ -225,7 +289,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 } else if (isRecruiter) {
                     const { data } = await invokeFunction('recruiter-dashboard');
                     if (data) {
-                        setAdminCounts({ jobs: data.activeJobsCount || 0, candidates: data.totalApplications || 0, recruiters: 0 });
+                        setAdminCounts({ jobs: data.activeJobsCount || 0, candidates: data.totalApplications || 0, recruiters: 0, pendingJobs: 0 });
                     }
                 } else {
                     const { data } = await invokeFunction('candidate-dashboard');
@@ -233,22 +297,24 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         setNotifCount(data.appCount || 0);
                     }
                     
-                    // Fetch NVite count
-                    const { data: profile } = await insforge.database.from('candidate_profiles').select('id').eq('user_id', authUser.id).single();
+                    // Fetch NVite and Offer unread counts dynamically
+                    const { data: profile } = await insforge.database.from('candidate_profiles').select('id').eq('id', authUser.id).single();
                     if (profile) {
-                        const { count } = await insforge.database
+                        const { count: nviteUnread } = await insforge.database
                             .from('nvites')
                             .select('*', { count: 'exact', head: true })
                             .eq('candidate_id', profile.id)
                             .eq('status', 'sent');
-                        setNviteCount(count || 0);
-                        localStorage.setItem('nvite_unread_count', (count || 0).toString());
-                        const { count: offerBadge } = await insforge.database
+
+                        const { count: offerUnread } = await insforge.database
                             .from('offers')
                             .select('*', { count: 'exact', head: true })
                             .eq('candidate_id', profile.id)
                             .in('status', ['sent', 'viewed']);
-                        setOfferCount(offerBadge || 0);
+
+                        setNviteCount(nviteUnread || 0);
+                        localStorage.setItem('nvite_unread_count', (nviteUnread || 0).toString());
+                        setOfferCount(offerUnread || 0);
                     }
                 }
             } catch (err) {
@@ -268,20 +334,33 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         let active = true;
         const setupRealtime = async () => {
             try {
+                // Extract token for realtime auth
+                const tokenMatch = typeof document !== 'undefined' ? document.cookie.match(/tm_access_token=([^;]+)/) : null;
+                let token = tokenMatch ? tokenMatch[1] : null;
+                if (token && token.startsWith('Bearer%20')) {
+                    token = decodeURIComponent(token).substring(7);
+                }
+
+                // Use directInsforge to bypass Next.js API proxy which doesn't support WebSockets well
+                if (token) {
+                    // Set auth token before connecting if we have one
+                    // directInsforge.realtime.setAuth(token); // Usually needed if RLS is on channels
+                }
+
                 // Ensure connect() doesn't block forever
-                const connectPromise = insforge.realtime.connect();
+                const connectPromise = directInsforge.realtime.connect();
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Realtime timeout')), 8000));
                 
                 await Promise.race([connectPromise, timeoutPromise]);
 
                 if (isAdmin) {
-                    await insforge.realtime.subscribe('admin:alerts');
-                    insforge.realtime.on('new_alert', () => {
+                    await directInsforge.realtime.subscribe('admin:alerts');
+                    directInsforge.realtime.on('new_alert', () => {
                         if (active) setNotifCount(prev => prev + 1);
                     });
                 } else if (authUser?.id) {
-                    await insforge.realtime.subscribe(`user:${authUser.id}`);
-                    insforge.realtime.on('new_notification', () => {
+                    await directInsforge.realtime.subscribe(`user:${authUser.id}`);
+                    directInsforge.realtime.on('new_notification', () => {
                         if (active) setNotifCount(prev => prev + 1);
                     });
                 }
@@ -315,10 +394,34 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     ) || '';
 
     const roleId = authUser?.id || roleIdFromPath;
-    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV(adminCounts) : isRecruiter ? RECRUITER_NAV : getCandidateNav(roleId, nviteCount, offerCount);
+    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV(adminCounts) : isRecruiter ? getRecruiterNav(roleId) : getCandidateNav(roleId, nviteCount, offerCount);
+
+    /* Auto-open the accordion group that contains the active route (recruiter) */
+    useEffect(() => {
+        if (!isRecruiter) return;
+        const toOpen = new Set<string>();
+        for (const item of navItems) {
+            if (item.children?.some(c => pathname.startsWith(c.href.replace(/\/$/, '')))) {
+                toOpen.add(item.id || item.label);
+            }
+        }
+        if (toOpen.size > 0) {
+            setOpenGroups(prev => new Set([...prev, ...toOpen]));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pathname, roleId, isRecruiter]);
+
+    const toggleGroup = useCallback((id: string) => {
+        setOpenGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
 
     const user = {
-        name: authUser?.name || authUser?.email?.split('@')[0] || 'User',
+        name: authUser?.name || 'User',
         initials: (authUser?.name?.split(' ').map(n => n[0]).join('') || 'U').toUpperCase(),
         email: authUser?.email || ''
     };
@@ -360,7 +463,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         // Prevent redirect while loading
         if (!isInitialized) return;
 
-        const isDedicatedBranch = pathname.startsWith('/dashboard/admin') || pathname.startsWith('/dashboard/recruiter');
+        const isDedicatedBranch = 
+            pathname.startsWith('/dashboard/admin') || 
+            pathname.startsWith('/dashboard/recruiter') ||
+            pathname.startsWith('/admin') ||
+            pathname.startsWith('/recruiter');
         const hasToken = typeof window !== 'undefined' && document.cookie.includes('tm_access_token');
 
         // Only redirect if we are sure there is no session
@@ -370,11 +477,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     }, [isLoading, authUser, router, pathname]);
 
 
-    const isRecruiterBranch = pathname.startsWith('/dashboard/recruiter');
-
-    if (isRecruiterBranch) {
-        return <>{children}</>;
-    }
 
     // Shell rendering logic
     const renderContent = () => {
@@ -386,7 +488,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         }
         
         return (
-            <>
+            <GlobalErrorBoundary>
                 {isImpersonating && (
                     <ImpersonationBanner 
                         userName={authUser.name || 'User'} 
@@ -395,11 +497,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     />
                 )}
                 {children}
-            </>
+            </GlobalErrorBoundary>
         );
     };
 
-    const homeUrl = isSuperAdmin ? '/dashboard/admin' : isRecruiter ? '/dashboard/recruiter' : authUser ? `/dashboard/candidate/${roleId}` : '/';
+    const homeUrl = isSuperAdmin ? '/dashboard/admin' : isRecruiter ? `/dashboard/recruiter/${roleId}` : authUser ? `/dashboard/candidate/${roleId}` : '/';
 
     return (
         <div className={styles.shell}>
@@ -421,7 +523,72 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
                 <nav className={styles.nav}>
                     {navItems.map(item => {
-                        const active = pathname === item.href;
+                        const normPathname = (pathname.replace(/\/$/, '') || '/').replace('/admin/dashboard', '/dashboard/admin');
+                        const cleanItemHref = item.href.replace(/\/$/, '') || '/';
+                        const isDashboardHome = cleanItemHref === `/dashboard/candidate/${roleId}` || cleanItemHref === `/dashboard/recruiter/${roleId}` || cleanItemHref === '/dashboard/admin';
+                        const cleanPathname = normPathname
+                            .replace(`/dashboard/candidate/${roleId}`, '/candidate/dashboard')
+                            .replace(`/dashboard/recruiter/${roleId}`, '/recruiter/dashboard');
+                        const cleanHref = cleanItemHref
+                            .replace(`/dashboard/candidate/${roleId}`, '/candidate/dashboard')
+                            .replace(`/dashboard/recruiter/${roleId}`, '/recruiter/dashboard');
+
+                        /* ── Accordion group (has children) ── */
+                        if (item.children && item.children.length > 0) {
+                            const groupId = item.id || item.label;
+                            const isOpen = openGroups.has(groupId);
+                            const anyChildActive = item.children.some(c => {
+                                const ch = (c.href.replace(/\/$/, '') || '')
+                                    .replace(`/dashboard/candidate/${roleId}`, '/candidate/dashboard')
+                                    .replace(`/dashboard/recruiter/${roleId}`, '/recruiter/dashboard');
+                                return cleanPathname === ch || cleanPathname.startsWith(ch + '/');
+                            });
+                            return (
+                                <div key={groupId} className={styles.navGroup}>
+                                    <button
+                                        className={`${styles.navGroupHeader} ${anyChildActive ? styles.navGroupActive : ''}`}
+                                        onClick={() => toggleGroup(groupId)}
+                                        aria-expanded={isOpen}
+                                        title={collapsed ? item.label : undefined}
+                                    >
+                                        <span className={styles.navIcon}>{item.icon}</span>
+                                        {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+                                        {!collapsed && (
+                                            <span className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}>
+                                                {ChevronDown}
+                                            </span>
+                                        )}
+                                    </button>
+                                    {!collapsed && (
+                                        <div className={`${styles.navSubItems} ${isOpen ? styles.navSubItemsOpen : ''}`}>
+                                            {item.children.map(child => {
+                                                const ch = (child.href.replace(/\/$/, '') || '')
+                                                    .replace(`/dashboard/candidate/${roleId}`, '/candidate/dashboard')
+                                                    .replace(`/dashboard/recruiter/${roleId}`, '/recruiter/dashboard');
+                                                const childActive = cleanPathname === ch || cleanPathname.startsWith(ch + '/');
+                                                return (
+                                                    <Link
+                                                        key={child.href}
+                                                        href={child.href}
+                                                        className={`${styles.navSubLink} ${childActive ? styles.navSubLinkActive : ''}`}
+                                                        onClick={() => setMobileOpen(false)}
+                                                    >
+                                                        <span className={styles.subDot}>{DotIcon}</span>
+                                                        {child.label}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
+
+                        /* ── Flat link (no children) ── */
+                        const active = isDashboardHome 
+                            ? (cleanPathname === cleanHref || normPathname === cleanItemHref)
+                            : (cleanPathname.startsWith(cleanHref) && (cleanPathname === cleanHref || cleanPathname.slice(cleanHref.length)[0] === '/'));
+
                         return (
                             <Link
                                 key={item.href}
@@ -453,7 +620,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         </div>
                     )}
                     <Link
-                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : `/dashboard/candidate/${roleId}/settings`}
+                        href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? `/dashboard/recruiter/${roleId}/settings` : `/dashboard/candidate/${roleId}/settings`}
                         className={styles.navLink}
                         onClick={() => setMobileOpen(false)}
                     >
@@ -525,7 +692,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     </button>
                     <h1 className={styles.pageTitle}>{pageTitle}</h1>
                     <div className={styles.topRight}>
-                        {isSuperAdmin ? (
+                        {(isSuperAdmin || isRecruiter) ? (
                             <UniversalSearch />
                         ) : (
                             <div className={styles.searchBox} onClick={openSearch} style={{ cursor: 'pointer' }}>
@@ -558,7 +725,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                         )}
                                     </div>
                                     <Link
-                                        href={isSuperAdmin ? '/dashboard/admin/notifications' : isRecruiter ? '/dashboard/recruiter/notifications' : `/dashboard/candidate/${roleId}/notifications`}
+                                        href={isSuperAdmin ? '/dashboard/admin/notifications' : isRecruiter ? `/dashboard/recruiter/${roleId}/notifications` : `/dashboard/candidate/${roleId}/notifications`}
                                         className={styles.notifFooter}
                                         onClick={() => setIsNotifOpen(false)}
                                     >
@@ -568,14 +735,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                             )}
                         </div>
                         <Link
-                            href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? '/dashboard/recruiter/settings' : `/dashboard/candidate/${roleId}/profile`}
+                            href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? `/dashboard/recruiter/${roleId}/settings` : `/dashboard/candidate/${roleId}/profile`}
                             className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : ''}`}
                         >
                             {user.initials}
                         </Link>
                     </div>
                 </header>
-                {!isAdmin && <AnnouncementBanner role="candidate" />}
+                {!isAdmin && <AnnouncementBanner role={isRecruiter ? 'recruiter' : 'candidate'} />}
                 <main className={styles.content}>
                     {renderContent()}
                 </main>

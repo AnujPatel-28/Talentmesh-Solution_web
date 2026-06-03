@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import styles from '../utility.module.css';
+import styles from '@/app/utility.module.css';
 
 export default function UnderConstructionPage() {
     return (

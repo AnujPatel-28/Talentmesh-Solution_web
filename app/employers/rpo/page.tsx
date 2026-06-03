@@ -161,6 +161,7 @@ export default function RPOPage() {
     const [form, setForm] = useState(DEFAULTS);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const set = (k: keyof typeof DEFAULTS, v: string) => {
         setForm(p => ({ ...p, [k]: v }));
@@ -175,12 +176,45 @@ export default function RPOPage() {
         return e;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const errs = validate();
         if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-        setSubmitted(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        setIsSubmitting(true);
+        try {
+            const response = await fetch('https://api.web3forms.com/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 'c755ba58-1a02-45d6-b021-3b66f62eb9fb',
+                    subject: `New RPO Strategy Call Request from ${form.name}`,
+                    from_name: 'TalentMesh RPO',
+                    name: form.name,
+                    email: form.email,
+                    company: form.company,
+                    phone: form.phone,
+                    hiringVolume: form.hiringVolume,
+                    timeline: form.timeline,
+                    message: form.notes
+                }),
+            });
+
+            if (response.ok) {
+                setSubmitted(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                alert('Something went wrong. Please try again later.');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Something went wrong. Please check your connection.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -472,8 +506,8 @@ export default function RPOPage() {
                                     value={form.notes} onChange={e => set('notes', e.target.value)} />
                             </div>
 
-                            <button type="submit" className={styles.submitBtn}>
-                                <IconSparkle /> Book My Strategy Call
+                            <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                                {isSubmitting ? 'Submitting...' : <><IconSparkle /> Book My Strategy Call</>}
                             </button>
                             <p className={styles.submitNote}>Our team will be in touch within <strong>24 hours.</strong></p>
                         </form>

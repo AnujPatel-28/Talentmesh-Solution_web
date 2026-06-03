@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './notification-center.module.css';
 import { formatDistanceToNow } from 'date-fns';
+import { useRealTimeNotifications, NotificationData } from '@/lib/hooks/useRealTimeNotifications';
 
 type Notification = {
     id: string;
@@ -16,52 +17,30 @@ type Notification = {
     folder: 'inbox' | 'archived';
 };
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-    {
-        id: '1',
-        senderName: 'System Alerts',
-        senderEmail: 'noreply@talentmesh.com',
-        subject: 'New Candidate Match',
-        snippet: 'A top candidate matching your Sr. React Developer role was just found...',
-        body: 'Hello,\n\nWe found a highly matching candidate for your Senior React Developer position. Their AI Karma score is 95% based on your job description requirements.\n\nPlease log in to review their profile and initiate an interview process.\n\nBest,\nTalentMesh System',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15), // 15 mins ago
-        read: false,
-        folder: 'inbox'
-    },
-    {
-        id: '2',
-        senderName: 'Jane Doe (HR)',
-        senderEmail: 'jane.doe@company.com',
-        subject: 'Interview Scheduled: John Smith',
-        snippet: 'The technical interview for John Smith has been confirmed for tomorrow at 2 PM EST.',
-        body: 'Hi Team,\n\nJust confirming that John Smith has accepted the calendar invite for the technical interview tomorrow at 2:00 PM EST.\n\nI have attached their resume and the technical assessment rubric to the calendar invite.\n\nThanks,\nJane',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-        read: false,
-        folder: 'inbox'
-    },
-    {
-        id: '3',
-        senderName: 'Platform Update',
-        senderEmail: 'updates@talentmesh.com',
-        subject: 'New Features Available',
-        snippet: 'We just released a new dashboard update with live analytics and more...',
-        body: 'Welcome to the latest version of TalentMesh!\n\nWe are excited to announce new features including live dashboard analytics, a brand new notification center, and faster candidate matching algorithms.\n\nCheck out the release notes for more details.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-        read: true,
-        folder: 'inbox'
-    },
-    {
-        id: '4',
-        senderName: 'Security Team',
-        senderEmail: 'security@talentmesh.com',
-        subject: 'Weekly Security Audit Report',
-        snippet: 'Your weekly security audit report is ready to view. No critical issues found.',
-        body: 'Hello,\n\nYour automated weekly security audit completed successfully. There were 0 critical vulnerabilities found across your active job postings and recruiter accounts.\n\nView the full report in the Admin portal.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
-        read: true,
-        folder: 'archived'
-    }
-];
+// Map DB notification types to display-friendly sender names
+const TYPE_SENDER_MAP: Record<string, { name: string; email: string }> = {
+    application_update: { name: 'TalentMesh Solutions - HR', email: 'hr@talentmesh.com' },
+    interview_scheduled: { name: 'TalentMesh Solutions - Recruiting', email: 'recruiting@talentmesh.com' },
+    security_alert: { name: 'TalentMesh Solutions - Security', email: 'security@talentmesh.com' },
+    system: { name: 'Platform Update', email: 'updates@talentmesh.com' },
+    billing: { name: 'TalentMesh Solutions - Billing', email: 'billing@talentmesh.com' },
+    welcome: { name: 'TalentMesh Solutions', email: 'noreply@talentmesh.com' },
+};
+
+function mapDbToNotification(n: NotificationData): Notification {
+    const senderInfo = TYPE_SENDER_MAP[n.type] || { name: 'System Alerts', email: 'noreply@talentmesh.com' };
+    return {
+        id: n.id,
+        senderName: senderInfo.name,
+        senderEmail: senderInfo.email,
+        subject: n.title,
+        snippet: n.message.length > 100 ? n.message.slice(0, 100) + '...' : n.message,
+        body: n.message,
+        timestamp: new Date(n.created_at),
+        read: n.is_read,
+        folder: 'inbox',
+    };
+}
 
 // Icons
 const Icons = {
@@ -70,33 +49,48 @@ const Icons = {
     back: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>,
     mailOpen: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6z"></path><line x1="22" y1="10" x2="12" y2="17"></line><line x1="2" y1="10" x2="12" y2="17"></line></svg>,
     check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
-    trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+    refresh: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>,
 };
 
 export default function NotificationCenter({ role }: { role: 'admin' | 'recruiter' | 'candidate' }) {
-    const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+    const { notifications: dbNotifications, unreadCount: dbUnreadCount, isLoading, markAsRead, markAllAsRead, refresh } = useRealTimeNotifications();
+    const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
     const [activeTab, setActiveTab] = useState<'inbox' | 'archived'>('inbox');
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    const filteredNotifications = notifications.filter(n => n.folder === activeTab);
-    const selectedMessage = notifications.find(n => n.id === selectedId);
+    // Sync DB notifications into local state
+    useEffect(() => {
+        if (dbNotifications.length > 0) {
+            setLocalNotifications(dbNotifications.map(mapDbToNotification));
+        }
+    }, [dbNotifications]);
+
+    const filteredNotifications = localNotifications.filter(n => n.folder === activeTab);
+    const selectedMessage = localNotifications.find(n => n.id === selectedId);
     
-    const unreadCount = notifications.filter(n => !n.read && n.folder === 'inbox').length;
+    const unreadCount = localNotifications.filter(n => !n.read && n.folder === 'inbox').length;
 
     const handleSelectMessage = (id: string) => {
         setSelectedId(id);
-        // Mark as read
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        // Mark as read locally + in DB
+        setLocalNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        markAsRead(id);
     };
 
     const handleArchive = (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, folder: 'archived' } : n));
+        setLocalNotifications(prev => prev.map(n => n.id === id ? { ...n, folder: 'archived' } : n));
         setSelectedId(null);
     };
 
     const handleDelete = (id: string) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        setLocalNotifications(prev => prev.filter(n => n.id !== id));
         setSelectedId(null);
+    };
+
+    const handleMarkAllRead = () => {
+        setLocalNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        markAllAsRead();
     };
 
     return (
@@ -136,12 +130,41 @@ export default function NotificationCenter({ role }: { role: 'admin' | 'recruite
                     <span className={styles.listTitle}>
                         {activeTab === 'inbox' ? 'Inbox' : 'Archived'}
                     </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {unreadCount > 0 && activeTab === 'inbox' && (
+                            <button 
+                                onClick={handleMarkAllRead}
+                                style={{ 
+                                    background: 'none', border: 'none', cursor: 'pointer', 
+                                    color: '#2563eb', fontSize: '0.8rem', padding: '4px 8px',
+                                    borderRadius: '4px',
+                                }}
+                                title="Mark all as read"
+                            >
+                                {Icons.check} Mark all read
+                            </button>
+                        )}
+                        <button 
+                            onClick={refresh}
+                            style={{ 
+                                background: 'none', border: 'none', cursor: 'pointer', 
+                                color: '#64748b', padding: '4px',
+                            }}
+                            title="Refresh"
+                        >
+                            {Icons.refresh}
+                        </button>
+                    </div>
                 </div>
                 
                 <div className={styles.scrollArea}>
-                    {filteredNotifications.length === 0 ? (
+                    {isLoading ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-                            No messages here.
+                            Loading notifications...
+                        </div>
+                    ) : filteredNotifications.length === 0 ? (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+                            {activeTab === 'inbox' ? 'No new notifications' : 'No archived messages'}
                         </div>
                     ) : (
                         filteredNotifications.map(msg => (

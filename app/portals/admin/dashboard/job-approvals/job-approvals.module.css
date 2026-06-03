@@ -1,0 +1,427 @@
+.container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: 'Inter', sans-serif;
+}
+
+.header {
+    margin-bottom: 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #111827;
+    margin: 0;
+}
+
+.pendingBadge {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 0.4rem 1rem;
+    border-radius: 100px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-left: 1rem;
+    border: 1px solid #fee2e2;
+}
+
+/* Stats Row */
+.statsRow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.statCard {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.statLabel {
+    display: block;
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.statValue {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 2rem;
+}
+
+.tab {
+    padding: 1rem 1.5rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #6b7280;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: none;
+    border: none;
+}
+
+.activeTab {
+    color: #6366f1;
+    border-bottom-color: #6366f1;
+}
+
+/* Job Cards (Pending) */
+.pendingList {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.jobReviewCard {
+    background: white;
+    border-radius: 24px;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.cardLeft {
+    padding: 2rem;
+    flex: 1;
+    border-right: 1px solid #f3f4f6;
+}
+
+.companyInfo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #6366f1;
+    border: 1px solid #eef2f7;
+    overflow: hidden;
+}
+
+.logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.companyName {
+    font-weight: 700;
+    color: #4b5563;
+    font-size: 0.9rem;
+}
+
+.recruiterName {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    display: block;
+}
+
+.jobTitle {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.jobMeta {
+    display: flex;
+    gap: 1.25rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+.metaItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.descriptionBox {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.descriptionText {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #374151;
+}
+
+.showMore {
+    background: none;
+    border: none;
+    color: #6366f1;
+    font-weight: 700;
+    font-size: 0.875rem;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+.skillTags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.skillTag {
+    padding: 0.35rem 0.75rem;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* Action Panel (Right) */
+.actionPanel {
+    width: 320px;
+    padding: 2rem;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.actionTitle {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.approveBtn {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.approveBtn:hover {
+    background: #059669;
+    transform: translateY(-2px);
+}
+
+.rejectBtn {
+    background: white;
+    color: #ef4444;
+    border: 2px solid #fee2e2;
+    padding: 1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rejectBtn:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.infoBtn {
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.featureBtn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
+    margin-left: auto;
+}
+
+.featuredActive {
+    color: #f59e0b;
+    background: #fffbeb;
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: white;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 500px;
+    padding: 2rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal h2 {
+    margin: 0 0 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.reasonList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.reasonItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.reasonItemActive {
+    border-color: #6366f1;
+    background: #f5f3ff;
+}
+
+.notesArea {
+    width: 100%;
+    min-height: 100px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem;
+    font-family: inherit;
+    margin-bottom: 1.5rem;
+    resize: none;
+}
+
+.modalActions {
+    display: flex;
+    gap: 1rem;
+}
+
+.cancelBtn {
+    flex: 1;
+    background: #f3f4f6;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.confirmRejectBtn {
+    flex: 1;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* Empty State */
+.emptyState {
+    text-align: center;
+    padding: 5rem 2rem;
+}
+
+.emptyIcon {
+    width: 64px;
+    height: 64px;
+    color: #10b981;
+    margin: 0 auto 1.5rem;
+}
+
+/* Table View */
+.tableContainer {
+    background: white;
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    text-align: left;
+    padding: 1.25rem 1.5rem;
+    background: #f9fafb;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #6b7280;
+    letter-spacing: 0.05em;
+    font-weight: 800;
+}
+
+.table td {
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid #f3f4f6;
+    font-size: 0.95rem;
+    color: #374151;
+}
+
+.featuredItem {
+    cursor: grab;
+}
+
+.featuredItem:active {
+    cursor: grabbing;
+}

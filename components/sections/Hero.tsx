@@ -48,8 +48,8 @@ const Hero = () => {
         };
     }, []);
 
-    // Trace user location on mount
-    useEffect(() => {
+    // Trace user location on user request instead of mount to avoid permissions policy violation
+    const handleLocateMe = () => {
         if ('geolocation' in navigator) {
             setIsLocating(true);
             navigator.geolocation.getCurrentPosition(async (position) => {
@@ -76,7 +76,7 @@ const Hero = () => {
                 setIsLocating(false);
             });
         }
-    }, []);
+    };
 
     const filteredJobs = POPULAR_JOBS.filter(job =>
         job.toLowerCase().includes(jobQuery.toLowerCase())
@@ -156,7 +156,33 @@ const Hero = () => {
                                     setIsLocationDropdownOpen(true);
                                 }}
                                 onFocus={() => setIsLocationDropdownOpen(true)}
+                                style={{ paddingRight: '40px' }}
                             />
+                            <button
+                                type="button"
+                                onClick={handleLocateMe}
+                                disabled={isLocating}
+                                style={{
+                                    position: 'absolute',
+                                    right: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: isLocating ? 'default' : 'pointer',
+                                    color: isLocating ? '#6366f1' : '#9ca3af',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'color 0.2s'
+                                }}
+                                title="Locate me"
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                                </svg>
+                            </button>
                             {isLocationDropdownOpen && filteredCities.length > 0 && (
                                 <ul className={styles.suggestionsList}>
                                     {filteredCities.map((city, index) => (

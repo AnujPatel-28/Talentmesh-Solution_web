@@ -12,4 +12,4 @@ export { default as JobListings } from './JobListings';
 export { default as UserSegments } from './UserSegments';
 export { default as SuperhumanPowers } from './SuperhumanPowers';
 export { default as JobBoard } from './JobBoard';
-export * from './BlogFeed';
+

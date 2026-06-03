@@ -5,10 +5,7 @@ import { createClient } from '@insforge/sdk';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './AnnouncementBanner.module.css';
 
-const insforge = createClient({
-    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || '',
-    anonKey: process.env.NEXT_PUBLIC_ANON_KEY || ''
-});
+import { insforge } from '@/lib/insforge';
 
 interface Announcement {
     id: string;
@@ -29,14 +26,15 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
         const fetchAnnouncement = async () => {
             try {
                 const now = new Date().toISOString();
-                const { data, error } = await insforge.database
+                const client = insforge;
+
+                const { data, error } = await client.database
                     .from('announcements')
                     .select('id, title, message, type')
                     .eq('is_active', true)
                     .eq('show_as_banner', true)
                     .contains('target_roles', [role])
-                    .or(`expires_at.is.null,expires_at.gt.${now}`)
-                    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
+                    .or(`and(expires_at.is.null,scheduled_at.is.null),and(expires_at.is.null,scheduled_at.lte.${now}),and(expires_at.gt.${now},scheduled_at.is.null),and(expires_at.gt.${now},scheduled_at.lte.${now})`)
                     .order('created_at', { ascending: false })
                     .limit(1);
 
@@ -49,7 +47,7 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
                 if (localStorage.getItem(`dismissed_announcement_${ann.id}`)) return;
 
                 // Check DB dismissal
-                const { data: dismissal } = await insforge.database
+                const { data: dismissal } = await client.database
                     .from('announcement_dismissals')
                     .select('id')
                     .eq('announcement_id', ann.id)
@@ -62,10 +60,10 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
                 setIsVisible(true);
 
                 // Increment view count via RPC
-                await insforge.database.rpc('increment_announcement_view', { ann_id: ann.id });
+                await client.database.rpc('increment_announcement_view', { ann_id: ann.id });
 
-            } catch (err) {
-                console.error('Banner Fetch Error:', err);
+            } catch (err: any) {
+                // Ignore all banner fetch errors silently since the banner is non-critical
             }
         };
 
@@ -82,17 +80,19 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
             // Store locally
             localStorage.setItem(`dismissed_announcement_${announcement.id}`, '1');
 
+            const client = insforge;
+
             // Store in DB
-            await insforge.database.from('announcement_dismissals').insert({
+            await client.database.from('announcement_dismissals').insert({
                 announcement_id: announcement.id,
                 user_id: user.id
             });
 
             // Increment dismiss count via RPC
-            await insforge.database.rpc('increment_announcement_dismiss', { ann_id: announcement.id });
+            await client.database.rpc('increment_announcement_dismiss', { ann_id: announcement.id });
 
-        } catch (err) {
-            console.error('Dismissal Error:', err);
+        } catch (err: any) {
+            // Ignore banner dismissal errors silently
         }
     };
 

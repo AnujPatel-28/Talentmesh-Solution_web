@@ -100,7 +100,7 @@ export default function AboutPage() {
                             <SectionHeader
                                 tag="Our Mission"
                                 title="Abolishing recruitment friction."
-                                description={<>Recruitment hasn&apos;t changed in 30 years, but the speed of business has. We exist to close the gap between &quot;need&quot; and &quot;hired&quot; using a proprietary neural network.<br/><br/>We don&apos;t care about your past titles. We care about your future trajectory. TalentMesh is designed to find where you belong, not just where you fit.</>}
+                                description="Recruitment hasn't changed in 30 years, but the speed of business has. We exist to close the gap between need and hired using a proprietary neural network. We don't care about your past titles. We care about your future trajectory. TalentMesh is designed to find where you belong, not just where you fit."
                             />
                         </div>
                     </div>
@@ -144,7 +144,7 @@ export default function AboutPage() {
                         <div>
                             <SectionHeader
                                 tag="Innovation"
-                                title={<>Building the Future of <span className="text-gradient">Human Talent.</span></>}
+                                title="Building the Future of Human Talent."
                                 description="TalentMesh was born from a simple realization: the traditional recruitment process is broken for both sides. We decided to fix it using data science and empathy."
                             />
                             <ul className={styles.innovationList}>

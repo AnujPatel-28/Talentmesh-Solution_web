@@ -1,9 +1,46 @@
+'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react';
 import styles from './Footer.module.css';
 
 const Footer = () => {
+    const [email, setEmail] = useState('');
+    const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+    const handleSubscribe = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email) return;
+        setStatus('loading');
+        
+        try {
+            const response = await fetch('https://api.web3forms.com/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 'c755ba58-1a02-45d6-b021-3b66f62eb9fb',
+                    email: email,
+                    subject: 'New Newsletter Subscription',
+                    from_name: 'TalentMesh Newsletter',
+                }),
+            });
+
+            if (response.ok) {
+                setStatus('success');
+                setEmail('');
+            } else {
+                setStatus('error');
+            }
+        } catch (error) {
+            console.error('Subscription error:', error);
+            setStatus('error');
+        }
+    };
+
     return (
         <footer className={styles.footer}>
             <div className={styles.container}>
@@ -18,10 +55,31 @@ const Footer = () => {
                         </p>
                         <div className={styles.newsletter}>
                             <h4 style={{ color: 'white', fontWeight: 700 }}>Stay in the loop</h4>
-                            <div className={styles.newsletterInputWrapper}>
-                                <input type="email" placeholder="Enter your email" className={styles.newsletterInput} />
-                                <button className={styles.newsletterBtn}>Subscribe</button>
-                            </div>
+                            {status === 'success' ? (
+                                <p style={{ color: '#22c55e', marginTop: '0.5rem' }}>Thanks for subscribing!</p>
+                            ) : (
+                                <form onSubmit={handleSubscribe} className={styles.newsletterInputWrapper}>
+                                    <input 
+                                        type="email" 
+                                        placeholder="Enter your email" 
+                                        className={styles.newsletterInput}
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        disabled={status === 'loading'}
+                                    />
+                                    <button 
+                                        type="submit" 
+                                        className={styles.newsletterBtn}
+                                        disabled={status === 'loading'}
+                                    >
+                                        {status === 'loading' ? 'Subscribing...' : 'Subscribe'}
+                                    </button>
+                                </form>
+                            )}
+                            {status === 'error' && (
+                                <p style={{ color: '#ef4444', marginTop: '0.5rem', fontSize: '0.875rem' }}>Subscription failed. Please try again.</p>
+                            )}
                         </div>
                     </div>
 

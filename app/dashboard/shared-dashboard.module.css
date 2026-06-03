@@ -133,11 +133,11 @@
     color: #94a3b8;
 }
 
-/* Main grid */
+/* Main grid — Golden Ratio (φ = 1.618) */
 .mainGrid {
     display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 0.75rem;
+    grid-template-columns: 1.618fr 1fr;  /* 61.8% / 38.2% */
+    gap: 1rem;
 }
 
 .leftCol {
@@ -1027,11 +1027,11 @@
     text-align: right;
 }
 
-/* ── Profile Page ── */
+/* ── Profile Page (Golden Ratio Layout: 1 : 1.618) ── */
 .profilePage {
     display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 0.75rem;
+    grid-template-columns: 1fr 1.618fr;
+    gap: 1.5rem;
 }
 
 .profileSidebar {
@@ -2772,4 +2772,408 @@
     color: #64748b;
     font-size: 0.85rem;
     margin-bottom: 1rem;
+}
+
+/* ═══════════════════════════════════════════════
+   RECRUITER DASHBOARD COMPONENTS
+   Golden Ratio Design System: φ = 1.618
+   ═══════════════════════════════════════════════ */
+
+/* ── Position (Job) Cards ────────────────────── */
+.posCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.618rem;
+    padding: 0.85rem 1rem;
+    background: var(--background);
+    border: 1px solid #eef0f2;
+    border-radius: 10px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.posCard:hover {
+    background: #fafbfe;
+    border-color: #dbeafe;
+    box-shadow: 0 2px 12px rgba(37, 99, 235, 0.06);
+    transform: translateY(-1px);
+}
+
+.posBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.posRow {
+    display: flex;
+    align-items: center;
+    gap: 0.618rem;
+}
+
+.posTitle {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.posMeta {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.posStatus {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.25rem 0.618rem;
+    border-radius: 20px;
+    white-space: nowrap;
+    text-transform: capitalize;
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+    letter-spacing: 0.01em;
+}
+
+/* ── Urgent / Hot Tag ────────────────────────── */
+.urgentTag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    animation: urgentPulse 2s ease-in-out infinite;
+}
+
+@keyframes urgentPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.2); }
+    50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+}
+
+/* ── Hiring Pipeline Bar ─────────────────────── */
+.pipelineBar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.618rem;
+    padding: 0.618rem 0;
+}
+
+.pipeSegment {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.pipeBar {
+    height: 8px;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.pipeBar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: pipeShimmer 2s ease-in-out infinite;
+}
+
+@keyframes pipeShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.pipeMeta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pipeLabel {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.pipeCount {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* ── Top Candidate Cards ─────────────────────── */
+.candCard {
+    display: flex;
+    align-items: center;
+    gap: 0.618rem;           /* 1/φ gap */
+    padding: 0.75rem 0.85rem;
+    background: var(--background);
+    border: 1px solid #eef0f2;
+    border-radius: 10px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.candCard:hover {
+    background: #fafbfe;
+    border-color: #dbeafe;
+    box-shadow: 0 2px 12px rgba(37, 99, 235, 0.06);
+    transform: translateY(-1px);
+}
+
+.candAvatar {
+    width: 38px;              /* ≈ 24 × φ */
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-blue), #818cf8);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    border: 2px solid rgba(255,255,255,0.8);
+}
+
+.candBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.candName {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.candMeta {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.candMatch {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #10b981;
+    background: #f0fdf4;
+    padding: 0.25rem 0.618rem;
+    border-radius: 20px;
+    border: 1px solid #bbf7d0;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Interview Cards (Timeline) ──────────────── */
+.intCard {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    background: var(--background);
+    border: 1px solid #eef0f2;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.intCard:hover {
+    background: #fafbfe;
+    border-color: #dbeafe;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.intCard::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--primary-blue), #818cf8);
+    border-radius: 3px 0 0 3px;
+}
+
+.intTime {
+    width: 62px;              /* ≈ 38 × φ */
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--primary-blue);
+    text-align: center;
+    flex-shrink: 0;
+    background: #eff6ff;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+}
+
+.intBody {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.intName {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.intType {
+    font-size: 0.68rem;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.intBtn {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: white;
+    background: linear-gradient(135deg, var(--primary-blue), #2563eb);
+    border: none;
+    padding: 0.4rem 0.85rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.intBtn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+/* ── Quick Action Buttons ────────────────────── */
+.primaryAction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    background: linear-gradient(135deg, var(--primary-blue), #2563eb);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.primaryAction:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.secondaryAction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.618rem 1rem;
+    background: var(--background);
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.secondaryAction:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Responsive for recruiter grid ───────────── */
+@media (max-width: 1024px) {
+    .mainGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .greetTitle {
+        font-size: 1.1rem;
+    }
+}
+
+/* ── Candidate Category Badges ────────────────── */
+.candCategoryBadge {
+    font-size: 0.58rem;
+    font-weight: 800;
+    padding: 0.125rem 0.382rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+}
+
+.candCategoryBadge[data-category="tech"] {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #dbeafe;
+}
+
+.candCategoryBadge[data-category="finance"] {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #ffedd5;
+}
+
+.candCategoryBadge[data-category="marketing"] {
+    background: #fdf2f8;
+    color: #db2777;
+    border: 1px solid #fce7f3;
+}
+
+.candCategoryBadge[data-category="design"] {
+    background: #f5f3ff;
+    color: #7c3aed;
+    border: 1px solid #e0e7ff;
 }

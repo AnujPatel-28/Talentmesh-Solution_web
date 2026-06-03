@@ -19,7 +19,7 @@ export default function DashboardRedirect() {
         if (user.role === 'admin' || user.role === 'super_admin') {
             router.replace('/dashboard/admin');
         } else if (user.role === 'recruiter') {
-            router.replace('/dashboard/recruiter');
+            router.replace(`/dashboard/recruiter/${user.id}`);
         } else {
             router.replace(`/dashboard/candidate/${user.id}`);
         }
