@@ -25,9 +25,9 @@ const candidateProfileSchema = z.object({
   }).optional(),
 });
 
-const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
-const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
+const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL') || Deno.env.get('SUPABASE_URL') || '';
+const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('SUPABASE_ANON_KEY') || '';
+const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,8 +46,10 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
   }
 
+  const resolvedServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key') || '';
+
   const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
-  const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+  const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey || anonKey, isServerMode: true });
 
   const { data: { user }, error: authError } = await insforge.auth.getCurrentUser();
   if (authError || !user) {
@@ -55,10 +57,24 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (req.method === 'GET') {
-    const { data: profile } = await insforgeAdmin.database.from('profiles').select('*').eq('id', user.id).single();
-    const { data: candidateProfile } = await insforgeAdmin.database.from('candidate_profiles').select('*').eq('user_id', user.id).single();
+    const { data: profile, error: profileError } = await insforgeAdmin.database.from('profiles').select('*').eq('id', user.id).single();
+    if (profileError) {
+      console.error('[candidate-profile] Error fetching profile:', profileError.message);
+    }
+    const { data: candidateProfile, error: cpError } = await insforgeAdmin.database.from('candidate_profiles').select('*').eq('id', user.id).single();
+    if (cpError) {
+      console.error('[candidate-profile] Error fetching candidate profile:', cpError.message);
+    }
 
-    return new Response(JSON.stringify({ profile, candidateProfile }), { 
+    return new Response(JSON.stringify({ 
+      profile, 
+      candidateProfile, 
+      debug: { 
+        hasServiceKey: !!resolvedServiceKey,
+        profileError: profileError ? profileError.message : null,
+        cpError: cpError ? cpError.message : null
+      }
+    }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
@@ -80,15 +96,16 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (candidateUpdates) {
       const { error } = await insforgeAdmin.database.from('candidate_profiles').upsert({
-        ...candidateUpdates,
+        id: user.id,
         user_id: user.id,
+        ...candidateUpdates,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
+      });
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
     }
 
     const { data: profile } = await insforgeAdmin.database.from('profiles').select('*').eq('id', user.id).single();
-    const { data: candidateProfile } = await insforgeAdmin.database.from('candidate_profiles').select('*').eq('user_id', user.id).single();
+    let { data: candidateProfile } = await insforgeAdmin.database.from('candidate_profiles').select('*').eq('id', user.id).single();
 
     return new Response(JSON.stringify({ profile, candidateProfile }), { 
       status: 200, 

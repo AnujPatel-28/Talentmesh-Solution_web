@@ -54,7 +54,7 @@ export default function OffersPage() {
       const { data: profile } = await insforge.database
         .from('candidate_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
 
       if (profile) {

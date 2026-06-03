@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import CenteredLoader from '@/components/ui/CenteredLoader';
 import styles from './onboarding.module.css';
 
-export default function CandidateOnboarding() {
+function CandidateOnboardingContent() {
   const { user, refreshUser, isInitialized, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,15 +88,13 @@ export default function CandidateOnboarding() {
       const { error: candidateError } = await insforge.database
         .from('candidate_profiles')
         .upsert({
-          user_id: user.id,
+          id: user.id,
           skills,
-          // Since candidates might be created via DB triggers, using ID = user.id if 1:1, or matching user_id
-          // We will update by user_id
-        }, { onConflict: 'user_id' });
+        }, { onConflict: 'id' });
         
       if (candidateError) {
-        // If upsert fails because we need an ID or something, just try update.
-        await insforge.database.from('candidate_profiles').update({ skills }).eq('user_id', user.id);
+        // If upsert fails, try a direct update
+        await insforge.database.from('candidate_profiles').update({ skills }).eq('id', user.id);
       }
 
       await refreshUser();
@@ -237,5 +235,13 @@ export default function CandidateOnboarding() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CandidateOnboarding() {
+  return (
+    <Suspense fallback={<CenteredLoader label="Loading..." />}>
+      <CandidateOnboardingContent />
+    </Suspense>
   );
 }

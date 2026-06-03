@@ -47,18 +47,24 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
     const [newLabel, setNewLabel] = useState('');
     const [isDefault, setIsDefault] = useState(false);
 
+    const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const activeCandidateId = (candidateId && candidateId !== 'undefined') ? candidateId : user?.id;
+
     useEffect(() => {
-        fetchResumes();
-    }, [candidateId]);
+        if (activeCandidateId) {
+            fetchResumes();
+        }
+    }, [activeCandidateId]);
 
     const fetchResumes = async () => {
+        if (!activeCandidateId) return;
         try {
             const { data, error } = await insforge.database
                 .from('candidate_resumes')
                 .select('*')
-                .eq('candidate_id', candidateId)
+                .eq('candidate_id', activeCandidateId)
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
@@ -70,9 +76,8 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         }
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const handleFile = async (file: File) => {
+        if (!activeCandidateId) return;
 
         if (file.size > 5 * 1024 * 1024) {
             setToast({ message: 'File too large. Max 5MB allowed.', type: 'error' });
@@ -88,17 +93,18 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
 
         setUploading(true);
         try {
-            const filePath = `resumes/${candidateId}/${Date.now()}_${file.name}`;
             const { data, error } = await insforge.storage.from('resumes').uploadAuto(file);
             
             if (error) throw error;
             
             setUploadedFile({
-                url: data.url,
+                url: data?.url || '',
                 name: file.name,
                 size: file.size
             });
-            setNewLabel('');
+            // Auto-fill label with the file name (excluding extension) for better UX
+            const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            setNewLabel(baseName);
             setIsDefault(resumes.length === 0);
             setShowModal(true);
         } catch (err: any) {
@@ -109,21 +115,47 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         }
     };
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            await handleFile(file);
+        }
+    };
+
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            await handleFile(e.dataTransfer.files[0]);
+        }
+    };
+
     const saveNewResume = async () => {
-        if (!uploadedFile || !newLabel.trim()) return;
+        if (!uploadedFile || !newLabel.trim() || !activeCandidateId) return;
 
         try {
             if (isDefault) {
                 await insforge.database
                     .from('candidate_resumes')
                     .update({ is_default: false })
-                    .eq('candidate_id', candidateId);
+                    .eq('candidate_id', activeCandidateId);
             }
 
             const { error } = await insforge.database
                 .from('candidate_resumes')
                 .insert([{
-                    candidate_id: candidateId,
+                    candidate_id: activeCandidateId,
                     label: newLabel.trim(),
                     file_url: uploadedFile.url,
                     file_name: uploadedFile.name,
@@ -143,7 +175,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
     };
 
     const toggleDefault = async (resume: Resume) => {
-        if (resume.is_default) return;
+        if (resume.is_default || !activeCandidateId) return;
 
         // Optimistic UI
         const oldResumes = [...resumes];
@@ -156,7 +188,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             await insforge.database
                 .from('candidate_resumes')
                 .update({ is_default: false })
-                .eq('candidate_id', candidateId);
+                .eq('candidate_id', activeCandidateId);
 
             const { error } = await insforge.database
                 .from('candidate_resumes')
@@ -239,39 +271,48 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         <div className={styles.manager}>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             
-            <div className={styles.header}>
-                <h2 className={styles.title}>My Resumes</h2>
-                {resumes.length < 5 && (
-                    <button 
-                        className={styles.uploadBtn}
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                    >
-                        {uploading ? <div className={styles.spinner} style={{ width: 14, height: 14 }} /> : IC.plus}
-                        {uploading ? 'Uploading...' : 'Upload New'}
-                    </button>
-                )}
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    style={{ display: 'none' }} 
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                />
-            </div>
-
-            {resumes.length >= 5 && (
+            {resumes.length < 5 ? (
+                <div 
+                    className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ''}`}
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                >
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileChange}
+                    />
+                    <div className={styles.dropzoneIcon}>
+                        {uploading ? <div className={styles.spinner} /> : IC.upload}
+                    </div>
+                    <p className={styles.dropzoneTitle}>
+                        {uploading ? 'Uploading your file...' : 'Drag & drop your resume here, or click to browse'}
+                    </p>
+                    <p className={styles.dropzoneHint}>Supports PDF, DOC, and DOCX (Max 5MB)</p>
+                </div>
+            ) : (
                 <div className={styles.limitNotice}>
                     {IC.alert}
-                    <span>You've reached the 5 resume limit. Delete one to add a new version.</span>
+                    <span>You've reached the 5 resume limit. Delete one to upload a new version.</span>
                 </div>
             )}
+
+            <div style={{ marginTop: '2rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                    Uploaded Resumes ({resumes.length}/5)
+                </h3>
+            </div>
 
             <div className={styles.list}>
                 {resumes.length === 0 ? (
                     <div className={styles.empty}>
-                        <div className={styles.emptyIcon}>{IC.upload}</div>
-                        <p>No resumes uploaded yet.</p>
+                        <div className={styles.emptyIcon}>{IC.pdf}</div>
+                        <p>No resumes uploaded yet. Drag & drop a file to get started.</p>
                     </div>
                 ) : (
                     resumes.map(resume => (
@@ -297,6 +338,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                                 setEditingId(resume.id);
                                                 setEditLabel(resume.label);
                                             }}
+                                            title="Click to rename"
                                         >
                                             {resume.label}
                                         </span>
@@ -304,7 +346,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                     {resume.is_default && <span className={`${styles.badge} ${styles.defaultBadge}`}>Default</span>}
                                 </div>
                                 <div className={styles.meta}>
-                                    <div className={styles.metaItem}>{resume.file_name}</div>
+                                    <div className={styles.metaItem} title={resume.file_name}>{resume.file_name}</div>
                                     <div className={styles.metaItem}>•</div>
                                     <div className={styles.metaItem}>{formatSize(resume.file_size_bytes)}</div>
                                     <div className={styles.metaItem}>•</div>
@@ -314,22 +356,22 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                 </div>
                             </div>
                             <div className={styles.actions}>
-                                <a href={resume.file_url} target="_blank" rel="noreferrer" className={styles.actionBtn} title="Preview">
+                                <a href={resume.file_url} target="_blank" rel="noreferrer" className={styles.actionBtn} title="Preview Resume">
                                     {IC.eye}
                                 </a>
                                 {!resume.is_default && (
                                     <button 
                                         className={`${styles.actionBtn} ${styles.defaultBtn}`} 
                                         onClick={() => toggleDefault(resume)}
-                                        title="Set as Default"
+                                        title="Make default resume"
                                     >
-                                        Set Default
+                                        Make Default
                                     </button>
                                 )}
                                 <button 
                                     className={`${styles.actionBtn} ${styles.deleteBtn}`} 
                                     onClick={() => deleteResume(resume)}
-                                    title="Delete"
+                                    title="Delete Resume"
                                 >
                                     {IC.trash}
                                 </button>
@@ -365,7 +407,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                     checked={isDefault}
                                     onChange={(e) => setIsDefault(e.target.checked)}
                                 />
-                                <span>Set as my default resume</span>
+                                <span style={{ fontSize: '0.9rem', color: '#4b5563', fontWeight: 500 }}>Set as my default resume</span>
                             </label>
                         </div>
 

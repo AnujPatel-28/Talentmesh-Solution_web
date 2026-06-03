@@ -68,8 +68,17 @@ interface Job {
 interface CandidateProfile {
     name: string;
     email: string;
+    phone: string;
+    location: string;
     headline: string;
     skills: string[];
+    experienceYears: number;
+    education: string;
+    resumeUrl: string;
+    profileStrength: number;
+    linkedinUrl: string;
+    githubUrl: string;
+    portfolioUrl: string;
 }
 
 export default function DashboardJobDetailPage() {
@@ -106,7 +115,7 @@ export default function DashboardJobDetailPage() {
                         .maybeSingle(),
                     insforge.database
                         .from('candidate_profiles')
-                        .select('*, profiles(name, email)')
+                        .select('*, profiles(name, email, phone, location)')
                         .eq('id', user.id)
                         .maybeSingle()
                 ]);
@@ -117,8 +126,17 @@ export default function DashboardJobDetailPage() {
                     setCandidateProfile({
                         name: profileResponse.data.profiles?.name || user.name || 'User',
                         email: profileResponse.data.profiles?.email || user.email || '',
-                        headline: profileResponse.data.headline,
-                        skills: profileResponse.data.skills
+                        phone: profileResponse.data.profiles?.phone || '',
+                        location: profileResponse.data.profiles?.location || '',
+                        headline: profileResponse.data.headline || '',
+                        skills: profileResponse.data.skills || [],
+                        experienceYears: profileResponse.data.experience_years || 0,
+                        education: profileResponse.data.education || '',
+                        resumeUrl: profileResponse.data.resume_url || '',
+                        profileStrength: profileResponse.data.profile_strength || 0,
+                        linkedinUrl: profileResponse.data.linkedin_url || '',
+                        githubUrl: profileResponse.data.github_url || '',
+                        portfolioUrl: profileResponse.data.portfolio_url || ''
                     });
                 }
             }
@@ -347,6 +365,7 @@ export default function DashboardJobDetailPage() {
                 jobTitle={job.title}
                 companyName={job.companies?.name || 'Company'}
                 candidateProfile={candidateProfile}
+                jobSkills={job.skills_required || []}
                 onSuccess={(appId) => {
                     setAppStatus('applied');
                     if (appId) {

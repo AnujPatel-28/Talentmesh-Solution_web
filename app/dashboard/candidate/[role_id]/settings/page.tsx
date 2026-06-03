@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
-import { invokeFunction } from '@/lib/insforge';
+import { invokeFunction, insforge } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
@@ -56,14 +56,103 @@ export default function CandidateSettingsPage() {
     const [privacy, setPrivacy] = useState(INITIAL_PRIVACY);
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [updatingPassword, setUpdatingPassword] = useState(false);
     const [message, setMessage] = useState({ text: '', type: 'success' });
+    const [provider, setProvider] = useState<string>('email');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const token = window.sessionStorage.getItem('tm_token');
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+                    const prov = payload.app_metadata?.provider || payload.app_metadata?.providers?.[0] || 'email';
+                    setProvider(prov);
+                } catch (err) {
+                    console.warn('Failed to parse OAuth provider from JWT:', err);
+                }
+            }
+        }
+    }, []);
+
+    const handleUpdatePassword = async () => {
+        if (!security.newPassword) {
+            setMessage({ text: 'Please enter a new password.', type: 'error' });
+            return;
+        }
+        if (security.newPassword.length < 8) {
+            setMessage({ text: 'Password must be at least 8 characters long.', type: 'error' });
+            return;
+        }
+        if (!/[A-Z]/.test(security.newPassword)) {
+            setMessage({ text: 'Password must contain at least one uppercase letter.', type: 'error' });
+            return;
+        }
+        if (!/[0-9]/.test(security.newPassword)) {
+            setMessage({ text: 'Password must contain at least one number.', type: 'error' });
+            return;
+        }
+        if (security.newPassword !== security.confirmPassword) {
+            setMessage({ text: 'New password and confirm password do not match.', type: 'error' });
+            return;
+        }
+
+        setUpdatingPassword(true);
+        setMessage({ text: '', type: 'success' });
+
+        try {
+            const token = window.sessionStorage.getItem('tm_token');
+            if (!token) throw new Error('No active session. Please log in again.');
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_INSFORGE_URL}/auth/v1/user`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'apikey': process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    password: security.newPassword
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || errData.error_description || 'Failed to update password');
+            }
+
+            // Sync with backend profile database if necessary
+            if (form.profile.id) {
+                const { error: profileError } = await insforge.database
+                    .from('profiles')
+                    .update({
+                        password_set_at: new Date().toISOString()
+                    })
+                    .eq('id', form.profile.id);
+
+                if (profileError) {
+                    console.warn('Failed to update password_set_at in DB profiles:', profileError.message);
+                }
+            }
+
+            setMessage({ text: 'Password updated successfully!', type: 'success' });
+            setSecurity({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (err: any) {
+            setMessage({ text: err.message || 'Error updating password.', type: 'error' });
+        } finally {
+            setUpdatingPassword(false);
+        }
+    };
 
     useEffect(() => {
         async function fetchData() {
             try {
                 const res = await invokeFunction('candidate-profile', { method: 'GET' });
-                const profile = res.data;
-                if (!profile) throw new Error('Profile not found');
+                const data = res.data;
+                if (!data || !data.profile) throw new Error('Profile not found');
+
+                const profile = data.profile;
+                const candidateProfile = data.candidateProfile;
 
                 const bundle: CandidateSettingsBundle = {
                     profile: {
@@ -75,23 +164,23 @@ export default function CandidateSettingsPage() {
                         role: profile.role,
                         completed_onboarding: profile.completed_onboarding || false,
                     },
-                    candidateProfile: profile.candidate_profiles ? {
-                        headline: profile.candidate_profiles.headline || '',
-                        skills: profile.candidate_profiles.skills || [],
-                        experience_years: profile.candidate_profiles.experience_years ?? null,
-                        education: (profile.candidate_profiles.education as any) || '',
-                        resume_url: profile.candidate_profiles.resume_url || '',
-                        linkedin_url: profile.candidate_profiles.linkedin_url || '',
-                        github_url: profile.candidate_profiles.github_url || '',
-                        portfolio_url: profile.candidate_profiles.portfolio_url || '',
-                        salary_min: profile.candidate_profiles.salary_min ?? null,
-                        salary_max: profile.candidate_profiles.salary_max ?? null,
-                        currency: profile.candidate_profiles.currency || 'USD',
-                        open_to_remote: profile.candidate_profiles.open_to_remote ?? true,
-                        is_visible: profile.candidate_profiles.is_visible ?? true,
-                        preferred_locations: profile.candidate_profiles.preferred_locations || [],
-                        job_type: profile.candidate_profiles.job_types?.[0] || '',
-                        profile_strength: profile.candidate_profiles.profile_strength || 0,
+                    candidateProfile: candidateProfile ? {
+                        headline: candidateProfile.headline || '',
+                        skills: candidateProfile.skills || [],
+                        experience_years: candidateProfile.experience_years ?? null,
+                        education: (candidateProfile.education as any) || '',
+                        resume_url: candidateProfile.resume_url || '',
+                        linkedin_url: candidateProfile.linkedin_url || '',
+                        github_url: candidateProfile.github_url || '',
+                        portfolio_url: candidateProfile.portfolio_url || '',
+                        salary_min: candidateProfile.salary_min ?? null,
+                        salary_max: candidateProfile.salary_max ?? null,
+                        currency: candidateProfile.currency || 'USD',
+                        open_to_remote: candidateProfile.open_to_remote ?? true,
+                        is_visible: candidateProfile.is_visible ?? true,
+                        preferred_locations: candidateProfile.preferred_locations || [],
+                        job_type: candidateProfile.job_types?.[0] || '',
+                        profile_strength: candidateProfile.profile_strength || 0,
                     } : {
                         headline: '', skills: [], experience_years: null, education: '', resume_url: '',
                         linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
@@ -129,8 +218,11 @@ export default function CandidateSettingsPage() {
             
             // Re-fetch to ensure sync
             const res = await invokeFunction('candidate-profile', { method: 'GET' });
-            const updatedProfile = res.data;
-            if (!updatedProfile) throw new Error('Updated profile not found');
+            const data = res.data;
+            if (!data || !data.profile) throw new Error('Updated profile not found');
+
+            const updatedProfile = data.profile;
+            const candidateProfile = data.candidateProfile;
 
             const updatedBundle: CandidateSettingsBundle = {
                 profile: {
@@ -142,23 +234,23 @@ export default function CandidateSettingsPage() {
                     role: updatedProfile.role,
                     completed_onboarding: updatedProfile.completed_onboarding || false,
                 },
-                candidateProfile: updatedProfile.candidate_profiles ? {
-                    headline: updatedProfile.candidate_profiles.headline || '',
-                    skills: updatedProfile.candidate_profiles.skills || [],
-                    experience_years: updatedProfile.candidate_profiles.experience_years ?? null,
-                    education: (updatedProfile.candidate_profiles.education as any) || '',
-                    resume_url: updatedProfile.candidate_profiles.resume_url || '',
-                    linkedin_url: updatedProfile.candidate_profiles.linkedin_url || '',
-                    github_url: updatedProfile.candidate_profiles.github_url || '',
-                    portfolio_url: updatedProfile.candidate_profiles.portfolio_url || '',
-                    salary_min: updatedProfile.candidate_profiles.salary_min ?? null,
-                    salary_max: updatedProfile.candidate_profiles.salary_max ?? null,
-                    currency: updatedProfile.candidate_profiles.currency || 'USD',
-                    open_to_remote: updatedProfile.candidate_profiles.open_to_remote ?? true,
-                    is_visible: updatedProfile.candidate_profiles.is_visible ?? true,
-                    preferred_locations: updatedProfile.candidate_profiles.preferred_locations || [],
-                    job_type: updatedProfile.candidate_profiles.job_types?.[0] || '',
-                    profile_strength: updatedProfile.candidate_profiles.profile_strength || 0,
+                candidateProfile: candidateProfile ? {
+                    headline: candidateProfile.headline || '',
+                    skills: candidateProfile.skills || [],
+                    experience_years: candidateProfile.experience_years ?? null,
+                    education: (candidateProfile.education as any) || '',
+                    resume_url: candidateProfile.resume_url || '',
+                    linkedin_url: candidateProfile.linkedin_url || '',
+                    github_url: candidateProfile.github_url || '',
+                    portfolio_url: candidateProfile.portfolio_url || '',
+                    salary_min: candidateProfile.salary_min ?? null,
+                    salary_max: candidateProfile.salary_max ?? null,
+                    currency: candidateProfile.currency || 'USD',
+                    open_to_remote: candidateProfile.open_to_remote ?? true,
+                    is_visible: candidateProfile.is_visible ?? true,
+                    preferred_locations: candidateProfile.preferred_locations || [],
+                    job_type: candidateProfile.job_types?.[0] || '',
+                    profile_strength: candidateProfile.profile_strength || 0,
                 } : form.candidateProfile
             };
             setForm(updatedBundle);
@@ -220,6 +312,62 @@ export default function CandidateSettingsPage() {
                                 <div className={styles.inputIconWrap}>
                                     <span className={styles.inputIcon}>{IC.mail}</span>
                                     <input value={form.profile.email} readOnly className={`${styles.premiumInput} ${styles.inputReadOnly}`} />
+                                </div>
+                            </div>
+                            <div className={styles.inputGroup}>
+                                <label className={styles.fieldLabel}>Registration Platform</label>
+                                <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center' }}>
+                                    {provider === 'google' && (
+                                        <span style={{
+                                            background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                                            color: '#1e40af',
+                                            border: '1px solid #bfdbfe',
+                                            padding: '0.4rem 0.8rem',
+                                            borderRadius: '8px',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/></svg>
+                                            Google Identity
+                                        </span>
+                                    )}
+                                    {provider === 'linkedin' && (
+                                        <span style={{
+                                            background: 'linear-gradient(135deg, #f0f7ff, #e0f2fe)',
+                                            color: '#0369a1',
+                                            border: '1px solid #bae6fd',
+                                            padding: '0.4rem 0.8rem',
+                                            borderRadius: '8px',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                                            LinkedIn OAuth
+                                        </span>
+                                    )}
+                                    {provider !== 'google' && provider !== 'linkedin' && (
+                                        <span style={{
+                                            background: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)',
+                                            color: '#6b21a8',
+                                            border: '1px solid #e9d5ff',
+                                            padding: '0.4rem 0.8rem',
+                                            borderRadius: '8px',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                            Manual Email Login
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <div className={styles.formRow}>
@@ -345,17 +493,17 @@ export default function CandidateSettingsPage() {
                         </div>
                         <div className={styles.formStack}>
                             <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Current Password</label>
-                                <input type="password" placeholder="••••••••" value={security.currentPassword} onChange={e => setSecurity(p => ({ ...p, currentPassword: e.target.value }))} className={styles.premiumInput} />
-                            </div>
-                            <div className={styles.inputGroup}>
                                 <label className={styles.fieldLabel}>New Password</label>
                                 <input type="password" placeholder="••••••••" value={security.newPassword} onChange={e => setSecurity(p => ({ ...p, newPassword: e.target.value }))} className={styles.premiumInput} />
                             </div>
+                            <div className={styles.inputGroup}>
+                                <label className={styles.fieldLabel}>Confirm New Password</label>
+                                <input type="password" placeholder="••••••••" value={security.confirmPassword} onChange={e => setSecurity(p => ({ ...p, confirmPassword: e.target.value }))} className={styles.premiumInput} />
+                            </div>
                         </div>
                         <div className={styles.cardFooter}>
-                            <button className={styles.secondaryBtn} onClick={() => setMessage({ text: 'Password update feature coming soon.', type: 'info' })}>
-                                Update Securely
+                            <button className={styles.secondaryBtn} onClick={handleUpdatePassword} disabled={updatingPassword}>
+                                {updatingPassword ? <div className={styles.spinnerSmall}></div> : 'Update Securely'}
                             </button>
                         </div>
                     </div>

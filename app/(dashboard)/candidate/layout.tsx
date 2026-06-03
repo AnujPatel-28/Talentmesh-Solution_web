@@ -36,7 +36,7 @@ export default function CandidateLayout({ children }: { children: React.ReactNod
 
     if (!onboardingDone) {
       // Redirect to onboarding with current page as return URL
-      router.push(`/dashboard/candidate/onboarding?return=${encodeURIComponent(pathname)}`);
+      router.push(`/onboarding/candidate?return=${encodeURIComponent(pathname)}`);
     } else {
       setChecking(false);
     }

@@ -31,10 +31,19 @@ const IC = {
 };
 
 export default function CandidateHome({ params }: { params: Promise<{ role_id: string }> }) {
+    return (
+        <React.Suspense fallback={<HomeSkeleton />}>
+            <CandidateHomeInner params={params} />
+        </React.Suspense>
+    );
+}
+
+function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }) {
     const { role_id } = React.use(params) || {}; // Handle async params
     const router = useRouter();
     const { user: authUser, isLoading: authLoading } = useAuth();
     const [profile, setProfile] = useState<any>(null);
+    const [dbProfile, setDbProfile] = useState<any>(null);
     const [jobs, setJobs] = useState<any[]>([]);
     const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
     const [activity, setActivity] = useState<any[]>([]);
@@ -78,8 +87,11 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
             fetching.current = true;
             setLoading(true);
             try {
-                // Fetch All Dashboard Data via Unified Function
-                const { data: dash, error: dError } = await invokeFunction('candidate-dashboard');
+                // Fetch All Dashboard Data via Unified Function (passing the correct role_id)
+                const { data: dash, error: dError } = await invokeFunction('candidate-dashboard', {
+                    method: 'POST',
+                    body: { candidate_id: role_id }
+                });
                 
                 if (dError) {
                     console.error('Dashboard fetch error:', dError.message);
@@ -88,6 +100,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
 
                 if (dash) {
                     setProfile(dash.candidateProfile);
+                    setDbProfile(dash.profile);
                     setAppCount(dash.appCount);
                     setJobs(dash.jobs || []);
                     setActivity(dash.activity || []);
@@ -145,7 +158,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
         return <HomeSkeleton />;
     }
 
-    const userName = authUser?.name || profile?.name || authUser?.email?.split('@')[0] || 'User';
+    const userName = dbProfile?.name || authUser?.name || 'User';
 
     return (
         <div className={styles.dash}>

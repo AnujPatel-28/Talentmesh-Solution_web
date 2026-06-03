@@ -1,22 +1,25 @@
 .manager {
     background: var(--card-bg, #ffffff);
     border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.025);
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0.5rem;
 }
 
 .title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--text-main, #1a1a1a);
+    color: var(--text-main, #0f172a);
     margin: 0;
 }
 
@@ -24,7 +27,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    background: var(--primary-blue, #3b82f6);
     color: white;
     padding: 0.75rem 1.25rem;
     border-radius: 10px;
@@ -33,12 +36,12 @@
     transition: all 0.2s ease;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
 .uploadBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25);
 }
 
 .uploadBtn:active {
@@ -56,34 +59,34 @@
     align-items: center;
     gap: 1.25rem;
     padding: 1.25rem;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    background: var(--card-bg, #ffffff);
+    border: 1px solid #e2e8f0;
     border-radius: 14px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
 
 .card:hover {
-    background: white;
-    border-color: #6366f1;
-    transform: translateX(4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+    border-color: var(--primary-blue, #3b82f6);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
 }
 
 .cardDefault {
     border-color: #10b981;
-    background: rgba(16, 185, 129, 0.03);
+    background: #f0fdf4;
 }
 
 .cardDefault:hover {
     border-color: #10b981;
+    box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.08);
 }
 
 .iconWrapper {
     width: 48px;
     height: 48px;
-    background: #fff5f5;
+    background: #fef2f2;
     color: #ef4444;
     display: flex;
     align-items: center;
@@ -101,66 +104,76 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.35rem;
 }
 
 .label {
-    font-weight: 600;
-    color: var(--text-main, #1a1a1a);
+    font-weight: 700;
+    color: var(--text-main, #0f172a);
     font-size: 1rem;
     cursor: pointer;
     border-bottom: 1px dashed transparent;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .label:hover {
-    border-color: #6366f1;
+    color: var(--primary-blue, #3b82f6);
+    border-color: var(--primary-blue, #3b82f6);
 }
 
 .labelInput {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 1rem;
-    padding: 2px 4px;
-    border: 1px solid #6366f1;
-    border-radius: 4px;
+    padding: 4px 8px;
+    border: 2px solid var(--primary-blue, #3b82f6);
+    border-radius: 8px;
     outline: none;
     width: 100%;
+    color: #0f172a;
+    background: white;
 }
 
 .badge {
-    padding: 2px 8px;
-    font-size: 0.7rem;
-    font-weight: 700;
+    padding: 3px 8px;
+    font-size: 0.65rem;
+    font-weight: 800;
     text-transform: uppercase;
     border-radius: 6px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.05em;
 }
 
 .defaultBadge {
     background: #d1fae5;
     color: #065f46;
+    border: 1px solid #a7f3d0;
 }
 
 .meta {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    font-size: 0.8125rem;
-    color: #6b7280;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    flex-wrap: wrap;
 }
 
 .metaItem {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
 }
 
 .actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
 }
 
 .actionBtn {
@@ -169,54 +182,62 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
     background: white;
-    color: #6b7280;
+    color: #64748b;
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
 }
 
 .actionBtn:hover {
-    background: #f9fafb;
-    color: #1a1a1a;
-    border-color: #d1d5db;
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
 }
 
 .deleteBtn:hover {
-    background: #fff1f2;
-    color: #e11d48;
+    background: #fef2f2;
+    color: #ef4444;
     border-color: #fecdd3;
 }
 
 .defaultBtn {
     font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0 0.75rem;
+    font-weight: 700;
+    padding: 0 0.85rem;
     width: auto;
     color: #059669;
-    border-color: #d1fae5;
+    border-color: #a7f3d0;
+    background: white;
 }
 
 .defaultBtn:hover {
     background: #d1fae5;
     color: #047857;
+    border-color: #86efac;
 }
 
 /* Upload Dropzone */
 .dropzone {
-    border: 2px dashed #e5e7eb;
+    border: 2px dashed #cbd5e1;
     border-radius: 16px;
-    padding: 3rem 2rem;
+    padding: 2.5rem 2rem;
     text-align: center;
-    transition: all 0.3s;
+    transition: all 0.2s ease-in-out;
     cursor: pointer;
-    background: #fcfcfd;
+    background: #f8fafc;
 }
 
-.dropzone:hover, .dropzoneActive {
-    border-color: #6366f1;
-    background: #f5f3ff;
+.dropzoneActive {
+    border-color: var(--primary-blue, #3b82f6);
+    background: #eff6ff;
+}
+
+.dropzone:hover {
+    border-color: var(--primary-blue, #3b82f6);
+    background: #f8fafc;
 }
 
 .dropzoneIcon {
@@ -228,19 +249,19 @@
     align-items: center;
     justify-content: center;
     margin: 0 auto 1rem;
-    color: #6366f1;
+    color: var(--primary-blue, #3b82f6);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .dropzoneTitle {
-    font-weight: 600;
-    color: #1a1a1a;
+    font-weight: 700;
+    color: #0f172a;
     margin-bottom: 0.25rem;
 }
 
 .dropzoneHint {
-    font-size: 0.875rem;
-    color: #6b7280;
+    font-size: 0.8125rem;
+    color: #64748b;
 }
 
 /* Modal */
@@ -250,8 +271,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -264,27 +285,30 @@
     border-radius: 20px;
     width: 100%;
     max-width: 440px;
-    padding: 2rem;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    padding: 2.25rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
     animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid #e2e8f0;
 }
 
 @keyframes modalIn {
-    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .modalTitle {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.35rem;
+    font-weight: 800;
     margin-bottom: 0.5rem;
-    color: #1a1a1a;
+    color: #0f172a;
+    letter-spacing: -0.02em;
 }
 
 .modalDesc {
-    color: #6b7280;
+    color: #64748b;
     margin-bottom: 1.5rem;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
 }
 
 .formGroup {
@@ -293,24 +317,28 @@
 
 .formLabel {
     display: block;
-    font-weight: 600;
-    font-size: 0.875rem;
+    font-weight: 700;
+    font-size: 0.8rem;
     margin-bottom: 0.5rem;
-    color: #374151;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .formInput {
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #d1d5db;
+    padding: 0.75rem 1rem;
+    border: 1px solid #cbd5e1;
     border-radius: 10px;
-    font-size: 1rem;
+    font-size: 0.95rem;
     transition: all 0.2s;
+    color: #0f172a;
+    background: white;
 }
 
 .formInput:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    border-color: var(--primary-blue, #3b82f6);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
     outline: none;
 }
 
@@ -325,8 +353,8 @@
 .checkbox {
     width: 18px;
     height: 18px;
-    border-radius: 4px;
-    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    border: 1.5px solid #cbd5e1;
     cursor: pointer;
 }
 
@@ -340,28 +368,31 @@
     flex: 1;
     padding: 0.75rem;
     border-radius: 10px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     border: none;
+    font-size: 0.9rem;
 }
 
 .btnCancel {
-    background: #f3f4f6;
-    color: #4b5563;
+    background: #f1f5f9;
+    color: #475569;
 }
 
 .btnCancel:hover {
-    background: #e5e7eb;
+    background: #e2e8f0;
+    color: #0f172a;
 }
 
 .btnSave {
-    background: #6366f1;
+    background: var(--primary-blue, #3b82f6);
     color: white;
 }
 
 .btnSave:hover {
-    background: #4f46e5;
+    background: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 .limitNotice {
@@ -374,18 +405,17 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
 }
 
 .empty {
     text-align: center;
     padding: 3rem 0;
-    color: #9ca3af;
+    color: #64748b;
 }
 
 .emptyIcon {
     margin-bottom: 1rem;
-    opacity: 0.5;
+    opacity: 0.3;
 }
 
 /* Animations */
@@ -399,8 +429,8 @@
 .spinner {
     width: 24px;
     height: 24px;
-    border: 3px solid rgba(99, 102, 241, 0.1);
-    border-top-color: #6366f1;
+    border: 3px solid rgba(59, 130, 246, 0.1);
+    border-top-color: var(--primary-blue, #3b82f6);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }

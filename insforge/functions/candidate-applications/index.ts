@@ -3,18 +3,15 @@ import { z } from 'npm:zod';
 
 const createApplicationSchema = z.object({
   jobId: z.string().uuid('Invalid job ID'),
-  fullName: z.string().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
   coverLetter: z.string().optional(),
-  portfolioUrl: z.string().url().optional().or(z.literal('')),
-  resumeUrl: z.string().url('Invalid resume URL'),
-  appliedViaReferralId: z.string().uuid().nullable().optional(),
+  applyType: z.enum(['quick', 'manual']).default('quick'),
+  resumeUrl: z.string().optional(),
+  screeningAnswers: z.record(z.string(), z.any()).optional(),
 });
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
-const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
+const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY');
 
 export default async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get('Origin') || '*';
@@ -29,11 +26,14 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { status: 204, headers: corsHeaders });
 
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token || '', isServerMode: true });
+  const reqBaseUrl = req.headers.get('x-insforge-url') || baseUrl;
+  const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
+  const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
+
+  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey, edgeFunctionToken: token || '', isServerMode: true });
   
-  // Try to get user if token exists, but allow public applications too if needed?
-  // User request says "CANDIDATES can apply", usually implies logged in, but let's check profile.
-  let candidateId = null;
+  // Authenticate the user
+  let candidateId: string | null = null;
   if (token) {
     const { data: authData } = await insforge.auth.getCurrentUser();
     if (authData?.user && authData.user.id !== 'project-admin-with-api-key') {
@@ -41,7 +41,53 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+  // Admin client for all DB queries to bypass RLS (avoids project-admin-with-api-key UUID error)
+  const insforgeAdmin = createClient({ 
+    baseUrl: reqBaseUrl, 
+    anonKey: reqServiceKey,
+    isServerMode: true
+  });
+
+  // --- GET Handler: Fetch candidate's applications ---
+  if (req.method === 'GET') {
+    try {
+      if (!candidateId) {
+        return new Response(JSON.stringify({ error: 'You must be logged in to view applications.' }), { status: 401, headers: corsHeaders });
+      }
+
+      const url = new URL(req.url);
+      const jobId = url.searchParams.get('jobId');
+
+      // If jobId is provided, check if the candidate has already applied to this specific job
+      if (jobId) {
+        const { data: existing, error: existingError } = await insforgeAdmin.database
+          .from('applications')
+          .select('id, status')
+          .eq('candidate_id', candidateId)
+          .eq('job_id', jobId)
+          .single();
+
+        if (existingError || !existing) {
+          return new Response(JSON.stringify({ status: null }), { status: 200, headers: corsHeaders });
+        }
+
+        return new Response(JSON.stringify({ status: existing.status, id: existing.id }), { status: 200, headers: corsHeaders });
+      }
+
+      // Otherwise, fetch all applications for this candidate with job/company details
+      const { data: applications, error: appsError } = await insforge.database
+        .from('applications')
+        .select('*, jobs(id, title, location, type, salary_min, salary_max, currency, companies(name, logo_url))')
+        .eq('candidate_id', candidateId)
+        .order('applied_at', { ascending: false });
+
+      if (appsError) throw appsError;
+
+      return new Response(JSON.stringify({ applications: applications || [] }), { status: 200, headers: corsHeaders });
+    } catch (err: any) {
+      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+    }
+  }
 
   if (req.method === 'POST') {
     try {
@@ -72,16 +118,13 @@ export default async function handler(req: Request): Promise<Response> {
         .insert([{
           job_id: input.jobId,
           candidate_id: candidateId, // Can be null for public apps
-          full_name: input.fullName,
-          email: input.email,
-          phone: input.phone,
           cover_letter: input.coverLetter || null,
-          portfolio_url: input.portfolioUrl || null,
-          resume_url: input.resumeUrl,
-          applied_via_referral_id: input.appliedViaReferralId || null,
           status: 'applied',
           applied_at: now,
           updated_at: now,
+          apply_type: input.applyType,
+          resume_url: input.resumeUrl || null,
+          screening_answers: input.screeningAnswers || null,
         }])
         .select()
         .single();
@@ -93,22 +136,6 @@ export default async function handler(req: Request): Promise<Response> {
         .from('jobs')
         .update({ applications_count: (job.applications_count || 0) + 1 })
         .eq('id', input.jobId);
-
-      // 4. Update Referral Stats (if applicable)
-      if (input.appliedViaReferralId) {
-        const { data: referral } = await insforgeAdmin.database
-          .from('referrals')
-          .select('applications')
-          .eq('id', input.appliedViaReferralId)
-          .single();
-        
-        if (referral) {
-          await insforgeAdmin.database
-            .from('referrals')
-            .update({ applications: (referral.applications || 0) + 1 })
-            .eq('id', input.appliedViaReferralId);
-        }
-      }
 
       return new Response(JSON.stringify({ application }), { status: 201, headers: corsHeaders });
     } catch (err: any) {

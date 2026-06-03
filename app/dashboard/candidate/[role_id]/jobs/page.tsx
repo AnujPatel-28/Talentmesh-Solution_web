@@ -75,8 +75,8 @@ export default function JobsPage() {
         if (!user) return;
         try {
             const res = await invokeFunction('candidate-applications', { method: 'GET' });
-            if (res.data) {
-                setAppliedIds(new Set(res.data.map((a: any) => a.job_id)));
+            if (res.data?.applications) {
+                setAppliedIds(new Set(res.data.applications.map((a: any) => a.job_id)));
             }
         } catch (err: any) {
             console.warn('Could not fetch applied IDs (non-critical):', err?.message);
@@ -99,7 +99,7 @@ export default function JobsPage() {
                 }
             });
 
-            const results = res.data?.jobs || res.data || [];
+            const results = res.data?.data || res.data?.jobs || (Array.isArray(res.data) ? res.data : []);
 
             if (isNewSearch) {
                 setJobs(results);

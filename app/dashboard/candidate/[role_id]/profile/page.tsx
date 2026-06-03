@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from '../../../shared-dashboard.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
 import ProfileStrengthWidget from '@/components/candidate/ProfileStrengthWidget';
-import ResumeManager from '@/components/candidate/ResumeManager';
+// ResumeManager separated to its own page
 import { insforge, invokeFunction } from '@/lib/insforge';
 import type { UserProfile, CandidateProfile } from '@/types/user';
 import { validateCandidateProfile } from '@/lib/validation/candidate';
@@ -64,19 +64,24 @@ export default function ProfilePage() {
             const { data, error } = await invokeFunction('candidate-profile', { method: 'GET' });
             if (error) throw new Error(error.message);
             
+            const mappedProfile: UserProfile = {
+                ...data.profile,
+                candidate_profiles: data.candidateProfile
+            };
+            
             setProfile(prev => {
-                if (!prev || !isEditing) return data;
+                if (!prev || !isEditing) return mappedProfile;
                 return {
-                    ...data,
+                    ...mappedProfile,
                     name: prev.name,
                     phone: prev.phone,
                     location: prev.location,
                     about: prev.about,
-                    candidate_profiles: data.candidate_profiles ? {
-                        ...data.candidate_profiles,
-                        headline: prev.candidate_profiles?.headline || data.candidate_profiles.headline,
-                        skills: prev.candidate_profiles?.skills || data.candidate_profiles.skills,
-                        experience_years: prev.candidate_profiles?.experience_years ?? data.candidate_profiles.experience_years,
+                    candidate_profiles: mappedProfile.candidate_profiles ? {
+                        ...mappedProfile.candidate_profiles,
+                        headline: prev.candidate_profiles?.headline || mappedProfile.candidate_profiles.headline,
+                        skills: prev.candidate_profiles?.skills || mappedProfile.candidate_profiles.skills,
+                        experience_years: prev.candidate_profiles?.experience_years ?? mappedProfile.candidate_profiles.experience_years,
                     } : undefined
                 };
             });
@@ -185,7 +190,7 @@ export default function ProfilePage() {
                         {profile.avatar_url ? (
                             <img src={profile.avatar_url} alt={profile.name} className={styles.avatarImg} />
                         ) : (
-                            profile.name.split(' ').map(n => n[0]).join('')
+                            (profile.name || 'User').split(' ').filter(Boolean).map(n => n[0]).join('')
                         )}
                         <div className={styles.avatarOverlay}>{IC.camera}</div>
                         <span className={styles.onlineDot} />
@@ -291,7 +296,6 @@ export default function ProfilePage() {
             </div>
 
             <div className={styles.profileMain}>
-                <ResumeManager candidateId={profile.id} />
 
                 {isEditing && (
                     <div className={styles.profileSection}>

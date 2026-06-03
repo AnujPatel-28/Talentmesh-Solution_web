@@ -32,27 +32,44 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const userId = authData.user.id;
-    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+    const callerId = authData.user.id;
+    let targetUserId = callerId;
+
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        if (body.candidate_id) {
+          targetUserId = body.candidate_id;
+        }
+      } catch (e) {
+        // Ignore json parse error
+      }
+    }
+
+    // Use user-scoped client if querying own data to prevent UUID casting errors on auth.uid() in RLS
+    const dbClient = targetUserId === callerId 
+      ? createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true }) 
+      : createClient({ baseUrl, anonKey: serviceKey });
 
     // Fetch everything in parallel
     const [profileRes, candidateProfileRes, appsRes, interviewsRes, jobsRes, activityRes] = await Promise.all([
       // 1. Profile
-      insforgeAdmin.database.from('profiles').select('*').eq('id', userId).single(),
+      dbClient.database.from('profiles').select('*').eq('id', targetUserId).single(),
       // 2. Candidate Profile
-      insforgeAdmin.database.from('candidate_profiles').select('*').eq('user_id', userId).single(),
+      dbClient.database.from('candidate_profiles').select('*').eq('id', targetUserId).single(),
       // 3. Applications Count
-      insforgeAdmin.database.from('applications').select('*', { count: 'exact', head: true }).eq('candidate_id', userId),
+      dbClient.database.from('applications').select('*', { count: 'exact', head: true }).eq('candidate_id', targetUserId),
       // 4. Interviews
-      insforgeAdmin.database.from('interviews')
+      dbClient.database.from('interviews')
         .select('*, applications(jobs(title, companies(name)))')
-        .eq('candidate_id', userId)
+        .eq('candidate_id', targetUserId)
         .order('scheduled_at', { ascending: true }),
       // 5. Recommended Jobs (Active) - Calling our new recommendations logic
-      insforgeAdmin.database.from('jobs').select('*, companies:company_profiles(name, logo_url)').eq('status', 'active').limit(5),
+      dbClient.database.from('jobs').select('*, companies(name, logo_url)').eq('status', 'active').limit(5),
       // 6. Recent Activity
-      insforgeAdmin.database.from('activity').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(5)
+      dbClient.database.from('activity').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }).limit(5)
     ]);
+
 
     // Rank jobs by skills match
     const candidateSkills = candidateProfileRes.data?.skills || [];
