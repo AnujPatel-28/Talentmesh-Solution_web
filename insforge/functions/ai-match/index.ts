@@ -51,7 +51,7 @@ export default async function handler(req: Request): Promise<Response> {
     const { data: candidate, error: candError } = await insforgeAdmin.database
       .from('candidate_profiles')
       .select('skills, experience_years, education, headline')
-      .eq('user_id', candidateId)
+      .eq('id', candidateId)
       .single();
 
     if (candError || !candidate) {

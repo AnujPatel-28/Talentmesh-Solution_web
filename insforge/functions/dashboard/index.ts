@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
+const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 
 export default async function handler(req: Request): Promise<Response> {
   const token = req.headers.get('Authorization')?.split(' ')[1];
@@ -21,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
         { data: interviews },
         { data: activity },
       ] = await Promise.all([
-        insforge.database.from('jobs').select('*, company_profiles(*)').order('created_at', { ascending: false }),
+        insforge.database.from('jobs').select('*, companies(*)').order('created_at', { ascending: false }),
         insforge.database.from('candidate_profiles').select('*').order('ai_karma', { ascending: false }).limit(10),
         insforge.database.from('interviews').select('*').order('created_at', { ascending: false }).limit(5),
         insforge.database.from('activity').select('*').order('created_at', { ascending: false }).limit(6),

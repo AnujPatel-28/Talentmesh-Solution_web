@@ -27,6 +27,7 @@ export interface UserProfile {
   email: string;
   name: string;
   role: string | UserRole;
+  role_id?: string;
   phone?: string;
   location?: string;
   about?: string;
@@ -34,6 +35,8 @@ export interface UserProfile {
   is_onboarded?: boolean;
   candidate_profiles?: CandidateProfile;
   completed_onboarding?: boolean;
+  onboarding_complete?: boolean;
+  onboarding_completed?: boolean;
 }
 
 export type JobType = 'full-time' | 'part-time' | 'contract' | 'remote' | 'hybrid';

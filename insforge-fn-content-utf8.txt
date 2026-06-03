@@ -1,0 +1,190 @@
+﻿import { createClient } from 'npm:@insforge/sdk';
+
+export default async function handler(req: Request): Promise<Response> {
+  const INSFORGE_URL = req.headers.get('x-insforge-url') || Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL') || '';
+  const INSFORGE_ANON_KEY = req.headers.get('x-insforge-anon-key') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || '';
+  const origin = req.headers.get('Origin') || 'http://localhost:3000';
+  const corsHeaders: Record<string, string> = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { status: 204, headers: corsHeaders });
+  }
+
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.split(' ')[1];
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    const serviceKey = req.headers.get('x-insforge-service-key') || Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY') || INSFORGE_ANON_KEY;
+    const db = createClient({ 
+      baseUrl: INSFORGE_URL, 
+      anonKey: serviceKey!,
+      isServerMode: true
+    });
+
+    let payload;
+    try {
+      const payloadBase64 = token.split('.')[1];
+      payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const userData = { id: payload.sub };
+
+    const { data: profile } = await db.database
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.id)
+      .single();
+
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    const url = new URL(req.url);
+
+    if (req.method === 'GET') {
+      const search = url.searchParams.get('search');
+      const status = url.searchParams.get('status');
+      const page = parseInt(url.searchParams.get('page') || '0');
+      const requestedLimit = parseInt(url.searchParams.get('limit') || '20');
+      const limit = Math.min(requestedLimit, 100);
+
+      let profilesQuery = db.database.from('profiles').select('*').eq('role', 'recruiter');
+      if (search) profilesQuery = profilesQuery.ilike('name', `%${search}%`);
+      
+      const { data: profilesData, error: pError } = await profilesQuery.order('created_at', { ascending: false });
+      if (pError) throw pError;
+
+      let rpQuery = db.database.from('recruiter_profiles').select('*, companies(name)');
+      if (status) rpQuery = rpQuery.eq('status', status);
+      
+      const { data: rpData, error: rpError } = await rpQuery;
+      if (rpError) throw rpError;
+
+      let joined = (profilesData || []).map(p => {
+        const rps = (rpData || []).filter(rp => rp.id === p.id);
+        return {
+          ...p,
+          recruiter_profiles: rps
+        };
+      });
+
+      if (status) {
+        joined = joined.filter(p => p.recruiter_profiles && p.recruiter_profiles.length > 0);
+      }
+
+      const total = joined.length;
+      const paginated = joined.slice(page * limit, (page + 1) * limit);
+
+      return new Response(JSON.stringify({ recruiters: paginated, total }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (req.method === 'POST') {
+      // Admin API Key is required for createUser
+      const adminDb = createClient({
+        baseUrl: INSFORGE_URL,
+        anonKey: serviceKey!,
+        isServerMode: true // Uses serviceKey directly, bypassing RLS and enabling admin routes
+      });
+
+      const body = await req.json();
+      const { firstName, lastName, email, companyId, password } = body;
+
+      if (!email || !firstName || !companyId) {
+        return new Response(JSON.stringify({ error: 'Missing required fields: email, firstName, companyId' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (!password || password.length < 8) {
+        return new Response(JSON.stringify({ error: 'A password of at least 8 characters is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Create user with admin-provided password
+      const { data: newUser, error: createError } = await adminDb.auth.signUp({
+        email,
+        password,
+        name: `${firstName} ${lastName || ''}`.trim()
+      });
+
+      if (createError) throw createError;
+      if (!newUser || !newUser.user) throw new Error('Failed to retrieve created user data');
+      const newUserId = newUser.user.id;
+
+      // Upsert profile
+      const { error: profileError } = await adminDb.database.from('profiles').upsert({
+        id: newUserId,
+        user_id: newUserId,
+        email,
+        name: `${firstName} ${lastName || ''}`.trim(),
+        role: 'recruiter'
+      });
+
+      if (profileError) throw profileError;
+
+      // Insert recruiter_profile ΓÇö stays pending until recruiter verifies email
+      const { error: recruiterError } = await adminDb.database.from('recruiter_profiles').insert({
+        id: newUserId,
+        company_id: companyId,
+        status: 'pending_verification'
+      });
+
+      if (recruiterError) throw recruiterError;
+
+      // Always send 6-digit OTP verification email
+      // The admin has already set the password ΓÇö recruiter only needs to verify email
+      await adminDb.auth.resendVerificationEmail({ email });
+      const message = 'Recruiter account created. A 6-digit verification code has been sent to their email. They can log in after verifying.';
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message,
+        user: { id: newUserId, email }
+      }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (req.method === 'PATCH') {
+      const id = url.searchParams.get('id');
+      const body = await req.json();
+      
+      if (!id) return new Response(JSON.stringify({ error: 'ID is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      const { data, error } = await db.database
+        .from('recruiter_profiles')
+        .update(body)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ recruiter: data }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (req.method === 'DELETE') {
+      const id = url.searchParams.get('id');
+      if (!id) return new Response(JSON.stringify({ error: 'ID is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      const { error } = await db.database
+        .from('recruiter_profiles')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+  } catch (error: any) {
+    console.error('Edge function error:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Internal Server Error', details: error }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+}

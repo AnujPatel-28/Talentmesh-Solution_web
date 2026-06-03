@@ -1,0 +1,180 @@
+﻿{
+  "auth": {
+    "oAuthProviders": [
+      "google",
+      "linkedin"
+    ],
+    "requireEmailVerification": true,
+    "passwordMinLength": 6,
+    "requireNumber": false,
+    "requireLowercase": false,
+    "requireUppercase": false,
+    "requireSpecialChar": false,
+    "verifyEmailMethod": "code",
+    "resetPasswordMethod": "code"
+  },
+  "database": {
+    "tables": [
+      {
+        "tableName": "activity",
+        "recordCount": 1
+      },
+      {
+        "tableName": "admin_invites",
+        "recordCount": 0
+      },
+      {
+        "tableName": "admin_permissions",
+        "recordCount": 0
+      },
+      {
+        "tableName": "application",
+        "recordCount": 0
+      },
+      {
+        "tableName": "applications",
+        "recordCount": 0
+      },
+      {
+        "tableName": "audit_logs",
+        "recordCount": 0
+      },
+      {
+        "tableName": "blog",
+        "recordCount": 0
+      },
+      {
+        "tableName": "candidate_profiles",
+        "recordCount": 1
+      },
+      {
+        "tableName": "candidateprofile",
+        "recordCount": 0
+      },
+      {
+        "tableName": "companies",
+        "recordCount": 0
+      },
+      {
+        "tableName": "companyprofile",
+        "recordCount": 13
+      },
+      {
+        "tableName": "interview",
+        "recordCount": 0
+      },
+      {
+        "tableName": "interviews",
+        "recordCount": 0
+      },
+      {
+        "tableName": "job",
+        "recordCount": 6
+      },
+      {
+        "tableName": "jobs",
+        "recordCount": 0
+      },
+      {
+        "tableName": "messages",
+        "recordCount": 0
+      },
+      {
+        "tableName": "notifications",
+        "recordCount": 0
+      },
+      {
+        "tableName": "profiles",
+        "recordCount": 5
+      },
+      {
+        "tableName": "recruiter_profiles",
+        "recordCount": 0
+      },
+      {
+        "tableName": "saved_jobs",
+        "recordCount": 0
+      }
+    ],
+    "totalSizeInGB": 0.010189815424382687,
+    "hint": "To retrieve detailed schema information for a specific table, call the get-table-schema tool with the table name."
+  },
+  "storage": {
+    "buckets": [
+      {
+        "name": "resumes",
+        "public": true,
+        "createdAt": "2026-03-26T10:49:14.904Z",
+        "objectCount": 1
+      }
+    ],
+    "totalSizeInGB": 0.0011551203206181526
+  },
+  "functions": [],
+  "aiIntegration": {
+    "models": [
+      {
+        "inputModality": [
+          "text",
+          "image"
+        ],
+        "outputModality": [
+          "text"
+        ],
+        "modelId": "deepseek/deepseek-v3.2"
+      },
+      {
+        "inputModality": [
+          "text",
+          "image"
+        ],
+        "outputModality": [
+          "text"
+        ],
+        "modelId": "minimax/minimax-m2.1"
+      },
+      {
+        "inputModality": [
+          "text",
+          "image"
+        ],
+        "outputModality": [
+          "text"
+        ],
+        "modelId": "x-ai/grok-4.1-fast"
+      },
+      {
+        "inputModality": [
+          "text",
+          "image"
+        ],
+        "outputModality": [
+          "text"
+        ],
+        "modelId": "anthropic/claude-sonnet-4.5"
+      },
+      {
+        "inputModality": [
+          "text",
+          "image"
+        ],
+        "outputModality": [
+          "text"
+        ],
+        "modelId": "openai/gpt-4o-mini"
+      },
+      {
+        "inputModality": [
+          "text",
+          "image"
+        ],
+        "outputModality": [
+          "text",
+          "image"
+        ],
+        "modelId": "google/gemini-3-pro-image-preview"
+      }
+    ]
+  },
+  "version": "1.0.0"
+}

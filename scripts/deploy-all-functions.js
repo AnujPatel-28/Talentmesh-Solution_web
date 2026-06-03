@@ -14,7 +14,7 @@ function deployFunctions() {
       
       try {
         const name = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        const cmd = `npx @insforge/cli functions deploy ${slug} --name "${name}"`;
+        const cmd = `npx @insforge/cli functions deploy ${slug} --file insforge/functions/${slug}/index.ts --name "${name}"`;
         
         const output = execSync(cmd, { stdio: 'inherit' });
         console.log(`✅ Successfully deployed: ${slug}`);

@@ -13,11 +13,28 @@ if (!supabaseAnonKey) {
 }
 
 // Client containing the anon key, safe for both client and server pages
-//changing this line 
 export const insforge = createClient({
   baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : supabaseUrl,
   anonKey: supabaseAnonKey,
 });
+
+if (typeof window !== 'undefined') {
+  try {
+    // Explicitly override baseUrl in the browser to prevent any SSR-leak of the remote URL
+    const localBaseUrl = `${window.location.origin}/api/v1/remote`;
+    (insforge as any).baseUrl = localBaseUrl;
+    if ((insforge as any).http) {
+      (insforge as any).http.baseUrl = localBaseUrl;
+    }
+
+    const token = window.sessionStorage.getItem('tm_token');
+    if (token) {
+      insforge.setAccessToken(token);
+    }
+  } catch (err) {
+    console.warn('Failed to auto-restore access token from sessionStorage:', err);
+  }
+}
 
 /**
  * Direct client that bypasses the local proxy.
@@ -31,7 +48,7 @@ export const directInsforge = createClient({
 /**
  * Helper to invoke Edge Functions manually to bypass SDK URL construction bug.
  */
-export async function invokeFunction(slug: string, options: { 
+export async function invokeFunction(slug: string, options: {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   headers?: Record<string, string>;
@@ -41,7 +58,7 @@ export async function invokeFunction(slug: string, options: {
   const { method = 'POST', body, headers = {}, queries = {}, path = '' } = options;
   const isBrowser = typeof window !== 'undefined';
   const baseUrl = isBrowser ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
-  
+
   // Construct URL with path and queries
   let url = `${baseUrl}/functions/${slug}${path}`;
   const queryParams = new URLSearchParams();
@@ -54,7 +71,7 @@ export async function invokeFunction(slug: string, options: {
   if (queryString) {
     url += `?${queryString}`;
   }
-  
+
   // Resolve auth token: caller-supplied header > sessionStorage (primary, survives navigation) > cookie
   let authHeader = headers['Authorization'] || headers['authorization'];
 
@@ -109,43 +126,38 @@ export async function invokeFunction(slug: string, options: {
     const isImpersonating = document.cookie.includes('tm_impersonating_user_id=');
     if (isImpersonating) {
       console.warn('Mutation blocked: You are in READ-ONLY impersonation mode.');
-      return { 
-        data: null, 
-        error: { 
-          message: 'Action blocked: You are in read-only impersonation mode. Please exit impersonation to perform this action.', 
-          status: 403 
-        } 
+      return {
+        data: null,
+        error: {
+          message: 'Action blocked: You are in read-only impersonation mode. Please exit impersonation to perform this action.',
+          status: 403
+        }
       };
     }
   }
 
-  // 15-second timeout — fail fast rather than hanging until the browser gives up (~60-120s)
+  // 30-second timeout — allows for edge-function cold starts + multi-query dashboards
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   fetchOptions.signal = controller.signal;
 
   let response: Response;
   try {
     response = await fetch(url, fetchOptions);
-    
-    // 🔥 Automatic Token Refresh on 401
-    if (response.status === 401 && typeof window !== 'undefined') {
-      console.warn(`[invokeFunction] 401 Unauthorized for ${slug}. Attempting token refresh...`);
+
+    if (response.status === 401) {
       const newToken = await refreshAccessToken();
-      
       if (newToken) {
-        // Success — update headers and retry once
         const retryHeaders = { ...finalHeaders, 'Authorization': `Bearer ${newToken}` };
         const retryOptions = { ...fetchOptions, headers: retryHeaders };
-        
         const retryResponse = await fetch(url, retryOptions);
-        if (retryResponse.ok || retryResponse.status !== 401) {
-          response = retryResponse;
-        }
+        // Always use retryResponse, regardless of status
+        response = retryResponse;
       } else {
         // Refresh failed — session is truly dead
         console.error('[invokeFunction] Token refresh failed. Dispatching session-expiry.');
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        return { data: null, error: { message: 'Session expired', status: 401 }};
       }
     }
   } catch (err: any) {
@@ -193,44 +205,94 @@ export function getTokenRemainingSeconds(token: string): number {
 }
 
 /**
+ * Helper to persist the rotated CSRF token to both sessionStorage and the cookie
+ * so that all subsequent refresh calls stay in sync.
+ */
+function saveCsrfToken(csrf: string): void {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem('tm_csrf_token', csrf);
+  const maxAge = 7 * 24 * 60 * 60;
+  // Write with path=/ so it is accessible from any page via document.cookie
+  document.cookie = `insforge_csrf_token=${encodeURIComponent(csrf)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+/**
+ * Helper to retrieve the most up-to-date CSRF token.
+ * Checks sessionStorage FIRST (updated after every successful refresh),
+ * then falls back to the insforge_csrf_token cookie (set by the SDK during OAuth).
+ */
+function getCsrfToken(): string {
+  // sessionStorage holds the LATEST rotated value — check it first
+  if (typeof window !== 'undefined') {
+    const stored = window.sessionStorage.getItem('tm_csrf_token');
+    if (stored) return stored;
+  }
+  // Cookie fallback (initial value set by SDK during OAuth code exchange)
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.split(';').find((c) => c.trim().startsWith('insforge_csrf_token='));
+    if (match) {
+      const val = match.split('=').slice(1).join('=').trim();
+      if (val) {
+        try { return decodeURIComponent(val); } catch { return val; }
+      }
+    }
+  }
+  return '';
+}
+
+let activeRefreshPromise: Promise<string | null> | null = null;
+
+/**
  * Refresh the access token using the InsForge httpOnly refresh cookie
  * (set by the Next.js proxy when the login response forwarded InsForge's Set-Cookie).
  * Returns the new accessToken, or null if refresh failed.
  */
 export async function refreshAccessToken(): Promise<string | null> {
-  try {
-    // Use the custom Next.js proxy at /api/auth/refresh.
-    // The insforge_refresh_token cookie has Path=/api/auth, so the browser sends it
-    // to requests under /api/auth — this route matches. The old /api/v1/remote path
-    // did NOT match and the cookie was never forwarded, causing every refresh to 401.
-    const url = typeof window !== 'undefined'
-      ? `${window.location.origin}/api/auth/refresh`
-      : `${process.env.NEXT_PUBLIC_INSFORGE_URL}/api/auth/refresh`;
-    const csrfToken = typeof window !== 'undefined'
-      ? window.sessionStorage.getItem('tm_csrf_token') || ''
-      : '';
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-      },
-      credentials: 'include',
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const newToken: string | null = data?.accessToken ?? null;
-    if (newToken && typeof window !== 'undefined') {
-      if (data?.csrfToken) window.sessionStorage.setItem('tm_csrf_token', data.csrfToken);
-      window.sessionStorage.setItem('tm_token', newToken);
-      const isSecure = window.location.protocol === 'https:';
-      const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-      document.cookie = `tm_access_token=${newToken}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}`;
-    }
-    return newToken;
-  } catch {
-    return null;
+  if (activeRefreshPromise) {
+    return activeRefreshPromise;
   }
+
+  activeRefreshPromise = (async () => {
+    try {
+      // Use the custom Next.js proxy at /api/auth/refresh.
+      // The insforge_refresh_token cookie has Path=/api/auth, so the browser sends it
+      // to requests under /api/auth — this route matches. The old /api/v1/remote path
+      // did NOT match and the cookie was never forwarded, causing every refresh to 401.
+      const url = typeof window !== 'undefined'
+        ? `${window.location.origin}/api/auth/refresh`
+        : `${process.env.NEXT_PUBLIC_INSFORGE_URL}/api/auth/refresh`;
+      const csrfToken = getCsrfToken();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
+        credentials: 'include',
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const newToken: string | null = data?.accessToken ?? null;
+      if (newToken && typeof window !== 'undefined') {
+        // Persist rotated CSRF so next call uses the updated token
+        if (data?.csrfToken) saveCsrfToken(data.csrfToken);
+        window.sessionStorage.setItem('tm_token', newToken);
+        const isSecure = window.location.protocol === 'https:';
+        const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
+        document.cookie = `tm_access_token=${newToken}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}`;
+        
+        // Synchronize refreshed token with active browser SDK client for direct queries
+        insforge.setAccessToken(newToken);
+      }
+      return newToken;
+    } catch {
+      return null;
+    } finally {
+      activeRefreshPromise = null;
+    }
+  })();
+
+  return activeRefreshPromise;
 }
 
 /**
@@ -242,9 +304,7 @@ export async function getSession() {
     const url = typeof window !== 'undefined'
       ? `${window.location.origin}/api/auth/refresh`
       : `${process.env.NEXT_PUBLIC_INSFORGE_URL}/api/auth/refresh`;
-    const csrfToken = typeof window !== 'undefined'
-      ? window.sessionStorage.getItem('tm_csrf_token') || ''
-      : '';
+    const csrfToken = getCsrfToken();
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -255,9 +315,9 @@ export async function getSession() {
     });
     if (!response.ok) return null;
     const data = await response.json();
-    // Rotate csrfToken
+    // Persist rotated CSRF token so future calls (including invokeFunction retry) use the new value
     if (data?.csrfToken && typeof window !== 'undefined') {
-      window.sessionStorage.setItem('tm_csrf_token', data.csrfToken);
+      saveCsrfToken(data.csrfToken);
     }
     return data || null;
   } catch {

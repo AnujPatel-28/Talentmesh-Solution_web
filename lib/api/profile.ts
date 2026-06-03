@@ -1,43 +1,157 @@
 import { createClient } from '@insforge/sdk';
-import { insforge } from '@/lib/insforge';
+import { insforge, directInsforge } from '@/lib/insforge';
 import { UserProfile } from '@/types/user';
 
-export async function getMyProfile(token?: string): Promise<UserProfile | null> {
+function decodeJwt(token: string): any {
   try {
-    // 🔥 Fix: InsForge SDK uses edgeFunctionToken for authenticated requests
-    // We match the URL logic from @/lib/insforge to handle proxy correctly
-    const client = token ? createClient({
-      baseUrl: typeof window !== 'undefined' 
-        ? `${window.location.origin}/api/v1/remote` 
-        : process.env.NEXT_PUBLIC_INSFORGE_URL!,
-      anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
-      edgeFunctionToken: token,
-      isServerMode: true
-    }) : insforge;
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payloadPart = parts[1];
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error('Error decoding JWT in getMyProfile:', e);
+    return null;
+  }
+}
 
+export async function getMyProfile(token?: string, allowFallback: boolean = true): Promise<UserProfile | null> {
+  try {
+    const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
+    const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || '';
 
-    const { data: { user }, error: userError } = await client.auth.getCurrentUser();
-    
-    if (userError || !user) {
-      console.warn('No user found in getMyProfile, userError:', userError);
+    // Create client instance authenticated with token if available
+    const client = token
+      ? createClient({
+          baseUrl,
+          anonKey,
+          edgeFunctionToken: token,
+          isServerMode: typeof window === 'undefined',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      : insforge;
+
+    let user: any = null;
+    try {
+      const { data, error: userError } = await client.auth.getCurrentUser();
+      if (!userError && data?.user) {
+        user = data.user;
+      }
+    } catch (err) {
+      console.warn('Could not get current user from client auth:', err);
+    }
+
+    let userId = user?.id;
+    let userEmail = user?.email;
+    let userMetadata = user?.user_metadata || {};
+
+    // Decode token fallback
+    if (token) {
+      const decoded = decodeJwt(token);
+      if (decoded) {
+        userId = userId || decoded.sub;
+        userEmail = userEmail || decoded.email;
+        userMetadata = { ...userMetadata, ...(decoded.user_metadata || decoded) };
+      }
+    }
+
+    if (!userId) {
+      console.warn('No user ID found in getMyProfile');
       return null;
     }
 
-    const { data, error } = await client.database
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    let profileData: any = null;
+    let dbError: any = null;
 
+    // 1. Try fetching by ID
+    try {
+      const { data, error } = await client.database
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (!error && data) {
+        profileData = data;
+      } else {
+        dbError = error;
+      }
+    } catch (err) {
+      dbError = err;
+    }
 
-    if (error) {
-      console.error('Database error in getMyProfile:', error);
+    // 2. Try fetching by email if fetching by ID failed
+    if (!profileData && userEmail) {
+      try {
+        const { data, error } = await client.database
+          .from('profiles')
+          .select('*')
+          .eq('email', userEmail)
+          .single();
+        
+        if (!error && data) {
+          profileData = data;
+          dbError = null;
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // 3. Try fetching with directInsforge client (bypassing local proxy) if still not found
+    if (!profileData) {
+      try {
+        const { data } = await directInsforge.database
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        if (data) {
+          profileData = data;
+          dbError = null;
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // 4. Return database profile if found
+    if (profileData) {
+      return profileData;
+    }
+
+    // 5. Build fallback profile if not found in database to prevent login blocking
+    if (!allowFallback) {
       return null;
     }
-    return data;
+    console.warn(`Profile not found in database (error: ${JSON.stringify(dbError)}). Generating fallback profile for user: ${userId}`);
+    const role = userMetadata.role || 'candidate';
+    const name = userMetadata.full_name || userMetadata.name || userEmail?.split('@')[0] || 'User';
+
+    return {
+      id: userId,
+      email: userEmail || '',
+      name: name,
+      role: role,
+      is_onboarded: true,
+      onboarding_complete: true,
+      onboarding_completed: true,
+      completed_onboarding: true,
+    };
+
   } catch (err) {
     console.error('Unexpected error in getMyProfile:', err);
     return null;
   }
 }
+
 
