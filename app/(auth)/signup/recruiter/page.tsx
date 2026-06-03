@@ -1,7 +1,8 @@
 "use client";
 import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import RequestAccessForm from '@/components/auth/RequestAccessForm';
+import RecruiterRegisterForm from '@/components/auth/RecruiterRegisterForm';
+import BookACallForm from '@/components/auth/BookACallForm';
 import styles from '../signup.module.css';
 
 function RecruiterSignupContent() {
@@ -16,10 +17,11 @@ function RecruiterSignupContent() {
             <div className={styles.gridOverlay} />
 
             <div className="w-full max-w-2xl mx-auto z-10">
-                <RequestAccessForm 
-                    onBack={() => router.push('/signup')} 
-                    variant={variant}
-                />
+                {variant === 'call' ? (
+                    <BookACallForm onBack={() => router.push('/signup')} />
+                ) : (
+                    <RecruiterRegisterForm onBack={() => router.push('/signup')} />
+                )}
             </div>
         </div>
     );

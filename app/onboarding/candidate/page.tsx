@@ -8,7 +8,7 @@ import { ResumeUploader } from '@/components/resume/ResumeUploader';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
-import { getDefaultCandidateProfile } from '@/lib/candidate-profile';
+import { getDefaultCandidateProfile, normalizeCandidateProfile } from '@/lib/candidate-profile';
 
 import styles from '../onboarding.module.css';
 
@@ -62,12 +62,42 @@ export default function CandidateOnboardingPage() {
 
         const fetchProfile = async () => {
             try {
-                const { data: profile, error: profileError } = await invokeFunction('candidate-profile', { method: 'GET' });
+                // Fetch directly via client SDK to avoid 10-second Edge Function cold start!
+                const { data: profileData, error: profileError } = await insforge.database
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
 
-                if (profileError) throw new Error(profileError.message);
+                if (profileError && profileError.code !== 'PGRST116') {
+                    throw new Error(profileError.message);
+                }
 
-                setForm(profile as CandidateSettingsBundle);
-                setStep(getFirstIncompleteStep(profile as CandidateSettingsBundle));
+                const { data: candidateData, error: candidateError } = await insforge.database
+                    .from('candidate_profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                // If RLS prevents direct access, candidateError.code will be 42501
+                if (candidateError && candidateError.code !== 'PGRST116') {
+                    console.warn('Direct candidate query failed, falling back to edge function...', candidateError);
+                    
+                    const { data: fallbackData, error: fbError } = await invokeFunction('candidate-profile', { method: 'GET' });
+                    if (fbError) throw new Error(fbError.message);
+                    
+                    setForm(fallbackData as CandidateSettingsBundle);
+                    setStep(getFirstIncompleteStep(fallbackData as CandidateSettingsBundle));
+                    return;
+                }
+
+                const combinedProfile: CandidateSettingsBundle = {
+                    profile: profileData || EMPTY_STATE.profile,
+                    candidateProfile: normalizeCandidateProfile(candidateData || EMPTY_STATE.candidateProfile),
+                };
+
+                setForm(combinedProfile);
+                setStep(getFirstIncompleteStep(combinedProfile));
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'Failed to load onboarding data';
                 setError(message);
@@ -86,9 +116,9 @@ export default function CandidateOnboardingPage() {
 
         if (step === 2) {
             return Boolean(
-                form.candidateProfile.headline.trim() &&
-                form.candidateProfile.skills.length > 0 &&
-                form.candidateProfile.education.trim()
+                (form.candidateProfile.headline?.trim() || '') &&
+                (form.candidateProfile.skills?.length || 0) > 0 &&
+                (form.candidateProfile.education?.trim() || '')
             );
         }
 

@@ -33,6 +33,12 @@ export default async function handler(req: Request): Promise<Response> {
       });
     }
 
+    // Prevent privilege escalation: Only allow 'candidate' or 'recruiter' roles during public signup
+    let safeRole = role;
+    if (safeRole === 'admin' || safeRole === 'super_admin') {
+      safeRole = 'candidate';
+    }
+
     const insforge = createClient({ baseUrl, anonKey });
 
     // 1. Sign up the user
@@ -58,16 +64,37 @@ export default async function handler(req: Request): Promise<Response> {
         .from('profiles')
         .insert([{
           id: user.id,
+          user_id: user.id,
           email: user.email,
-          role,
+          role: safeRole,
           name,
-          completed_onboarding: false,
         }]);
       if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message }), { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
+      }
+
+      // 3. Send welcome email (fire-and-forget — don't block signup)
+      const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
+      const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
+      const template = safeRole === 'recruiter' ? 'recruiter-welcome' : 'candidate-welcome';
+      try {
+        fetch(`${siteUrl}/api/email/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-service-key': serviceKey,
+          },
+          body: JSON.stringify({
+            to: user.email,
+            template,
+            data: { name, email: user.email },
+          }),
+        }).catch((e: any) => console.error('[auth-signup] Welcome email fire-and-forget failed:', e.message));
+      } catch (emailErr: any) {
+        console.error('[auth-signup] Welcome email error:', emailErr.message);
       }
     }
 

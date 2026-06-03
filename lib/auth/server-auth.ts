@@ -59,6 +59,9 @@ export function createServerSessionClient(accessToken: string) {
     anonKey: requireEnv('NEXT_PUBLIC_INSFORGE_ANON_KEY'),
     edgeFunctionToken: accessToken,
     isServerMode: true,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   });
 }
 
@@ -86,16 +89,22 @@ function mapProfileToUser(userId: string, email: string, profile: ProfileRecord 
 }
 
 export async function resolveSessionFromToken(accessToken: string): Promise<AuthenticatedSession | null> {
-  const insforge = createServerSessionClient(accessToken);
-  const response = await insforge.auth.getCurrentUser();
-  const authUser = response.data?.user;
-  const userError = response.error;
+  let authUser: { id: string; email: string; role: string } | null = null;
+  
+  try {
+    const payloadBase64 = accessToken.split('.')[1];
+    const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+    authUser = { id: payload.sub, email: payload.email, role: payload.role };
+  } catch (e) {
+    return null;
+  }
 
-  if (userError || !authUser?.id || !authUser.email || authUser.id === 'project-admin-with-api-key') {
+  if (!authUser?.id || !authUser.email || authUser.id === 'project-admin-with-api-key') {
     return null;
   }
 
   let profile: ProfileRecord | null = null;
+  const insforge = createServerSessionClient(accessToken);
 
   try {
     const { data } = await insforge.database

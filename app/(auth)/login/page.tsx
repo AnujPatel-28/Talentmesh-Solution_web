@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { insforge } from '@/lib/insforge';
+import { insforge, directInsforge } from '@/lib/insforge';
 import { getMyProfile } from '@/lib/api/profile';
 import styles from './login.module.css';
 
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { signIn, signOut } = useAuth();
@@ -26,6 +26,8 @@ export default function LoginPage() {
     const [showVerification, setShowVerification] = useState(false);
     const [otp, setOtp] = useState('');
     const [resendCooldown, setResendCooldown] = useState(0);
+    const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+    const [timeLeft, setTimeLeft] = useState(120);
 
     // Resend cooldown timer
     useEffect(() => {
@@ -34,11 +36,27 @@ export default function LoginPage() {
         return () => clearTimeout(timer);
     }, [resendCooldown]);
 
+    // 2-minute OTP expiration timer
+    useEffect(() => {
+        if (!otpSentAt) return;
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - otpSentAt) / 1000);
+            const remaining = Math.max(0, 120 - elapsed);
+            setTimeLeft(remaining);
+            if (remaining === 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [otpSentAt]);
+
     const handleResendCode = useCallback(async () => {
         if (resendCooldown > 0 || !email) return;
         try {
             await insforge.auth.resendVerificationEmail({ email });
             setResendCooldown(60);
+            setOtpSentAt(Date.now());
+            setTimeLeft(120);
             setShowVerification(true);
             setError('');
         } catch {
@@ -48,6 +66,10 @@ export default function LoginPage() {
 
     const handleVerifyFromLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (timeLeft <= 0) {
+            setError('Verification code has expired. Please resend code to get a new one.');
+            return;
+        }
         setIsLoading(true);
         setError('');
 
@@ -95,16 +117,39 @@ export default function LoginPage() {
                 return;
             }
 
-            const isAdminRole = profile.role === 'admin' || profile.role === 'super_admin';
+            const role = profile.role || 'candidate';
+            const isAdminRole = role === 'admin' || role === 'super_admin';
+            const isOnboarded = 
+                profile.onboarding_complete === true || 
+                profile.is_onboarded === true || 
+                profile.onboarding_completed === true || 
+                profile.completed_onboarding === true;
 
             if (isAdminRole) {
-                router.push('/dashboard/admin');
-            } else if (profile.role === 'recruiter') {
-                router.push('/dashboard/recruiter');
-            } else if (!profile.is_onboarded) {
-                router.push('/onboarding/candidate');
+                router.push('/admin/dashboard');
+            } else if (role === 'recruiter') {
+                let hasRecruiterData = false;
+                try {
+                    const { createClient } = await import('@insforge/sdk');
+                    const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
+                    const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
+                    const authedClient = createClient({ baseUrl, anonKey, edgeFunctionToken: result.accessToken, isServerMode: false });
+                    const { data: recProfile } = await authedClient.database
+                        .from('recruiter_profiles')
+                        .select('company_id, job_title')
+                        .eq('id', profile.id)
+                        .single();
+                    if (recProfile && recProfile.company_id && recProfile.job_title) {
+                        hasRecruiterData = true;
+                    }
+                } catch (err) {
+                    console.error('Failed to check recruiter profile data during login verification:', err);
+                }
+
+                router.push((isOnboarded && hasRecruiterData) ? '/recruiter/dashboard' : '/onboarding/recruiter/setup');
             } else {
-                router.push(`/dashboard/candidate/${profile.id}`);
+                // Candidate
+                router.push(isOnboarded ? '/candidate/dashboard' : '/onboarding/candidate');
             }
         } catch (err: any) {
             setError(err.message || 'Verification failed.');
@@ -169,13 +214,37 @@ export default function LoginPage() {
             // 🔥 STEP 2 — Redirect logic with safety delay for cookie persistence
             let destination = '/dashboard/candidate';
             
+            const isOnboarded = 
+                (profile as any)?.onboarding_complete === true ||
+                (profile as any)?.is_onboarded === true || 
+                (profile as any)?.onboarding_completed === true || 
+                (profile as any)?.completed_onboarding === true;
+            
             if (isAdminRole) {
-                destination = '/dashboard/admin';
+                destination = '/admin/dashboard';
             } else if (role === 'recruiter') {
-                destination = (profile as any)?.is_onboarded ? '/dashboard/recruiter' : '/onboarding/recruiter/setup';
+                let hasRecruiterData = false;
+                try {
+                    const { createClient } = await import('@insforge/sdk');
+                    const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
+                    const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
+                    const authedClient = createClient({ baseUrl, anonKey, edgeFunctionToken: result.accessToken, isServerMode: false });
+                    const { data: recProfile } = await authedClient.database
+                        .from('recruiter_profiles')
+                        .select('company_id, job_title')
+                        .eq('id', profile.id)
+                        .single();
+                    if (recProfile && recProfile.company_id && recProfile.job_title) {
+                        hasRecruiterData = true;
+                    }
+                } catch (err) {
+                    console.error('Failed to check recruiter profile data during login:', err);
+                }
+
+                destination = (isOnboarded && hasRecruiterData) ? '/recruiter/dashboard' : '/onboarding/recruiter/setup';
             } else {
                 // Candidate
-                destination = (profile as any)?.is_onboarded ? `/dashboard/candidate/${profile.id}` : '/onboarding/candidate';
+                destination = isOnboarded ? '/candidate/dashboard' : '/onboarding/candidate';
             }
 
             setTimeout(() => {
@@ -192,7 +261,7 @@ export default function LoginPage() {
         try {
             setError('');
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-            const { error: authError } = await insforge.auth.signInWithOAuth({
+            const { error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
                 redirectTo: `${siteUrl}/auth/callback`,
             });
@@ -305,10 +374,21 @@ export default function LoginPage() {
                                 style={{ textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}
                                 autoFocus
                             />
+                            <div style={{ textAlign: 'center', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+                                {timeLeft > 0 ? (
+                                    <p style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                                        Code expires in <span style={{ fontWeight: 600, color: '#6366f1' }}>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+                                    </p>
+                                ) : (
+                                    <p style={{ fontSize: '0.82rem', color: '#ef4444', fontWeight: 600 }}>
+                                        Code has expired. Please resend code.
+                                    </p>
+                                )}
+                            </div>
                             <button
                                 type="submit"
                                 className={styles.submitBtn}
-                                disabled={isLoading || otp.length < 6}
+                                disabled={isLoading || otp.length < 6 || timeLeft <= 0}
                                 style={{ width: '100%', marginBottom: '0.5rem' }}
                             >
                                 {isLoading ? 'Verifying...' : 'Verify & Sign In'}
@@ -438,5 +518,22 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className={styles.page}>
+                <div className={styles.bgGlow1} />
+                <div className={styles.bgGlow2} />
+                <div className={styles.gridOverlay} />
+                <div className={styles.card}>
+                    <p style={{ color: '#6b6b8a', textAlign: 'center' }}>Loading...</p>
+                </div>
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }

@@ -55,7 +55,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Set token in local cookie so invokeFunction can find it immediately
     const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    document.cookie = `tm_access_token=${token}; path=/; SameSite=None; ${isSecure ? 'Secure;' : ''} max-age=${60 * 60 * 24 * 7}`;
+    const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
+    document.cookie = `tm_access_token=${token}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('tm_token', token);
+      
+      // Inject token into global insforge SDK to fix 401 Unauthorized errors
+      try {
+        insforge.setAccessToken(token);
+        const mainAuth = insforge.auth as any;
+        if (mainAuth.tokenManager) {
+          mainAuth.tokenManager.saveSession({ user: authUser, accessToken: token });
+        }
+      } catch (err) {
+        console.warn('Could not inject token into global insforge SDK:', err);
+      }
+    }
 
     const adminAccess = authUser.role === 'admin' || authUser.role === 'super_admin';
 
@@ -93,14 +109,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchProfile = useCallback(async (
+    token: string,
     userId: string,
     email: string,
     metadata?: Record<string, unknown>,
   ): Promise<User | null> => {
     try {
-      // 🔥 Fix: Use the authenticated client (insforge) instead of the anonymous one (directInsforge)
-      // to ensure we can read the profile even if RLS is enabled.
-      const { data: profile, error } = await insforge.database
+      const { createClient } = await import('@insforge/sdk');
+      const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
+      const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
+      const authedClient = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: false });
+
+      const { data: profile, error } = await authedClient.database
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -109,24 +129,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error || !profile) {
         const fallbackRole: UserRole = (metadata?.role as UserRole) || 'candidate';
-        const fallbackName = email.split('@')[0];
+        // Prefer the real name from OAuth metadata (Google sends full_name / name)
+        const metadataName = (metadata?.full_name || metadata?.name || '') as string;
+        const fallbackName = metadataName.trim() || email.split('@')[0];
 
         try {
-          const { data: createdProfile, error: insertError } = await directInsforge.database
+          const { data: createdProfile, error: insertError } = await authedClient.database
             .from('profiles')
-            /* changed this .insert([{
-              id: userId,
-              email,
-              role: fallbackRole,
-              name: fallbackName,
-            }])*/
             .insert([{
               id: userId,
               email,
               role: fallbackRole,
               name: fallbackName,
-              onboarding_completed: false,
-              onboarding_step: 0,
             }])
             .select()
             .single();
@@ -155,17 +169,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email,
           role: fallbackRole,
           name: fallbackName,
-          avatar_url: null,
+          avatar_url: (metadata?.avatar_url || metadata?.picture || null) as string | null,
           onboarding_completed: false,
           onboarding_step: 0,
         };
       }
 
+      // Prefer profile name from DB; if it looks like an email prefix, try metadata instead
+      const dbName = (profile.name || '') as string;
+      const metaName = ((metadata?.full_name || metadata?.name || '') as string).trim();
+      const resolvedName = (dbName && dbName !== email.split('@')[0]) ? dbName : (metaName || dbName);
+
       return {
         id: userId,
         email,
         role: (profile.role as UserRole) || 'candidate',
-        name: profile.name || '',
+        name: resolvedName,
         avatar_url: profile.avatar_url || null,
         company_id: profile.company_id,
         created_at: profile.created_at,
@@ -189,6 +208,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof window !== 'undefined') {
         const match = document.cookie.match(/tm_access_token=([^;]+)/);
         token = match ? match[1] : null;
+        if (token && token.startsWith('Bearer%20')) {
+          token = decodeURIComponent(token).substring(7);
+        }
       }
 
       const authEndpoint = '/api/v1/remote/functions/auth-session';
@@ -223,10 +245,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.cookie = 'tm_admin_access=true; path=/; SameSite=Lax';
       }
 
-      // Sync token to local cookie if returned by session refresh
-      if (payload.token) {
+      // Sync token to local cookie/SDK if we have a token
+      const finalToken = payload.token || token;
+      if (finalToken) {
         const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-        document.cookie = `tm_access_token=${payload.token}; path=/; SameSite=None; ${isSecure ? 'Secure;' : ''} max-age=${60 * 60 * 24 * 7}`;
+        const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
+        document.cookie = `tm_access_token=${finalToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
+        // Also save to sessionStorage so invokeFunction can find it reliably
+        window.sessionStorage.setItem('tm_token', finalToken);
+        
+        // Inject token into global insforge SDK to fix 401 Unauthorized errors
+        try {
+          insforge.setAccessToken(finalToken);
+          const mainAuth = insforge.auth as any;
+          if (mainAuth.tokenManager) {
+            mainAuth.tokenManager.saveSession({ user: resolvedUser, accessToken: finalToken });
+          }
+        } catch (err) {}
       }
 
       // Check impersonation status from cookies
@@ -298,7 +333,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: 'Sign in succeeded, but the session payload was incomplete.' };
       }
 
-      const fullUser = await fetchProfile(data.user.id, data.user.email, data.user.metadata || undefined);
+      const fullUser = await fetchProfile(data.accessToken, data.user.id, data.user.email, data.user.metadata || undefined);
       if (!fullUser) {
         return { error: 'Signed in, but failed to load your profile.' };
       }

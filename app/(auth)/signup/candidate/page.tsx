@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { UserRole } from '@/types/auth';
-import { insforge } from '@/lib/insforge';
+import { insforge, directInsforge } from '@/lib/insforge';
 import { signupSchema } from '@/lib/validation/auth';
 import styles from '../signup.module.css';
 import { Github, Linkedin, Mail } from 'lucide-react';
@@ -103,7 +103,7 @@ export default function CandidateSignupPage() {
         try {
             setError('');
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-            const { error: authError } = await insforge.auth.signInWithOAuth({
+            const { error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
                 redirectTo: `${siteUrl}/auth/callback?role=candidate`,
             });
@@ -223,7 +223,14 @@ export default function CandidateSignupPage() {
                         {fieldErrors.confirmPassword && <span className="text-[10px] text-red-500">{fieldErrors.confirmPassword}</span>}
                     </div>
 
-                    <button type="submit" className={styles.submitBtn} disabled={isLoading}>
+                    <div className={styles.fieldGroup} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <input type="checkbox" name="agree" id="agree" checked={formData.agree} onChange={handleChange} required style={{ marginTop: '0.2rem', cursor: 'pointer' }} />
+                        <label htmlFor="agree" className={styles.label} style={{ marginBottom: 0, lineHeight: 1.4, cursor: 'pointer' }}>
+                            I agree to the <Link href="/terms" target="_blank" style={{color: '#2563eb', textDecoration: 'none'}}>Terms of Service</Link> and <Link href="/privacy" target="_blank" style={{color: '#2563eb', textDecoration: 'none'}}>Privacy Policy</Link>
+                        </label>
+                    </div>
+
+                    <button type="submit" className={styles.submitBtn} disabled={isLoading || !formData.agree}>
                         {isLoading ? 'Creating Account...' : 'Sign Up'}
                     </button>
                 </form>

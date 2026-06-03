@@ -43,9 +43,25 @@ export async function POST(request: NextRequest) {
   // Forward Set-Cookie headers, stripping Secure on localhost so the browser stores them
   insforgeRes.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'set-cookie') {
-      const fixed = IS_PROD
-        ? value
-        : value.replace(/;\s*Secure/gi, '').replace(/SameSite=None/gi, 'SameSite=Lax');
+      let fixed = value;
+      // Inject root domain for multi-tenant cookie sharing
+      const host = request.headers.get('host') || '';
+      if (!fixed.toLowerCase().includes('domain=')) {
+        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+          const parts = host.split(':'); // remove port if present
+          const domainParts = parts[0].split('.');
+          const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+          fixed = `${fixed}; Domain=.${baseDomain}`;
+        } else if (host.includes('localhost')) {
+          fixed = `${fixed}; Domain=localhost`;
+        }
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        fixed = fixed.replace(/SameSite=None/gi, 'SameSite=Lax');
+        fixed = fixed.replace(/Secure/gi, '');
+      }
+      
       response.headers.append('Set-Cookie', fixed);
     }
   });

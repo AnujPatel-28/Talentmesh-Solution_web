@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
@@ -17,10 +17,47 @@ function VerifyContent() {
     const [otp, setOtp] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+    const [timeLeft, setTimeLeft] = useState(120);
     const { login } = useAuth();
+
+    useEffect(() => {
+        setOtpSentAt(Date.now());
+    }, []);
+
+    useEffect(() => {
+        if (!otpSentAt) return;
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - otpSentAt) / 1000);
+            const remaining = Math.max(0, 120 - elapsed);
+            setTimeLeft(remaining);
+            if (remaining === 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [otpSentAt]);
+
+    const handleResend = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            await insforge.auth.resendVerificationEmail({ email });
+            setOtpSentAt(Date.now());
+            setTimeLeft(120);
+        } catch (err: any) {
+            setError(err.message || 'Failed to resend code.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (timeLeft <= 0) {
+            setError('Verification code has expired. Please resend code to get a new one.');
+            return;
+        }
         setIsLoading(true);
         setError('');
 
@@ -96,13 +133,42 @@ function VerifyContent() {
                         <label className={styles.label}>Verification Code</label>
                         <input
                             type="text" className={styles.input} placeholder="123456"
-                            value={otp} onChange={(e) => setOtp(e.target.value)}
+                            value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             required maxLength={6}
                             style={{ textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.2rem', fontWeight: 700 }}
                         />
                     </div>
 
-                    <button type="submit" className={styles.submitBtn} disabled={isLoading || otp.length < 6}>
+                    <div style={{ textAlign: 'center', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                        {timeLeft > 0 ? (
+                            <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                Code expires in <span style={{ fontWeight: 600, color: '#3b82f6' }}>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+                            </p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                                <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 600 }}>
+                                    Code has expired.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={handleResend}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#3b82f6',
+                                        textDecoration: 'underline',
+                                        fontSize: '0.85rem',
+                                        cursor: 'pointer',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    Resend Code
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <button type="submit" className={styles.submitBtn} disabled={isLoading || otp.length < 6 || timeLeft <= 0}>
                         {isLoading ? 'Verifying...' : 'Verify & Continue'}
                     </button>
                 </form>

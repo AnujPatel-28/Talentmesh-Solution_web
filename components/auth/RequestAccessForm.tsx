@@ -17,7 +17,9 @@ import {
   LayoutGrid,
   CalendarDays,
   ChevronDown,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Upload
 } from 'lucide-react';
 import { invokeFunction } from '@/lib/insforge';
 
@@ -46,7 +48,7 @@ const TIMELINES = [
 ];
 
 const FREE_EMAIL_PROVIDERS = [
-  'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com'
+  'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com'
 ];
 
 const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant = 'application' }) => {
@@ -54,6 +56,9 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentBase64, setDocumentBase64] = useState('');
 
   const [formData, setFormData] = useState({
     companyName: '',
@@ -78,6 +83,28 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type !== 'application/pdf') {
+        setError('Please upload a PDF document.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB.');
+        return;
+      }
+      setDocumentFile(file);
+      setError('');
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDocumentBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCategoryToggle = (category: string) => {
     setFormData(prev => ({
       ...prev,
@@ -99,33 +126,68 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
     setError('');
 
     if (!validateWorkEmail(formData.workEmail)) {
-      setError('Please use your work email address. Free email providers are not accepted.');
+      setError('Please use your work email address. Free email providers (except Gmail) are not accepted.');
       setIsLoading(false);
       return;
     }
 
     try {
-      const { data, error: apiError } = await invokeFunction('recruiter-request', {
-        method: 'POST',
-        body: {
-          full_name: formData.fullName,
-          company_name: formData.companyName,
-          company_website: formData.companyWebsite,
-          industry: formData.industry,
-          company_size: formData.companySize,
-          work_email: formData.workEmail,
-          phone_number: formData.phoneNumber,
-          role_in_company: formData.roleInCompany,
-          num_roles: formData.numRoles,
-          hiring_categories: formData.hiringCategories,
-          hiring_timeline: formData.hiringTimeline,
-          additional_notes: formData.additionalNotes,
-          request_type: variant === 'call' ? 'discovery_call' : 'access_application'
-        }
-      });
+      if (variant === 'call') {
+        // Send to Web3Forms for an instant email notification
+        const response = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 'c755ba58-1a02-45d6-b021-3b66f62eb9fb',
+            subject: `New Discovery Call Request from ${formData.companyName}`,
+            from_name: 'TalentMesh Discovery',
+            name: formData.fullName,
+            email: formData.workEmail,
+            company: formData.companyName,
+            website: formData.companyWebsite,
+            phone: formData.phoneNumber,
+            role: formData.roleInCompany,
+            industry: formData.industry,
+            companySize: formData.companySize,
+            openRoles: formData.numRoles,
+            timeline: formData.hiringTimeline,
+            categories: formData.hiringCategories.join(', '),
+            notes: formData.additionalNotes
+          }),
+        });
 
-      if (apiError) {
-        throw new Error(apiError.message || 'Failed to submit request');
+        if (!response.ok) {
+          throw new Error('Failed to submit request to Web3Forms');
+        }
+      } else {
+        // Send to Database for Request Access
+        const { data, error: apiError } = await invokeFunction('recruiter-request', {
+          method: 'POST',
+          body: {
+            full_name: formData.fullName,
+            company_name: formData.companyName,
+            company_website: formData.companyWebsite,
+            industry: formData.industry,
+            company_size: formData.companySize,
+            work_email: formData.workEmail,
+            phone_number: formData.phoneNumber,
+            role_in_company: formData.roleInCompany,
+            num_roles: formData.numRoles,
+            hiring_categories: formData.hiringCategories,
+            hiring_timeline: formData.hiringTimeline,
+            additional_notes: formData.additionalNotes,
+            request_type: 'access_application',
+            document_base64: documentBase64,
+            document_name: documentFile?.name
+          }
+        });
+
+        if (apiError) {
+          throw new Error(apiError.message || 'Failed to submit request');
+        }
       }
 
       setIsSubmitted(true);
@@ -419,10 +481,40 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
                   className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-slate-900 focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900 resize-none"
                 ></textarea>
               </div>
+              
+              {variant === 'application' && (
+                <div className="space-y-2 pt-2">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <FileText size={16} className="text-slate-400" />
+                    Company Verification Document (Optional)
+                  </label>
+                  <p className="text-xs text-slate-500">Upload a PDF of your company registration or tax ID to expedite approval.</p>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="doc-upload"
+                    />
+                    <label
+                      htmlFor="doc-upload"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-6 rounded-xl border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer text-slate-600"
+                    >
+                      <Upload size={20} />
+                      <span className="font-semibold">{documentFile ? documentFile.name : 'Click to upload PDF'}</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
               <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
-                <p className="text-xs text-slate-500 leading-relaxed italic">
-                  By clicking submit, you agree to allow TalentMesh to process your company details and reach out via the provided work email for scheduling.
-                </p>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input type="checkbox" required className="mt-1 h-4 w-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer" />
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    By clicking submit, I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>, and allow TalentMesh to process my company details.
+                  </p>
+                </label>
               </div>
             </section>
           )}

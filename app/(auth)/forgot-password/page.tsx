@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,44 @@ export default function ForgotPasswordPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [sent, setSent] = useState(false);
     const [error, setError] = useState('');
+    const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+    const [timeLeft, setTimeLeft] = useState(120);
+
+    useEffect(() => {
+        if (!otpSentAt) return;
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - otpSentAt) / 1000);
+            const remaining = Math.max(0, 120 - elapsed);
+            setTimeLeft(remaining);
+            if (remaining === 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [otpSentAt]);
+
+    const handleResend = async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const { error: resetError } = await insforge.auth.sendResetPasswordEmail({
+                email,
+            });
+
+            if (resetError) {
+                setError(resetError.message);
+                setIsLoading(false);
+                return;
+            }
+
+            setOtpSentAt(Date.now());
+            setTimeLeft(120);
+        } catch (err: any) {
+            setError(err.message || 'Failed to resend code.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,6 +81,8 @@ export default function ForgotPasswordPage() {
 
             setSent(true);
             setStep('code');
+            setOtpSentAt(Date.now());
+            setTimeLeft(120);
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
         } finally {
@@ -52,6 +92,10 @@ export default function ForgotPasswordPage() {
 
     const handleVerifyCode = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (timeLeft <= 0) {
+            setError('Verification code has expired. Please resend code to get a new one.');
+            return;
+        }
         setIsLoading(true);
         setError('');
 
@@ -195,10 +239,39 @@ export default function ForgotPasswordPage() {
                                 </div>
                             </div>
 
+                            <div style={{ textAlign: 'center', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                                {timeLeft > 0 ? (
+                                    <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                        Code expires in <span style={{ fontWeight: 600, color: 'var(--primary-blue)' }}>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+                                    </p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                                        <p style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 600 }}>
+                                            Code has expired.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={handleResend}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: 'var(--primary-blue)',
+                                                textDecoration: 'underline',
+                                                fontSize: '0.85rem',
+                                                cursor: 'pointer',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            Resend Code
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
                             <button
                                 type="submit"
                                 className={styles.submitBtn}
-                                disabled={isLoading || code.length !== 6}
+                                disabled={isLoading || code.length !== 6 || timeLeft <= 0}
                             >
                                 {isLoading ? (
                                     <span className={styles.spinnerWrap}>

@@ -33,6 +33,23 @@ export default function RecruiterSetup() {
             router.replace('/dashboard/candidate');
             return;
         }
+
+        async function fetchExistingProfile() {
+            try {
+                const { data, error } = await invokeFunction('recruiter-profile', { method: 'GET' });
+                if (data && !error) {
+                    setFormData({
+                        name: data.profile?.name || user?.name || '',
+                        companyName: data.recruiterProfile?.companies?.name || '',
+                        jobTitle: data.recruiterProfile?.job_title || '',
+                        department: data.recruiterProfile?.department || ''
+                    });
+                }
+            } catch (err) {
+                console.error('Error loading existing recruiter profile data:', err);
+            }
+        }
+        fetchExistingProfile();
     }, [user, authLoading, router]);
 
 

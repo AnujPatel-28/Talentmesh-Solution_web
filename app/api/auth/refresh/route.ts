@@ -7,7 +7,7 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 /**
  * Proxy for POST /api/auth/refresh (token refresh).
  * Forwards the `insforge_refresh_token` cookie (stored at path /api/auth)
- * to InsForge and returns the new access token.
+ * and `insforge_csrf_token` cookie to InsForge and returns the new access token.
  * Also strips `Secure` from Set-Cookie responses on localhost.
  */
 export async function POST(request: NextRequest) {
@@ -23,10 +23,19 @@ export async function POST(request: NextRequest) {
       ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
       ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
     },
-    // No body needed — refresh uses the httpOnly cookie + CSRF token
   });
 
   const responseBody = await insforgeRes.text();
+
+  if (!insforgeRes.ok) {
+    console.error('[Refresh Proxy Error]', {
+      status: insforgeRes.status,
+      body: responseBody,
+      hasCookie: !!cookieHeader,
+      hasCsrfToken: !!csrfToken,
+      csrfHeader: csrfToken
+    });
+  }
 
   const response = new NextResponse(responseBody, {
     status: insforgeRes.status,
@@ -45,3 +54,4 @@ export async function POST(request: NextRequest) {
 
   return response;
 }
+

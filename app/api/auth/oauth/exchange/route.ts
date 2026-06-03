@@ -1,0 +1,141 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL!;
+const ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
+
+/**
+ * Proxy for POST /api/auth/oauth/exchange (OAuth callback code exchange).
+ * Strips the `Secure` flag from InsForge's Set-Cookie response on HTTP localhost
+ * so the `insforge_refresh_token` httpOnly cookie is actually stored by the browser.
+ * On production (HTTPS) the cookie is forwarded unchanged.
+ */
+export async function POST(request: NextRequest) {
+  const body = await request.text();
+
+  const searchParams = request.nextUrl.searchParams.toString();
+  const queryString = searchParams ? `?${searchParams}` : '';
+
+  const insforgeRes = await fetch(`${INSFORGE_URL.replace(/\/$/, '')}/api/auth/oauth/exchange${queryString}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': ANON_KEY,
+      'Authorization': `Bearer ${ANON_KEY}`,
+      'x-client-info': 'talentmesh-web',
+    },
+    body,
+  });
+
+  if (!insforgeRes.ok) {
+    const errorText = await insforgeRes.text();
+    console.error(`[oauth/exchange] InsForge error ${insforgeRes.status}:`, errorText);
+    return new NextResponse(errorText || `{"error": "HTTP ${insforgeRes.status}"}`, {
+      status: insforgeRes.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const responseBody = await insforgeRes.text();
+  console.log('[oauth/exchange] InsForge response status:', insforgeRes.status);
+  console.log('[oauth/exchange] InsForge response body:', responseBody);
+
+  let parsedData: any = null;
+  let safeBody = responseBody.trim() === '' ? '{}' : responseBody;
+
+  try {
+    parsedData = JSON.parse(safeBody);
+    
+    // The InsForge SDK strictly expects camelCase properties (accessToken, user)
+    // If the backend returns snake_case (access_token), we must map them for the SDK!
+    if (insforgeRes.ok && parsedData) {
+      let modified = false;
+      if (parsedData.access_token && !parsedData.accessToken) {
+        parsedData.accessToken = parsedData.access_token;
+        modified = true;
+      }
+      if (parsedData.refresh_token && !parsedData.refreshToken) {
+        parsedData.refreshToken = parsedData.refresh_token;
+        modified = true;
+      }
+      if (parsedData.expires_in && !parsedData.expiresIn) {
+        parsedData.expiresIn = parsedData.expires_in;
+        modified = true;
+      }
+      
+      if (modified) {
+        safeBody = JSON.stringify(parsedData);
+      }
+    }
+  } catch (e) {
+    console.error('[oauth/exchange] Failed to parse JSON:', e);
+  }
+
+  const response = new NextResponse(safeBody, {
+    status: insforgeRes.status,
+    headers: { 'Content-Type': insforgeRes.headers.get('Content-Type') || 'application/json' },
+  });
+
+  // Extract tokens from JSON and explicitly set cookies
+  if (insforgeRes.ok && parsedData) {
+    const accessToken = parsedData.access_token || parsedData.accessToken;
+    const refreshToken = parsedData.refresh_token || parsedData.refreshToken;
+    const expiresIn = parsedData.expires_in || parsedData.expiresIn || 3600;
+
+    const host = request.headers.get('host') || '';
+    let domain = undefined;
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      const parts = host.split(':');
+      const domainParts = parts[0].split('.');
+      domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
+    }
+
+    if (accessToken) {
+      response.cookies.set('tm_access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        sameSite: 'lax',
+        maxAge: expiresIn,
+        ...(domain ? { domain } : {})
+      });
+    }
+
+    if (refreshToken) {
+      response.cookies.set('tm_refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        ...(domain ? { domain } : {})
+      });
+    }
+  }
+
+  // Also forward any Set-Cookie headers from the backend just in case
+  insforgeRes.headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') {
+      let fixed = value;
+      const host = request.headers.get('host') || '';
+      if (!fixed.toLowerCase().includes('domain=')) {
+        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+          const parts = host.split(':');
+          const domainParts = parts[0].split('.');
+          const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+          fixed = `${fixed}; Domain=.${baseDomain}`;
+        } else if (host.includes('localhost')) {
+          fixed = `${fixed}; Domain=localhost`;
+        }
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        fixed = fixed.replace(/SameSite=None/gi, 'SameSite=Lax');
+        fixed = fixed.replace(/Secure/gi, '');
+      }
+      
+      response.headers.append('Set-Cookie', fixed);
+    }
+  });
+
+  return response;
+}

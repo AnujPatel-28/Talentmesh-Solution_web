@@ -32,7 +32,8 @@ export default function RecruiterDocuments() {
         } catch {
             setIsLoading(false);
             // Fallback for safety
-            router.push('/dashboard/recruiter');
+            const dashboardId = user?.public_id || user?.role_id || user?.id || 'recruiter';
+            router.push(`/dashboard/recruiter/${dashboardId}`);
         }
     };
 
