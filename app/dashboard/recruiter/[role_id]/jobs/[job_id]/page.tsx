@@ -11,6 +11,7 @@ const IC = {
 };
 
 export default function RecruiterJobDetails() {
+    const { user } = useAuth();
     const { job_id, role_id } = useParams();
     const router = useRouter();
     const [job, setJob] = useState<any>(null);

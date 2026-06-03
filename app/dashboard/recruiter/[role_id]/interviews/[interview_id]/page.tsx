@@ -9,7 +9,7 @@ import styles from './interview-detail.module.css';
 /* ─── Types ─── */
 interface Interview {
     id: string; job_id: string; candidate_id: string; recruiter_id: string;
-    scheduled_at: string; duration_minutes: number;
+    scheduled_at: string; duration_mins: number;
     type: 'video' | 'phone' | 'in_person' | 'technical';
     status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
     meeting_link: string | null; location: string | null;
@@ -111,7 +111,7 @@ export default function InterviewDetailPage({ params }: { params: Promise<{ role
     const fetchIv = useCallback(async () => {
         const { data } = await insforge.database
             .from('interviews')
-            .select('*, job:jobs(id, title), candidate:candidates(id, full_name, email, avatar_url)')
+            .select('*, job:jobs(id, title), candidate:profiles!candidate_id(id, full_name:name, email, avatar_url)')
             .eq('id', interview_id)
             .single();
         if (data) {
@@ -254,7 +254,7 @@ export default function InterviewDetailPage({ params }: { params: Promise<{ role
                         <div className={styles.detailRow}>
                             <span className={styles.detailIcon}>{IC.clock}</span>
                             <span className={styles.detailLabel}>Duration</span>
-                            <span className={styles.detailValue}>{iv.duration_minutes} minutes</span>
+                            <span className={styles.detailValue}>{iv.duration_mins} minutes</span>
                         </div>
                         {iv.meeting_link && (
                             <div className={styles.detailRow}>

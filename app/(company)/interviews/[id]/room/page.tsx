@@ -23,10 +23,9 @@ export default async function InterviewRoomPage({ params }: RoomPageProps) {
     .from('interviews')
     .select(`
       *,
-      candidate:candidate_id (
+      candidate:profiles!candidate_id (
         id,
-        first_name,
-        last_name,
+        name,
         profile:candidate_profiles (
           headline,
           skills,
@@ -59,7 +58,7 @@ export default async function InterviewRoomPage({ params }: RoomPageProps) {
     // Map to the expected format for the AI service
     const jobContext = interview.job as any;
     const candidateContext = {
-      name: `${interview.candidate.first_name} ${interview.candidate.last_name}`,
+      name: interview.candidate.name || 'Candidate',
       role: interview.candidate.profile?.headline || 'Candidate',
       skills: interview.candidate.profile?.skills || [],
       yearsExp: interview.candidate.profile?.experience_years || 0,
@@ -79,9 +78,7 @@ export default async function InterviewRoomPage({ params }: RoomPageProps) {
   }
 
   // 3. Prepare Display Data
-  const candidateName = interview.candidate 
-    ? `${interview.candidate.first_name} ${interview.candidate.last_name}` 
-    : 'Candidate';
+  const candidateName = interview.candidate?.name || 'Candidate';
     
   const roleTitle = interview.job?.title || 'Unknown Role';
 

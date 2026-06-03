@@ -8,7 +8,7 @@ import styles from './interviews.module.css';
 /* ─── Types ─── */
 interface Interview {
     id: string; job_id: string; candidate_id: string; recruiter_id: string;
-    scheduled_at: string; duration_minutes: number;
+    scheduled_at: string; duration_mins: number;
     type: 'video' | 'phone' | 'in_person' | 'technical';
     status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
     meeting_link: string | null; location: string | null; notes: string | null;
@@ -109,7 +109,7 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
     useEffect(() => {
         insforge.database
             .from('applications')
-            .select('id, status, job:jobs(id, title), candidate:candidates(id, full_name)')
+            .select('id, status, job:jobs(id, title), candidate:profiles!candidate_id(id, full_name:name)')
             .in('status', ['shortlisted', 'interviewing'])
             .then(({ data }) => setApplications(data || []));
     }, []);
@@ -129,7 +129,7 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                 candidate_id: app.candidate?.id,
                 recruiter_id: recruiterId,
                 scheduled_at,
-                duration_minutes: form.duration_minutes,
+                duration_mins: form.duration_minutes,
                 type: form.type,
                 status: 'scheduled',
                 meeting_link: form.type === 'video' ? form.meeting_link || null : null,
@@ -300,7 +300,7 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
         try {
             const { data, error } = await insforge.database
                 .from('interviews')
-                .select('*, job:jobs(id, title), candidate:candidates(id, full_name, email, avatar_url)')
+                .select('*, job:jobs(id, title), candidate:profiles!candidate_id(id, full_name:name, email, avatar_url)')
                 .eq('recruiter_id', authUser.id)
                 .order('scheduled_at', { ascending: true });
             if (!error) setInterviews((data as Interview[]) || []);
@@ -470,7 +470,7 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
                                                     <TypeIcon t={iv.type} /> {typeLabel(iv.type)}
                                                 </span>
                                                 <span className={styles.dateTime}>{fmt(iv.scheduled_at)}</span>
-                                                <span className={styles.durationBadge}>{iv.duration_minutes} min</span>
+                                                <span className={styles.durationBadge}>{iv.duration_mins} min</span>
                                                 <span className={pillClass(iv.status, styles)}>
                                                     {iv.status.replace('_', ' ')}
                                                 </span>

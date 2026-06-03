@@ -27,7 +27,7 @@ export default function PendingApprovalPage() {
                     .single();
 
                 if (data?.is_approved) {
-                    router.push('/dashboard/recruiter');
+                    router.push(`/dashboard/recruiter/${user.id}`);
                 }
             } catch (err) {
                 console.error('Error checking approval status:', err);

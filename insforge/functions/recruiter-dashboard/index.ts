@@ -30,13 +30,14 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     const userId = authData.user.id;
-    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+    const resolvedServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key') || '';
+    const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey || serviceKey || anonKey, isServerMode: true });
 
     // Parallel fetching
     const [jobsRes, appsRes, candidatesRes] = await Promise.all([
-      insforgeAdmin.database.from('jobs').select('*, companies:company_profiles(*)').eq('recruiter_id', userId).order('created_at', { ascending: false }),
-      insforgeAdmin.database.from('applications').select('*, jobs!inner(*), profiles:candidate_profiles(*)').eq('jobs.recruiter_id', userId),
-      insforgeAdmin.database.from('profiles').select('*, candidate_profiles(*)').eq('role', 'candidate').limit(10)
+      insforgeAdmin.database.from('jobs').select('*, companies:companies(*)').eq('recruiter_id', userId).order('created_at', { ascending: false }),
+      insforgeAdmin.database.from('applications').select('*, jobs!inner(*)').eq('jobs.recruiter_id', userId),
+      insforgeAdmin.database.from('profiles').select('*, candidate_profiles(*)').eq('role', 'candidate').limit(30)
     ]);
 
     const jobs = jobsRes.data || [];
@@ -58,6 +59,57 @@ export default async function handler(req: Request): Promise<Response> {
       hires: apps.filter(a => a.status === 'hired').length
     };
 
+    // Calculate dynamic candidate match & category based on recruiter's active job requirements
+    const activeJobs = jobs.filter(j => j.status === 'active');
+    const recruiterSkills = Array.from(new Set(activeJobs.flatMap(j => j.skills_required || [])));
+    
+    const skillToDeptMap: Record<string, string> = {};
+    activeJobs.forEach(j => {
+      const dept = j.department || 'Tech';
+      (j.skills_required || []).forEach((s: string) => {
+        skillToDeptMap[s.toLowerCase()] = dept;
+      });
+    });
+
+    const candidateList = (candidatesRes.data || []).map(c => {
+      const skills = c.candidate_profiles?.skills || [];
+      const headline = (c.candidate_profiles?.headline || '').toLowerCase();
+      
+      const matches = skills.filter((s: string) => recruiterSkills.some(rs => rs.toLowerCase() === s.toLowerCase()));
+      
+      let matchScore = 70 + Math.floor(Math.random() * 15); // Baseline
+      if (recruiterSkills.length > 0 && matches.length > 0) {
+        matchScore = Math.min(100, Math.round(80 + (matches.length / Math.min(recruiterSkills.length, 5)) * 20));
+      }
+      
+      let category = 'Tech'; // Default
+      const matchWithDept = matches.find((s: string) => skillToDeptMap[s.toLowerCase()]);
+      if (matchWithDept) {
+        category = skillToDeptMap[matchWithDept.toLowerCase()];
+      } else {
+        const headlineAndSkills = (headline + ' ' + skills.join(' ')).toLowerCase();
+        if (headlineAndSkills.includes('finance') || headlineAndSkills.includes('analyst') || headlineAndSkills.includes('accountant') || headlineAndSkills.includes('modeling')) {
+          category = 'Finance';
+        } else if (headlineAndSkills.includes('design') || headlineAndSkills.includes('ui') || headlineAndSkills.includes('ux') || headlineAndSkills.includes('creative')) {
+          category = 'Design';
+        } else if (headlineAndSkills.includes('marketing') || headlineAndSkills.includes('sales') || headlineAndSkills.includes('growth')) {
+          category = 'Marketing';
+        }
+      }
+
+      return {
+        id: c.id,
+        name: c.name,
+        role: c.candidate_profiles?.headline || 'Candidate Profile',
+        skills: skills,
+        match: matchScore,
+        category: category
+      };
+    });
+
+    // Sort by match score descending
+    candidateList.sort((a, b) => b.match - a.match);
+
     const dashboardData = {
       stats,
       pipeline,
@@ -68,13 +120,7 @@ export default async function handler(req: Request): Promise<Response> {
         applicants: j.applications_count || 0,
         new_applicants: 0 // Would need timestamp comparison
       })),
-      topCandidates: (candidatesRes.data || []).slice(0, 5).map(c => ({
-        id: c.id,
-        name: c.name,
-        role: c.candidate_profiles?.headline || 'Candidate',
-        skills: c.candidate_profiles?.skills || [],
-        match: 85 + Math.floor(Math.random() * 10) // Mock match for now until Feature 05 used
-      }))
+      topCandidates: candidateList.slice(0, 5)
     };
 
     return new Response(JSON.stringify(dashboardData), { 

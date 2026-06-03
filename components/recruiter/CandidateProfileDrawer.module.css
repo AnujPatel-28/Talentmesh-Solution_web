@@ -52,6 +52,8 @@
     padding: 8px;
     border-radius: 50%;
     transition: all 0.2s;
+    z-index: 100;
+    pointer-events: auto;
 }
 
 .closeBtn:hover {

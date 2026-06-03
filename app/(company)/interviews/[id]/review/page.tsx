@@ -46,10 +46,9 @@ export default async function InterviewReviewPage({ params }: ReviewPageProps) {
     .from('interviews')
     .select(`
       *,
-      candidate:candidate_id (
+      candidate:profiles!candidate_id (
         id,
-        first_name,
-        last_name,
+        name,
         email,
         profile:candidate_profiles (
           headline,
@@ -110,7 +109,7 @@ export default async function InterviewReviewPage({ params }: ReviewPageProps) {
               <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.1)' }} />
               <Box>
                 <Typography variant="h6" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
-                  Review: {candidate?.first_name} {candidate?.last_name}
+                  Review: {candidate?.name}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
                   {job?.title} • {job?.department}
@@ -266,9 +265,9 @@ export default async function InterviewReviewPage({ params }: ReviewPageProps) {
                       boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
                     }}
                   >
-                    {candidate?.first_name?.[0]}{candidate?.last_name?.[0]}
+                    {candidate?.name?.split(' ').map((n: string) => n[0]).join('')}
                   </Avatar>
-                  <Typography variant="h5" fontWeight={800}>{candidate?.first_name} {candidate?.last_name}</Typography>
+                  <Typography variant="h5" fontWeight={800}>{candidate?.name}</Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2 }}>{profile?.headline}</Typography>
                   
                   <Stack direction="row" spacing={1} sx={{ mt: 1 }}>

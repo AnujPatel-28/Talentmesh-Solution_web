@@ -35,36 +35,77 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
     const fetchCandidate = useCallback(async (id: string) => {
         setLoading(true);
         try {
-            const { data, error } = await insforge.database
+            let res = await insforge.database
                 .from('candidate_profiles')
                 .select(`
                     *,
-                    profile:profiles!id(id, full_name, email, avatar_url, created_at),
+                    profile:profiles!id(id, full_name:name, email, avatar_url, created_at),
                     applications:applications(
                         id, status, applied_at, updated_at, job_id,
+                        apply_type, resume_url, screening_answers,
                         job:jobs(id, title, recruiter_id)
                     )
                 `)
                 .eq('id', id)
                 .single();
 
-            if (error) throw error;
+            // Handle session expiry and retry
+            const err = res.error as any;
+            if (err && (err.statusCode === 401 || err.message?.includes('token') || err.error === 'AUTH_UNAUTHORIZED')) {
+                console.warn('[fetchCandidate] Access token expired, attempting to refresh...');
+                const { refreshAccessToken } = await import('@/lib/insforge');
+                const newToken = await refreshAccessToken();
+                if (newToken) {
+                    console.log('[fetchCandidate] Refresh successful, retrying query...');
+                    res = await insforge.database
+                        .from('candidate_profiles')
+                        .select(`
+                            *,
+                            profile:profiles!id(id, full_name:name, email, avatar_url, created_at),
+                            applications:applications(
+                                id, status, applied_at, updated_at, job_id,
+                                apply_type, resume_url, screening_answers,
+                                job:jobs(id, title, recruiter_id)
+                            )
+                        `)
+                        .eq('id', id)
+                        .single();
+                }
+            }
+
+            if (res.error) throw res.error;
+            const data = res.data;
 
             // Filter applications to only those belonging to this recruiter
-            if (data.applications) {
+            if (data?.applications) {
                 data.applications = data.applications.filter((app: any) => app.job?.recruiter_id === user?.id);
             }
 
             setCandidate(data);
 
             // Fetch recruiter notes
-            const { data: noteData } = await insforge.database
+            let noteRes = await insforge.database
                 .from('recruiter_candidate_notes')
                 .select('notes, updated_at')
                 .eq('recruiter_id', user?.id)
                 .eq('candidate_id', id)
                 .maybeSingle();
 
+            const noteErr = noteRes.error as any;
+            if (noteErr && (noteErr.statusCode === 401 || noteErr.message?.includes('token') || noteErr.error === 'AUTH_UNAUTHORIZED')) {
+                const { refreshAccessToken } = await import('@/lib/insforge');
+                const newToken = await refreshAccessToken();
+                if (newToken) {
+                    noteRes = await insforge.database
+                        .from('recruiter_candidate_notes')
+                        .select('notes, updated_at')
+                        .eq('recruiter_id', user?.id)
+                        .eq('candidate_id', id)
+                        .maybeSingle();
+                }
+            }
+
+            const noteData = noteRes.data;
             setNotes(noteData?.notes || '');
             if (noteData?.updated_at) setLastSaved(new Date(noteData.updated_at));
 
@@ -108,7 +149,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
         if (!user?.id || !candidateId) return;
         setIsSaving(true);
         try {
-            const { error } = await insforge.database
+            let res = await insforge.database
                 .from('recruiter_candidate_notes')
                 .upsert({
                     recruiter_id: user.id,
@@ -117,7 +158,23 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'recruiter_id,candidate_id' });
 
-            if (error) throw error;
+            const err = res.error as any;
+            if (err && (err.statusCode === 401 || err.message?.includes('token') || err.error === 'AUTH_UNAUTHORIZED')) {
+                const { refreshAccessToken } = await import('@/lib/insforge');
+                const newToken = await refreshAccessToken();
+                if (newToken) {
+                    res = await insforge.database
+                        .from('recruiter_candidate_notes')
+                        .upsert({
+                            recruiter_id: user.id,
+                            candidate_id: candidateId,
+                            notes: content,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'recruiter_id,candidate_id' });
+                }
+            }
+
+            if (res.error) throw res.error;
             setLastSaved(new Date());
         } catch (err) {
             console.error('Save notes error:', err);
@@ -128,12 +185,24 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
 
     const updateApplicationStatus = async (appId: string, status: string) => {
         try {
-            const { error } = await insforge.database
+            let res = await insforge.database
                 .from('applications')
                 .update({ status, updated_at: new Date().toISOString() })
                 .eq('id', appId);
 
-            if (error) throw error;
+            const err = res.error as any;
+            if (err && (err.statusCode === 401 || err.message?.includes('token') || err.error === 'AUTH_UNAUTHORIZED')) {
+                const { refreshAccessToken } = await import('@/lib/insforge');
+                const newToken = await refreshAccessToken();
+                if (newToken) {
+                    res = await insforge.database
+                        .from('applications')
+                        .update({ status, updated_at: new Date().toISOString() })
+                        .eq('id', appId);
+                }
+            }
+
+            if (res.error) throw res.error;
 
             setCandidate((prev: any) => ({
                 ...prev,
@@ -182,7 +251,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                 onClick={onClose}
             />
             <aside className={`${styles.drawer} ${candidateId ? styles.open : ''}`}>
-                <button className={styles.closeBtn} onClick={onClose}>{IC.x}</button>
+                <button type="button" className={styles.closeBtn} onClick={(e) => { e.stopPropagation(); onClose(); }}>{IC.x}</button>
                 
                 <div className={styles.drawerHeader}>
                     {loading ? (
@@ -321,7 +390,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                 <div className={styles.tabContent}>
                                     <span className={styles.sectionTitle}>Active Applications</span>
                                     {candidate?.applications?.length > 0 ? candidate.applications.map((app: any) => (
-                                        <div key={app.id} className={styles.appItem}>
+                                        <div key={app.id} className={styles.appItem} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                             <div className={styles.appHead}>
                                                 <div>
                                                     <div style={{ fontWeight: 600 }}>{app.job?.title}</div>
@@ -329,10 +398,35 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                                 </div>
                                                 <span className={`${styles.appStatus} ${styles[`status_${app.status}`]}`}>{app.status}</span>
                                             </div>
+                                            
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', alignItems: 'center' }}>
+                                                <span>Method: <strong style={{ textTransform: 'uppercase', color: app.apply_type === 'manual' ? '#f59e0b' : '#3b82f6' }}>{app.apply_type || 'quick'}</strong></span>
+                                                {app.resume_url && (
+                                                    <a href={app.resume_url} target="_blank" rel="noreferrer" style={{ color: 'var(--primary-blue)', fontWeight: 600, textDecoration: 'none', fontSize: '0.8rem' }}>
+                                                        View Resume ↗
+                                                    </a>
+                                                )}
+                                            </div>
+
+                                            {app.screening_answers && Object.keys(app.screening_answers).length > 0 && (
+                                                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '0.25rem' }}>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>Screening Answers</div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                        {Object.entries(app.screening_answers).map(([question, answer]: any) => (
+                                                            <div key={question} style={{ fontSize: '0.75rem', lineHeight: 1.4 }}>
+                                                                <div style={{ color: '#64748b', fontWeight: 500 }}>Q: {question}</div>
+                                                                <div style={{ color: '#0f172a', fontWeight: 600, marginTop: '1px' }}>A: {String(answer)}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <select 
                                                 className={styles.statusSelect}
                                                 value={app.status}
                                                 onChange={(e) => updateApplicationStatus(app.id, e.target.value)}
+                                                style={{ marginTop: '0.25rem' }}
                                             >
                                                 <option value="screening">Screening</option>
                                                 <option value="shortlisted">Shortlisted</option>
