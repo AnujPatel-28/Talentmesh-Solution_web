@@ -31,7 +31,7 @@ const jobCreateSchema = z.object({
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
-const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY');
+const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY');
 
 export default async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get('Origin') || '*';
@@ -47,11 +47,18 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response('ok', { status: 204, headers: corsHeaders });
   }
 
-  const client = createClient({ baseUrl, anonKey });
-
   // --- GET Handler ---
   if (req.method === 'GET') {
     try {
+      const reqBaseUrl = req.headers.get('x-insforge-url') || baseUrl;
+      const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
+      const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
+      
+      const dbClient = createClient({ 
+        baseUrl: reqBaseUrl, 
+        anonKey: reqServiceKey,
+        isServerMode: true
+      });
       const url = new URL(req.url);
       const params = Object.fromEntries(url.searchParams.entries());
       const validation = jobFilterSchema.safeParse(params);
@@ -66,7 +73,7 @@ export default async function handler(req: Request): Promise<Response> {
       const start = page * limit;
       const end = start + limit - 1;
 
-      let query = client.database
+      let query = dbClient.database
         .from('jobs')
         .select('*, companies(id, name, logo_url, industry, about:description, website)', { count: 'exact' })
         .eq('is_approved', true)
@@ -123,18 +130,27 @@ export default async function handler(req: Request): Promise<Response> {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
 
+      const reqBaseUrl = req.headers.get('x-insforge-url') || baseUrl;
+      const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
+      const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
+      
+      const dbClient = createClient({ 
+        baseUrl: reqBaseUrl, 
+        anonKey: reqServiceKey,
+        isServerMode: true
+      });
       const body = await req.json();
       const validation = jobCreateSchema.safeParse(body);
       if (!validation.success) {
         return new Response(JSON.stringify({ error: 'Validation failed', details: validation.error.flatten().fieldErrors }), { status: 400, headers: corsHeaders });
       }
 
-      const { data, error } = await client.database
+      const { data, error } = await dbClient.database
         .from('jobs')
         .insert([{
           ...validation.data,
           status: 'active',
-          is_approved: false // Require admin approval
+          is_approved: false
         }])
         .select()
         .single();

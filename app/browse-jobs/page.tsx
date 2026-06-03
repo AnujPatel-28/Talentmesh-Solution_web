@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import styles from './jobs.module.css';
-import { BlogFeed } from '@/components/sections';
+
 import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
 import { SectionHeader } from '@/components/ui';
@@ -319,7 +319,6 @@ export default function BrowseJobsPage() {
                     </div>
                 </div>
             </div>
-            <BlogFeed />
         </main>
     );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from './apply.module.css';
@@ -13,7 +13,7 @@ const Ico = {
   File: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>,
 };
 
-export default function JobApplyPage() {
+function JobApplyPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -100,7 +100,7 @@ export default function JobApplyPage() {
           .uploadAuto(resume);
         
         if (uploadError) throw uploadError;
-        finalResumeUrl = uploadData?.url;
+        finalResumeUrl = uploadData?.url || '';
 
         // Save to candidate_resumes as well to keep it in history
         const { data: newResume, error: saveError } = await insforge.database
@@ -330,5 +330,13 @@ export default function JobApplyPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function JobApplyPage() {
+  return (
+    <Suspense fallback={<div className={styles.page}><p style={{ textAlign: 'center' }}>Loading application...</p></div>}>
+      <JobApplyPageContent />
+    </Suspense>
   );
 }

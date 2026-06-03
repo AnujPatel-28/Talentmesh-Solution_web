@@ -112,7 +112,16 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Job ID is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const client = createClient({ baseUrl, anonKey });
+    const baseUrl = req.headers.get('x-insforge-url') || Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
+    const anonKey = req.headers.get('x-insforge-anon-key') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
+    const serviceKey = req.headers.get('x-insforge-service-key') || Deno.env.get('INSFORGE_SERVICE_KEY') || anonKey;
+    
+    const client = createClient({ 
+      baseUrl, 
+      anonKey: serviceKey,
+      isServerMode: true
+    });
+
     const { data, error } = await client.database
       .from('jobs')
       .select('id, title, description, requirements, skills_required, type, location, salary_min, salary_max, currency, experience_min, experience_max, department, status, is_approved, views_count, applications_count, created_at, updated_at, company_id, recruiter_id, companies(id, name, logo_url, industry, about:description, website)')
@@ -122,7 +131,7 @@ export default async function handler(req: Request): Promise<Response> {
       .single();
 
     if (error || !data) {
-      return new Response(JSON.stringify({ error: 'Job not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Job not found', details: error }), { status: 404, headers: { 'Content-Type': 'application/json' } });
     }
 
     const job = serializeJob(data as unknown as JobRecord);

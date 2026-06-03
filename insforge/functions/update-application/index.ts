@@ -50,12 +50,47 @@ export default async function handler(req: Request): Promise<Response> {
       metadata: { application_id: id, status }
     });
 
-    // Real-time Notification (optional/mocked for now)
-    // await insforgeAdmin.realtime.publish('notifications', {
-    //   user_id: application.profiles.id,
-    //   title: 'Application Update',
-    //   message: `Your application for ${application.jobs.title} is now ${status}.`
-    // });
+    // Insert in-app notification for the candidate
+    await insforgeAdmin.database.from('notifications').insert({
+      user_id: application.profiles.id,
+      type: 'application_update',
+      title: 'Application Update',
+      message: `Your application for ${application.jobs.title} is now ${status}.`,
+      is_read: false,
+      metadata: { application_id: id, status, job_title: application.jobs.title },
+    });
+
+    // Send email notification (fire-and-forget)
+    const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
+    const emailServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
+
+    // Get candidate email
+    const { data: candidateProfile } = await insforgeAdmin.database
+      .from('profiles')
+      .select('email, name')
+      .eq('id', application.profiles.id)
+      .single();
+
+    if (candidateProfile?.email) {
+      fetch(`${siteUrl}/api/email/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-key': emailServiceKey,
+        },
+        body: JSON.stringify({
+          to: candidateProfile.email,
+          template: 'application-status',
+          data: {
+            name: candidateProfile.name || 'Candidate',
+            email: candidateProfile.email,
+            jobTitle: application.jobs.title,
+            status,
+          },
+          role: 'hr',
+        }),
+      }).catch((e: any) => console.error('[update-application] Email failed:', e.message));
+    }
 
     return new Response(JSON.stringify({ success: true, application }), { 
       status: 200, 

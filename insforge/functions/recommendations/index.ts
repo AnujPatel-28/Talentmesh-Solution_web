@@ -36,14 +36,14 @@ export default async function handler(req: Request): Promise<Response> {
     const { data: profile, error: profileError } = await insforgeAdmin.database
       .from('candidate_profiles')
       .select('skills, headline')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single();
 
     if (profileError || !profile) {
       // Fallback: return generic active jobs if no profile
       const { data: jobs } = await insforgeAdmin.database
         .from('jobs')
-        .select('*, companies:company_profiles(name, logo_url)')
+        .select('*, companies(name, logo_url)')
         .eq('status', 'active')
         .limit(5);
       
@@ -57,9 +57,10 @@ export default async function handler(req: Request): Promise<Response> {
     // We'll fetch active jobs and rank them in JS for now
     const { data: activeJobs } = await insforgeAdmin.database
       .from('jobs')
-      .select('*, companies:company_profiles(name, logo_url)')
+      .select('*, companies(name, logo_url)')
       .eq('status', 'active')
       .limit(50);
+
 
     const rankedJobs = (activeJobs || []).map(job => {
       const jobSkills = job.skills_required || [];

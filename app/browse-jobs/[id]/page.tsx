@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import styles from './jobDetail.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { BlogFeed } from '@/components/sections';
+
 import { invokeFunction } from '@/lib/insforge';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
 
@@ -307,7 +307,7 @@ export default function JobDetailPage() {
                     </aside>
                 </div>
             </div>
-            <BlogFeed />
+
         </main>
     );
 }

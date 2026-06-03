@@ -35,7 +35,7 @@ export async function getApprovedJobs(options: GetApprovedJobsOptions = {}): Pro
   try {
     let query = insforge.database
       .from('jobs')
-      .select('id,title,type,location,salary_min,salary_max,industry,status,created_at,company_id,companies(name,logo_url)')
+      .select('id,title,type,location,salary_min,salary_max,status,created_at,company_id,companies(name,logo_url,industry)')
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
       .limit(options.limit ?? 30);
@@ -57,7 +57,7 @@ export async function getApprovedJobs(options: GetApprovedJobsOptions = {}): Pro
       query = query.lte('salary_max', options.salary_max);
     }
     if (options.industry) {
-      query = query.eq('industry', options.industry);
+      query = query.filter('companies.industry', 'eq', options.industry);
     }
     if (options.date_posted && options.date_posted !== 'all') {
       const now = new Date();
@@ -78,7 +78,11 @@ export async function getApprovedJobs(options: GetApprovedJobsOptions = {}): Pro
       console.error('[getApprovedJobs] DB error:', error.message);
       return [];
     }
-    return (data as Job[]) ?? [];
+    const jobs = (data as any[]) ?? [];
+    return jobs.map(job => ({
+      ...job,
+      industry: job.companies?.industry || undefined
+    }));
   } catch (err) {
     console.error('[getApprovedJobs] Unexpected error:', err);
     return [];

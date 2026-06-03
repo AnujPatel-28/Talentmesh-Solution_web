@@ -97,9 +97,9 @@ export const InterviewApi = {
         .from('interviews')
         .select(`
           *,
-          candidate:candidate_id (
-            first_name,
-            last_name,
+          candidate:profiles!candidate_id (
+            id,
+            name,
             profile:candidate_profiles (*)
           ),
           job:jobs (*)
@@ -111,7 +111,7 @@ export const InterviewApi = {
 
       const job = interview.job as any;
       const candidateProfile = interview.candidate?.profile as any;
-      const candidateName = `${interview.candidate?.first_name} ${interview.candidate?.last_name}`;
+      const candidateName = interview.candidate?.name || 'Candidate';
 
       // 2. Build Scoring Prompt
       const prompt = `
