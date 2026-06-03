@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "create-test-recruiter": "tsx scripts/create-test-recruiter.ts",
+    "create-manual-recruiter": "tsx scripts/create-manual-recruiter.ts"
   },
   "dependencies": {
     "@daily-co/daily-js": "^0.89.1",
@@ -25,7 +27,7 @@
     "dotenv": "^17.3.1",
     "lucide-react": "^0.575.0",
     "next": "^16.2.4",
-    "nodemailer": "^8.0.4",
+    "nodemailer": "^8.0.7",
     "nuqs": "^2.8.9",
     "otpauth": "^9.5.0",
     "react": "19.2.3",
