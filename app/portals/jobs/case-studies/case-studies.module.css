@@ -55,7 +55,7 @@
 }
 
 .filterTabActive {
-    background: white !important;
+    background: var(--background) !important;
     color: var(--cobalt-blue) !important;
     border-color: white !important;
 }

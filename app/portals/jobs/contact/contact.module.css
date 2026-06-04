@@ -8,11 +8,12 @@
     background: #ffffff;
     font-family: var(--font-inter, 'Inter', sans-serif);
     color: #0f172a;
+    padding-top: 120px;
 }
 
 /* ── Content Grid ── */
 .mainLayout {
-    max-width: var(--container-xl);
+    max-width: 1200px;
     margin: 0 auto;
     padding: clamp(4rem, 10vh, 8rem) 16px;
     display: grid;

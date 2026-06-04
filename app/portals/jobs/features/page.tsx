@@ -12,7 +12,7 @@ import AnimateOnScroll from '@/components/AnimateOnScroll';
 
 export default function FeaturesPage() {
     return (
-        <main style={{ background: '#fff' }}>
+        <main style={{ background: 'var(--background)' }}>
             <PageHeader
                 title="Engineered for"
                 highlight="performance"

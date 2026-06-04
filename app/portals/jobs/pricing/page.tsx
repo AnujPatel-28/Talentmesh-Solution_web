@@ -79,7 +79,7 @@ export default function PricingPage() {
     }, []);
 
     return (
-        <main style={{ background: '#fff' }}>
+        <main style={{ background: 'var(--background)' }}>
             {/* 1. Hero Section */}
             <section className={styles.hero}>
                 <div className="premium-container">

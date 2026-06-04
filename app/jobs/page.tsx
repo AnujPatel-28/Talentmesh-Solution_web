@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
 import { SectionHeader } from '@/components/ui';
 import { JobCard } from '@/components/jobs/JobCard';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // Icons
 const Ico = {
@@ -41,6 +42,7 @@ export default function JobsBrowsePage() {
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [salaryRange, setSalaryRange] = useState('any');
   const [isRemoteOnly, setIsRemoteOnly] = useState(false);
+  const [sortBy, setSortBy] = useState('Latest');
 
   useEffect(() => {
     async function fetchJobs() {
@@ -226,11 +228,12 @@ export default function JobsBrowsePage() {
               </span>
               <div className={styles.sortWrapper}>
                 <span className={styles.resultsCount}>Sort by: </span>
-                <select className={styles.sortSelect}>
-                  <option>Latest</option>
-                  <option>Most Applied</option>
-                  <option>Most Shared</option>
-                </select>
+                <CustomSelect 
+                  className={styles.sortSelect}
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value)}
+                  options={['Latest', 'Most Applied', 'Most Shared']}
+                />
               </div>
             </div>
 

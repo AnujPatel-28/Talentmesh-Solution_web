@@ -16,7 +16,7 @@ const FAQ = [
     { q: 'Can we schedule a live demo?', a: 'Absolutely. Use the form to request a demo and our team will coordinate a session.' },
 ];
 
-import { SectionHeader } from '@/components/ui';
+import { SectionHeader, CustomSelect } from '@/components/ui';
 
 export default function ContactPage() {
     const [open, setOpen] = useState<number | null>(null);
@@ -201,19 +201,20 @@ export default function ContactPage() {
                                     </div>
                                     <div className={styles.field}>
                                         <label className={styles.label}>I am a...</label>
-                                        <select
+                                        <CustomSelect
                                             className={styles.select}
                                             name="userType"
                                             required
                                             value={formData.userType}
                                             onChange={handleChange}
-                                        >
-                                            <option value="">Choose an option...</option>
-                                            <option value="employer">I am an Employer / Recruiter looking for talent</option>
-                                            <option value="candidate">I am a Candidate / Job Seeker looking for roles</option>
-                                            <option value="partner">I am interested in a Business Partnership</option>
-                                            <option value="other">Other Inquiry</option>
-                                        </select>
+                                            placeholder="Choose an option..."
+                                            options={[
+                                                { label: "I am an Employer / Recruiter looking for talent", value: "employer" },
+                                                { label: "I am a Candidate / Job Seeker looking for roles", value: "candidate" },
+                                                { label: "I am interested in a Business Partnership", value: "partner" },
+                                                { label: "Other Inquiry", value: "other" }
+                                            ]}
+                                        />
                                     </div>
                                     <div className={styles.field}>
                                         <label className={styles.label}>Message</label>
@@ -239,12 +240,12 @@ export default function ContactPage() {
             {/* ── FAQ ── */}
             <AnimateOnScroll animation="fadeUp" delay={100}>
                 <section className={styles.faqSection}>
-                <div className="premium-container">
-                    <SectionHeader
-                        centered
-                        tag="Support"
-                        title="Common Questions"
-                    />
+                    <div className="premium-container">
+                        <SectionHeader
+                            centered
+                            tag="Support"
+                            title="Common Questions"
+                        />
                         <div className={styles.faqList}>
                             {FAQ.map((f, i) => (
                                 <div key={i} className={styles.faqItem}>

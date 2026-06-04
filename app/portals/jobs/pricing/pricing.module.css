@@ -2,7 +2,7 @@
     position: relative;
     padding: clamp(6rem, 15vh, 10rem) 1rem clamp(4rem, 10vh, 8rem);
     overflow: hidden;
-    background: #ffffff;
+    background: var(--background);
     text-align: center;
 }
 
@@ -55,7 +55,7 @@
 
 /* Pricing Grid */
 .pricingSection {
-    background: #fafafa;
+    background: var(--background);
     padding: clamp(4rem, 8vh, 6rem) 1rem clamp(6rem, 12vh, 10rem);
 }
 
@@ -237,7 +237,7 @@
 /* FAQ Section */
 .faqSection {
     padding: clamp(4rem, 10vh, 10rem) 1.5rem;
-    background: white;
+    background: var(--background);
 }
 
 .faqGrid {
@@ -271,7 +271,7 @@
     border-top: 1px solid #f1f5f9;
     border-bottom: 1px solid #f1f5f9;
     overflow: hidden;
-    background: #fff;
+    background: var(--background);
 }
 
 .marqueeTrack {

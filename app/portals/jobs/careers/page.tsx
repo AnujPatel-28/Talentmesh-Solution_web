@@ -44,7 +44,7 @@ export default function CareersPage() {
                             <SectionHeader
                                 tag="Workplace Evolution"
                                 title="As remote as you are."
-                                description="We believe that the best talent shouldn't be restricted by geography. TalentMesh is a remote-first organization with hubs in Ahmedabad, San Francisco, and London."
+                                description="We believe that the best talent shouldn't be restricted by geography. TalentMesh is a remote-first organization with hubs in Ahmedabad, Bangalore, and Mumbai."
                             />
                             <ul className={styles.perksList}>
                                 {[
@@ -88,18 +88,18 @@ export default function CareersPage() {
                             title="Benefits of joining the mesh."
                         />
                         <div className={styles.benefitsGrid}>
-                        {[
-                            { icon: <BoltOutlinedIcon />, title: "Learning", text: "$2.5k annual learning budget." },
-                            { icon: <LocalCafeOutlinedIcon />, title: "Perks", text: "Healthy snacks & coffee stipends." },
-                            { icon: <VerifiedUserOutlinedIcon />, title: "Health", text: "Premium global medical coverage." },
-                            { icon: <LaptopOutlinedIcon />, title: "Stock", text: "Equity options for all employees." }
-                        ].map((item, i) => (
-                            <div key={i} className={styles.benefitCard}>
-                                <div className={styles.benefitIcon}>{item.icon}</div>
-                                <h4 className={styles.benefitTitle}>{item.title}</h4>
-                                <p className={styles.benefitText}>{item.text}</p>
-                            </div>
-                        ))}
+                            {[
+                                { icon: <BoltOutlinedIcon />, title: "Learning", text: "$2.5k annual learning budget." },
+                                { icon: <LocalCafeOutlinedIcon />, title: "Perks", text: "Healthy snacks & coffee stipends." },
+                                { icon: <VerifiedUserOutlinedIcon />, title: "Health", text: "Premium global medical coverage." },
+                                { icon: <LaptopOutlinedIcon />, title: "Stock", text: "Equity options for all employees." }
+                            ].map((item, i) => (
+                                <div key={i} className={styles.benefitCard}>
+                                    <div className={styles.benefitIcon}>{item.icon}</div>
+                                    <h4 className={styles.benefitTitle}>{item.title}</h4>
+                                    <p className={styles.benefitText}>{item.text}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </section>

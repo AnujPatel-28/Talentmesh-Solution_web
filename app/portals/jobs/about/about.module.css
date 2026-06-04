@@ -1,368 +1,94 @@
 /* ============================
    ABOUT PAGE — TalentMesh
-   Premium Architectural Edition
    ============================ */
 
 .page {
     min-height: 100vh;
-    background: #ffffff;
+    background: #fafcff; /* Light bluish white */
     font-family: var(--font-inter, 'Inter', sans-serif);
     color: #0f172a;
+    padding-bottom: 4rem;
 }
 
-/* ── Stats Strip ── */
-.statsStrip {
-    background: linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 50%, #081428 100%);
-    padding: clamp(3rem, 10vh, 5rem) 16px;
-    color: #ffffff;
-    position: relative;
-    overflow: hidden;
-}
-
-.statsStrip::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse 60% 100% at 50% 50%, rgba(0, 123, 255, 0.08) 0%, transparent 70%);
-}
-
-.statsGrid {
+/* ── Mission Section ── */
+.missionSection {
+    padding: clamp(4rem, 10vh, 6rem) 16px;
     max-width: 1200px;
     margin: 0 auto;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 2rem;
-    position: relative;
+    background: #ffffff;
+    border-radius: 40px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03);
+    margin-top: 4rem;
+    margin-bottom: 4rem;
 }
 
-.statItem {
-    text-align: center;
-    padding: 2rem 1rem;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.statItem:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(0, 123, 255, 0.3);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 123, 255, 0.15);
-}
-
-.statNum {
-    font-size: 3rem;
-    font-weight: 900;
-    display: block;
-    margin-bottom: 0.75rem;
-    font-variant-numeric: tabular-nums;
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    text-shadow: none;
-}
-
-.statLabel {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: rgba(255, 255, 255, 0.45);
-    font-weight: 700;
-}
-
-/* ── Our Story (Split Layout) ── */
-.storySection {
-    padding: clamp(6rem, 15vh, 10rem) 16px;
-    max-width: var(--container-xl);
-    margin: 0 auto;
-}
-
-.storyGrid {
+.missionGrid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6rem;
+    gap: 4rem;
     align-items: center;
+    padding: 2rem;
 }
 
-.storyTag {
-    color: #3b82f6;
-    font-weight: 800;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 1.25rem;
-    padding: 0.4rem 1rem;
-    background: rgba(59, 130, 246, 0.08);
-    border-radius: 50px;
-    border: 1px solid rgba(59, 130, 246, 0.15);
+.missionContent {
+    padding-right: 2rem;
 }
 
-.storyTitle {
-    font-size: 2.5rem;
-    font-weight: 900;
-    margin-bottom: 1.5rem;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
+.missionTitle {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 1rem;
+    position: relative;
+    padding-bottom: 1rem;
 }
 
-.storyText {
-    font-size: 1.05rem;
-    line-height: 1.8;
-    color: #475569;
-    margin-bottom: 1.5rem;
+.missionTitle::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: #1e40af;
+    border-radius: 2px;
 }
 
-/* ── Mission Cards ── */
-.missionVisual {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+.missionText {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #334155;
+    font-weight: 500;
 }
 
 .missionImageWrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 16/9;
+    aspect-ratio: 16/10;
     border-radius: 24px;
     overflow: hidden;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
-    margin-top: 2rem;
+}
+
+.missionImageBg {
+    position: absolute;
+    inset: -20px -20px 20px 20px;
+    background: #e0e7ff;
+    border-radius: 30px;
+    z-index: 0;
 }
 
 .missionImg {
+    position: relative;
+    z-index: 1;
     object-fit: cover;
-    transition: transform 0.6s ease;
-}
-
-.missionImageWrapper:hover .missionImg {
-    transform: scale(1.03);
-}
-
-.missionCard {
-    padding: 2rem;
-    border-radius: 20px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-
-.missionCard::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    border-radius: 0 4px 4px 0;
-    transition: all 0.4s ease;
-}
-
-.missionCardProblem {
-    background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
-    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.06);
-}
-
-.missionCardProblem::before {
-    background: linear-gradient(to bottom, #ef4444, #f97316);
-}
-
-.missionCardProblem:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(239, 68, 68, 0.12);
-}
-
-.missionCardSolution {
-    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.06);
-}
-
-.missionCardSolution::before {
-    background: linear-gradient(to bottom, #10b981, #059669);
-}
-
-.missionCardSolution:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.12);
-}
-
-.missionCardTitle {
-    font-size: 1rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.missionCardTitleProblem {
-    color: #dc2626;
-}
-
-.missionCardTitleSolution {
-    color: #059669;
-}
-
-.missionCardText {
-    font-size: 0.92rem;
-    color: #475569;
-    line-height: 1.6;
-}
-
-.missionCardTextSolution {
-    color: #0f172a;
-    font-weight: 600;
-}
-
-/* ── Innovation Labs Visual ── */
-.labsVisual {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     border-radius: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: clamp(2rem, 5vw, 4rem);
-    min-height: 240px;
-    position: relative;
-    overflow: hidden;
-}
-
-.labsVisual::before {
-    content: '';
-    position: absolute;
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: labsPulse 4s ease-in-out infinite;
-}
-
-.labsVisual::after {
-    content: '';
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(129, 140, 248, 0.15) 0%, transparent 70%);
-    border-radius: 50%;
-    animation: labsPulse 4s ease-in-out infinite reverse;
-}
-
-.labsIcon {
-    position: relative;
-    z-index: 2;
-    color: #60a5fa;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-}
-
-.labsIconSvg {
-    width: 64px;
-    height: 64px;
-    color: #60a5fa;
-    filter: drop-shadow(0 0 20px rgba(96, 165, 250, 0.4));
-}
-
-.labsIconLabel {
-    font-size: 0.82rem;
-    font-weight: 800;
-    color: rgba(255, 255, 255, 0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-}
-
-@keyframes labsPulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-        opacity: 0.6;
-    }
-
-    50% {
-        transform: scale(1.3);
-        opacity: 1;
-    }
-}
-
-/* ── Innovation bullet list ── */
-.innovationList {
-    list-style: none;
-    padding: 0;
-    margin-top: 2rem;
-}
-
-.innovationItem {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 1.25rem;
-    font-weight: 600;
-    color: #0f172a;
-    padding: 0.6rem 0;
-    transition: transform 0.2s ease;
-}
-
-.innovationItem:hover {
-    transform: translateX(4px);
-}
-
-.innovationDot {
-    width: 10px;
-    height: 10px;
-    background: linear-gradient(135deg, #3b82f6, #60a5fa);
-    border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-}
-
-/* ── Global section stats ── */
-.globalStatValue {
-    font-size: 2.75rem;
-    font-weight: 900;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #60a5fa, #818cf8);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-}
-
-.globalStatLabel {
-    font-weight: 600;
-    opacity: 0.5;
-    font-size: 0.88rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
-    .storyGrid {
+    .missionGrid {
         grid-template-columns: 1fr;
-        gap: 4rem;
-    }
-
-    .statsGrid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 640px) {
-    .statsGrid {
-        grid-template-columns: 1fr;
-    }
-
-    .storyTitle {
-        font-size: 2rem;
-    }
-
-    .statNum {
-        font-size: 2.5rem;
+        padding: 1rem;
     }
 }

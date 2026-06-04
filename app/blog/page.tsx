@@ -64,7 +64,7 @@ export default function BlogPage() {
     );
 
     return (
-        <main style={{ background: '#fff' }}>
+        <main style={{ background: 'var(--background)' }}>
             {/* 1. Hero */}
             <section className={styles.hero}>
                 <div className="premium-container">

@@ -65,7 +65,7 @@ export default function BlogDetailPage() {
     if (!post) return null;
 
     return (
-        <main style={{ background: '#fff', minHeight: '100vh', paddingBottom: '6rem' }}>
+        <main style={{ background: 'var(--background)', minHeight: '100vh', paddingBottom: '6rem' }}>
             <div className="premium-container" style={{ paddingTop: '2rem' }}>
                 <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#64748b', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}>
                     <IconArrowLeft /> Back to Blog

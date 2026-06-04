@@ -1,5 +1,8 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
+import SearchIcon from '@mui/icons-material/Search';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import styles from './career-advice.module.css';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -33,7 +36,7 @@ const STATS = [
     { val: '48hr', label: 'Response Time' },
 ];
 
-import { SectionHeader } from '@/components/ui';
+import { SectionHeader, CustomSelect } from '@/components/ui';
 
 export default function CareerAdvicePage() {
     const [form, setForm] = useState({
@@ -53,6 +56,76 @@ export default function CareerAdvicePage() {
 
     return (
         <main className={styles.page}>
+            {/* ── BLOG HERO ── */}
+            <section className={styles.blogHero}>
+                <h1 className={styles.blogTitle}>Level up your career with <span className="text-gradient">expert insights</span></h1>
+                <p className={styles.blogSub}>Discover actionable advice, industry trends, and the tools you need to stand out in today&apos;s competitive job market.</p>
+                <div className={styles.searchBox}>
+                    <SearchIcon className={styles.searchIcon} />
+                    <input type="text" placeholder="Search articles..." className={styles.searchInput} />
+                </div>
+            </section>
+
+            {/* ── CATEGORY FILTERS ── */}
+            <div className={styles.categoryFilters}>
+                {['All', 'Resume Tips', 'Interview Prep', 'Salary Negotiation', 'AI in Recruiting'].map(c => (
+                    <button key={c} className={`${styles.filterPill} ${c === 'All' ? styles.filterPillActive : ''}`}>{c}</button>
+                ))}
+            </div>
+
+            {/* ── BLOG GRID ── */}
+            <div className={styles.blogGrid}>
+                <div className={`${styles.articleCard} ${styles.featuredCard}`} style={{ backgroundImage: 'url(/images/tech-office.jpg)' }}>
+                    <div className={styles.cardContent}>
+                        <span className={styles.articleTag}>AI in Recruiting</span>
+                        <h2 className={styles.featuredTitle}>How Generative AI is Reshaping the Hiring Process in 2024</h2>
+                        <p className={styles.featuredDesc}>Stay ahead of the curve by understanding how top companies are using AI to screen candidates and what you can do to optimize your profile.</p>
+                    </div>
+                </div>
+                <div className={styles.articleCard}>
+                    <div>
+                        <span className={`${styles.articleTag} ${styles.articleTagDark}`}>Interview Prep</span>
+                        <h2 className={styles.articleTitle}>5 Questions You Should Always Ask at the End of an Interview</h2>
+                        <p className={styles.articleDesc}>Flipping the script shows engagement and helps you determine if the company culture is the right fit.</p>
+                    </div>
+                    <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
+                </div>
+            </div>
+
+            <div className={styles.blogGridSecondary}>
+                <div className={styles.articleCard}>
+                    <div>
+                        <span className={`${styles.articleTag} ${styles.articleTagDark}`}>Salary Negotiation</span>
+                        <h2 className={styles.articleTitle}>The Art of the Counter-Offer: Knowing Your Worth</h2>
+                        <p className={styles.articleDesc}>A step-by-step guide to confidently navigating salary discussions without risking the job offer.</p>
+                    </div>
+                    <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
+                </div>
+                <div className={styles.articleCard} style={{ padding: 0 }}>
+                    <div style={{ height: '220px', backgroundImage: 'url(/images/careers-team.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                    <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <span className={`${styles.articleTag} ${styles.articleTagDark}`} style={{ width: 'fit-content' }}>Resume Tips</span>
+                        <h2 className={styles.articleTitle}>Modernizing Your Resume for Applicant Tracking Systems (ATS)</h2>
+                        <p className={styles.articleDesc}>Formatting mistakes might be getting you auto-rejected. Learn how to structure your resume to pass the initial digital screening.</p>
+                        <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── NEWSLETTER ── */}
+            <section className={styles.newsletterSection}>
+                <div className={styles.newsletterBox}>
+                    <div className={styles.newsletterContent}>
+                        <h2 className={styles.newsletterTitle}>Stay ahead of the <span className="text-gradient">curve</span></h2>
+                        <p className={styles.newsletterDesc}>Get weekly career advice, industry insights, and exclusive tips delivered straight to your inbox.</p>
+                    </div>
+                    <form className={styles.newsletterForm} onSubmit={(e) => e.preventDefault()}>
+                        <input type="email" placeholder="Enter your email address" className={styles.newsletterInput} required />
+                        <button type="submit" className={styles.newsletterBtn}>Subscribe</button>
+                    </form>
+                </div>
+            </section>
+
             {/* ── HERO ── */}
             <section className={styles.hero}>
                 <div className="premium-container">
@@ -108,10 +181,14 @@ export default function CareerAdvicePage() {
                                         </div>
                                         <div className={styles.field}>
                                             <label className={styles.label}>Current Status</label>
-                                            <select required className={styles.select} value={form.status} onChange={e => set('status', e.target.value)}>
-                                                <option value="">Select your status</option>
-                                                {CURRENT_STATUS.map(s => <option key={s}>{s}</option>)}
-                                            </select>
+                                            <CustomSelect
+                                                className={styles.select}
+                                                value={form.status}
+                                                onChange={e => set('status', (e as any).target.value)}
+                                                placeholder="Select your status"
+                                                options={CURRENT_STATUS.map(s => ({ label: s, value: s }))}
+                                                required
+                                            />
                                         </div>
                                     </div>
 
@@ -128,10 +205,14 @@ export default function CareerAdvicePage() {
 
                                     <div className={styles.field}>
                                         <label className={styles.label}>Years of Experience</label>
-                                        <select required className={styles.select} value={form.expYears} onChange={e => set('expYears', e.target.value)}>
-                                            <option value="">Select range</option>
-                                            {EXP_YEARS.map(e => <option key={e}>{e}</option>)}
-                                        </select>
+                                        <CustomSelect
+                                            className={styles.select}
+                                            value={form.expYears}
+                                            onChange={e => set('expYears', (e as any).target.value)}
+                                            placeholder="Select range"
+                                            options={EXP_YEARS.map(e => ({ label: e, value: e }))}
+                                            required
+                                        />
                                     </div>
 
                                     {/* Multi-select help needs */}

@@ -112,7 +112,7 @@
 /* Featured Episode */
 .featuredSection {
     padding: clamp(4rem, 10vh, 7rem) 16px 0;
-    background: white;
+    background: var(--background);
 }
 
 .featuredCard {
@@ -271,7 +271,7 @@
 /* Episodes Section */
 .episodesSection {
     padding: clamp(4rem, 8vh, 6rem) 16px;
-    background: white;
+    background: var(--background);
 }
 
 .episodesHeader {
@@ -329,7 +329,7 @@
     overflow: hidden;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    background: white;
+    background: var(--background);
 }
 
 .episodeCard::before {
