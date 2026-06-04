@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
 import { SectionHeader } from '@/components/ui';
 import { useSavedJobs } from '@/hooks/useSavedJobs';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const Ico = {
@@ -51,15 +52,15 @@ export default function BrowseJobsPage() {
     const [activeExps, setActiveExps] = useState<string[]>([]);
     const [activeCountries, setActiveCountries] = useState<string[]>([]);
     const [dateFilter, setDateFilter] = useState('');
-    
+
     const { isSaved, toggleSave } = useSavedJobs(user?.id || null);
     const [page, setPage] = useState(1);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
     useEffect(() => {
-        async function fetchJobs() {
+        async function fetchJobs(attempt = 1) {
             try {
-                const { data, error } = await invokeFunction('jobs', { 
+                const { data, error } = await invokeFunction('jobs', {
                     method: 'GET',
                     queries: { limit: '100' }
                 });
@@ -67,10 +68,15 @@ export default function BrowseJobsPage() {
                 if (error) {
                     throw new Error(error.message || 'Failed to fetch jobs');
                 }
-                
+
                 setJobs(data?.data || data || []);
             } catch (err) {
-                console.error('Error fetching jobs:', err);
+                console.error(`Error fetching jobs (attempt ${attempt}):`, err);
+                if (attempt < 2) {
+                    // Retry once after a short delay (handles cold-start timeouts)
+                    await new Promise(r => setTimeout(r, 1500));
+                    return fetchJobs(attempt + 1);
+                }
             } finally {
                 setLoading(false);
             }
@@ -136,34 +142,33 @@ export default function BrowseJobsPage() {
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroContent}>
-                        <SectionHeader
-                            centered
-                            tag="Opportunities"
-                            title={<>Find Your Next <span className="text-gradient">Opportunity</span></>}
-                            description="Browse thousands of roles matched to your skills by our AI engine."
-                        />
+                        <h1 className={styles.heroTitle}>Find your next role</h1>
+                        <p className={styles.heroSub}>
+                            Search thousands of jobs in tech, design, and engineering across top companies.
+                        </p>
 
                         <div className={styles.searchCard}>
                             <div className={styles.searchField}>
                                 <Ico.Search />
                                 <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-                                    placeholder="Job title, role, or keyword" className={styles.searchInput} />
+                                    placeholder="Job title, keywords, or company" className={styles.searchInput} />
                             </div>
-                            <div className={styles.searchDivider} />
                             <div className={styles.searchField}>
                                 <Ico.Location />
                                 <input value={locSearch} onChange={e => { setLocSearch(e.target.value); setPage(1); }}
-                                    placeholder="City or Remote" className={styles.searchInput} />
+                                    placeholder="City, state, or remote" className={styles.searchInput} />
                             </div>
-                            <div className={styles.searchDivider} />
                             <div className={styles.searchField}>
                                 <Ico.Briefcase />
-                                <select value={jobType} onChange={e => { setJobType(e.target.value); setPage(1); }} className={styles.searchSelect}>
-                                    <option value="">Job Type</option>
-                                    {JOB_TYPES.map(t => <option key={t}>{t}</option>)}
-                                </select>
+                                <CustomSelect
+                                    value={jobType}
+                                    onChange={e => { setJobType(e.target.value); setPage(1); }}
+                                    className={styles.searchSelect}
+                                    options={JOB_TYPES}
+                                    placeholder="All Category"
+                                />
                             </div>
-                            <button className={styles.searchBtn}><Ico.Search /> Search</button>
+                            <button className={styles.searchBtn}>Search Jobs</button>
                         </div>
 
                         <div className={styles.popularTags}>
@@ -183,7 +188,12 @@ export default function BrowseJobsPage() {
                         <aside className={`${styles.sidebar} ${filterOpen ? styles.sidebarOpen : ''}`}>
                             <div className={styles.sidebarHead}>
                                 <span className={styles.sidebarTitle}><Ico.Filter /> Filters</span>
-                                <button className={styles.sidebarClose} onClick={() => setFilterOpen(false)} aria-label="Close filters"><Ico.Close /></button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    {(activeTypes.length + activeInds.length) > 0 && (
+                                        <button className={styles.clearAllBtn} onClick={() => { setActiveTypes([]); setActiveInds([]); setPage(1); }}>Clear all</button>
+                                    )}
+                                    <button className={styles.sidebarClose} onClick={() => setFilterOpen(false)} aria-label="Close filters"><Ico.Close /></button>
+                                </div>
                             </div>
 
                             <FilterGroup label="Job Type">
@@ -216,7 +226,7 @@ export default function BrowseJobsPage() {
                         </div>
 
                         <div className={styles.resultsHdr}>
-                            <span className={styles.resultsCount}><strong>{filtered.length}</strong> jobs found</span>
+                            <span className={styles.resultsCount}>Showing <strong>{filtered.length}</strong> jobs</span>
                             <span className={styles.aiPill}><Ico.Sparkle /> AI Match Enabled</span>
                         </div>
 
@@ -225,76 +235,50 @@ export default function BrowseJobsPage() {
                                 {paginated.map(job => {
                                     const saved = isSaved(job.id);
                                     return (
-                                        <Link key={job.id} href={`/browse-jobs/${job.id}`} className={`${styles.jobCard} glass-card`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                            <div className={styles.cardTop}>
-                                                <div className={styles.jobLogo} style={{ background: job.company_profiles?.color || '#0D47A1' }}>{job.company_profiles?.initials || job.company_profiles?.company_name?.[0]}</div>
-                                                <div className={styles.jobInfo}>
-                                                    <div className={styles.jobTitle}>{job.title}</div>
-                                                    <div className={styles.jobMeta}>
-                                                        <span>{job.company_profiles?.company_name}</span>
-                                                        <span className={styles.metaDot}>·</span>
-                                                        <Ico.Location /><span>{job.location}</span>
-                                                    </div>
-                                                </div>
+                                        <Link key={job.id} href={`/browse-jobs/${job.id}`} className={styles.jobCard} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                            <div className={styles.jobLogo} style={{ background: job.company_profiles?.color || '#0D47A1' }}>
+                                                {job.company_profiles?.initials || job.company_profiles?.company_name?.[0]}
+                                            </div>
 
-                                                <div className={styles.actionsBox}>
+                                            <div className={styles.jobDetails}>
+                                                <div className={styles.jobTitle}>{job.title}</div>
+                                                <div className={styles.jobMeta}>
+                                                    <span className={styles.companyName}>{job.company_profiles?.company_name}</span>
+                                                    <span className={styles.metaDot}>·</span>
+                                                    <Ico.Location /><span>{job.location}</span>
+                                                </div>
+                                                <div className={styles.badgeRow}>
+                                                    <span className={`${styles.typeBadge} ${styles[`type_${job.type?.replace('-', '').replace(' ', '')}`]}`}>{job.type}</span>
+                                                    <span className={styles.salaryBadge}>{job.salary}</span>
+                                                    {job.ai_match_rate >= 80 && (
+                                                        <span className={styles.matchBadge}>
+                                                            <Ico.Sparkle /> {job.ai_match_rate}% Match
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className={styles.jobSidebar}>
+                                                <div className={styles.sidebarTop}>
+                                                    <span className={styles.postedMeta}>{job.posted_days || 0}d ago</span>
                                                     <button
                                                         className={`${styles.saveBtn} ${saved ? styles.saveBtnActive : ''}`}
                                                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSave(job.id); }}
                                                         aria-label={saved ? 'Unsave' : 'Save job'}>
                                                         {saved ? <Ico.HeartFill /> : <Ico.Heart />}
                                                     </button>
-
-                                                    <div className={styles.menuWrapper}>
-                                                        <button
-                                                            className={styles.moreBtn}
-                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveMenuId(activeMenuId === job.id ? null : job.id); }}
-                                                            aria-label="More actions">
-                                                            <Ico.More />
-                                                        </button>
-                                                        
-                                                        {activeMenuId === job.id && (
-                                                            <div className={styles.dropdown} onClick={e => e.stopPropagation()}>
-                                                                <button className={styles.menuItem} onClick={(e) => handleShare(e, job)}>
-                                                                    <Ico.Share /> Share Opportunity
-                                                                </button>
-                                                                <button className={styles.menuItem} onClick={(e) => handleCopyLink(e, job.id)}>
-                                                                    <Ico.Copy /> Duplicate Link
-                                                                </button>
-                                                                <div className={styles.menuDivider} />
-                                                                <Link href={`/browse-jobs/${job.id}`} target="_blank" className={styles.menuItem} onClick={e => e.stopPropagation()}>
-                                                                    <Ico.ArrowR /> Ecosystem Intelligence
-                                                                </Link>
-                                                            </div>
-                                                        )}
-                                                    </div>
                                                 </div>
-                                            </div>
-
-                                            <div className={styles.badgeRow}>
-                                                <span className={`${styles.typeBadge} ${styles[`type_${job.type?.replace('-', '').replace(' ', '')}`]}`}>{job.type}</span>
-                                                <span className={styles.salaryBadge}>{job.salary}</span>
-                                                {job.ai_match_rate >= 80 && (
-                                                    <span className={styles.matchBadge} style={{ color: matchColor(job.ai_match_rate) }}>
-                                                        <Ico.Sparkle /> {job.ai_match_rate}% Match
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className={styles.cardFooter}>
-                                                <span className={styles.postedMeta}><Ico.Clock />{job.posted_days || 0} days ago</span>
-                                                <div className={styles.cardActions}>
-                                                    <span className={styles.applyBtn} onClick={(e) => { 
-                                                        e.preventDefault(); 
+                                                <div className={styles.sidebarBottom}>
+                                                    <span className={styles.viewJobBtn} onClick={(e) => {
+                                                        e.preventDefault();
                                                         if (!user) {
                                                             router.push('/signup');
                                                         } else {
                                                             router.push(`/browse-jobs/${job.id}`);
                                                         }
                                                     }}>
-                                                        Quick Apply
+                                                        View Job
                                                     </span>
-                                                    <span className={styles.viewBtn}>View <Ico.ArrowR /></span>
                                                 </div>
                                             </div>
                                         </Link>

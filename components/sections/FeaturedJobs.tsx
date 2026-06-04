@@ -7,7 +7,7 @@ const FeaturedJobs = () => {
             id: 1,
             title: "Senior Product Designer",
             company: "TechFlow",
-            location: "San Francisco, CA",
+            location: "Bangalore, KA",
             type: "Full-time",
             tags: ["UX/UI", "Figma", "Design Systems"],
             logo: "TF"
@@ -25,7 +25,7 @@ const FeaturedJobs = () => {
             id: 3,
             title: "AI Research Scientist",
             company: "DataMind",
-            location: "New York, NY",
+            location: "Mumbai, MH",
             type: "Full-time",
             tags: ["Python", "PyTorch", "NLP"],
             logo: "DM"
@@ -34,7 +34,7 @@ const FeaturedJobs = () => {
             id: 4,
             title: "Growth Marketing Manager",
             company: "ScaleUp",
-            location: "Austin, TX",
+            location: "Pune, MH",
             type: "Full-time",
             tags: ["SEO", "Analytics", "Strategy"],
             logo: "SU"
@@ -43,7 +43,7 @@ const FeaturedJobs = () => {
             id: 5,
             title: "Backend Engineer",
             company: "ServerLess",
-            location: "London, UK",
+            location: "Gurugram, HR",
             type: "Remote",
             tags: ["Go", "Kubernetes", "AWS"],
             logo: "SL"
@@ -52,7 +52,7 @@ const FeaturedJobs = () => {
             id: 6,
             title: "Product Manager",
             company: "Innovate",
-            location: "Berlin, DE",
+            location: "Hyderabad, TS",
             type: "Full-time",
             tags: ["Agile", "Roadmap", "SaaS"],
             logo: "IN"

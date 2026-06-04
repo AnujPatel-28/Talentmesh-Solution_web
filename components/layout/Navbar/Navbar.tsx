@@ -46,40 +46,40 @@ const Navbar = () => {
 
                     {/* Find Work */}
                     <div className={styles.navItem}>
-                        <div className={`${styles.link} ${isActive('/browse-jobs') || isActive('/career-advice') ? styles.linkActive : ''}`}>
+                        <div className={`${styles.link} ${isActive('/browse-jobs') || isActive('/portals/jobs/career-advice') ? styles.linkActive : ''}`}>
                             Find Work <span className={styles.chevron}>▼</span>
                         </div>
                         <div className={styles.dropdown}>
                             <Link href="/browse-jobs" className={`${styles.dropdownLink} ${pathname === '/browse-jobs' ? styles.dropdownLinkActive : ''}`}>Browse Jobs</Link>
-                            <Link href="/job-seekers" className={`${styles.dropdownLink} ${pathname === '/job-seekers' ? styles.dropdownLinkActive : ''}`}>Candidate Benefits</Link>
-                            <Link href="/career-advice" className={`${styles.dropdownLink} ${pathname === '/career-advice' ? styles.dropdownLinkActive : ''}`}>Career Advice</Link>
+                            <Link href="/portals/jobs/job-seekers" className={`${styles.dropdownLink} ${pathname === '/job-seekers' ? styles.dropdownLinkActive : ''}`}>Candidate Benefits</Link>
+                            <Link href="/portals/jobs/career-advice" className={`${styles.dropdownLink} ${pathname === '/career-advice' ? styles.dropdownLinkActive : ''}`}>Career Advice</Link>
                         </div>
                     </div>
 
                     {/* For Employers */}
                     <div className={styles.navItem}>
-                        <div className={`${styles.link} ${isActive('/employers') || isActive('/case-studies') ? styles.linkActive : ''}`}>
+                        <div className={`${styles.link} ${isActive('/employers') || isActive('/portals/jobs/case-studies') ? styles.linkActive : ''}`}>
                             For Employers <span className={styles.chevron}>▼</span>
                         </div>
                         <div className={styles.dropdown}>
                             <Link href="/employers/post-job" className={`${styles.dropdownLink} ${pathname === '/employers/post-job' ? styles.dropdownLinkActive : ''}`}>Post a Job</Link>
                             <Link href="/employers/sourcing" className={`${styles.dropdownLink} ${pathname === '/employers/sourcing' ? styles.dropdownLinkActive : ''}`}>Talent Sourcing</Link>
                             {/* <Link href="/employers/products" className={`${styles.dropdownLink} ${pathname === '/employers/products' ? styles.dropdownLinkActive : ''}`}>Products & Pricing</Link> */}
-                            {/* <Link href="/case-studies" className={`${styles.dropdownLink} ${pathname === '/case-studies' ? styles.dropdownLinkActive : ''}`}>Success Stories</Link> */}
+                            {/* <Link href="/portals/jobs/case-studies" className={`${styles.dropdownLink} ${pathname === '/case-studies' ? styles.dropdownLinkActive : ''}`}>Success Stories</Link> */}
                         </div>
                     </div>
 
                     {/* Company */}
                     <div className={styles.navItem}>
-                        <div className={`${styles.link} ${isActive('/about') || isActive('/contact') || isActive('/careers') || isActive('/blog') || isActive('/podcast') ? styles.linkActive : ''}`}>
+                        <div className={`${styles.link} ${isActive('/portals/jobs/about') || isActive('/portals/jobs/contact') || isActive('/portals/jobs/careers') || isActive('/blog') || isActive('/portals/jobs/podcast') ? styles.linkActive : ''}`}>
                             Company <span className={styles.chevron}>▼</span>
                         </div>
                         <div className={styles.dropdown}>
-                            <Link href="/about" className={`${styles.dropdownLink} ${pathname === '/about' ? styles.dropdownLinkActive : ''}`}>About</Link>
-                            <Link href="/contact" className={`${styles.dropdownLink} ${pathname === '/contact' ? styles.dropdownLinkActive : ''}`}>Contact</Link>
-                            <Link href="/careers" className={`${styles.dropdownLink} ${pathname === '/careers' ? styles.dropdownLinkActive : ''}`}>Careers</Link>
+                            <Link href="/portals/jobs/about" className={`${styles.dropdownLink} ${pathname === '/about' ? styles.dropdownLinkActive : ''}`}>About</Link>
+                            <Link href="/portals/jobs/contact" className={`${styles.dropdownLink} ${pathname === '/contact' ? styles.dropdownLinkActive : ''}`}>Contact</Link>
+                            <Link href="/portals/jobs/careers" className={`${styles.dropdownLink} ${pathname === '/careers' ? styles.dropdownLinkActive : ''}`}>Careers</Link>
                             <Link href="/blog" className={`${styles.dropdownLink} ${pathname === '/blog' ? styles.dropdownLinkActive : ''}`}>Blog</Link>
-                            <Link href="/podcast" className={`${styles.dropdownLink} ${pathname === '/podcast' ? styles.dropdownLinkActive : ''}`}>Podcast</Link>
+                            <Link href="/portals/jobs/podcast" className={`${styles.dropdownLink} ${pathname === '/podcast' ? styles.dropdownLinkActive : ''}`}>Podcast</Link>
                         </div>
                     </div>
 
@@ -127,24 +127,25 @@ const Navbar = () => {
                 <div className={styles.mobileNavItem}>
                     <span className={styles.mobileNavLabel}>Find Work</span>
                     <Link href="/browse-jobs" className={styles.mobileNavLink}>Browse Jobs</Link>
-                    <Link href="/career-advice" className={styles.mobileNavLink}>Career Advice</Link>
+                    <Link href="/portals/jobs/job-seekers" className={styles.mobileNavLink}>Candidate Benefits</Link>
+                    <Link href="/portals/jobs/career-advice" className={styles.mobileNavLink}>Career Advice</Link>
                 </div>
 
                 <div className={styles.mobileNavItem}>
                     <span className={styles.mobileNavLabel}>For Employers</span>
                     <Link href="/employers/post-job" className={styles.mobileNavLink}>Post a Job</Link>
                     <Link href="/employers/sourcing" className={styles.mobileNavLink}>Talent Sourcing</Link>
-                    <Link href="/employers/products" className={styles.mobileNavLink}>Products & Pricing</Link>
-                    <Link href="/case-studies" className={styles.mobileNavLink}>Success Stories</Link>
+                    {/* <Link href="/employers/products" className={styles.mobileNavLink}>Products & Pricing</Link> */}
+                    {/* <Link href="/portals/jobs/case-studies" className={styles.mobileNavLink}>Success Stories</Link> */}
                 </div>
 
                 <div className={styles.mobileNavItem}>
                     <span className={styles.mobileNavLabel}>Company</span>
-                    <Link href="/about" className={styles.mobileNavLink}>About</Link>
-                    <Link href="/contact" className={styles.mobileNavLink}>Contact</Link>
-                    <Link href="/careers" className={styles.mobileNavLink}>Careers</Link>
+                    <Link href="/portals/jobs/about" className={styles.mobileNavLink}>About</Link>
+                    <Link href="/portals/jobs/contact" className={styles.mobileNavLink}>Contact</Link>
+                    <Link href="/portals/jobs/careers" className={styles.mobileNavLink}>Careers</Link>
                     <Link href="/blog" className={styles.mobileNavLink}>Blog</Link>
-                    <Link href="/podcast" className={styles.mobileNavLink}>Podcast</Link>
+                    <Link href="/portals/jobs/podcast" className={styles.mobileNavLink}>Podcast</Link>
                 </div>
 
                 <div className={styles.mobileAuth}>

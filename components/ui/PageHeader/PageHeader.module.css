@@ -130,6 +130,40 @@
     }
 }
 
+/* --- Light Theme Variant --- */
+.header.light {
+    background: linear-gradient(180deg, #eef5ff 0%, #fafcff 100%);
+}
+.header.light::before {
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+}
+.header.light::after {
+    display: none;
+}
+.header.light .title {
+    color: #0f172a;
+}
+.header.light .description {
+    color: #475569;
+}
+.header.light .breadcrumb {
+    background: #ffffff;
+    color: #1e40af;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.header.light .highlight {
+    background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.header.light .decor1, .header.light .decor2 {
+    opacity: 0.3;
+}
+
 @media (max-width: 768px) {
     .header {
         padding: 8rem 1.5rem 5rem;

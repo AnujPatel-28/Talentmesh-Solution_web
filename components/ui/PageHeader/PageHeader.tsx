@@ -7,11 +7,12 @@ interface PageHeaderProps {
     description: string;
     breadcrumb?: string;
     highlight?: string;
+    light?: boolean;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, description, breadcrumb, highlight }) => {
+const PageHeader: React.FC<PageHeaderProps> = ({ title, description, breadcrumb, highlight, light }) => {
     return (
-        <section className={styles.header}>
+        <section className={`${styles.header} ${light ? styles.light : ''}`}>
             <div className={styles.container}>
                 {breadcrumb && <span className={styles.breadcrumb}>{breadcrumb}</span>}
                 <h1 className={styles.title}>

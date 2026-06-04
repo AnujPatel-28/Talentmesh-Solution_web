@@ -14,6 +14,7 @@ import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import FilterListOutlinedIcon from '@mui/icons-material/FilterListOutlined';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import styles from './JobBoard.module.css';
 
 const SECTORS = [
@@ -32,7 +33,7 @@ const JOBS = [
         id: 1,
         title: "Senior AI Engineer",
         company: "NeuroNexus",
-        location: "San Francisco, CA",
+        location: "Bangalore, KA",
         salary: "$180k - $240k",
         type: "Full-time",
         posted: "2h ago",
@@ -56,7 +57,7 @@ const JOBS = [
         id: 3,
         title: "Growth Marketer",
         company: "ScaleFlow",
-        location: "New York, NY",
+        location: "Mumbai, MH",
         salary: "$90k - $130k",
         type: "Contract",
         posted: "1d ago",
@@ -68,7 +69,7 @@ const JOBS = [
         id: 4,
         title: "Financial Analyst",
         company: "GoldAnchor",
-        location: "London, UK",
+        location: "Gurugram, HR",
         salary: "$85k - $110k",
         type: "Full-time",
         posted: "3h ago",
@@ -80,7 +81,7 @@ const JOBS = [
         id: 5,
         title: "Medical Researcher",
         company: "BioVinc",
-        location: "Boston, MA",
+        location: "Pune, MH",
         salary: "$110k - $150k",
         type: "Full-time",
         posted: "1d ago",
@@ -92,7 +93,7 @@ const JOBS = [
         id: 6,
         title: "Operations Manager",
         company: "BizPace",
-        location: "Austin, TX",
+        location: "Hyderabad, TS",
         salary: "$95k - $125k",
         type: "Full-time",
         posted: "2d ago",
@@ -128,7 +129,7 @@ const JOBS = [
         id: 9,
         title: "Cloud Architect",
         company: "SkyData",
-        location: "Seattle, WA",
+        location: "Chennai, TN",
         salary: "$160k - $210k",
         type: "Full-time",
         posted: "1d ago",
@@ -141,6 +142,7 @@ const JOBS = [
 const JobBoard = () => {
     const [activeSector, setActiveSector] = useState('tech');
     const [searchQuery, setSearchQuery] = useState('');
+    const [sortBy, setSortBy] = useState('Latest');
 
     const filteredJobs = JOBS.filter(job =>
         job.sector === activeSector &&
@@ -193,11 +195,12 @@ const JobBoard = () => {
                         <button className={styles.filterBtn}>
                             <FilterListOutlinedIcon sx={{ fontSize: 16 }} /> Filters
                         </button>
-                        <select className={styles.sortSelect}>
-                            <option>Latest</option>
-                            <option>Salary: High to Low</option>
-                            <option>Salary: Low to High</option>
-                        </select>
+                        <CustomSelect
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            options={['Latest', 'Salary: High to Low', 'Salary: Low to High']}
+                            className={styles.sortSelect}
+                        />
                     </div>
                 </div>
 

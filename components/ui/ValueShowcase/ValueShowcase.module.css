@@ -46,11 +46,15 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 3rem;
+    align-items: stretch;
 }
 
 .card {
     padding: 1rem;
     transition: var(--transition-smooth);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .card:hover {

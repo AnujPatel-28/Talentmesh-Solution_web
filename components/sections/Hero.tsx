@@ -13,12 +13,12 @@ const POPULAR_JOBS = [
 ];
 
 const POPULAR_CITIES = [
-    'New York, NY',
-    'San Francisco, CA',
-    'Austin, TX',
-    'London, UK',
-    'Toronto, ON',
-    'Berlin, DE',
+    'Bangalore, KA',
+    'Mumbai, MH',
+    'Delhi, NCR',
+    'Hyderabad, TS',
+    'Pune, MH',
+    'Chennai, TN',
     'Remote'
 ];
 

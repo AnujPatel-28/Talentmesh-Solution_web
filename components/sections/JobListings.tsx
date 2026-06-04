@@ -89,36 +89,36 @@ interface Job {
 
 const allJobs: Job[] = [
     // Accounting
-    { id: 101, category: 'Accounting', title: 'Senior Tax Accountant', location: 'New York, NY', salary: '$90k – $110k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'AC', logoColor: '#fff', logoBg: '#2ecc71' },
-    { id: 102, category: 'Accounting', title: 'Audit Manager', location: 'Chicago, IL', salary: '$85k – $100k', posted: '3 days ago', type: 'Full-Time', badge: 'gray', logo: 'AM', logoColor: '#fff', logoBg: '#3498db' },
+    { id: 101, category: 'Accounting', title: 'Senior Tax Accountant', location: 'Mumbai, MH', salary: '$90k – $110k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'AC', logoColor: '#fff', logoBg: '#2ecc71' },
+    { id: 102, category: 'Accounting', title: 'Audit Manager', location: 'Delhi, NCR', salary: '$85k – $100k', posted: '3 days ago', type: 'Full-Time', badge: 'gray', logo: 'AM', logoColor: '#fff', logoBg: '#3498db' },
 
     // Business & Consulting
-    { id: 201, category: 'Business & consulting', title: 'Strategy Consultant', location: 'Boston, MA', salary: '$95k – $130k', posted: '2 days ago', type: 'Contract', badge: 'orange', logo: 'SC', logoColor: '#fff', logoBg: '#9b59b6' },
+    { id: 201, category: 'Business & consulting', title: 'Strategy Consultant', location: 'Pune, MH', salary: '$95k – $130k', posted: '2 days ago', type: 'Contract', badge: 'orange', logo: 'SC', logoColor: '#fff', logoBg: '#9b59b6' },
     { id: 202, category: 'Business & consulting', title: 'Business Analyst', location: 'Remote', salary: '$75k – $95k', posted: '5 days ago', type: 'Full-Time', badge: 'gray', logo: 'BA', logoColor: '#fff', logoBg: '#e67e22' },
 
     // Human Research
-    { id: 301, category: 'Human research', title: 'UX Researcher', location: 'San Francisco, CA', salary: '$100k – $125k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'UX', logoColor: '#fff', logoBg: '#e74c3c' },
-    { id: 302, category: 'Human research', title: 'Behavioral Scientist', location: 'London, UK', salary: '$70k – $90k', posted: '4 days ago', type: 'Part-Time', badge: 'purple', logo: 'BS', logoColor: '#fff', logoBg: '#f1c40f' },
+    { id: 301, category: 'Human research', title: 'UX Researcher', location: 'Bangalore, KA', salary: '$100k – $125k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'UX', logoColor: '#fff', logoBg: '#e74c3c' },
+    { id: 302, category: 'Human research', title: 'Behavioral Scientist', location: 'Gurugram, HR', salary: '$70k – $90k', posted: '4 days ago', type: 'Part-Time', badge: 'purple', logo: 'BS', logoColor: '#fff', logoBg: '#f1c40f' },
 
     // Marketing & Finance (Default Active)
-    { id: 1, category: 'Marketing and finance', title: 'Digital Marketing Manager', location: 'Tokyo, Japan', salary: '$60k – $80k', posted: '2 days ago', type: 'Internship', badge: 'blue', logo: 'DM', logoColor: '#1a73e8', logoBg: '#e8f0fe' },
+    { id: 1, category: 'Marketing and finance', title: 'Digital Marketing Manager', location: 'Kolkata, WB', salary: '$60k – $80k', posted: '2 days ago', type: 'Internship', badge: 'blue', logo: 'DM', logoColor: '#1a73e8', logoBg: '#e8f0fe' },
     { id: 2, category: 'Marketing and finance', title: 'Financial Analyst', location: 'Mumbai, India', salary: '$55k – $75k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'FA', logoColor: '#ffffff', logoBg: '#3d5a99' },
     { id: 3, category: 'Marketing and finance', title: 'SEO Specialist', location: 'Remote', salary: '$50k – $65k', posted: '3 days ago', type: 'Part-Time', badge: 'purple', logo: 'SE', logoColor: '#ffffff', logoBg: '#e05c2a' },
 
     // Design & Development
-    { id: 401, category: 'Design & development', title: 'Senior Frontend Engineer', location: 'Miami, FL', salary: '$110k – $140k', posted: '2 days ago', type: 'Freelance', badge: 'orange', logo: 'FE', logoColor: '#ffffff', logoBg: '#ff4500' },
-    { id: 402, category: 'Design & development', title: 'Product Designer', location: 'Austin, TX', salary: '$90k – $115k', posted: '5 days ago', type: 'Full-Time', badge: 'gray', logo: 'PD', logoColor: '#ffffff', logoBg: '#8e44ad' },
+    { id: 401, category: 'Design & development', title: 'Senior Frontend Engineer', location: 'Kochi, KL', salary: '$110k – $140k', posted: '2 days ago', type: 'Freelance', badge: 'orange', logo: 'FE', logoColor: '#ffffff', logoBg: '#ff4500' },
+    { id: 402, category: 'Design & development', title: 'Product Designer', location: 'Hyderabad, TS', salary: '$90k – $115k', posted: '5 days ago', type: 'Full-Time', badge: 'gray', logo: 'PD', logoColor: '#ffffff', logoBg: '#8e44ad' },
 
     // Finance Management
-    { id: 501, category: 'Finance management', title: 'Chief Financial Officer', location: 'New York, NY', salary: '$180k – $220k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'CF', logoColor: '#fff', logoBg: '#2c3e50' },
-    { id: 502, category: 'Finance management', title: 'Investment Analyst', location: 'Singapore', salary: '$80k – $100k', posted: '3 days ago', type: 'Internship', badge: 'blue', logo: 'IA', logoColor: '#fff', logoBg: '#16a085' },
+    { id: 501, category: 'Finance management', title: 'Chief Financial Officer', location: 'Mumbai, MH', salary: '$180k – $220k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'CF', logoColor: '#fff', logoBg: '#2c3e50' },
+    { id: 502, category: 'Finance management', title: 'Investment Analyst', location: 'Chennai, TN', salary: '$80k – $100k', posted: '3 days ago', type: 'Internship', badge: 'blue', logo: 'IA', logoColor: '#fff', logoBg: '#16a085' },
 
     // Project Management
-    { id: 601, category: 'Project management', title: 'Technical Program Manager', location: 'Seattle, WA', salary: '$125k – $155k', posted: '2 days ago', type: 'Full-Time', badge: 'gray', logo: 'PM', logoColor: '#fff', logoBg: '#27ae60' },
+    { id: 601, category: 'Project management', title: 'Technical Program Manager', location: 'Noida, UP', salary: '$125k – $155k', posted: '2 days ago', type: 'Full-Time', badge: 'gray', logo: 'PM', logoColor: '#fff', logoBg: '#27ae60' },
     { id: 602, category: 'Project management', title: 'Scrum Master', location: 'Remote', salary: '$90k – $110k', posted: '6 days ago', type: 'Contract', badge: 'orange', logo: 'SM', logoColor: '#fff', logoBg: '#2980b9' },
 
     // Customer Services
-    { id: 701, category: 'Customer services', title: 'Customer Success Manager', location: 'Dublin, Ireland', salary: '$65k – $80k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'CS', logoColor: '#fff', logoBg: '#d35400' },
+    { id: 701, category: 'Customer services', title: 'Customer Success Manager', location: 'Chandigarh, CH', salary: '$65k – $80k', posted: '1 day ago', type: 'Full-Time', badge: 'gray', logo: 'CS', logoColor: '#fff', logoBg: '#d35400' },
     { id: 702, category: 'Customer services', title: 'Support Team Lead', location: 'Remote', salary: '$50k – $65k', posted: '4 days ago', type: 'Part-Time', badge: 'purple', logo: 'TL', logoColor: '#fff', logoBg: '#c0392b' },
 ];
 
