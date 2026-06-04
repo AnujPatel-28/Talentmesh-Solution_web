@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useSearch } from '@/context/SearchContext';
 import { getApprovedJobs, type Job } from '@/lib/api/jobs';
 import styles from './search-overlay.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 const IC = {
     Search: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>,
@@ -113,34 +114,26 @@ export default function SearchOverlay() {
 
                         <div className={styles.filterGroup}>
                             <label className={styles.filterLabel}>Commitment</label>
-                            <select 
-                                className={styles.select}
+                            <CustomSelect
+                                name="type"
                                 value={filters.type}
                                 onChange={e => setFilters({...filters, type: e.target.value})}
-                            >
-                                <option value="">Any Type</option>
-                                <option value="Full-Time">Full-Time</option>
-                                <option value="Contract">Contract</option>
-                                <option value="Remote">Remote</option>
-                                <option value="Internship">Internship</option>
-                            </select>
+                                options={['Full-Time', 'Contract', 'Remote', 'Internship']}
+                                placeholder="Any Type"
+                                className={styles.select}
+                            />
                         </div>
 
                         <div className={styles.filterGroup}>
                             <label className={styles.filterLabel}>Industry</label>
-                            <select 
-                                className={styles.select}
+                            <CustomSelect
+                                name="industry"
                                 value={filters.industry}
                                 onChange={e => setFilters({...filters, industry: e.target.value})}
-                            >
-                                <option value="">Any Industry</option>
-                                <option value="Technology">Technology</option>
-                                <option value="Healthcare">Healthcare</option>
-                                <option value="Finance">Finance</option>
-                                <option value="Education">Education</option>
-                                <option value="Entertainment">Entertainment</option>
-                                <option value="Travel">Travel</option>
-                            </select>
+                                options={['Technology', 'Healthcare', 'Finance', 'Education', 'Entertainment', 'Travel']}
+                                placeholder="Any Industry"
+                                className={styles.select}
+                            />
                         </div>
 
                         <div className={styles.filterGroup}>
@@ -186,16 +179,14 @@ export default function SearchOverlay() {
 
                         <div className={styles.filterGroup}>
                             <label className={styles.filterLabel}>Experience</label>
-                            <select 
-                                className={styles.select}
+                            <CustomSelect
+                                name="experience"
                                 value={filters.experience}
                                 onChange={e => setFilters({...filters, experience: e.target.value})}
-                            >
-                                <option value="">Any Experience</option>
-                                <option value="entry">Entry Level</option>
-                                <option value="mid">Mid Level</option>
-                                <option value="senior">Senior Level</option>
-                            </select>
+                                options={[{label: 'Entry Level', value: 'entry'}, {label: 'Mid Level', value: 'mid'}, {label: 'Senior Level', value: 'senior'}]}
+                                placeholder="Any Experience"
+                                className={styles.select}
+                            />
                         </div>
                         
                         <button 

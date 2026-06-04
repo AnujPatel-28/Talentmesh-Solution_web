@@ -10,6 +10,7 @@ import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter } from 'next/navigation';
 import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 
 type CompanyOption = {
@@ -424,11 +425,17 @@ export default function AdminJobsPage() {
                 onKeyDown={e => e.key === 'Enter' && fetchJobs(0)}
               />
             </div>
-            <select className={styles.select} style={{ width: '160px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-              <option value="all">All Status</option>
-              {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              <option value="pending">Pending Approval</option>
-            </select>
+            <CustomSelect 
+              className={styles.select} 
+              style={{ width: '160px' }} 
+              value={filterStatus} 
+              onChange={e => setFilterStatus(e.target.value)}
+              options={[
+                { label: 'All Status', value: 'all' },
+                ...statusOptions,
+                { label: 'Pending Approval', value: 'pending' }
+              ]}
+            />
             <AdminButton onClick={() => fetchJobs(0)}>Apply</AdminButton>
           </div>
 

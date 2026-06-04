@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import styles from './postJob.module.css';
-import { invokeFunction } from '@/lib/insforge';
+import { invokeFunction, insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 const JOB_CATEGORIES = [
-  'Software Development', 'Design', 'Marketing', 'Sales', 'Customer Support', 
+  'Software Development', 'Design', 'Marketing', 'Sales', 'Customer Support',
   'Product Management', 'Data Science', 'Human Resources', 'Finance', 'Other'
 ];
 
@@ -17,12 +18,14 @@ export default function PostJobPage() {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
-  
+
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [jobTitles, setJobTitles] = useState<string[]>([]);
+  const [isCustomTitle, setIsCustomTitle] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    company_name: '', // Added as per requirement
+    company_name: '',
     category: 'Software Development',
     type: 'Full-time',
     salary_min: '',
@@ -34,7 +37,74 @@ export default function PostJobPage() {
     deadline: '',
   });
 
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchPrefillData = async () => {
+      try {
+        // 1. Fetch Company Name
+        if (user.company_id) {
+          const { data: company } = await insforge.database
+            .from('companies')
+            .select('name')
+            .eq('id', user.company_id)
+            .single();
+
+          if (company?.name) {
+            setFormData(prev => ({ ...prev, company_name: prev.company_name || company.name }));
+          }
+        }
+
+        // 2. Fetch Recruiter Profile Location
+        const { data: profile } = await insforge.database
+          .from('profiles')
+          .select('location')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.location) {
+          setFormData(prev => ({ ...prev, location: prev.location || profile.location }));
+        }
+
+        // 3. Fetch previous job titles posted by this recruiter
+        const { data: jobs } = await insforge.database
+          .from('jobs')
+          .select('title')
+          .eq('recruiter_id', user.id)
+          .order('created_at', { ascending: false });
+
+        const predefinedTitles = [
+          'Software Engineer', 'Frontend Developer', 'Backend Developer',
+          'Full Stack Developer', 'Product Manager', 'Project Manager',
+          'UI/UX Designer', 'Data Scientist', 'DevOps Engineer', 'QA Tester',
+          'Marketing Specialist', 'Sales Executive', 'HR Manager'
+        ];
+
+        let uniqueTitles = [...predefinedTitles];
+        if (jobs && jobs.length > 0) {
+          const pastTitles = jobs.map(j => j.title);
+          uniqueTitles = Array.from(new Set([...uniqueTitles, ...pastTitles]));
+        }
+        setJobTitles(uniqueTitles);
+      } catch (error) {
+        console.error('Failed to pre-fill form data:', error);
+      }
+    };
+
+    fetchPrefillData();
+  }, [user]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (e.target.name === 'title_select') {
+      if (e.target.value === '___OTHER___') {
+        setIsCustomTitle(true);
+        setFormData(prev => ({ ...prev, title: '' }));
+      } else {
+        setIsCustomTitle(false);
+        setFormData(prev => ({ ...prev, title: e.target.value }));
+      }
+      return;
+    }
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -90,7 +160,55 @@ export default function PostJobPage() {
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label className={styles.label}>Job Title</label>
-              <input name="title" className={styles.input} value={formData.title} onChange={handleChange} placeholder="e.g. Senior Frontend Engineer" required />
+              {!isCustomTitle ? (
+                <CustomSelect
+                  name="title_select"
+                  className={styles.select}
+                  value={formData.title}
+                  onChange={handleChange}
+                  options={jobTitles}
+                  placeholder="Select a Job Title"
+                  required
+                  footer={
+                    <div 
+                      style={{ padding: '12px 16px', cursor: 'pointer', color: '#1e88e5', fontWeight: 600, fontSize: '14.5px', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         setIsCustomTitle(true);
+                         setFormData(prev => ({ ...prev, title: '' }));
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}
+                    >
+                      + Create Custom Title
+                    </div>
+                  }
+                />
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    name="title"
+                    className={styles.input}
+                    style={{ flex: 1 }}
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="Type custom job title..."
+                    autoComplete="off"
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomTitle(false);
+                      setFormData(prev => ({ ...prev, title: '' }));
+                    }}
+                    style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '0 1rem', cursor: 'pointer', color: '#64748b', fontWeight: 600, fontSize: '0.9rem' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Company Name</label>
@@ -98,15 +216,23 @@ export default function PostJobPage() {
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Category</label>
-              <select name="category" className={styles.select} value={formData.category} onChange={handleChange}>
-                {JOB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <CustomSelect 
+                name="category"
+                className={styles.select}
+                value={formData.category}
+                onChange={handleChange}
+                options={JOB_CATEGORIES}
+              />
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Job Type</label>
-              <select name="type" className={styles.select} value={formData.type} onChange={handleChange}>
-                {JOB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <CustomSelect 
+                name="type"
+                className={styles.select}
+                value={formData.type}
+                onChange={handleChange}
+                options={JOB_TYPES}
+              />
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Location</label>
@@ -114,7 +240,13 @@ export default function PostJobPage() {
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Openings</label>
-              <input type="number" name="openings" className={styles.input} value={formData.openings} onChange={handleChange} min="1" />
+              <CustomSelect 
+                name="openings"
+                className={styles.select}
+                value={formData.openings}
+                onChange={handleChange}
+                options={['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']}
+              />
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Salary Min (Annual INR)</label>
@@ -161,7 +293,7 @@ export default function PostJobPage() {
             </div>
             <div className={styles.previewItem}>
               <span className={styles.previewLabel}>Salary</span>
-              <span className={styles.previewValue}>₹{(parseInt(formData.salary_min)/100000).toFixed(1)}L - ₹{(parseInt(formData.salary_max)/100000).toFixed(1)}L PA</span>
+              <span className={styles.previewValue}>₹{(parseInt(formData.salary_min) / 100000).toFixed(1)}L - ₹{(parseInt(formData.salary_max) / 100000).toFixed(1)}L PA</span>
             </div>
             <div className={styles.previewItem}>
               <span className={styles.previewLabel}>Openings</span>

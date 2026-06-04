@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import Link from 'next/link';
 import styles from './interviews.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 /* ─── Types ─── */
 interface Interview {
@@ -165,15 +166,17 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                 <form onSubmit={handleSubmit}>
                     <div className={styles.formRow}>
                         <label className={styles.label}>Application</label>
-                        <select className={styles.select} value={form.application_id}
-                            onChange={e => set('application_id', e.target.value)} required>
-                            <option value="">Select candidate & position…</option>
-                            {applications.map(a => (
-                                <option key={a.id} value={a.id}>
-                                    {a.candidate?.full_name} — {a.job?.title}
-                                </option>
-                            ))}
-                        </select>
+                        <CustomSelect 
+                            className={styles.select} 
+                            value={form.application_id}
+                            onChange={e => set('application_id', e.target.value)} 
+                            required
+                            placeholder="Select candidate & position…"
+                            options={applications.map(a => ({
+                                value: a.id,
+                                label: `${a.candidate?.full_name} — ${a.job?.title}`
+                            }))}
+                        />
                     </div>
                     <div className={styles.formRow}>
                         <label className={styles.label}>Interview Type</label>
@@ -201,12 +204,12 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                     </div>
                     <div className={styles.formRow}>
                         <label className={styles.label}>Duration</label>
-                        <select className={styles.select} value={form.duration_minutes}
-                            onChange={e => set('duration_minutes', Number(e.target.value))}>
-                            {[30, 45, 60, 90, 120].map(d => (
-                                <option key={d} value={d}>{d} min</option>
-                            ))}
-                        </select>
+                        <CustomSelect 
+                            className={styles.select} 
+                            value={String(form.duration_minutes)}
+                            onChange={e => set('duration_minutes', Number(e.target.value))}
+                            options={[30, 45, 60, 90, 120].map(d => ({ value: String(d), label: `${d} min` }))}
+                        />
                     </div>
                     {form.type === 'video' && (
                         <div className={styles.formRow}>
@@ -415,21 +418,33 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
                     ))}
                 </div>
                 <div className={styles.filterDivider} />
-                <select className={styles.filterSelect} value={dateFilter}
-                    onChange={e => setDateFilter(e.target.value as DateFilter)}>
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                </select>
-                <select className={styles.filterSelect} value={typeFilter}
-                    onChange={e => setTypeFilter(e.target.value)}>
-                    <option value="all">All Types</option>
-                    <option value="video">Video</option>
-                    <option value="phone">Phone</option>
-                    <option value="in_person">In Person</option>
-                    <option value="technical">Technical</option>
-                </select>
+                <div style={{ width: '150px' }}>
+                    <CustomSelect 
+                        className={styles.filterSelect} 
+                        value={dateFilter}
+                        onChange={e => setDateFilter(e.target.value as DateFilter)}
+                        options={[
+                            { value: 'all', label: 'All Time' },
+                            { value: 'today', label: 'Today' },
+                            { value: 'week', label: 'This Week' },
+                            { value: 'month', label: 'This Month' }
+                        ]}
+                    />
+                </div>
+                <div style={{ width: '150px' }}>
+                    <CustomSelect 
+                        className={styles.filterSelect} 
+                        value={typeFilter}
+                        onChange={e => setTypeFilter(e.target.value)}
+                        options={[
+                            { value: 'all', label: 'All Types' },
+                            { value: 'video', label: 'Video' },
+                            { value: 'phone', label: 'Phone' },
+                            { value: 'in_person', label: 'In Person' },
+                            { value: 'technical', label: 'Technical' }
+                        ]}
+                    />
+                </div>
                 <div className={styles.filterDivider} />
                 <input className={styles.searchInput} placeholder="Search by candidate or job…"
                     value={search} onChange={e => setSearch(e.target.value)} />

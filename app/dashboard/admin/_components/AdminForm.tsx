@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface AdminInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -86,32 +87,25 @@ export const AdminPasswordInput: React.FC<AdminInputProps> = ({ label, ...props 
   );
 };
 
-interface AdminSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface AdminSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'> {
   label: string;
   options: { label: string; value: string }[];
+  value: string;
+  onChange: (e: any) => void;
 }
 
-export const AdminSelect: React.FC<AdminSelectProps> = ({ label, options, ...props }) => (
+export const AdminSelect: React.FC<AdminSelectProps> = ({ label, options, value, onChange, ...props }) => (
   <div style={{ marginBottom: '20px' }}>
     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>{label}</label>
-    <select
-      {...props}
+    <CustomSelect
+      {...props as any}
+      value={value}
+      onChange={onChange}
+      options={options}
       style={{
-        width: '100%',
-        padding: '12px 16px',
-        borderRadius: '12px',
-        border: '1px solid #e2e8f0',
-        fontSize: '0.95rem',
-        outline: 'none',
-        backgroundColor: '#fff',
-        cursor: 'pointer',
         ...props.style
       }}
-    >
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
+    />
   </div>
 );
 

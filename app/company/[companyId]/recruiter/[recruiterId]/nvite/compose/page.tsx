@@ -6,6 +6,7 @@ import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { ComposeFormData } from '@/types/recruiter';
 import { toast } from 'react-hot-toast';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 const IC = {
     sparkles: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3Z" /><path d="M5 3v4" /><path d="M3 5h4" /><path d="M21 17v4" /><path d="M19 19h4" /></svg>,
@@ -151,16 +152,15 @@ function ComposeContent() {
 
                     <div className={styles.formGroup}>
                         <label className={styles.label}>Select Job Positioning</label>
-                        <select 
-                            className={styles.select}
+                        <CustomSelect
                             value={formData.job_id || ''}
                             onChange={(e) => setFormData({...formData, job_id: e.target.value})}
-                        >
-                            <option value="">General Outreach (No specific job)</option>
-                            {jobs.map(j => (
-                                <option key={j.id} value={j.id}>{j.title}</option>
-                            ))}
-                        </select>
+                            options={[
+                                { label: 'General Outreach (No specific job)', value: '' },
+                                ...jobs.map(j => ({ label: j.title, value: j.id }))
+                            ]}
+                            className={styles.select}
+                        />
                     </div>
 
                     <div className={styles.formGroup}>
@@ -198,15 +198,16 @@ function ComposeContent() {
 
                     <div className={styles.formGroup}>
                         <label className={styles.label}>Expiration</label>
-                        <select 
+                        <CustomSelect
+                            value={String(formData.expires_days)}
+                            onChange={(e) => setFormData({...formData, expires_days: parseInt(e.target.value, 10) as 7 | 14 | 30})}
+                            options={[
+                                { label: '7 Days', value: '7' },
+                                { label: '14 Days', value: '14' },
+                                { label: '30 Days', value: '30' }
+                            ]}
                             className={styles.select}
-                            value={formData.expires_days}
-                            onChange={(e) => setFormData({...formData, expires_days: parseInt(e.target.value) as any})}
-                        >
-                            <option value={7}>7 Days</option>
-                            <option value={14}>14 Days</option>
-                            <option value={30}>30 Days</option>
-                        </select>
+                        />
                     </div>
 
                     <div className={styles.footer}>

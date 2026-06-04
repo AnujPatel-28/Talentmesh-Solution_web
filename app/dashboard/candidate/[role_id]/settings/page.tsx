@@ -7,6 +7,7 @@ import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
 import { invokeFunction, insforge } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 /* ─── Premium SVG Icons ─── */
 const IC = {
@@ -382,7 +383,7 @@ export default function CandidateSettingsPage() {
                                     <label className={styles.fieldLabel}>Location</label>
                                     <div className={styles.inputIconWrap}>
                                         <span className={styles.inputIcon}>{IC.globe}</span>
-                                        <input value={form.profile.location} onChange={e => setForm(p => ({ ...p, profile: { ...p.profile, location: e.target.value } }))} className={styles.premiumInput} placeholder="New York, NY" />
+                                        <input value={form.profile.location} onChange={e => setForm(p => ({ ...p, profile: { ...p.profile, location: e.target.value } }))} className={styles.premiumInput} placeholder="Bangalore, KA" />
                                     </div>
                                 </div>
                             </div>
@@ -410,12 +411,12 @@ export default function CandidateSettingsPage() {
                             <div className={styles.formRow}>
                                 <div className={styles.inputGroup}>
                                     <label className={styles.fieldLabel}>Employment Type</label>
-                                    <select value={form.candidateProfile.job_type} onChange={e => setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, job_type: e.target.value } }))} className={styles.premiumSelect}>
-                                        <option value="Full-time">Full-time</option>
-                                        <option value="Contract">Contract</option>
-                                        <option value="Freelance">Freelance</option>
-                                        <option value="Internship">Internship</option>
-                                    </select>
+                                    <CustomSelect 
+                                        value={form.candidateProfile.job_type || ''} 
+                                        onChange={e => setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, job_type: e.target.value } }))} 
+                                        className={styles.premiumSelect}
+                                        options={['Full-time', 'Contract', 'Freelance', 'Internship']}
+                                    />
                                 </div>
                                 <div className={styles.inputGroup}>
                                     <label className={styles.fieldLabel}>Expected Salary (Monthly)</label>
@@ -427,7 +428,7 @@ export default function CandidateSettingsPage() {
                                 <input value={preferredLocationsInput} onChange={e => {
                                     setPreferredLocationsInput(e.target.value);
                                     setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, preferred_locations: e.target.value.split(',').map(s => s.trim()) } }));
-                                }} className={styles.premiumInput} placeholder="Remote, San Francisco, London" />
+                                }} className={styles.premiumInput} placeholder="Remote, Mumbai, Delhi" />
                             </div>
                         </div>
                         <div className={styles.cardFooter}>

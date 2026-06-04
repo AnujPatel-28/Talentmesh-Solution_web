@@ -6,6 +6,7 @@ import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { format, differenceInMonths, differenceInYears } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface CandidateProfileDrawerProps {
     candidateId: string | null;
@@ -39,7 +40,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                 .from('candidate_profiles')
                 .select(`
                     *,
-                    profile:profiles!id(id, full_name:name, email, avatar_url, created_at),
+                    profile:profiles(id, full_name:name, email, avatar_url, created_at),
                     applications:applications(
                         id, status, applied_at, updated_at, job_id,
                         apply_type, resume_url, screening_answers,
@@ -61,7 +62,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                         .from('candidate_profiles')
                         .select(`
                             *,
-                            profile:profiles!id(id, full_name:name, email, avatar_url, created_at),
+                            profile:profiles(id, full_name:name, email, avatar_url, created_at),
                             applications:applications(
                                 id, status, applied_at, updated_at, job_id,
                                 apply_type, resume_url, screening_answers,
@@ -422,18 +423,20 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                                 </div>
                                             )}
 
-                                            <select 
-                                                className={styles.statusSelect}
-                                                value={app.status}
-                                                onChange={(e) => updateApplicationStatus(app.id, e.target.value)}
-                                                style={{ marginTop: '0.25rem' }}
-                                            >
-                                                <option value="screening">Screening</option>
-                                                <option value="shortlisted">Shortlisted</option>
-                                                <option value="interviewing">Interviewing</option>
-                                                <option value="offer">Offer</option>
-                                                <option value="rejected">Rejected</option>
-                                            </select>
+                                            <div style={{ marginTop: '0.25rem' }}>
+                                                <CustomSelect
+                                                    value={app.status}
+                                                    onChange={(e) => updateApplicationStatus(app.id, e.target.value)}
+                                                    options={[
+                                                        { label: 'Screening', value: 'screening' },
+                                                        { label: 'Shortlisted', value: 'shortlisted' },
+                                                        { label: 'Interviewing', value: 'interviewing' },
+                                                        { label: 'Offer', value: 'offer' },
+                                                        { label: 'Rejected', value: 'rejected' }
+                                                    ]}
+                                                    className={styles.statusSelect}
+                                                />
+                                            </div>
                                         </div>
                                     )) : (
                                         <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>No applications for your jobs found.</p>

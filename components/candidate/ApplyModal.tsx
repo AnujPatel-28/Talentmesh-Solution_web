@@ -160,54 +160,53 @@ export default function ApplyModal({
                     throw new Error('Please upload a resume for your application.');
                 }
 
-                // 2. Update candidate's database profile (profiles and candidate_profiles)
-                const sessionRes = await insforge.auth.getCurrentUser();
-                const userId = sessionRes.data?.user?.id;
-                if (userId && userId !== 'project-admin-with-api-key') {
-                    // Update main profile name, phone, location
-                    await insforge.database
-                        .from('profiles')
-                        .update({
-                            name: fullName,
-                            phone: phone || null,
-                            location: location || null,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', userId);
+                    // 2. Update candidate's database profile (profiles and candidate_profiles)
+                    const sessionRes = await insforge.auth.getCurrentUser();
+                    const userId = sessionRes.data?.user?.id;
+                    if (userId && userId !== 'project-admin-with-api-key') {
+                        // Calculate profile completion percentage
+                        let strength = 0;
+                        if (fullName) strength += 10;
+                        if (email) strength += 10;
+                        if (phone) strength += 10;
+                        if (location) strength += 10;
+                        if (headline) strength += 15;
+                        if (experienceYears) strength += 15;
+                        if (education) strength += 15;
+                        if (finalResumeUrl) strength += 15;
 
-                    // Update candidate profile fields
-                    const skillsList = skillsString
-                        .split(',')
-                        .map(s => s.trim())
-                        .filter(Boolean);
+                        const skillsList = skillsString
+                            .split(',')
+                            .map(s => s.trim())
+                            .filter(Boolean);
 
-                    // Calculate profile completion percentage
-                    let strength = 0;
-                    if (fullName) strength += 10;
-                    if (email) strength += 10;
-                    if (phone) strength += 10;
-                    if (location) strength += 10;
-                    if (headline) strength += 15;
-                    if (experienceYears) strength += 15;
-                    if (education) strength += 15;
-                    if (finalResumeUrl) strength += 15;
+                        // Use the candidate-profile Edge Function to properly upsert both tables
+                        const { error: profileError } = await invokeFunction('candidate-profile', {
+                            method: 'PUT',
+                            body: {
+                                profile: {
+                                    name: fullName,
+                                    phone: phone || '',
+                                    location: location || '',
+                                },
+                                candidateProfile: {
+                                    headline,
+                                    skills: skillsList,
+                                    experience_years: Number(experienceYears) || null,
+                                    education,
+                                    resume_url: finalResumeUrl || '',
+                                    linkedin_url: linkedinUrl || '',
+                                    github_url: githubUrl || '',
+                                    portfolio_url: portfolioUrl || '',
+                                    profile_strength: strength
+                                }
+                            }
+                        });
 
-                    await insforge.database
-                        .from('candidate_profiles')
-                        .update({
-                            headline,
-                            skills: skillsList,
-                            experience_years: Number(experienceYears) || null,
-                            education,
-                            resume_url: finalResumeUrl || null,
-                            linkedin_url: linkedinUrl || null,
-                            github_url: githubUrl || null,
-                            portfolio_url: portfolioUrl || null,
-                            profile_strength: strength,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', userId);
-                }
+                        if (profileError) {
+                            console.error('Failed to update candidate profile during apply:', profileError);
+                        }
+                    }
             } else {
                 // Quick Apply - verify they have a resume
                 if (!finalResumeUrl) {

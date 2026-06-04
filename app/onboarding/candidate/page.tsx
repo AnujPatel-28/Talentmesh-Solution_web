@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
 import { getDefaultCandidateProfile, normalizeCandidateProfile } from '@/lib/candidate-profile';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 import styles from '../onboarding.module.css';
 
@@ -351,12 +352,13 @@ export default function CandidateOnboardingPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.label}>Job Type</label>
-                        <select className={styles.optionalInput} value={form.candidateProfile.job_type} onChange={(event) => updateCandidate('job_type', event.target.value)}>
-                            <option value="">Select job type</option>
-                            {JOB_TYPES.map((jobType) => (
-                                <option key={jobType} value={jobType}>{jobType}</option>
-                            ))}
-                        </select>
+                        <CustomSelect 
+                            className={styles.optionalInput} 
+                            value={form.candidateProfile.job_type || ''} 
+                            onChange={(event) => updateCandidate('job_type', event.target.value)}
+                            options={JOB_TYPES}
+                            placeholder="Select job type"
+                        />
                     </div>
                 </div>
             )}

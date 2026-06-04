@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@insforge/sdk';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './team.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 const insforge = createClient({
     baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || '',
@@ -282,18 +283,20 @@ export default function TeamManagement() {
                                     </div>
                                 </td>
                                 <td className={styles.td}>
-                                    <select 
-                                        className={styles.roleSelect}
-                                        value={member.role}
-                                        disabled={member.profile_id === currentUser?.id}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                                    >
-                                        <option value="super_admin">Super Admin</option>
-                                        <option value="admin">Admin</option>
-                                        <option value="moderator">Moderator</option>
-                                        <option value="support">Support</option>
-                                    </select>
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <CustomSelect
+                                            value={member.role}
+                                            disabled={member.profile_id === currentUser?.id}
+                                            onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                                            options={[
+                                                { label: 'Super Admin', value: 'super_admin' },
+                                                { label: 'Admin', value: 'admin' },
+                                                { label: 'Moderator', value: 'moderator' },
+                                                { label: 'Support', value: 'support' }
+                                            ]}
+                                            className={styles.roleSelect}
+                                        />
+                                    </div>
                                 </td>
                                 <td className={styles.td}>
                                     <span className={`${styles.statusBadge} ${styles[`status${member.status.charAt(0).toUpperCase() + member.status.slice(1)}`]}`}>
@@ -412,15 +415,16 @@ export default function TeamManagement() {
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Role</label>
-                                <select 
-                                    className={styles.input}
+                                <CustomSelect
                                     value={inviteData.role}
                                     onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
-                                >
-                                    <option value="admin">Admin</option>
-                                    <option value="moderator">Moderator</option>
-                                    <option value="support">Support</option>
-                                </select>
+                                    options={[
+                                        { label: 'Admin', value: 'admin' },
+                                        { label: 'Moderator', value: 'moderator' },
+                                        { label: 'Support', value: 'support' }
+                                    ]}
+                                    className={styles.input}
+                                />
                             </div>
                             <div className={styles.modalActions}>
                                 <button 

@@ -42,7 +42,7 @@ const PARTNERS = [
 
 export default function EmployersPage() {
     return (
-        <main style={{ background: '#fff' }}>
+        <main style={{ background: 'var(--background)' }}>
             {/* 1. Command Hero */}
             <section className={styles.hero}>
                 <div className="premium-container">

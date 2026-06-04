@@ -5,6 +5,7 @@ import * as Ico from 'lucide-react';
 import styles from './blogs.module.css';
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 
 interface BlogPost {
@@ -320,17 +321,25 @@ export default function AdminBlogsPage() {
 
             <div className={styles.sidebarSection}>
               <span className={styles.sidebarLabel}>Category</span>
-              <select className={styles.filterSelect} value={form.category} onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}>
-                {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <CustomSelect
+                value={form.category}
+                onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}
+                options={categoryOptions.map(c => ({ label: c, value: c }))}
+                className={styles.filterSelect}
+              />
             </div>
 
             <div className={styles.sidebarSection}>
               <span className={styles.sidebarLabel}>Post Status</span>
-              <select className={styles.filterSelect} value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value as any }))}>
-                <option value="draft">Draft - Private</option>
-                <option value="published">Published - Live</option>
-              </select>
+              <CustomSelect
+                value={form.status}
+                onChange={e => setForm(prev => ({ ...prev, status: e.target.value as any }))}
+                options={[
+                  { label: 'Draft - Private', value: 'draft' },
+                  { label: 'Published - Live', value: 'published' }
+                ]}
+                className={styles.filterSelect}
+              />
             </div>
           </aside>
         </div>
@@ -387,13 +396,12 @@ export default function AdminBlogsPage() {
             onChange={e => { setSearch(e.target.value); fetchPosts(e.target.value, status); }}
           />
         </div>
-        <select 
-          className={styles.filterSelect}
+        <CustomSelect
           value={status}
           onChange={e => { setStatus(e.target.value); fetchPosts(search, e.target.value); }}
-        >
-          {statusOptions.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-        </select>
+          options={statusOptions.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))}
+          className={styles.filterSelect}
+        />
       </div>
 
       {(authLoading || loading) ? (

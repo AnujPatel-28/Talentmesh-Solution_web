@@ -7,6 +7,7 @@ import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSavedJobs } from '@/hooks/useSavedJobs';
 import styles from './saved-jobs.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -108,11 +109,15 @@ export default function SavedJobsPage() {
                     />
                 </div>
                 <div className={styles.sort}>
-                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="alpha">Alphabetical</option>
-                    </select>
+                    <CustomSelect 
+                        value={sortBy} 
+                        onChange={(e) => setSortBy(e.target.value)}
+                        options={[
+                            { label: 'Newest First', value: 'newest' },
+                            { label: 'Oldest First', value: 'oldest' },
+                            { label: 'Alphabetical', value: 'alpha' }
+                        ]}
+                    />
                 </div>
             </div>
 

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import styles from './rpo.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const IconSparkle = () => (
@@ -478,24 +479,34 @@ export default function RPOPage() {
                             <div className={styles.fieldRow}>
                                 <div className={styles.field}>
                                     <label className={styles.label}>Hiring volume</label>
-                                    <select className={styles.select} value={form.hiringVolume} onChange={e => set('hiringVolume', e.target.value)}>
-                                        <option value="">Select range…</option>
-                                        <option>1–5 hires</option>
-                                        <option>6–20 hires</option>
-                                        <option>21–50 hires</option>
-                                        <option>50–100 hires</option>
-                                        <option>100+ hires</option>
-                                    </select>
+                                    <CustomSelect 
+                                        className={styles.select} 
+                                        value={form.hiringVolume} 
+                                        onChange={e => set('hiringVolume', e.target.value)}
+                                        options={[
+                                            { label: 'Select range…', value: '' },
+                                            { label: '1–5 hires', value: '1–5 hires' },
+                                            { label: '6–20 hires', value: '6–20 hires' },
+                                            { label: '21–50 hires', value: '21–50 hires' },
+                                            { label: '50–100 hires', value: '50–100 hires' },
+                                            { label: '100+ hires', value: '100+ hires' }
+                                        ]}
+                                    />
                                 </div>
                                 <div className={styles.field}>
                                     <label className={styles.label}>Timeline</label>
-                                    <select className={styles.select} value={form.timeline} onChange={e => set('timeline', e.target.value)}>
-                                        <option value="">Select timeline…</option>
-                                        <option>ASAP (within 1 month)</option>
-                                        <option>1–3 months</option>
-                                        <option>3–6 months</option>
-                                        <option>Ongoing / no fixed timeline</option>
-                                    </select>
+                                    <CustomSelect 
+                                        className={styles.select} 
+                                        value={form.timeline} 
+                                        onChange={e => set('timeline', e.target.value)}
+                                        options={[
+                                            { label: 'Select timeline…', value: '' },
+                                            { label: 'ASAP (within 1 month)', value: 'ASAP (within 1 month)' },
+                                            { label: '1–3 months', value: '1–3 months' },
+                                            { label: '3–6 months', value: '3–6 months' },
+                                            { label: 'Ongoing / no fixed timeline', value: 'Ongoing / no fixed timeline' }
+                                        ]}
+                                    />
                                 </div>
                             </div>
 

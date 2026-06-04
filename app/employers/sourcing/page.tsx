@@ -31,8 +31,8 @@ export default function TalentSourcingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
-    const handleSubmit = async (e: React.FormEvent) => { 
-        e.preventDefault(); 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         setIsSubmitting(true);
         try {
             const response = await fetch('https://api.web3forms.com/submit', {

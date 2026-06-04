@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
-
+import { CustomSelect } from '@/components/ui';
 import styles from '../../onboarding.module.css';
 
 export default function RecruiterSetup() {
@@ -142,21 +142,21 @@ export default function RecruiterSetup() {
 
                 <div className={styles.fieldGroup}>
                     <label className={styles.label}>Department</label>
-                    <select
+                    <CustomSelect
                         name="department"
                         className={styles.input}
                         value={formData.department}
-                        onChange={handleChange as any}
+                        onChange={(e: any) => handleChange(e)}
+                        placeholder="Select Department"
+                        options={[
+                            { label: "Human Resources", value: "hr" },
+                            { label: "Engineering", value: "engineering" },
+                            { label: "Operations", value: "operations" },
+                            { label: "Executive", value: "executive" },
+                            { label: "Other", value: "other" }
+                        ]}
                         required
-                        style={{ appearance: 'none' }}
-                    >
-                        <option value="">Select Department</option>
-                        <option value="hr">Human Resources</option>
-                        <option value="engineering">Engineering</option>
-                        <option value="operations">Operations</option>
-                        <option value="executive">Executive</option>
-                        <option value="other">Other</option>
-                    </select>
+                    />
                 </div>
 
                 <div className={styles.actions} style={{ marginTop: '1rem' }}>

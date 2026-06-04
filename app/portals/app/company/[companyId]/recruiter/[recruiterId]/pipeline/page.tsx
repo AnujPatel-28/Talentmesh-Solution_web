@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './pipeline.module.css';
 import CandidateProfileDrawer from '@/components/recruiter/CandidateProfileDrawer';
 import CreateOfferModal from '@/components/recruiter/CreateOfferModal';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // Types
 type ApplicationStatus = 'applied' | 'screening' | 'interview' | 'offer' | 'hired';
@@ -246,15 +247,12 @@ export default function PipelinePage() {
             <header className={styles.header}>
                 <h1 className={styles.title}>Hiring Pipeline</h1>
                 <div className={styles.controls}>
-                    <select
-                        className={styles.jobSelector}
+                    <CustomSelect
                         value={selectedJobId}
                         onChange={(e) => setSelectedJobId(e.target.value)}
-                    >
-                        {jobs.map(job => (
-                            <option key={job.id} value={job.id}>{job.title}</option>
-                        ))}
-                    </select>
+                        options={jobs.map(job => ({ label: job.title, value: job.id }))}
+                        className={styles.jobSelector}
+                    />
                 </div>
             </header>
 

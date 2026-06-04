@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { invokeFunction } from '@/lib/insforge';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface RecruiterRegisterFormProps {
   onBack: () => void;
@@ -416,34 +417,30 @@ const RecruiterRegisterForm: React.FC<RecruiterRegisterFormProps> = ({ onBack })
                     <Briefcase size={16} className="text-primary" />
                     Industry
                   </label>
-                  <div className="relative">
-                    <select
-                      required name="industry"
-                      value={formData.industry} onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900 appearance-none"
-                    >
-                      <option value="">Select Industry</option>
-                      {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-                    </select>
-                    <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
+                  <CustomSelect
+                    name="industry"
+                    value={formData.industry}
+                    onChange={handleChange}
+                    options={INDUSTRIES}
+                    placeholder="Select Industry"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary transition-all text-slate-900"
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Users size={16} className="text-primary" />
                     Company Size
                   </label>
-                  <div className="relative">
-                    <select
-                      required name="companySize"
-                      value={formData.companySize} onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900 appearance-none"
-                    >
-                      <option value="">Select Size</option>
-                      {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
+                  <CustomSelect
+                    name="companySize"
+                    value={formData.companySize}
+                    onChange={handleChange}
+                    options={COMPANY_SIZES}
+                    placeholder="Select Size"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary transition-all text-slate-900"
+                  />
                 </div>
 
                 <div className="space-y-2 col-span-1 md:col-span-2">
@@ -681,10 +678,10 @@ const RecruiterRegisterForm: React.FC<RecruiterRegisterFormProps> = ({ onBack })
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <User size={16} className="text-primary" />
-                    Contact Name
+                    Contact Name (Optional)
                   </label>
                   <input
-                    required name="emergencyName" type="text"
+                    name="emergencyName" type="text"
                     value={formData.emergencyName} onChange={handleChange}
                     placeholder="Emergency Contact Name"
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900"
@@ -693,10 +690,10 @@ const RecruiterRegisterForm: React.FC<RecruiterRegisterFormProps> = ({ onBack })
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Phone size={16} className="text-primary" />
-                    Contact Phone
+                    Contact Phone (Optional)
                   </label>
                   <input
-                    required name="emergencyPhone" type="tel"
+                    name="emergencyPhone" type="tel"
                     value={formData.emergencyPhone} onChange={handleChange}
                     placeholder="Contact Phone Number"
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900"
@@ -705,10 +702,10 @@ const RecruiterRegisterForm: React.FC<RecruiterRegisterFormProps> = ({ onBack })
                 <div className="space-y-2 col-span-1 md:col-span-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Globe size={16} className="text-primary" />
-                    Contact Address
+                    Contact Address (Optional)
                   </label>
                   <input
-                    required name="emergencyAddress" type="text"
+                    name="emergencyAddress" type="text"
                     value={formData.emergencyAddress} onChange={handleChange}
                     placeholder="Full Address"
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900"
@@ -734,34 +731,30 @@ const RecruiterRegisterForm: React.FC<RecruiterRegisterFormProps> = ({ onBack })
                     <Users size={16} className="text-primary" />
                     Hiring Needs (Volume)
                   </label>
-                  <div className="relative">
-                    <select
-                      required name="numRoles"
-                      value={formData.numRoles} onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900 appearance-none"
-                    >
-                      <option value="">Select Volume</option>
-                      {NUM_ROLES_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
+                  <CustomSelect
+                    name="numRoles"
+                    value={formData.numRoles}
+                    onChange={handleChange}
+                    options={NUM_ROLES_OPTIONS}
+                    placeholder="Select Volume"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary transition-all text-slate-900"
+                  />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Briefcase size={16} className="text-primary" />
                     Hiring Timeline
                   </label>
-                  <div className="relative">
-                    <select
-                      required name="hiringTimeline"
-                      value={formData.hiringTimeline} onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary focus:ring-0 transition-all outline-none bg-slate-50 focus:bg-white text-slate-900 appearance-none"
-                    >
-                      <option value="">Select Timeline</option>
-                      {HIRING_TIMELINES.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <ChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
+                  <CustomSelect
+                    name="hiringTimeline"
+                    value={formData.hiringTimeline}
+                    onChange={handleChange}
+                    options={HIRING_TIMELINES}
+                    placeholder="Select Timeline"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-primary transition-all text-slate-900"
+                  />
                 </div>
               </div>
 

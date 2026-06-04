@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from './applications.module.css';
 import { invokeFunction } from '@/lib/insforge';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 type AdminApplication = {
   id: string;
@@ -130,9 +131,12 @@ export default function AdminApplicationsPage() {
             onChange={e => setSearch(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && fetchApplications()}
           />
-          <select className={styles.select} value={status} onChange={e => { setStatus(e.target.value); setPage(0); }}>
-            {statusOptions.map(o => <option key={o} value={o}>{o === 'all' ? 'All Stages' : o.charAt(0).toUpperCase() + o.slice(1)}</option>)}
-          </select>
+          <CustomSelect 
+            className={styles.select} 
+            value={status} 
+            onChange={e => { setStatus(e.target.value); setPage(0); }}
+            options={statusOptions.map(o => ({ value: o, label: o === 'all' ? 'All Stages' : o.charAt(0).toUpperCase() + o.slice(1) }))}
+          />
           <button className={styles.primaryButton} onClick={() => fetchApplications()}>Sync Hub</button>
         </div>
       </div>
@@ -174,14 +178,13 @@ export default function AdminApplicationsPage() {
                     </span>
                   </td>
                   <td>
-                    <select
+                    <CustomSelect
                       className={styles.statusSelect}
                       value={app.status}
                       disabled={updatingId === app.id}
                       onChange={(e) => handleStatusUpdate(app.id, e.target.value)}
-                    >
-                      {statusOptions.filter(o => o !== 'all').map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
+                      options={statusOptions.filter(o => o !== 'all')}
+                    />
                   </td>
                 </tr>
               ))}
@@ -246,14 +249,13 @@ export default function AdminApplicationsPage() {
 
             <footer className={styles.modalFooter}>
               <button className={styles.closeBtn} style={{ fontSize: '0.875rem', fontWeight: 700 }} onClick={() => setSelectedApp(null)}>Dismiss</button>
-              <select
+              <CustomSelect
                 className={styles.statusSelect}
                 style={{ padding: '0.6rem 1rem' }}
                 value={selectedApp.status}
                 onChange={(e) => handleStatusUpdate(selectedApp.id, e.target.value)}
-              >
-                {statusOptions.filter(o => o !== 'all').map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
+                options={statusOptions.filter(o => o !== 'all')}
+              />
             </footer>
           </div>
         </div>

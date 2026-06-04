@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { invokeFunction } from '@/lib/insforge';
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import CandidateProfileDrawer from '@/components/recruiter/CandidateProfileDrawer';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import styles from '../../../../shared-dashboard.module.css';
 
 /* ─── Icons ─── */
@@ -182,13 +183,12 @@ export default function CandidateSearchPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     {IC.sort}
-                    <select
+                    <CustomSelect
                         value={sort}
                         onChange={e => setSort(e.target.value)}
-                        style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.4rem 0.6rem', fontSize: '0.8125rem', color: '#475569', background: '#fff', outline: 'none', cursor: 'pointer' }}
-                    >
-                        {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                        options={SORT_OPTIONS}
+                        style={{ width: '140px' }}
+                    />
                 </div>
             </div>
 
@@ -257,13 +257,11 @@ export default function CandidateSearchPage() {
                 </div>
 
                 {/* Experience */}
-                <select
+                <CustomSelect
                     value={experience}
                     onChange={e => setExperience(e.target.value)}
-                    style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '9px', padding: '0.45rem 0.75rem', fontSize: '0.8125rem', color: experience === 'Any' ? '#94a3b8' : '#0f172a', outline: 'none', cursor: 'pointer' }}
-                >
-                    {EXP_OPTIONS.map(o => <option key={o}>{o}</option>)}
-                </select>
+                    options={EXP_OPTIONS}
+                />
 
                 {/* Clear all */}
                 {hasFilters && (

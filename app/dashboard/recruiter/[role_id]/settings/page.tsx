@@ -5,6 +5,7 @@ import { insforge, invokeFunction } from '@/lib/insforge';
 import { FormSkeleton } from '@/components/ui/DashboardSkeleton';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 /* ─── Icons ─── */
 const IC = {
@@ -351,18 +352,12 @@ export default function RecruiterSettingsPage() {
                         </div>
                         <div className={styles.field}>
                             <label>Industry</label>
-                            <select 
+                            <CustomSelect 
                                 value={profile.industry} 
                                 onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
                                 className={styles.select}
-                            >
-                                <option>Technology</option>
-                                <option>Finance</option>
-                                <option>Healthcare</option>
-                                <option>Education</option>
-                                <option>Manufacturing</option>
-                                <option>Retail</option>
-                            </select>
+                                options={['Technology', 'Finance', 'Healthcare', 'Education', 'Manufacturing', 'Retail']}
+                            />
                         </div>
                         <div className={styles.field}>
                             <label>Company Website</label>

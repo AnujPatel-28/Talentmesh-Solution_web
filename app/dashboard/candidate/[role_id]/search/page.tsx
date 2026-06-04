@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import AlertModal from '@/components/candidate/AlertModal';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -131,17 +132,18 @@ function AdvancedSearchPageContent() {
 
                     <div className={styles.inputGroup}>
                         <label className={styles.fieldLabel}>Job Type</label>
-                        <select 
+                        <CustomSelect 
                             className={styles.premiumSelect}
-                            value={activeFilters.type}
+                            value={activeFilters.type || ''}
                             onChange={(e) => setActiveFilters({ ...activeFilters, type: e.target.value })}
-                        >
-                            <option value="">All Types</option>
-                            <option value="Full-Time">Full-Time</option>
-                            <option value="Contract">Contract</option>
-                            <option value="Remote">Remote</option>
-                            <option value="Internship">Internship</option>
-                        </select>
+                            options={[
+                                { label: 'All Types', value: '' },
+                                { label: 'Full-Time', value: 'Full-Time' },
+                                { label: 'Contract', value: 'Contract' },
+                                { label: 'Remote', value: 'Remote' },
+                                { label: 'Internship', value: 'Internship' }
+                            ]}
+                        />
                     </div>
 
                     <div className={styles.inputGroup}>
@@ -159,16 +161,17 @@ function AdvancedSearchPageContent() {
 
                     <div className={styles.inputGroup}>
                         <label className={styles.fieldLabel}>Experience Level</label>
-                        <select 
+                        <CustomSelect 
                             className={styles.premiumSelect}
-                            value={activeFilters.experience}
+                            value={activeFilters.experience || ''}
                             onChange={(e) => setActiveFilters({ ...activeFilters, experience: e.target.value })}
-                        >
-                            <option value="">Any Experience</option>
-                            <option value="entry">Entry Level (0-2y)</option>
-                            <option value="mid">Mid Level (2-5y)</option>
-                            <option value="senior">Senior Level (5y+)</option>
-                        </select>
+                            options={[
+                                { label: 'Any Experience', value: '' },
+                                { label: 'Entry Level (0-2y)', value: 'entry' },
+                                { label: 'Mid Level (2-5y)', value: 'mid' },
+                                { label: 'Senior Level (5y+)', value: 'senior' }
+                            ]}
+                        />
                     </div>
                 </aside>
 

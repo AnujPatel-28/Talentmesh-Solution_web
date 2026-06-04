@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import styles from './nvite.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 /* ─── Interfaces ─── */
 interface Recruiter {
@@ -409,17 +410,14 @@ export default function NViteInbox() {
                         <h3 className={styles.modalTitle}>Decline Invitation</h3>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Reason</label>
-                            <select 
-                                className={styles.select}
+                            <CustomSelect
+                                name="declineReason"
                                 value={declineReason}
                                 onChange={(e) => setDeclineReason(e.target.value)}
-                            >
-                                <option value="">Select a reason</option>
-                                <option value="Not interested in this role">Not interested in this role</option>
-                                <option value="Not looking for new opportunities">Not looking for new opportunities</option>
-                                <option value="Compensation doesn't match">Compensation doesn't match</option>
-                                <option value="Other">Other</option>
-                            </select>
+                                options={['Not interested in this role', 'Not looking for new opportunities', "Compensation doesn't match", 'Other']}
+                                placeholder="Select a reason"
+                                className={styles.select}
+                            />
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Additional Message (Optional)</label>

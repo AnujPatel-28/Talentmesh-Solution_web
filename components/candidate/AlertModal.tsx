@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import styles from '../../app/(dashboard)/candidate/alerts/alerts.module.css';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface JobAlert {
   id?: string;
@@ -139,17 +140,19 @@ export default function AlertModal({ alert, onClose, onSave }: { alert: Partial<
 
           <div className={styles.formGroup}>
             <label className={styles.label}>Experience Level</label>
-            <select 
-              className={styles.input}
+            <CustomSelect
+              name="experience_level"
               value={formData.experience_level || ''}
               onChange={e => setFormData({ ...formData, experience_level: e.target.value })}
-            >
-              <option value="">Any Experience</option>
-              <option value="entry">Fresher (0-1yr)</option>
-              <option value="junior">Junior (1-3yr)</option>
-              <option value="mid">Mid (3-5yr)</option>
-              <option value="senior">Senior (5+yr)</option>
-            </select>
+              options={[
+                { label: 'Fresher (0-1yr)', value: 'entry' },
+                { label: 'Junior (1-3yr)', value: 'junior' },
+                { label: 'Mid (3-5yr)', value: 'mid' },
+                { label: 'Senior (5+yr)', value: 'senior' }
+              ]}
+              placeholder="Any Experience"
+              className={styles.input}
+            />
           </div>
 
           <div className={styles.formGroup}>

@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   ArrowUpRight
 } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { format, addDays, isBefore } from 'date-fns';
 import { logAction } from '@/lib/admin/audit';
 
@@ -291,28 +292,30 @@ export default function AdminBillingPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <select 
-            className={styles.selectInput}
+          <CustomSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="trialing">Trialing</option>
-            <option value="past_due">Past Due</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="expired">Expired</option>
-          </select>
-          <select 
+            options={[
+              { label: 'All Status', value: 'all' },
+              { label: 'Active', value: 'active' },
+              { label: 'Trialing', value: 'trialing' },
+              { label: 'Past Due', value: 'past_due' },
+              { label: 'Cancelled', value: 'cancelled' },
+              { label: 'Expired', value: 'expired' }
+            ]}
             className={styles.selectInput}
+          />
+          <CustomSelect
             value={planFilter}
             onChange={(e) => setPlanFilter(e.target.value)}
-          >
-            <option value="all">All Plans</option>
-            <option value="starter">Starter</option>
-            <option value="growth">Growth</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
+            options={[
+              { label: 'All Plans', value: 'all' },
+              { label: 'Starter', value: 'starter' },
+              { label: 'Growth', value: 'growth' },
+              { label: 'Enterprise', value: 'enterprise' }
+            ]}
+            className={styles.selectInput}
+          />
         </div>
 
         <div className={styles.tableWrapper}>
