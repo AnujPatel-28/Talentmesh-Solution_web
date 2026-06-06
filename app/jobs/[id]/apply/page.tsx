@@ -95,9 +95,10 @@ function JobApplyPageContent() {
       if (!selectedResumeId || selectedResumeId === 'new') {
         // 1. Upload Resume
         if (!resume) throw new Error('Please upload a resume.');
+        const path = `${user?.id || 'anonymous'}/${Date.now()}_${resume.name}`;
         const { data: uploadData, error: uploadError } = await insforge.storage
           .from('resumes')
-          .uploadAuto(resume);
+          .upload(path, resume);
         
         if (uploadError) throw uploadError;
         finalResumeUrl = uploadData?.url || '';

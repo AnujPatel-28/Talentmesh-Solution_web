@@ -1,6 +1,6 @@
 import { getAuthenticatedSession } from '@/lib/auth/server-auth';
 import { insforgeAdmin } from '@/lib/insforge-admin';
-
+import { getServerStorageUrl } from '@/lib/utils/storage-url';
 import type { ApplicationStatusValue, CreateApplicationInput } from '@/lib/validation/applications';
 
 export type CandidateApplicationRecord = {
@@ -63,10 +63,17 @@ export async function listCandidateApplications() {
   // Handle Supabase's return of singular joins as arrays
   const mapped = (data || []).map((app: any) => {
     const rawJob = Array.isArray(app.jobs) ? app.jobs[0] : app.jobs;
-    const mappedJob = rawJob ? {
+    let mappedJob = null;
+    if (rawJob) {
+      const rawCompany = Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies;
+      mappedJob = {
         ...rawJob,
-        companies: Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies
-    } : null;
+        companies: rawCompany ? {
+          ...rawCompany,
+          logo_url: rawCompany.logo_url || null
+        } : null
+      };
+    }
 
     return {
       ...app,
@@ -163,10 +170,17 @@ export async function createCandidateApplication(input: CreateApplicationInput) 
 
   // Handle Supabase's return of singular joins as arrays
   const rawJob = Array.isArray(data.jobs) ? data.jobs[0] : data.jobs;
-  const mappedJob = rawJob ? {
-    ...rawJob,
-    companies: Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies
-  } : null;
+  let mappedJob = null;
+  if (rawJob) {
+    const rawCompany = Array.isArray(rawJob.companies) ? rawJob.companies[0] : rawJob.companies;
+    mappedJob = {
+      ...rawJob,
+      companies: rawCompany ? {
+        ...rawCompany,
+        logo_url: rawCompany.logo_url || null
+      } : null
+    };
+  }
   
   const mapped = {
     ...data,

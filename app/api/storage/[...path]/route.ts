@@ -25,44 +25,13 @@ export async function HEAD(request: NextRequest, props: { params: Promise<{ path
   return handleProxy(request, props);
 }
 
-async function handleProxy(request: NextRequest, props: { params: Promise<{ path: string[] }> }) {
-  const params = await Promise.resolve(props.params);
-  const path = params.path.join('/');
-  const searchParams = request.nextUrl.searchParams.toString();
-  const queryString = searchParams ? `?${searchParams}` : '';
-
-  // The SDK calls /api/storage/buckets/... directly
-  // We forward it to the INSFORGE_URL /api/storage/buckets/...
-  const targetUrl = `${INSFORGE_URL}/api/storage/${path}${queryString}`;
-
-  // Forward all headers except host
-  const headers = new Headers(request.headers);
-  headers.delete('host');
-  headers.set('x-insforge-url', INSFORGE_URL);
-  headers.set('x-insforge-anon-key', ANON_KEY);
-  if (process.env.INSFORGE_SERVICE_KEY) {
-    headers.set('x-insforge-service-key', process.env.INSFORGE_SERVICE_KEY);
-  }
-
-  // Upgrade Anon Key to User Token if cookie is present
-  const authHeader = headers.get('authorization');
-  let token = ANON_KEY;
-
-  const cookieHeader = request.headers.get('cookie');
-  if (cookieHeader) {
-    const match = cookieHeader.match(/tm_access_token=([^;]+)/);
-    if (match) {
-      let decoded = decodeURIComponent(match[1]);
-      token = decoded.startsWith('Bearer ') ? decoded.substring(7) : decoded;
-    }
-  }
-
-  // If the frontend didn't send an auth header, or it sent the Anon Key, use the token (which is user token if exists, else Anon Key)
-  if (!authHeader || authHeader.replace('Bearer ', '') === ANON_KEY) {
-    headers.set('authorization', `Bearer ${token}`);
-  }
-
-async function refreshServerToken(request: NextRequest): Promise<{ accessToken: string; csrfToken?: string; setCookieHeaders: string[] } | null> {
+/**
+ * Attempt a server-side token refresh using the httpOnly refresh cookie.
+ * Returns the new access token string, or null on failure.
+ */
+async function refreshServerToken(
+  request: NextRequest,
+): Promise<{ accessToken: string; csrfToken?: string; setCookieHeaders: string[] } | null> {
   try {
     const csrfToken = request.cookies.get('insforge_csrf_token')?.value || '';
     const cookieHeader = request.headers.get('cookie') || '';
@@ -71,9 +40,9 @@ async function refreshServerToken(request: NextRequest): Promise<{ accessToken: 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${ANON_KEY}`,
-        ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
         ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
       },
     });
@@ -91,47 +60,98 @@ async function refreshServerToken(request: NextRequest): Promise<{ accessToken: 
       }
     });
 
-    return {
-      accessToken: newToken,
-      csrfToken: data?.csrfToken,
-      setCookieHeaders
-    };
+    return { accessToken: newToken, csrfToken: data?.csrfToken, setCookieHeaders };
   } catch (err) {
     console.error('[refreshServerToken] Error:', err);
     return null;
   }
 }
 
+/**
+ * Extract the best available user token from the incoming request.
+ *
+ * Priority:
+ *  1. Authorization header sent by the SDK (already has the user's JWT)
+ *  2. tm_access_token cookie set by our auth flow
+ *  3. Fallback to the anon key
+ */
+function resolveToken(request: NextRequest): string {
+  // 1. Trust the Authorization header if it carries a real user token (not the anon key)
+  const authHeader = request.headers.get('authorization') || '';
+  if (authHeader.startsWith('Bearer ')) {
+    const headerToken = authHeader.slice(7).trim();
+    if (headerToken && headerToken !== ANON_KEY) {
+      console.log('[Storage Proxy] Using token from Authorization header');
+      return headerToken;
+    }
+  }
+
+  // 2. Try the tm_access_token cookie
+  const cookieHeader = request.headers.get('cookie') || '';
+  if (cookieHeader) {
+    const match = cookieHeader.match(/tm_access_token=([^;]+)/);
+    if (match) {
+      let raw = decodeURIComponent(match[1]).trim();
+      // Strip leading "Bearer " if it was accidentally stored with that prefix
+      if (raw.startsWith('Bearer ')) raw = raw.slice(7).trim();
+      if (raw && raw !== ANON_KEY) {
+        console.log('[Storage Proxy] Using token from tm_access_token cookie');
+        return raw;
+      }
+    }
+  }
+
+  // 3. Anon key fallback
+  console.log('[Storage Proxy] No user token found — using anon key');
+  return ANON_KEY;
+}
+
+async function handleProxy(
+  request: NextRequest,
+  props: { params: Promise<{ path: string[] }> },
+) {
+  const url = new URL(request.url);
+  const rawPath = url.pathname.replace(/^\/api\/storage/, '');
+  const targetUrl = `${INSFORGE_URL}/api/storage${rawPath}${url.search}`;
+
+  // Build forwarding headers
+  const headers = new Headers(request.headers);
+  headers.delete('host');
+  headers.set('x-insforge-url', INSFORGE_URL);
+  headers.set('x-insforge-anon-key', ANON_KEY);
+  if (process.env.INSFORGE_SERVICE_KEY) {
+    headers.set('x-insforge-service-key', process.env.INSFORGE_SERVICE_KEY);
+  }
+
+  // Set the best available token as the Authorization header
+  const token = resolveToken(request);
+  headers.set('authorization', `Bearer ${token}`);
+  console.log('[Storage Proxy] Final auth:', `Bearer ${token.substring(0, 15)}...`);
+
   try {
     const fetchOptions: RequestInit = {
       method: request.method,
       headers,
       redirect: 'manual',
-      // only pass body if not GET/HEAD
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body as any,
-      // allow binary bodies / duplex streams
+      body: ['GET', 'HEAD'].includes(request.method) ? undefined : (request.body as any),
       // @ts-ignore
       duplex: 'half',
-      cache: 'no-store'
+      cache: 'no-store',
     };
 
     let response = await fetch(targetUrl, fetchOptions);
 
+    // On 401 try a server-side token refresh and retry once
     if (response.status === 401) {
-      console.log('[Storage Proxy] Received 401, attempting server-side token refresh...');
+      console.log('[Storage Proxy] Got 401 — attempting server-side refresh...');
       const refreshResult = await refreshServerToken(request);
       if (refreshResult) {
-        console.log('[Storage Proxy] Server-side refresh succeeded, retrying storage request...');
+        console.log('[Storage Proxy] Refresh succeeded — retrying...');
         const newHeaders = new Headers(headers);
         newHeaders.set('authorization', `Bearer ${refreshResult.accessToken}`);
-        
-        const retryOptions = {
-          ...fetchOptions,
-          headers: newHeaders
-        };
-        
-        response = await fetch(targetUrl, retryOptions);
-        
+
+        response = await fetch(targetUrl, { ...fetchOptions, headers: newHeaders });
+
         const responseHeaders = new Headers(response.headers);
         const newResponse = new NextResponse(response.body, {
           status: response.status,
@@ -139,12 +159,13 @@ async function refreshServerToken(request: NextRequest): Promise<{ accessToken: 
           headers: responseHeaders,
         });
 
-        // Set the new access token cookie in the client browser
         const isSecure = process.env.NODE_ENV === 'production';
         const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-        newResponse.headers.append('Set-Cookie', `tm_access_token=${refreshResult.accessToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`);
-        
-        // Forward set-cookie headers from the refresh response
+        newResponse.headers.append(
+          'Set-Cookie',
+          `tm_access_token=${refreshResult.accessToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`,
+        );
+
         refreshResult.setCookieHeaders.forEach((value) => {
           let fixed = value;
           if (!isSecure) {
@@ -159,23 +180,19 @@ async function refreshServerToken(request: NextRequest): Promise<{ accessToken: 
     }
 
     const responseHeaders = new Headers(response.headers);
-    let responseBody: any = response.body;
-
-    const newResponse = new NextResponse(responseBody, {
+    const newResponse = new NextResponse(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
     });
 
-    // Fix cookies so the browser doesn't drop them on localhost / custom domain
     fixCookies(request, response, newResponse);
-
     return newResponse;
   } catch (error) {
     console.error('Storage proxy error:', error);
     return new NextResponse(JSON.stringify({ error: 'Storage proxy error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }
@@ -187,15 +204,14 @@ function fixCookies(request: NextRequest, sourceResponse: Response, targetRespon
   // Remove the merged Set-Cookie header that might have been copied
   targetResponse.headers.delete('set-cookie');
 
-  // getSetCookie() returns an array of individual Set-Cookie strings
-  const setCookies = typeof sourceResponse.headers.getSetCookie === 'function'
-    ? sourceResponse.headers.getSetCookie()
-    : [];
+  const setCookies =
+    typeof sourceResponse.headers.getSetCookie === 'function'
+      ? sourceResponse.headers.getSetCookie()
+      : [];
 
   setCookies.forEach((value) => {
     let fixed = value;
 
-    // Override Domain
     if (isLocal) {
       if (fixed.toLowerCase().includes('domain=')) {
         fixed = fixed.replace(/Domain=[^;]+(;|$)/i, 'Domain=localhost;');
@@ -205,7 +221,8 @@ function fixCookies(request: NextRequest, sourceResponse: Response, targetRespon
     } else {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
-      const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+      const baseDomain =
+        domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
 
       if (fixed.toLowerCase().includes('domain=')) {
         fixed = fixed.replace(/Domain=[^;]+(;|$)/i, `Domain=.${baseDomain};`);

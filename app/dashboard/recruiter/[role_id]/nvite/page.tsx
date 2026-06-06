@@ -6,6 +6,7 @@ import styles from './nvite.module.css';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 const IC = {
     plus: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
@@ -128,7 +129,7 @@ export default function NViteDashboard() {
                                         <div className={styles.candidateCell}>
                                             <div className={styles.avatar}>
                                                 {n.candidate?.avatar_url ? (
-                                                    <img src={n.candidate.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                                    <img src={getPublicStorageUrl('avatars', n.candidate.avatar_url)} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                                                 ) : (
                                                     n.candidate?.name?.split(' ').map((nm: string) => nm[0]).join('').slice(0, 2).toUpperCase() || '?'
                                                 )}

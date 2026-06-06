@@ -77,8 +77,7 @@ function CandidateOnboardingContent() {
           name,
           location,
           phone,
-          onboarding_completed: true,
-          onboarding_step: 3
+          completed_onboarding: true,
         })
         .eq('id', user.id);
 

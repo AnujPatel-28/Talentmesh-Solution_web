@@ -1,5 +1,6 @@
 import { createClient } from '@insforge/sdk';
 import { User } from '@/types/auth';
+import { getServerStorageUrl } from '@/lib/utils/storage-url';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
@@ -157,7 +158,7 @@ export async function invokeFunction(slug: string, options: {
         // Refresh failed — session is truly dead
         console.error('[invokeFunction] Token refresh failed. Dispatching session-expiry.');
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
-        return { data: null, error: { message: 'Session expired', status: 401 }};
+        return { data: null, error: { message: 'Session expired', status: 401 } };
       }
     }
   } catch (err: any) {
@@ -171,13 +172,18 @@ export async function invokeFunction(slug: string, options: {
 
   if (!response.ok) {
     let errorMessage = response.statusText;
+    let errorDetails: any = null;
     try {
       const errorData = await response.json();
       errorMessage = errorData.error || errorMessage;
+      errorDetails = errorData.details || null;
+      if (errorDetails) {
+        console.error(`[invokeFunction] ${slug} validation details:`, JSON.stringify(errorDetails, null, 2));
+      }
     } catch (e) {
       // Not JSON, likely HTML error page
     }
-    return { data: null, error: { message: errorMessage, status: response.status } };
+    return { data: null, error: { message: errorMessage, status: response.status, details: errorDetails } };
   }
 
   try {
@@ -280,7 +286,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         const isSecure = window.location.protocol === 'https:';
         const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
         document.cookie = `tm_access_token=${newToken}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}`;
-        
+
         // Synchronize refreshed token with active browser SDK client for direct queries
         insforge.setAccessToken(newToken);
       }

@@ -1,6 +1,7 @@
 import { createClient } from '@insforge/sdk';
 
 import type { User, UserRole } from '@/types/auth';
+import { getServerStorageUrl } from '@/lib/utils/storage-url';
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60;
 

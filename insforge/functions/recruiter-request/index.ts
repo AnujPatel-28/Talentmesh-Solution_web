@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
@@ -156,10 +157,8 @@ export default async function handler(req: Request): Promise<Response> {
         throw new Error("Failed to upload company logo: " + uploadError.message);
       }
 
-      // Get public URL
-      company_logo_url = insforge.storage
-        .from('company-logos')
-        .getPublicUrl(fileName) as unknown as string;
+      // Store relative key
+      company_logo_url = fileName;
     }
 
     // Try to find if company already exists, else create it

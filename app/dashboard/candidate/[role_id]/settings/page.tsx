@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
+import { normalizeCandidateProfile } from '@/lib/candidate-profile';
 import { invokeFunction, insforge } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
@@ -28,10 +29,10 @@ type ToggleItem = { label: string; desc: string; on: boolean };
 const EMPTY_STATE: CandidateSettingsBundle = {
     profile: { id: '', email: '', name: '', phone: '', location: '', role: null, completed_onboarding: false },
     candidateProfile: {
-        headline: '', skills: [], experience_years: null, education: '', resume_url: '',
+        headline: '', skills: [], experience_years: null, education: [], resume_url: '',
         linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
         currency: 'USD', open_to_remote: true, is_visible: true, preferred_locations: [],
-        job_type: '', profile_strength: 0,
+        job_types: [], profile_strength: 0,
     },
 };
 
@@ -165,29 +166,7 @@ export default function CandidateSettingsPage() {
                         role: profile.role,
                         completed_onboarding: profile.completed_onboarding || false,
                     },
-                    candidateProfile: candidateProfile ? {
-                        headline: candidateProfile.headline || '',
-                        skills: candidateProfile.skills || [],
-                        experience_years: candidateProfile.experience_years ?? null,
-                        education: (candidateProfile.education as any) || '',
-                        resume_url: candidateProfile.resume_url || '',
-                        linkedin_url: candidateProfile.linkedin_url || '',
-                        github_url: candidateProfile.github_url || '',
-                        portfolio_url: candidateProfile.portfolio_url || '',
-                        salary_min: candidateProfile.salary_min ?? null,
-                        salary_max: candidateProfile.salary_max ?? null,
-                        currency: candidateProfile.currency || 'USD',
-                        open_to_remote: candidateProfile.open_to_remote ?? true,
-                        is_visible: candidateProfile.is_visible ?? true,
-                        preferred_locations: candidateProfile.preferred_locations || [],
-                        job_type: candidateProfile.job_types?.[0] || '',
-                        profile_strength: candidateProfile.profile_strength || 0,
-                    } : {
-                        headline: '', skills: [], experience_years: null, education: '', resume_url: '',
-                        linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
-                        currency: 'USD', open_to_remote: true, is_visible: true, preferred_locations: [],
-                        job_type: '', profile_strength: 0,
-                    }
+                    candidateProfile: normalizeCandidateProfile(candidateProfile || {})
                 };
 
                 setForm(bundle);
@@ -207,7 +186,7 @@ export default function CandidateSettingsPage() {
         setMessage({ text: '', type: 'success' });
         try {
             await invokeFunction('candidate-profile', {
-                method: 'POST',
+                method: 'PUT',
                 body: {
                     profile: {
                         ...form.profile,
@@ -235,24 +214,7 @@ export default function CandidateSettingsPage() {
                     role: updatedProfile.role,
                     completed_onboarding: updatedProfile.completed_onboarding || false,
                 },
-                candidateProfile: candidateProfile ? {
-                    headline: candidateProfile.headline || '',
-                    skills: candidateProfile.skills || [],
-                    experience_years: candidateProfile.experience_years ?? null,
-                    education: (candidateProfile.education as any) || '',
-                    resume_url: candidateProfile.resume_url || '',
-                    linkedin_url: candidateProfile.linkedin_url || '',
-                    github_url: candidateProfile.github_url || '',
-                    portfolio_url: candidateProfile.portfolio_url || '',
-                    salary_min: candidateProfile.salary_min ?? null,
-                    salary_max: candidateProfile.salary_max ?? null,
-                    currency: candidateProfile.currency || 'USD',
-                    open_to_remote: candidateProfile.open_to_remote ?? true,
-                    is_visible: candidateProfile.is_visible ?? true,
-                    preferred_locations: candidateProfile.preferred_locations || [],
-                    job_type: candidateProfile.job_types?.[0] || '',
-                    profile_strength: candidateProfile.profile_strength || 0,
-                } : form.candidateProfile
+                candidateProfile: normalizeCandidateProfile(candidateProfile || {})
             };
             setForm(updatedBundle);
             
@@ -412,8 +374,8 @@ export default function CandidateSettingsPage() {
                                 <div className={styles.inputGroup}>
                                     <label className={styles.fieldLabel}>Employment Type</label>
                                     <CustomSelect 
-                                        value={form.candidateProfile.job_type || ''} 
-                                        onChange={e => setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, job_type: e.target.value } }))} 
+                                        value={form.candidateProfile.job_types?.[0] || ''} 
+                                        onChange={e => setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, job_types: [e.target.value] } }))} 
                                         className={styles.premiumSelect}
                                         options={['Full-time', 'Contract', 'Freelance', 'Internship']}
                                     />

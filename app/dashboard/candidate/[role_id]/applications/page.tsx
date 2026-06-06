@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -184,7 +185,7 @@ export default function ApplicationsPage() {
                                             fontWeight: 800, color: 'var(--primary-blue)', overflow: 'hidden'
                                         }}>
                                             {app.jobs.companies.logo_url ? (
-                                                <img src={app.jobs.companies.logo_url} alt={app.jobs.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <img src={getPublicStorageUrl('company-logos', app.jobs.companies.logo_url)} alt={app.jobs.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : app.jobs.companies.name[0]}
                                         </div>
                                         <div>

@@ -1,12 +1,35 @@
 export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'super_admin';
 
+export interface WorkExperience {
+  id: string;
+  title: string;
+  company: string;
+  location?: string;
+  start_date?: string;   // "YYYY-MM"
+  end_date?: string;     // "YYYY-MM" | undefined when is_current = true
+  is_current?: boolean;
+  description?: string;
+}
+
+export interface EducationEntry {
+  id: string;
+  institution: string;
+  degree: string;
+  field_of_study?: string;
+  start_year?: number;
+  end_year?: number;
+  is_current?: boolean;
+  grade?: string;
+  description?: string;
+}
+
 export interface CandidateProfile {
   id: string;
   headline?: string;
   skills?: string[];
   experience_years?: number;
-  education?: any[];
-  work_history?: any[];
+  education?: string | EducationEntry[];
+  work_history?: WorkExperience[];
   resume_url?: string;
   linkedin_url?: string;
   github_url?: string;

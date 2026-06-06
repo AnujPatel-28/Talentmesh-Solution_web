@@ -14,7 +14,11 @@ function parseCookies(header: string | null) {
 export default async function handler(req: Request): Promise<Response> {
   const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL') || Deno.env.get('SUPABASE_URL') || req.headers.get('x-insforge-url')!;
   const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || Deno.env.get('SUPABASE_ANON_KEY') || req.headers.get('x-insforge-anon-key')!;
-  const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key')!;
+  const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || 
+                     Deno.env.get('API_KEY') || 
+                     Deno.env.get('INSFORGE_ADMIN_KEY') || 
+                     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 
+                     req.headers.get('x-insforge-service-key') || '';
 
   const origin = req.headers.get('Origin') || '*';
   const corsHeaders: Record<string, string> = {
@@ -71,9 +75,24 @@ export default async function handler(req: Request): Promise<Response> {
 
       const { data: profile, error: profileError } = await adminDb.database
         .from('profiles')
-        .select('role, name, avatar_url, company_id, created_at, mfa_enabled')
+        .select('id, email, role, name, avatar_url, company_id, created_at, mfa_enabled, completed_onboarding')
         .eq('id', user.id)
         .single();
+
+      console.log("AUTH_SESSION_PROFILE", {
+        userId: user.id,
+        profileId: profile?.id,
+        avatarUrl: profile?.avatar_url,
+        email: profile?.email
+      });
+
+      console.log("AUTH_SESSION_PROFILE_QUERY_RESULT", profile);
+
+      console.log("AUTH_SESSION_USER_ID_VERIFICATION", {
+        authUserId: user.id,
+        profileId: profile?.id,
+        isEqual: user.id === profile?.id
+      });
 
       if (profileError) {
         console.error('[auth-session] Error fetching profile:', profileError.message);
@@ -94,6 +113,8 @@ export default async function handler(req: Request): Promise<Response> {
         company_id: profile?.company_id,
         created_at: profile?.created_at,
         mfa_enabled: profile?.mfa_enabled || false,
+        onboarding_completed: profile?.completed_onboarding === true,
+        onboarding_step: 0,
       };
 
       const requiresMfa = (finalUser.role === 'admin' || finalUser.role === 'super_admin') ? finalUser.mfa_enabled : false;

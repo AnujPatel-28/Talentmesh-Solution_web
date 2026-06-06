@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge, invokeFunction } from '@/lib/insforge';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 import { FormSkeleton } from '@/components/ui/DashboardSkeleton';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
@@ -102,12 +103,48 @@ export default function RecruiterSettingsPage() {
         setUploadProgress(prev => ({ ...prev, [type]: 10 }));
         try {
             const bucketName = type === 'avatar' ? 'avatars' : 'company-logos';
+            const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const uuid = typeof window !== 'undefined' && window.crypto?.randomUUID 
+                ? window.crypto.randomUUID() 
+                : Math.random().toString(36).substring(2, 15);
+            
+            const path = type === 'avatar' 
+                ? `${user.id}/${uuid}_${safeName}`
+                : `${uuid}_${safeName}`;
+
+            // Clean up old file from storage if it exists to keep storage secure
+            const oldUrl = type === 'avatar' ? profile.avatar_url : profile.logo_url;
+            if (oldUrl) {
+                try {
+                    const marker = '/objects/';
+                    const markerIndex = oldUrl.indexOf(marker);
+                    if (markerIndex !== -1) {
+                        let oldPath = oldUrl.substring(markerIndex + marker.length);
+                        const qIndex = oldPath.indexOf('?');
+                        if (qIndex !== -1) {
+                            oldPath = oldPath.substring(0, qIndex);
+                        }
+                        const decodedPath = decodeURIComponent(oldPath);
+                        await insforge.storage.from(bucketName).remove(decodedPath);
+                    } else {
+                        // It's already a relative path/key
+                        await insforge.storage.from(bucketName).remove(oldUrl);
+                    }
+                } catch (delErr) {
+                    console.warn(`Failed to delete old ${type} file from storage:`, delErr);
+                }
+            }
+
             const { data: uploadData, error: uploadError } = await insforge.storage
                 .from(bucketName)
-                .uploadAuto(file);
+                .upload(path, file);
 
             if (uploadError) throw new Error(uploadError.message);
-            const url = uploadData?.url || '';
+            
+            // Log for runtime verification (Release 2)
+            console.log(`[Upload] type=${type} bucket=${bucketName}`, uploadData);
+            
+            const url = uploadData?.key || '';
 
             setProfile(prev => ({ ...prev, [type === 'avatar' ? 'avatar_url' : 'logo_url']: url }));
             setUploadProgress(prev => ({ ...prev, [type]: 100 }));
@@ -198,7 +235,7 @@ export default function RecruiterSettingsPage() {
                             onClick={() => avatarInputRef.current?.click()}
                         >
                             {profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt={profile.name} />
+                                <img src={getPublicStorageUrl('avatars', profile.avatar_url)} alt={profile.name} />
                             ) : (
                                 profile.name?.charAt(0) || 'R'
                             )}
@@ -322,7 +359,7 @@ export default function RecruiterSettingsPage() {
                             onClick={() => logoInputRef.current?.click()}
                         >
                             {profile.logo_url ? (
-                                <img src={profile.logo_url} alt={profile.company_name} />
+                                <img src={getPublicStorageUrl('company-logos', profile.logo_url)} alt={profile.company_name} />
                             ) : (
                                 IC.building
                             )}

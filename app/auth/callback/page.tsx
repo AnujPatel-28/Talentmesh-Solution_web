@@ -196,23 +196,32 @@ function AuthCallbackContent() {
         existingProfile?.onboarding_completed === true ||
         existingProfile?.is_onboarded === true;
 
-      await insforge.database
+      const finalAvatarUrl = existingProfile?.avatar_url || avatarUrl;
+
+      const { error: profileUpsertError } = await insforge.database
         .from('profiles')
         .upsert([{
           id: user.id,
           email: user.email,
           name: finalName,
-          avatar_url: avatarUrl,
+          avatar_url: finalAvatarUrl,
           role: finalRole,
           role_id: roleId,
           completed_onboarding: onboardingComplete,
           updated_at: new Date().toISOString(),
         }]);
 
+      if (profileUpsertError) {
+        console.error('[auth-callback] Error upserting profile:', profileUpsertError.message);
+      }
+
       if (finalRole === 'candidate') {
-        await insforge.database
+        const { error: candidateUpsertError } = await insforge.database
           .from('candidate_profiles')
           .upsert([{ id: user.id }]);
+        if (candidateUpsertError) {
+          console.error('[auth-callback] Error upserting candidate profile:', candidateUpsertError.message);
+        }
       }
 
       // 🛡️ SECURE LOGIN HANDOFF
@@ -222,7 +231,7 @@ function AuthCallbackContent() {
         email: user.email!,
         name: realName,
         role: finalRole as any,
-        avatar_url: avatarUrl,
+        avatar_url: finalAvatarUrl,
         role_id: roleId,
       });
 

@@ -117,7 +117,11 @@ export function RecruiterRegisterForm({ onSuccess, onCancel }: RecruiterRegister
             .uploadAuto(logoFile);
 
           if (uploadError) throw new Error('Logo upload failed: ' + uploadError.message);
-          logo_url = uploadData?.url || null;
+          
+          // Log for runtime verification (Release 2)
+          console.log('[RecruiterRegisterForm Upload]', uploadData);
+          
+          logo_url = uploadData?.key || null;
         }
 
         // 2. Invoke admin-companies to register company

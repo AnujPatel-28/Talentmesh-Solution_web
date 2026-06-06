@@ -2,33 +2,46 @@
 -- Run this in InsForge SQL Editor
 
 -- 1. Create Tables IF NOT EXISTS
+-- profiles.id = auth.users.id (NOT a random UUID)
 CREATE TABLE IF NOT EXISTS profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT,
   email TEXT UNIQUE,
-  role TEXT CHECK(role IN ('candidate','recruiter','admin','super_admin')),
+  role TEXT CHECK(role IN ('candidate','recruiter','admin','super_admin')) DEFAULT 'candidate',
   avatar_url TEXT,
   location TEXT,
   phone TEXT,
+  bio TEXT,
+  company_id UUID,
   is_active BOOLEAN DEFAULT true,
+  mfa_enabled BOOLEAN DEFAULT false,
+  completed_onboarding BOOLEAN DEFAULT false,
+  onboarding_step INTEGER DEFAULT 0,
+  password_set_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- candidate_profiles.id = auth.users.id (mirrors profiles)
 CREATE TABLE IF NOT EXISTS candidate_profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id),
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  headline TEXT,
   skills TEXT[],
   experience_years NUMERIC,
-  education TEXT,
-  headline TEXT,
+  education JSONB,
+  work_history JSONB,
   resume_url TEXT,
   profile_strength INTEGER DEFAULT 0,
-  ai_match_score INTEGER,
   linkedin_url TEXT,
   github_url TEXT,
   portfolio_url TEXT,
+  salary_min NUMERIC,
+  salary_max NUMERIC,
+  currency TEXT DEFAULT 'INR',
+  preferred_locations TEXT[],
+  is_visible BOOLEAN DEFAULT true,
+  job_types TEXT[],
+  open_to_remote BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

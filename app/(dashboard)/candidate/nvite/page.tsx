@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import styles from './nvite.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 /* ─── Interfaces ─── */
 interface Recruiter {
@@ -282,7 +283,7 @@ export default function NViteInbox() {
                             <div className={styles.cardMain} onClick={() => handleExpand(nvite)}>
                                 <div className={styles.logoWrapper}>
                                     {nvite.recruiter.avatar_url ? (
-                                        <img src={nvite.recruiter.avatar_url} alt="" className={styles.logo} />
+                                        <img src={getPublicStorageUrl('avatars', nvite.recruiter.avatar_url)} alt="" className={styles.logo} />
                                     ) : (
                                         <div className={styles.logo}>
                                             {nvite.recruiter.company_name?.charAt(0) || 'C'}

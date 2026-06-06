@@ -8,6 +8,7 @@ import AlertModal from '@/components/candidate/AlertModal';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import styles from '../../../shared-dashboard.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -213,7 +214,7 @@ function AdvancedSearchPageContent() {
                                             width: '60px', height: '60px', borderRadius: '12px', background: '#f1f5f9',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
                                         }}>
-                                            {job.companies?.logo_url ? <img src={job.companies.logo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🏢'}
+                                            {job.companies?.logo_url ? <img src={getPublicStorageUrl('company-logos', job.companies.logo_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🏢'}
                                         </div>
                                         <div>
                                             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>{job.title}</h3>

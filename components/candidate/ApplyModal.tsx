@@ -149,9 +149,15 @@ export default function ApplyModal({
 
                 // 1. Upload custom resume if selected
                 if (manualResumeFile) {
+                    const sessionRes = await insforge.auth.getCurrentUser();
+                    const userId = sessionRes.data?.user?.id;
+                    if (!userId || userId === 'project-admin-with-api-key') {
+                        throw new Error('User session not found. Please log in again.');
+                    }
+                    const path = `${userId}/${Date.now()}_${manualResumeFile.name}`;
                     const { data: uploadData, error: uploadError } = await insforge.storage
                         .from('resumes')
-                        .uploadAuto(manualResumeFile);
+                        .upload(path, manualResumeFile);
                     if (uploadError) {
                         throw new Error(uploadError.message || 'Resume upload failed.');
                     }

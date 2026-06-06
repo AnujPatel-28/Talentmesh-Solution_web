@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import styles from './ProfileStrengthWidget.module.css';
 
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
+
 interface ProfileStrengthWidgetProps {
   candidate: {
     avatar_url?: string | null;
@@ -11,7 +13,7 @@ interface ProfileStrengthWidgetProps {
     bio?: string | null;
     skills?: string[] | null;
     experience?: any[] | null;
-    education?: any[] | null;
+    education?: string | any[] | null;
     location?: string | null;
   };
   variant?: 'compact' | 'full';
@@ -55,7 +57,7 @@ export default function ProfileStrengthWidget({ candidate, variant = 'compact' }
       key: 'bio', 
       label: 'Professional Summary', 
       points: 15,
-      completed: (candidate.bio?.length ?? 0) >= 100,
+      completed: (candidate.bio?.trim().length ?? 0) >= 30,
       action: '/dashboard/candidate/profile#bio', 
       actionLabel: 'Write Summary' 
     },
@@ -71,7 +73,7 @@ export default function ProfileStrengthWidget({ candidate, variant = 'compact' }
       key: 'experience', 
       label: 'Work Experience', 
       points: 15,
-      completed: (candidate.experience?.length ?? 0) >= 1,
+      completed: Array.isArray(candidate.experience) && candidate.experience.length >= 1,
       action: '/dashboard/candidate/profile#experience', 
       actionLabel: 'Add Experience' 
     },
@@ -79,7 +81,9 @@ export default function ProfileStrengthWidget({ candidate, variant = 'compact' }
       key: 'education', 
       label: 'Education', 
       points: 10,
-      completed: (candidate.education?.length ?? 0) >= 1,
+      completed: typeof candidate.education === 'string' 
+        ? candidate.education.trim().length > 0 
+        : Array.isArray(candidate.education) && candidate.education.length >= 1,
       action: '/dashboard/candidate/profile#education', 
       actionLabel: 'Add Education' 
     },
@@ -121,7 +125,7 @@ export default function ProfileStrengthWidget({ candidate, variant = 'compact' }
         <div className={styles.compactHeader}>
           <div className={styles.avatarCircle}>
              {candidate.avatar_url ? (
-               <img src={candidate.avatar_url} alt="Profile" />
+               <img src={getPublicStorageUrl('avatars', candidate.avatar_url)} alt="Profile" />
              ) : (
                <span>✦</span>
              )}

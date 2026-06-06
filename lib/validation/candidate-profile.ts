@@ -10,7 +10,20 @@ export const candidateProfileSchema = z.object({
     headline: z.string().optional(),
     skills: z.array(z.string()).optional(),
     experience_years: z.number().nonnegative("Experience cannot be negative").nullable().optional(),
-    education: z.string().optional(),
+    education: z.union([
+      z.string(),
+      z.array(z.object({
+        id: z.string(),
+        institution: z.string().optional().nullable(),
+        degree: z.string().min(1, 'Degree is required'),
+        field_of_study: z.string().optional().nullable(),
+        start_year: z.number().optional().nullable(),
+        end_year: z.number().optional().nullable(),
+        is_current: z.boolean().optional().nullable(),
+        grade: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
+      }))
+    ]).optional(),
     resume_url: z.string().url().optional().or(z.literal('')),
     linkedin_url: z.string().url().optional().or(z.literal('')),
     github_url: z.string().url().optional().or(z.literal('')),

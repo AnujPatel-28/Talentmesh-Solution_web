@@ -6,6 +6,7 @@ import { insforge } from '@/lib/insforge';
 import styles from '../../../../shared-dashboard.module.css';
 import appStyles from '../applications.module.css';
 import ApplicationTimeline from '@/components/candidate/ApplicationTimeline';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 const STATUS_STEPS = [
@@ -79,7 +80,7 @@ export default function ApplicationDetailPage() {
                     {/* Header */}
                     <div className={appStyles.header}>
                         <div className={appStyles.logoWrapper}>
-                             {company?.logo_url ? <img src={company.logo_url} className={appStyles.logo} /> : '🏢'}
+                             {company?.logo_url ? <img src={getPublicStorageUrl('company-logos', company.logo_url)} className={appStyles.logo} /> : '🏢'}
                         </div>
                         <div>
                             <h1 className={appStyles.title}>{job?.title}</h1>

@@ -6,6 +6,7 @@ import { invokeFunction, insforge } from '@/lib/insforge';
 import { AdminHeader } from '../_components/AdminHeader';
 import { AdminStatCard } from '../_components/AdminStatCard';
 import { AdminInput, AdminButton } from '../_components/AdminForm';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 type AdminCompany = {
   id: string;
@@ -231,7 +232,11 @@ export default function AdminCompaniesPage() {
           .uploadAuto(logoFile);
 
         if (uploadError) throw new Error('Logo upload failed: ' + uploadError.message);
-        logo_url = uploadData?.url || null;
+        
+        // Log for runtime verification (Release 2)
+        console.log('[Admin Companies Upload]', uploadData);
+        
+        logo_url = uploadData?.key || null;
       }
 
       const { error } = await invokeFunction('admin-companies', {
@@ -301,7 +306,7 @@ export default function AdminCompaniesPage() {
                           flexShrink: 0
                         }}>
                           {company.logo_url ? (
-                            <img src={company.logo_url} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            <img src={getPublicStorageUrl('company-logos', company.logo_url)} alt={company.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                           ) : (
                             <span style={{ fontSize: '1.5rem', color: '#94a3b8', fontWeight: 700 }}>{company.name[0]}</span>
                           )}
@@ -495,7 +500,7 @@ export default function AdminCompaniesPage() {
                   flexShrink: 0
                 }}>
                   {previewCompany.logo_url ? (
-                    <img src={previewCompany.logo_url} alt={previewCompany.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src={getPublicStorageUrl('company-logos', previewCompany.logo_url)} alt={previewCompany.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <span style={{ fontSize: '1.75rem', color: '#94a3b8', fontWeight: 700 }}>{previewCompany.name[0]}</span>
                   )}

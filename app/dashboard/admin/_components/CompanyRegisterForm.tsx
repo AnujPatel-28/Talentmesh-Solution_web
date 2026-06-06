@@ -55,7 +55,11 @@ export function CompanyRegisterForm({ onSuccess, onCancel }: CompanyRegisterForm
           .uploadAuto(logoFile);
 
         if (uploadError) throw new Error('Logo upload failed: ' + uploadError.message);
-        logo_url = uploadData?.url || null;
+        
+        // Log for runtime verification (Release 2)
+        console.log('[CompanyRegisterForm Upload]', uploadData);
+        
+        logo_url = uploadData?.key || null;
       }
 
       const { data, error } = await invokeFunction('admin-companies', {

@@ -1,8 +1,10 @@
+import type { EducationEntry } from '@/types/user';
+
 export interface CandidateProfileFormData {
   headline: string;
   skills: string[];
   experience_years: number | null;
-  education: string;
+  education: EducationEntry[];
   resume_url: string | null;
   linkedin_url: string | null;
   github_url: string | null;
@@ -11,7 +13,7 @@ export interface CandidateProfileFormData {
   salary_max: number | null;
   currency: string;
   preferred_locations: string[];
-  job_type: string;
+  job_types: string[];
   open_to_remote: boolean;
   is_visible: boolean;
   profile_strength: number;
@@ -27,6 +29,7 @@ export interface CandidateSettingsBundle {
     role: string | null;
     public_id?: string;
     completed_onboarding: boolean;
+    bio?: string | null;
   };
   candidateProfile: CandidateProfileFormData;
 }
@@ -132,7 +135,7 @@ export function getDefaultCandidateProfile(): CandidateProfileFormData {
     headline: '',
     skills: [],
     experience_years: null,
-    education: '',
+    education: [],
     resume_url: '',
     linkedin_url: '',
     github_url: '',
@@ -141,7 +144,7 @@ export function getDefaultCandidateProfile(): CandidateProfileFormData {
     salary_max: null,
     currency: 'INR',
     preferred_locations: [],
-    job_type: '',
+    job_types: [],
     open_to_remote: true,
     is_visible: true,
     profile_strength: 0,
@@ -207,21 +210,85 @@ export function applyResumeAutofill(candidateProfile: CandidateProfileFormData):
   };
 }
 
-export function normalizeCandidateProfile(input: Partial<CandidateProfileFormData>): CandidateProfileFormData {
+function ensureUrlProtocol(url: unknown): string {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
+function hashString(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(16);
+}
+
+function normalizeEducation(educationInput: unknown): EducationEntry[] {
+  if (!educationInput) return [];
+
+  if (Array.isArray(educationInput)) {
+    return educationInput.map((entry, index) => {
+      const e = entry || {};
+      const hashInput = `${e.degree || ''}-${e.institution || ''}-${e.field_of_study || ''}-${index}`;
+      return {
+        id: String(e.id || `edu-${hashString(hashInput)}`),
+        institution: typeof e.institution === 'string' ? e.institution.trim() : '',
+        degree: typeof e.degree === 'string' ? e.degree.trim() : '',
+        field_of_study: typeof e.field_of_study === 'string' ? e.field_of_study.trim() : undefined,
+        start_year: sanitizeOptionalNumber(e.start_year) ?? undefined,
+        end_year: sanitizeOptionalNumber(e.end_year) ?? undefined,
+        is_current: typeof e.is_current === 'boolean' ? e.is_current : undefined,
+        grade: typeof e.grade === 'string' ? e.grade.trim() : undefined,
+        description: typeof e.description === 'string' ? e.description.trim() : undefined,
+      };
+    });
+  }
+
+  if (typeof educationInput === 'string') {
+    const trimmed = educationInput.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return normalizeEducation(parsed);
+      } catch {
+        // Fallback
+      }
+    }
+
+    return [{
+      id: 'legacy-' + hashString(trimmed),
+      institution: '',
+      degree: trimmed,
+      is_current: false,
+    }];
+  }
+
+  return [];
+}
+
+export function normalizeCandidateProfile(input: any): CandidateProfileFormData {
   return {
     headline: typeof input.headline === 'string' ? input.headline.trim() : '',
     skills: sanitizeStringArray(input.skills),
     experience_years: sanitizeOptionalNumber(input.experience_years),
-    education: typeof input.education === 'string' ? input.education.trim() : '',
+    education: normalizeEducation(input.education),
     resume_url: typeof input.resume_url === 'string' ? input.resume_url.trim() : '',
-    linkedin_url: typeof input.linkedin_url === 'string' ? input.linkedin_url.trim() : '',
-    github_url: typeof input.github_url === 'string' ? input.github_url.trim() : '',
-    portfolio_url: typeof input.portfolio_url === 'string' ? input.portfolio_url.trim() : '',
+    linkedin_url: ensureUrlProtocol(input.linkedin_url),
+    github_url: ensureUrlProtocol(input.github_url),
+    portfolio_url: ensureUrlProtocol(input.portfolio_url),
     salary_min: sanitizeOptionalNumber(input.salary_min),
     salary_max: sanitizeOptionalNumber(input.salary_max),
     currency: typeof input.currency === 'string' ? input.currency.trim() : 'INR',
     preferred_locations: sanitizeStringArray(input.preferred_locations),
-    job_type: typeof input.job_type === 'string' ? input.job_type.trim() : '',
+    job_types: sanitizeStringArray(input.job_types || ((input as any).job_type ? [(input as any).job_type] : [])),
     open_to_remote: typeof input.open_to_remote === 'boolean' ? input.open_to_remote : true,
     is_visible: typeof input.is_visible === 'boolean' ? input.is_visible : true,
     profile_strength: sanitizeOptionalNumber(input.profile_strength) ?? 0,

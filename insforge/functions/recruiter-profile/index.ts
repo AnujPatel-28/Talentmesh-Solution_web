@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createClient } from 'npm:@insforge/sdk';
 import { z } from 'npm:zod';
 
@@ -5,7 +6,7 @@ const recruiterProfileSchema = z.object({
   profile: z.object({
     name: z.string().min(2).optional(),
     phone: z.string().optional(),
-    avatar_url: z.string().url().optional().or(z.literal('')),
+    avatar_url: z.string().optional().or(z.literal('')),
   }).optional(),
   recruiterProfile: z.object({
     job_title: z.string().optional(),

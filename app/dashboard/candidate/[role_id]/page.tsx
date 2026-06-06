@@ -8,6 +8,8 @@ import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatTime, formatShortDate } from '@/lib/utils/date-utils';
+import { getCandidateAccessState } from '@/lib/auth/candidate-access';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 /* ─── Inline SVG icons ─── */
 const IC = {
@@ -66,19 +68,20 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
             return;
         }
 
+        const userId = authUser.id;
+
         // 1. Guard against uninitialized role_id
         if (!role_id || role_id === ':role_id' || role_id === 'undefined') return;
 
         // 2. Self-Correction: If URL has an invalid ID (e.g. cand_...), redirect to actual user UUID
-        if (!isUUID(role_id) && authUser?.id && isUUID(authUser.id)) {
+        if (!isUUID(role_id) && isUUID(userId)) {
             console.log('Redirecting to valid UUID dashboard path...');
-            router.replace(`/dashboard/candidate/${authUser.id}`);
+            router.replace(`/dashboard/candidate/${userId}`);
             return;
         }
 
         // 3. Final safety: Don't query if still not a UUID
         if (!isUUID(role_id)) {
-            if (!authUser) return;
             return;
         }
 
@@ -150,8 +153,23 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
             }
         }
         
-        fetchData();
-        fetchRecommendations();
+        // ── DB-authoritative onboarding gate ──
+        // Read completed_onboarding directly from the DB, not from the session.
+        // This prevents stale JWT claims from letting an un-onboarded user
+        // reach the dashboard, and prevents a completed user from being bounced back.
+        async function checkOnboardingThenLoad() {
+            const accessState = await getCandidateAccessState(userId);
+
+            if (!accessState.completedOnboarding) {
+                router.replace('/onboarding/candidate');
+                return;
+            }
+
+            fetchData();
+            fetchRecommendations();
+        }
+
+        checkOnboardingThenLoad();
     }, [authLoading, authUser?.id, role_id, router]);
 
     if (loading) {
@@ -230,7 +248,7 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
                                     <div className={styles.recCardTop}>
                                         <div className={styles.recLogo}>
                                             {job.companies?.logo_url ? (
-                                                <img src={job.companies.logo_url} alt={job.companies.name} style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} />
+                                                <img src={getPublicStorageUrl('company-logos', job.companies.logo_url)} alt={job.companies.name} style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} />
                                             ) : (
                                                 <span>{job.companies?.name?.[0] || 'J'}</span>
                                             )}
@@ -359,13 +377,13 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
                             <ProfileStrengthWidget 
                                 variant="compact"
                                 candidate={{
-                                    avatar_url: profile?.avatar_url,
-                                    resume_url: profile?.candidate_profiles?.resume_url,
-                                    bio: profile?.about,
-                                    skills: profile?.candidate_profiles?.skills,
-                                    experience: profile?.candidate_profiles?.work_history,
-                                    education: profile?.candidate_profiles?.education,
-                                    location: profile?.location
+                                    avatar_url: dbProfile?.avatar_url,
+                                    resume_url: profile?.resume_url,
+                                    bio: dbProfile?.bio,
+                                    skills: profile?.skills,
+                                    experience: profile?.work_history,
+                                    education: profile?.education,
+                                    location: dbProfile?.location
                                 }}
                             />
                         </div>

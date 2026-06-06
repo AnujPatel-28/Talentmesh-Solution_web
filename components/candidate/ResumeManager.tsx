@@ -93,7 +93,8 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
 
         setUploading(true);
         try {
-            const { data, error } = await insforge.storage.from('resumes').uploadAuto(file);
+            const path = `${activeCandidateId}/${Date.now()}_${file.name}`;
+            const { data, error } = await insforge.storage.from('resumes').upload(path, file);
             
             if (error) throw error;
             
@@ -213,6 +214,27 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             : 'Are you sure you want to delete this resume?';
 
         if (!window.confirm(confirmMsg)) return;
+
+        // Attempt storage cleanup (Release 2)
+        let storagePath: string | null = null;
+        try {
+            const urlObj = new URL(resume.file_url);
+            const pathSegments = urlObj.pathname.split('/');
+            const resumesIndex = pathSegments.indexOf('resumes');
+            if (resumesIndex !== -1 && resumesIndex < pathSegments.length - 1) {
+                storagePath = decodeURIComponent(pathSegments.slice(resumesIndex + 1).join('/'));
+            }
+        } catch (e) {
+            console.warn('Failed to parse storage path from url:', e);
+        }
+
+        if (storagePath) {
+            try {
+                await insforge.storage.from('resumes').remove(storagePath);
+            } catch (err) {
+                console.error('Failed to clean up storage file:', err);
+            }
+        }
 
         try {
             const { error } = await insforge.database

@@ -10,6 +10,7 @@ import SearchOverlay from '@/components/candidate/SearchOverlay';
 import CenteredLoader from '@/components/ui/CenteredLoader';
 import { insforge, invokeFunction, directInsforge } from '@/lib/insforge';
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import UniversalSearch from '@/components/admin/UniversalSearch';
@@ -647,7 +648,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         <div className={styles.adminMiniCard}>
                             {!collapsed && (
                                 <div className={styles.adminMiniCardInner}>
-                                    <div className={`${styles.userAvatar} ${styles.adminAvatar}`}>{user.initials}</div>
+                                    <div className={`${styles.userAvatar} ${styles.adminAvatar}`}>
+                                        {authUser?.avatar_url ? (
+                                            <img src={getPublicStorageUrl('avatars', authUser.avatar_url)} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
+                                        ) : (
+                                            user.initials
+                                        )}
+                                    </div>
                                     <div className={styles.userMeta}>
                                         <span className={styles.userName}>{user.name}</span>
                                         <span className={styles.userEmail}>{user.email}</span>
@@ -668,7 +675,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         </div>
                     ) : (
                         <div className={styles.userCard}>
-                            <div className={styles.userAvatar}>{user.initials}</div>
+                            <div className={styles.userAvatar}>
+                                {authUser?.avatar_url ? (
+                                    <img src={getPublicStorageUrl('avatars', authUser.avatar_url)} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
+                                ) : (
+                                    user.initials
+                                )}
+                            </div>
                             {!collapsed && (
                                 <div className={styles.userMeta}>
                                     <span className={styles.userName}>{user.name}</span>
@@ -738,7 +751,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                             href={isSuperAdmin ? '/dashboard/admin/settings' : isRecruiter ? `/dashboard/recruiter/${roleId}/settings` : `/dashboard/candidate/${roleId}/profile`}
                             className={`${styles.topAvatar} ${isAdmin ? styles.adminAvatar : ''}`}
                         >
-                            {user.initials}
+                            {authUser?.avatar_url ? (
+                                <img src={getPublicStorageUrl('avatars', authUser.avatar_url)} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                                user.initials
+                            )}
                         </Link>
                     </div>
                 </header>

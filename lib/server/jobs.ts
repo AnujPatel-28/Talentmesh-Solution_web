@@ -1,4 +1,5 @@
 import { insforgeAdmin } from '@/lib/insforge-admin';
+import { getServerStorageUrl } from '@/lib/utils/storage-url';
 import type { CreateJobInput, JobFilterInput, UpdateJobInput } from '@/lib/validation/jobs';
 
 type JobRecord = {
@@ -93,6 +94,7 @@ function getBrandColor(seed: string) {
 function serializeJob(record: JobRecord) {
   const companyName = record.companies?.name || 'TalentMesh Company';
   const brandColor = getBrandColor(companyName);
+  const resolvedLogoUrl = record.companies?.logo_url || null;
 
   return {
     ...record,
@@ -110,7 +112,7 @@ function serializeJob(record: JobRecord) {
     company_profiles: {
       id: record.companies?.id || record.company_id || null,
       company_name: companyName,
-      logo_url: record.companies?.logo_url || null,
+      logo_url: resolvedLogoUrl,
       industry: record.companies?.industry || null,
       about: record.companies?.about || null,
       website: record.companies?.website || null,
@@ -120,7 +122,7 @@ function serializeJob(record: JobRecord) {
     companies: {
       id: record.companies?.id || record.company_id || null,
       name: companyName,
-      logo_url: record.companies?.logo_url || null,
+      logo_url: resolvedLogoUrl,
       industry: record.companies?.industry || null,
       about: record.companies?.about || null,
       website: record.companies?.website || null,

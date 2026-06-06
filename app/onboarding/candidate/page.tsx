@@ -7,6 +7,7 @@ import { OnboardingStepper } from '@/components/onboarding/OnboardingStepper';
 import { ResumeUploader } from '@/components/resume/ResumeUploader';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge, invokeFunction } from '@/lib/insforge';
+import { getCandidateAccessState } from '@/lib/auth/candidate-access';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
 import { getDefaultCandidateProfile, normalizeCandidateProfile } from '@/lib/candidate-profile';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -17,6 +18,17 @@ type Step = 1 | 2 | 3 | 4;
 
 const STEP_LABELS: [string, string, string, string] = ['Basic Info', 'Professional', 'Preferences', 'Documents'];
 const JOB_TYPES = ['Remote', 'Hybrid', 'Onsite'];
+
+const getEducationString = (edu: any): string => {
+    if (typeof edu === 'string') return edu;
+    if (Array.isArray(edu) && edu.length > 0) {
+        const first = edu[0];
+        if (first && first.degree) {
+            return first.institution ? `${first.degree} at ${first.institution}` : first.degree;
+        }
+    }
+    return '';
+};
 
 const EMPTY_STATE: CandidateSettingsBundle = {
     profile: {
@@ -36,7 +48,7 @@ function getFirstIncompleteStep(data: CandidateSettingsBundle): Step {
         return 1;
     }
 
-    if (!data.candidateProfile.headline || data.candidateProfile.skills.length === 0 || !data.candidateProfile.education) {
+    if (!data.candidateProfile.headline || data.candidateProfile.skills.length === 0 || !getEducationString(data.candidateProfile.education).trim()) {
         return 2;
     }
 
@@ -45,7 +57,7 @@ function getFirstIncompleteStep(data: CandidateSettingsBundle): Step {
 
 export default function CandidateOnboardingPage() {
     const router = useRouter();
-    const { user, isLoading: authLoading } = useAuth();
+    const { user, isLoading: authLoading, refreshUser } = useAuth();
 
     const [step, setStep] = useState<Step>(1);
     const [form, setForm] = useState<CandidateSettingsBundle>(EMPTY_STATE);
@@ -63,6 +75,13 @@ export default function CandidateOnboardingPage() {
 
         const fetchProfile = async () => {
             try {
+                // ── DB-authoritative gate: redirect immediately if already onboarded ──
+                const accessState = await getCandidateAccessState(user.id);
+                if (accessState.completedOnboarding) {
+                    router.replace(`/dashboard/candidate/${user.id}`);
+                    return;
+                }
+
                 // Fetch directly via client SDK to avoid 10-second Edge Function cold start!
                 const { data: profileData, error: profileError } = await insforge.database
                     .from('profiles')
@@ -119,7 +138,7 @@ export default function CandidateOnboardingPage() {
             return Boolean(
                 (form.candidateProfile.headline?.trim() || '') &&
                 (form.candidateProfile.skills?.length || 0) > 0 &&
-                (form.candidateProfile.education?.trim() || '')
+                getEducationString(form.candidateProfile.education).trim()
             );
         }
 
@@ -127,9 +146,12 @@ export default function CandidateOnboardingPage() {
             form.candidateProfile.salary_min !== null &&
             form.candidateProfile.salary_max !== null &&
             form.candidateProfile.preferred_locations.length > 0 &&
-            form.candidateProfile.job_type
+            form.candidateProfile.job_types && form.candidateProfile.job_types.length > 0
         );
     }, [form, step]);
+
+    // Step 4 (Documents) is always completable — resume is optional
+    const isLastStepReady = step === 4 || canContinue;
 
     const updateProfile = (field: 'name' | 'phone' | 'location', value: string) => {
         setForm((prev) => ({
@@ -208,9 +230,10 @@ export default function CandidateOnboardingPage() {
             // 1. Upload resume if selected
             if (resume) {
                 setUploadProgress(20);
+                const path = `${user.id}/${Date.now()}_${resume.name}`;
                 const { data: uploadData, error: uploadError } = await insforge.storage
                     .from('resumes')
-                    .uploadAuto(resume);
+                    .upload(path, resume);
 
                 if (uploadError) throw new Error('Resume upload failed: ' + uploadError.message);
                 finalResumeUrl = uploadData?.url || null;
@@ -218,16 +241,19 @@ export default function CandidateOnboardingPage() {
             }
 
             // 2. Prepare payload
+            const normalizedCP = normalizeCandidateProfile({
+                ...form.candidateProfile,
+                resume_url: finalResumeUrl,
+            });
+
             const payload = {
                 profile: {
                     name: form.profile.name,
                     phone: form.profile.phone,
                     location: form.profile.location,
+                    bio: form.profile.bio,
                 },
-                candidateProfile: {
-                    ...form.candidateProfile,
-                    resume_url: finalResumeUrl,
-                }
+                candidateProfile: normalizedCP
             };
 
             // 3. Save to API via Edge Function
@@ -240,8 +266,13 @@ export default function CandidateOnboardingPage() {
 
             setUploadProgress(100);
 
-            // Redirect to dashboard
-            router.push(`/dashboard/candidate/${user.id}`);
+            // Navigate immediately — don't await refreshUser() here because
+            // it sets isLoading=true which re-renders this page to its loading
+            // guard and can cancel the router.replace call.
+            router.replace(`/dashboard/candidate/${user.id}`);
+
+            // Refresh user state in the background so the dashboard is up-to-date
+            refreshUser().catch(console.error);
         } catch (err: any) {
             setError(err.message || 'An error occurred during save');
             setUploadProgress(0);
@@ -313,7 +344,7 @@ export default function CandidateOnboardingPage() {
                     </div>
                     <div className={styles.fieldGroup}>
                         <label className={styles.label}>Education</label>
-                        <textarea className={styles.optionalInput} value={form.candidateProfile.education} onChange={(event) => updateCandidate('education', event.target.value)} placeholder="B.Tech in Computer Science" rows={4} style={{ resize: 'vertical' }} />
+                        <textarea className={styles.optionalInput} value={getEducationString(form.candidateProfile.education)} onChange={(event) => updateCandidate('education', event.target.value)} placeholder="B.Tech in Computer Science" rows={4} style={{ resize: 'vertical' }} />
                     </div>
                 </div>
             )}
@@ -354,8 +385,8 @@ export default function CandidateOnboardingPage() {
                         <label className={styles.label}>Job Type</label>
                         <CustomSelect 
                             className={styles.optionalInput} 
-                            value={form.candidateProfile.job_type || ''} 
-                            onChange={(event) => updateCandidate('job_type', event.target.value)}
+                            value={form.candidateProfile.job_types?.[0] || ''} 
+                            onChange={(event) => updateCandidate('job_types', [event.target.value])}
                             options={JOB_TYPES}
                             placeholder="Select job type"
                         />
@@ -369,7 +400,10 @@ export default function CandidateOnboardingPage() {
                         <label className={styles.label}>Resume (PDF or DOCX)</label>
                         <ResumeUploader
                             onUpload={(f) => setResume(f)}
-                            onClear={() => setResume(null)}
+                            onClear={() => {
+                                setResume(null);
+                                updateCandidate('resume_url', '');
+                            }}
                             existingUrl={form.candidateProfile.resume_url ?? undefined}
                         />
                     </div>
@@ -423,7 +457,7 @@ export default function CandidateOnboardingPage() {
                 <button className={styles.backBtn} onClick={() => setStep((prev) => (prev - 1) as Step)} disabled={step === 1 || isSaving} type="button">
                     Back
                 </button>
-                <button className={styles.nextBtn} onClick={handleContinue} disabled={!canContinue || isSaving} type="button">
+                <button className={styles.nextBtn} onClick={handleContinue} disabled={!isLastStepReady || isSaving} type="button">
                     {step === 4 ? (isSaving ? 'Saving...' : 'Finish Setup') : 'Continue'}
                 </button>
             </div>

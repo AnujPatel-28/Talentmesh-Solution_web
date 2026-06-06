@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import styles from './interviews.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -260,7 +261,7 @@ function InterviewCard({ interview, isPast, onICS, onGoogle, formatFull }: any) 
         <div className={styles.companyInfo}>
           <div className={styles.logo}>
             {job?.company?.logo_url ? (
-              <img src={job.company.logo_url} alt={job.company.name} />
+              <img src={getPublicStorageUrl('company-logos', job.company.logo_url)} alt={job.company.name} />
             ) : (
               job?.company?.name?.charAt(0) || '?'
             )}

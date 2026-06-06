@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { insforge } from '@/lib/insforge';
 import styles from '../../../../../shared-dashboard.module.css';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -77,7 +78,7 @@ export default function ApplicationSuccessPage() {
                         width: '60px', height: '60px', borderRadius: '12px', background: '#f8fafc',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0'
                     }}>
-                        {company?.logo_url ? <img src={company.logo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🏢'}
+                        {company?.logo_url ? <img src={getPublicStorageUrl('company-logos', company.logo_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🏢'}
                     </div>
                     <div style={{ flex: 1 }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{job?.title}</h3>

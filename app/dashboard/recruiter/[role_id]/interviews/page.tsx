@@ -5,6 +5,7 @@ import { insforge } from '@/lib/insforge';
 import Link from 'next/link';
 import styles from './interviews.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 /* ─── Types ─── */
 interface Interview {
@@ -473,7 +474,7 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
                                     return (
                                         <div key={iv.id} className={styles.card}>
                                             {iv.candidate?.avatar_url
-                                                ? <img src={iv.candidate.avatar_url} alt="" className={styles.avatarImg} />
+                                                ? <img src={getPublicStorageUrl('avatars', iv.candidate.avatar_url)} alt="" className={styles.avatarImg} />
                                                 : <div className={styles.avatar}>{initials}</div>
                                             }
                                             <div className={styles.candidateInfo}>

@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import ApplyModal from '@/components/candidate/ApplyModal';
 import styles from '@/app/browse-jobs/[id]/jobDetail.module.css';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const Ico = {
@@ -218,7 +219,7 @@ export default function DashboardJobDetailPage() {
                         border: `1px solid ${brandColor}30`, overflow: 'hidden'
                     }}>
                         {job.companies?.logo_url ? (
-                            <img src={job.companies.logo_url} alt={job.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={getPublicStorageUrl('company-logos', job.companies.logo_url)} alt={job.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                             job.companies?.name[0]
                         )}

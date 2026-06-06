@@ -115,6 +115,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     metadata?: Record<string, unknown>,
   ): Promise<User | null> => {
     try {
+      const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
+      const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
+      
+      const response = await fetch(authEndpoint, {
+        method: 'GET',
+        headers: {
+          'x-client-info': 'talentmesh-web',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload?.user) {
+          console.log('[AuthContext] Successfully loaded profile via auth-session edge function');
+          return payload.user as User;
+        }
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Failed to fetch profile via auth-session edge function, falling back to direct DB fetch:', err);
+    }
+
+    try {
       const { createClient } = await import('@insforge/sdk');
       const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
       const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
@@ -156,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               created_at: createdProfile.created_at,
               mfa_enabled: createdProfile.mfa_enabled || false,
               password_set_at: createdProfile.password_set_at,
-              onboarding_completed: createdProfile.onboarding_completed || false,
+              onboarding_completed: createdProfile.completed_onboarding || createdProfile.onboarding_completed || false,
               onboarding_step: createdProfile.onboarding_step || 0,
             };
           }
@@ -190,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         created_at: profile.created_at,
         mfa_enabled: profile.mfa_enabled || false,
         password_set_at: profile.password_set_at,
-        onboarding_completed: profile.onboarding_completed || false,
+        onboarding_completed: profile.completed_onboarding || profile.onboarding_completed || false,
         onboarding_step: profile.onboarding_step || 0,
       };
     } catch (err) {

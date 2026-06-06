@@ -261,11 +261,21 @@ function LoginContent() {
         try {
             setError('');
             const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-            const { error: authError } = await directInsforge.auth.signInWithOAuth({
+            const { data, error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
                 redirectTo: `${siteUrl}/auth/callback`,
+                skipBrowserRedirect: true,
             });
             if (authError) throw authError;
+            if (data?.url) {
+                let finalUrl = data.url;
+                if (provider === 'google') {
+                    const urlObj = new URL(finalUrl);
+                    urlObj.searchParams.set('prompt', 'select_account');
+                    finalUrl = urlObj.toString();
+                }
+                window.location.href = finalUrl;
+            }
         } catch (err: any) {
             setError(`Failed to initiate ${provider} login. Please try again.`);
         }

@@ -22,6 +22,7 @@ const IC = {
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 /** ─── Helpers ─── */
 const formatSalary = (min: number | null, max: number | null, currency: string = 'INR') => {
@@ -223,7 +224,7 @@ export default function JobsPage() {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                             {j.companies?.logo_url ? (
                                                 <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
-                                                    <img src={j.companies.logo_url} alt={j.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <img src={getPublicStorageUrl('company-logos', j.companies.logo_url)} alt={j.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 </div>
                                             ) : (
                                                 <div className={styles.jobListIcon} style={{ background: getBrandColor(j.companies?.name || 'A') + '18', color: getBrandColor(j.companies?.name || 'A'), width: 44, height: 44, fontSize: '1rem' }}>
@@ -242,7 +243,7 @@ export default function JobsPage() {
                                                     onClick={(e) => { 
                                                         e.preventDefault(); 
                                                         e.stopPropagation(); 
-                                                        const url = `${window.location.origin}/dashboard/candidate/${params.role_id}/jobs/${j.id}`;
+                                                        const url = `${window.location.origin}/jobs/${j.id}`;
                                                         navigator.clipboard.writeText(url);
                                                         setToast({ message: 'Job link copied to clipboard!', type: 'success' });
                                                     }}

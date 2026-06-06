@@ -26,12 +26,9 @@ export async function HEAD(request: NextRequest, props: { params: Promise<{ path
 }
 
 async function handleProxy(request: NextRequest, props: { params: Promise<{ path: string[] }> }) {
-  const params = await Promise.resolve(props.params);
-  const path = params.path.join('/');
-  const searchParams = request.nextUrl.searchParams.toString();
-  const queryString = searchParams ? `?${searchParams}` : '';
-
-  const targetUrl = `${INSFORGE_URL}/${path}${queryString}`;
+  const url = new URL(request.url);
+  const rawPath = url.pathname.replace(/^\/api\/v1\/remote/, '');
+  const targetUrl = `${INSFORGE_URL}${rawPath}${url.search}`;
 
   // Forward all headers except host
   const headers = new Headers(request.headers);
@@ -60,7 +57,7 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
     headers.set('authorization', `Bearer ${token}`);
   }
 
-  const isStorageGet = request.method === 'GET' && path.includes('storage/buckets/');
+  const isStorageGet = request.method === 'GET' && url.pathname.includes('storage/buckets/');
 
   try {
     const fetchOptions: RequestInit = {

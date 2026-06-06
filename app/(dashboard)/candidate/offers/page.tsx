@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './offers.module.css';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -150,7 +151,7 @@ export default function OffersPage() {
               <div className={styles.cardBody}>
                 <div className={styles.cardTop}>
                   {offer.jobs.companies.logo_url ? (
-                    <img src={offer.jobs.companies.logo_url} className={styles.companyLogo} alt="" />
+                    <img src={getPublicStorageUrl('company-logos', offer.jobs.companies.logo_url)} className={styles.companyLogo} alt="" />
                   ) : (
                     <div className={styles.logoFallback}>{offer.jobs.companies.name[0]}</div>
                   )}
