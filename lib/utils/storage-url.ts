@@ -5,8 +5,12 @@
 export function getPublicStorageUrl(bucketName: string, pathOrUrl: string | null | undefined): string {
   if (!pathOrUrl) return '';
 
-  // 1. Backward Compatibility: return absolute URLs directly
+  // 1. Convert absolute InsForge URLs to relative browser proxy paths
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+    const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+    if (insforgeUrl && pathOrUrl.startsWith(insforgeUrl)) {
+      return pathOrUrl.replace(insforgeUrl, '/api/v1/remote');
+    }
     return pathOrUrl;
   }
 

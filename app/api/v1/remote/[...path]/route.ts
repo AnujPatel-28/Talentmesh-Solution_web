@@ -112,6 +112,26 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
       }
     }
 
+    // If the request was a storage GET request for a PDF file, rewrite Content-Disposition to inline
+    const isPdfFile = url.pathname.toLowerCase().endsWith('.pdf') || 
+                      decodeURIComponent(url.pathname).toLowerCase().endsWith('.pdf') ||
+                      responseHeaders.get('content-type')?.includes('application/pdf');
+
+    if (isStorageGet && isPdfFile) {
+      // Force correct PDF content type if missing or octet-stream
+      const currentType = responseHeaders.get('content-type');
+      if (!currentType || currentType === 'application/octet-stream') {
+        responseHeaders.set('content-type', 'application/pdf');
+      }
+
+      const contentDisposition = responseHeaders.get('content-disposition');
+      if (contentDisposition) {
+        responseHeaders.set('content-disposition', contentDisposition.replace('attachment', 'inline'));
+      } else {
+        responseHeaders.set('content-disposition', 'inline');
+      }
+    }
+
     const newResponse = new NextResponse(responseBody, {
       status: response.status,
       statusText: response.statusText,
