@@ -9,6 +9,8 @@ import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
 
+import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants/applicationStatuses';
+
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
     Location: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>,
@@ -19,16 +21,19 @@ const IC = {
     Withdraw: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
 };
 
-const STATUS_MAP: Record<ApplicationStatus, { label: string, color: string, stage: number }> = {
-    applied: { label: 'Applied', color: '#3b82f6', stage: 1 },
-    reviewing: { label: 'Under Review', color: '#f59e0b', stage: 2 },
-    shortlisted: { label: 'Shortlisted', color: '#10b981', stage: 3 },
-    interview: { label: 'Interviewing', color: '#7c3aed', stage: 4 },
-    offer: { label: 'Offer Received', color: '#10b981', stage: 5 },
-    accepted: { label: 'Accepted', color: '#10b981', stage: 5 },
-    rejected: { label: 'Not Selected', color: '#ef4444', stage: 0 },
-    withdrawn: { label: 'Withdrawn', color: '#64748b', stage: 0 },
-    active: { label: 'Active', color: '#3b82f6', stage: 1 },
+const STATUS_MAP: Record<string, { label: string, color: string, stage: number }> = {
+    applied:      { label: STATUS_LABELS.applied,      color: STATUS_COLORS.applied,      stage: 1 },
+    reviewing:    { label: STATUS_LABELS.reviewing,    color: STATUS_COLORS.reviewing,    stage: 2 },
+    shortlisted:  { label: STATUS_LABELS.shortlisted,  color: STATUS_COLORS.shortlisted,  stage: 3 },
+    interviewing: { label: STATUS_LABELS.interviewing, color: STATUS_COLORS.interviewing, stage: 4 },
+    interview:    { label: STATUS_LABELS.interviewing, color: STATUS_COLORS.interviewing, stage: 4 },
+    offered:      { label: STATUS_LABELS.offered,      color: STATUS_COLORS.offered,      stage: 5 },
+    offer:        { label: STATUS_LABELS.offered,      color: STATUS_COLORS.offered,      stage: 5 },
+    hired:        { label: STATUS_LABELS.hired,        color: STATUS_COLORS.hired,        stage: 5 },
+    accepted:     { label: STATUS_LABELS.hired,        color: STATUS_COLORS.hired,        stage: 5 },
+    rejected:     { label: STATUS_LABELS.rejected,     color: STATUS_COLORS.rejected,     stage: 0 },
+    withdrawn:    { label: STATUS_LABELS.withdrawn,    color: STATUS_COLORS.withdrawn,    stage: 0 },
+    active:       { label: STATUS_LABELS.applied,      color: STATUS_COLORS.applied,      stage: 1 },
 };
 
 export default function ApplicationsPage() {

@@ -30,48 +30,57 @@ export default async function handler(req: Request): Promise<Response> {
 
     const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
 
-    // Update Application
-    const { data: application, error: appError } = await insforgeAdmin.database
-      .from('applications')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select('*, jobs!inner(title, recruiter_id), profiles!inner(name, id)')
-      .single();
-
-    if (appError) {
-      return new Response(JSON.stringify({ error: appError.message }), { status: 500, headers: corsHeaders });
+    // Extract actor ID from JWT token
+    let actorId;
+    try {
+      const payloadBase64 = token.split('.')[1];
+      const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+      actorId = payload.sub;
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid token format' }), { status: 401, headers: corsHeaders });
     }
 
-    // Log Activity
-    await insforgeAdmin.database.from('activity').insert({
-      user_id: application.jobs.recruiter_id,
-      type: 'application_update',
-      content: `Updated application for ${application.profiles.name} to ${status}`,
-      metadata: { application_id: id, status }
-    });
-
-    // Insert in-app notification for the candidate
-    await insforgeAdmin.database.from('notifications').insert({
-      user_id: application.profiles.id,
-      type: 'application_update',
-      title: 'Application Update',
-      message: `Your application for ${application.jobs.title} is now ${status}.`,
-      is_read: false,
-      metadata: { application_id: id, status, job_title: application.jobs.title },
-    });
-
-    // Send email notification (fire-and-forget)
-    const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
-    const emailServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
-
-    // Get candidate email
-    const { data: candidateProfile } = await insforgeAdmin.database
+    // Resolve actor role/type
+    const { data: profile } = await insforgeAdmin.database
       .from('profiles')
-      .select('email, name')
-      .eq('id', application.profiles.id)
+      .select('role')
+      .eq('id', actorId)
       .single();
 
-    if (candidateProfile?.email) {
+    let actorType = 'recruiter';
+    if (profile?.role === 'admin' || profile?.role === 'super_admin') {
+      actorType = 'admin';
+    } else if (profile?.role === 'candidate') {
+      actorType = 'candidate';
+    }
+
+    // Invoke update_application_status RPC
+    const { data: rpcResult, error: rpcError } = await insforgeAdmin.database
+      .rpc('update_application_status', {
+        p_application_id: id,
+        p_status: status,
+        p_actor_id: actorId,
+        p_actor_type: actorType
+      });
+
+    if (rpcError) {
+      return new Response(JSON.stringify({ error: rpcError.message }), { status: 500, headers: corsHeaders });
+    }
+
+    const { success, no_op, application } = rpcResult;
+
+    // Fetch full application details to return to the UI (backward compatibility)
+    const { data: updatedApp } = await insforgeAdmin.database
+      .from('applications')
+      .select('*, jobs!inner(title, recruiter_id), profiles!inner(name, id)')
+      .eq('id', id)
+      .single();
+
+    // Send email notification (fire-and-forget) if not a no-op
+    if (success && !no_op && application && application.candidate_email) {
+      const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
+      const emailServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
+
       fetch(`${siteUrl}/api/email/send`, {
         method: 'POST',
         headers: {
@@ -79,12 +88,12 @@ export default async function handler(req: Request): Promise<Response> {
           'x-service-key': emailServiceKey,
         },
         body: JSON.stringify({
-          to: candidateProfile.email,
+          to: application.candidate_email,
           template: 'application-status',
           data: {
-            name: candidateProfile.name || 'Candidate',
-            email: candidateProfile.email,
-            jobTitle: application.jobs.title,
+            name: application.candidate_name || 'Candidate',
+            email: application.candidate_email,
+            jobTitle: application.job_title,
             status,
           },
           role: 'hr',
@@ -92,7 +101,7 @@ export default async function handler(req: Request): Promise<Response> {
       }).catch((e: any) => console.error('[update-application] Email failed:', e.message));
     }
 
-    return new Response(JSON.stringify({ success: true, application }), { 
+    return new Response(JSON.stringify({ success: true, application: updatedApp }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
