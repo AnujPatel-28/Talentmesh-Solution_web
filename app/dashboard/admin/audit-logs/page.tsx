@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import styles from './audit-logs.module.css';
 import { invokeFunction } from '@/lib/insforge';
 
@@ -96,7 +96,7 @@ export default function AdminAuditLogsPage() {
               <tr><td colSpan={6} className={styles.emptyState}>No audit records found matching your query.</td></tr>
             ) : (
               logs.map((log) => (
-                <optgroup key={log.id}>
+                <Fragment key={log.id}>
                   <tr 
                     className={styles.rowExpandable} 
                     onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
@@ -138,7 +138,7 @@ export default function AdminAuditLogsPage() {
                       </td>
                     </tr>
                   )}
-                </optgroup>
+                </Fragment>
               ))
             )}
           </tbody>
