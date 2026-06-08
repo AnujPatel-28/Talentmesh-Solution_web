@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
 import { RecruiterRegisterForm } from '../_components/RecruiterRegisterForm';
 import { AdminButton } from '../_components/AdminForm';
+import { Globe, Users, Clock, CheckCircle2, XCircle, FileText, Download, Smartphone, Trash2, ShieldAlert } from 'lucide-react';
 
 
 type RecruiterProfile = {
@@ -710,6 +711,12 @@ function ApproveSetupModal({
 }) {
   const profile = recruiter.recruiter_profiles && (Array.isArray(recruiter.recruiter_profiles) ? recruiter.recruiter_profiles[0] : recruiter.recruiter_profiles);
 
+  const [step, setStep] = useState(1);
+  const [otp, setOtp] = useState('');
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(120);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const [formData, setFormData] = useState({
     name: recruiter.name || '',
     email: recruiter.email || '',
@@ -734,6 +741,27 @@ function ApproveSetupModal({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Cooldown timer for resending OTP
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  // Expiration timer for verification OTP code
+  useEffect(() => {
+    if (!otpSentAt) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - otpSentAt) / 1000);
+      const remaining = Math.max(0, 120 - elapsed);
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [otpSentAt]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -742,6 +770,57 @@ function ApproveSetupModal({
   const handleGeneratePassword = () => {
     const pwd = generateSecurePassword();
     setFormData(prev => ({ ...prev, password: pwd }));
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setError('');
+    try {
+      await insforge.auth.resendVerificationEmail({ email: formData.email });
+      setOtpSentAt(Date.now());
+      setTimeLeft(120);
+      setResendCooldown(60);
+      setSuccess('Verification code resent successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (timeLeft <= 0) {
+      setError('Verification code has expired. Please request a new one.');
+      return;
+    }
+    if (otp.length < 6) return;
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const { data, error: err } = await invokeFunction('admin-recruiters', {
+        method: 'POST',
+        body: { action: 'verify-otp', email: formData.email, otp },
+      });
+      if (err) throw new Error(err.message);
+
+      setSuccess('✅ Email verified! Recruiter account is now active.');
+      setTimeout(() => {
+        onSuccess({
+          email: formData.email,
+          name: formData.name,
+          _plainPassword: formData.password || undefined
+        });
+        onClose();
+      }, 1500);
+    } catch (e: any) {
+      setError(e.message || 'Verification failed. Check the code and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -797,15 +876,34 @@ function ApproveSetupModal({
 
       if (apiErr) throw new Error(apiErr.message);
 
-      setSuccess('✅ Recruiter approved & set up successfully!');
-      setTimeout(() => {
-        onSuccess({
-          email: formData.email,
-          name: formData.name,
-          _plainPassword: formData.password || undefined
-        });
-        onClose();
-      }, 1500);
+      // Check if we need OTP verification (if a password is generated/set, or if user is unverified/pending)
+      const isPending = profile?.status === 'pending_verification';
+      const needsOtp = !!formData.password || isPending;
+
+      if (needsOtp) {
+        if (isPending && !formData.password) {
+          try {
+            await insforge.auth.resendVerificationEmail({ email: formData.email });
+          } catch (resendErr) {
+            console.warn('Failed to resend verification email on step transition:', resendErr);
+          }
+        }
+        setSuccess('✅ Setup details saved. A verification code has been sent.');
+        setOtpSentAt(Date.now());
+        setTimeLeft(120);
+        setResendCooldown(60);
+        setStep(2);
+      } else {
+        setSuccess('✅ Recruiter approved & set up successfully!');
+        setTimeout(() => {
+          onSuccess({
+            email: formData.email,
+            name: formData.name,
+            _plainPassword: formData.password || undefined
+          });
+          onClose();
+        }, 1500);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to approve and setup recruiter');
     } finally {
@@ -834,9 +932,13 @@ function ApproveSetupModal({
       >
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🛡️</div>
-          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>Approve & Setup Recruiter</h2>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>
+            {step === 1 ? 'Approve & Setup Recruiter' : 'Verify Recruiter Email'}
+          </h2>
           <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>
-            Verify registered details, adjust fields if necessary, and approve platform access.
+            {step === 1
+              ? 'Verify registered details, adjust fields if necessary, and approve platform access.'
+              : `Enter the 6-digit verification code sent to ${formData.email}`}
           </p>
         </div>
 
@@ -851,163 +953,262 @@ function ApproveSetupModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.5rem' }}>
+        {step === 1 ? (
+          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.5rem' }}>
 
-          {/* Section 1: Contact Details */}
-          <div>
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Contact Details</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Full Name</label>
-                <input type="text" name="name" required value={formData.name} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Work Email</label>
-                <input type="email" name="email" required value={formData.email} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Phone Number</label>
-                <input type="text" name="phone" value={formData.phone} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Role / Job Title</label>
-                <input type="text" name="job_title" value={formData.job_title} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+            {/* Section 1: Contact Details */}
+            <div>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Contact Details</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Full Name</label>
+                  <input type="text" name="name" required value={formData.name} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Work Email</label>
+                  <input type="email" name="email" required value={formData.email} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Phone Number</label>
+                  <input type="text" name="phone" value={formData.phone} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Role / Job Title</label>
+                  <input type="text" name="job_title" value={formData.job_title} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Section 2: Company Details */}
-          <div>
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Company & Tax Details</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Name</label>
-                <input type="text" name="company_name" required value={formData.company_name} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Website</label>
-                <input type="url" name="company_website" value={formData.company_website} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Industry</label>
-                <input type="text" name="industry" value={formData.industry} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Size</label>
-                <input type="text" name="company_size" value={formData.company_size} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>GSTIN (Optional)</label>
-                <input type="text" name="gstin" value={formData.gstin} onChange={handleChange} placeholder="e.g. 22AAAAA1111A1Z1" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>TAN (Optional)</label>
-                <input type="text" name="tan" value={formData.tan} onChange={handleChange} placeholder="e.g. ABCD12345E" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Registered Address</label>
-                <textarea name="company_address" required value={formData.company_address} onChange={handleChange} placeholder="Full physical office address" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', minHeight: '60px', fontFamily: 'inherit', resize: 'none' }} />
+            {/* Section 2: Company Details */}
+            <div>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Company & Tax Details</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Name</label>
+                  <input type="text" name="company_name" required value={formData.company_name} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Website</label>
+                  <input type="url" name="company_website" value={formData.company_website} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Industry</label>
+                  <input type="text" name="industry" value={formData.industry} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Size</label>
+                  <input type="text" name="company_size" value={formData.company_size} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>GSTIN (Optional)</label>
+                  <input type="text" name="gstin" value={formData.gstin} onChange={handleChange} placeholder="e.g. 22AAAAA1111A1Z1" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>TAN (Optional)</label>
+                  <input type="text" name="tan" value={formData.tan} onChange={handleChange} placeholder="e.g. ABCD12345E" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Company Registered Address</label>
+                  <textarea name="company_address" required value={formData.company_address} onChange={handleChange} placeholder="Full physical office address" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', minHeight: '60px', fontFamily: 'inherit', resize: 'none' }} />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Section 3: Personal KYC & Verification */}
-          <div>
-            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Personal KYC & Emergency Contact</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>PAN Card Number</label>
-                <input type="text" name="pan_number" value={formData.pan_number} onChange={handleChange} maxLength={10} placeholder="ABCDE1234F" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', textTransform: 'uppercase' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Aadhaar Card Number</label>
-                <input type="text" name="aadhaar_number" value={formData.aadhaar_number} onChange={handleChange} maxLength={12} placeholder="12-digit Aadhaar Number" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Emergency Contact Name</label>
-                <input type="text" name="emergency_contact_name" value={formData.emergency_contact_name} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Emergency Contact Phone</label>
-                <input type="text" name="emergency_contact_phone" value={formData.emergency_contact_phone} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Emergency Contact Address</label>
-                <input type="text" name="emergency_contact_address" value={formData.emergency_contact_address} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+            {/* Section 3: Personal KYC & Verification */}
+            <div>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Personal KYC & Emergency Contact</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>PAN Card Number</label>
+                  <input type="text" name="pan_number" value={formData.pan_number} onChange={handleChange} maxLength={10} placeholder="ABCDE1234F" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', textTransform: 'uppercase' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Aadhaar Card Number</label>
+                  <input type="text" name="aadhaar_number" value={formData.aadhaar_number} onChange={handleChange} maxLength={12} placeholder="12-digit Aadhaar Number" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Emergency Contact Name</label>
+                  <input type="text" name="emergency_contact_name" value={formData.emergency_contact_name} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Emergency Contact Phone</label>
+                  <input type="text" name="emergency_contact_phone" value={formData.emergency_contact_phone} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Emergency Contact Address</label>
+                  <input type="text" name="emergency_contact_address" value={formData.emergency_contact_address} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Section 4: Password Setup */}
-          <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>Password Setup</h3>
-            <p style={{ margin: '0 0 1rem 0', fontSize: '0.78rem', color: '#64748b' }}>
-              Leave blank to keep the password they registered with. If you wish to set a new password, type it or click generate.
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input
-                type="text"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="New password (blank = keep original)"
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  outline: 'none',
-                  fontSize: '0.9rem',
-                  boxSizing: 'border-box'
-                }}
-              />
+            {/* Section 4: Password Setup */}
+            <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>Password Setup</h3>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.78rem', color: '#64748b' }}>
+                Leave blank to keep the password they registered with. If you wish to set a new password, type it or click generate.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="New password (blank = keep original)"
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    outline: 'none',
+                    fontSize: '0.9rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleGeneratePassword}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  Generate
+                </button>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
               <button
                 type="button"
-                onClick={handleGeneratePassword}
+                onClick={onClose}
                 style={{
-                  padding: '0.75rem 1rem',
-                  background: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.85rem'
+                  flex: 1, padding: '0.875rem', background: '#f1f5f9',
+                  color: '#475569', border: 'none', borderRadius: '12px',
+                  fontWeight: 600, cursor: 'pointer'
                 }}
               >
-                Generate
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  flex: 2, padding: '0.875rem',
+                  background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #10b981, #059669)',
+                  color: 'white', border: 'none', borderRadius: '12px',
+                  fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? 'Approving & Setting Up...' : 'Approve & Setup Recruiter'}
               </button>
             </div>
-          </div>
 
-          {/* Form Actions */}
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                flex: 1, padding: '0.875rem', background: '#f1f5f9',
-                color: '#475569', border: 'none', borderRadius: '12px',
-                fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                flex: 2, padding: '0.875rem',
-                background: loading ? '#cbd5e1' : 'linear-gradient(135deg, #10b981, #059669)',
-                color: 'white', border: 'none', borderRadius: '12px',
-                fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Approving & Setting Up...' : 'Approve & Setup Recruiter'}
-            </button>
-          </div>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} style={{ display: 'grid', gap: '1.5rem' }}>
+            <div style={{ textAlign: 'center', margin: '0.5rem 0' }}>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>
+                Ask the recruiter for the 6-digit confirmation code sent to their registered inbox.
+              </p>
+            </div>
 
-        </form>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#374151', textAlign: 'center' }}>
+                6-Digit Verification Code
+              </label>
+              <input
+                type="text"
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                maxLength={6}
+                style={{
+                  width: '100%',
+                  padding: '0.875rem',
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: '12px',
+                  fontSize: '2rem',
+                  letterSpacing: '0.5em',
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  color: '#0f172a'
+                }}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+              {timeLeft > 0 ? (
+                <p style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                  Code expires in <span style={{ fontWeight: 600, color: '#3b82f6' }}>{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                  <p style={{ fontSize: '0.82rem', color: '#ef4444', fontWeight: 600 }}>
+                    Code has expired.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendCooldown > 0 || loading}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: resendCooldown > 0 ? '#9ca3af' : '#3b82f6',
+                      cursor: resendCooldown > 0 || loading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      textDecoration: resendCooldown > 0 ? 'none' : 'underline',
+                    }}
+                  >
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep(1);
+                  setError('');
+                  setSuccess('');
+                  setOtp('');
+                }}
+                disabled={loading}
+                style={{
+                  flex: 1, padding: '0.875rem', background: '#f1f5f9',
+                  color: '#475569', border: 'none', borderRadius: '12px',
+                  fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                Back to Details
+              </button>
+              <button
+                type="submit"
+                disabled={loading || otp.length < 6 || timeLeft <= 0}
+                style={{
+                  flex: 2, padding: '0.875rem',
+                  background: loading || otp.length < 6 || timeLeft <= 0 ? '#cbd5e1' : 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                  color: 'white', border: 'none', borderRadius: '12px',
+                  fontWeight: 700, cursor: loading || otp.length < 6 || timeLeft <= 0 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? 'Verifying...' : 'Verify & Activate'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1173,7 +1374,7 @@ export default function AdminRecruitersPage() {
         setTotalPages(Math.ceil(data.total / 20));
       }
     } catch (err: any) {
-      setError('Failed to load recruiters registry');
+      setError('Failed to load recruiters');
     } finally {
       setLoading(false);
     }
@@ -1273,8 +1474,8 @@ export default function AdminRecruitersPage() {
       <header className={styles.hero}>
         <div>
           <p className={styles.eyebrow}>Employer Management</p>
-          <h1 className={styles.title}>Recruiter Index</h1>
-          <p className={styles.subtitle}>Audit company profiles, verify hiring credentials, and manage platform access.</p>
+          <h1 className={styles.title}>Recruiters</h1>
+          <p className={styles.subtitle}>Manage recruiter accounts, companies, and platform access.</p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <strong style={{ fontSize: '1.5rem', display: 'block' }}>{totalCount}</strong>
@@ -1300,8 +1501,8 @@ export default function AdminRecruitersPage() {
             onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
           >
             <option value="all">All Recruiters</option>
-            <option value="pending_verification">⏳ Pending Verification</option>
-            <option value="active">✅ Active</option>
+            <option value="pending_verification">Pending Verification</option>
+            <option value="active">Active</option>
           </select>
           <AdminButton onClick={() => setShowRecruiterRegister(true)}>+ Add Recruiter</AdminButton>
           <AdminButton onClick={() => setShowCompanyRegister(true)}>Register Company</AdminButton>
@@ -1315,7 +1516,7 @@ export default function AdminRecruitersPage() {
 
       <div className={styles.grid}>
         {(authLoading || loading) ? (
-          <div className={styles.emptyState}>Syncing registry...</div>
+          <div className={styles.emptyState}>Loading recruiters...</div>
         ) : recruiters.length === 0 ? (
           <div className={styles.emptyState}>No recruiters found.</div>
         ) : (
@@ -1333,8 +1534,8 @@ export default function AdminRecruitersPage() {
                     <p className={styles.email}>{recruiter.email}</p>
                   </div>
                   {isPending ? (
-                    <div className={styles.strengthBadge} style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
-                      ⏳ Pending
+                    <div className={styles.strengthBadge} style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={12} /> Pending
                     </div>
                   ) : !profile?.is_approved ? (
                     <div className={styles.strengthBadge} style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
@@ -1346,8 +1547,8 @@ export default function AdminRecruitersPage() {
                 <div className={styles.body}>
                   <p className={styles.headline}><strong>{profile?.company_name || 'Individual Recruiter'}</strong></p>
                   <div className={styles.meta}>
-                    <span>🌐 {profile?.industry || 'Unspecified Industry'}</span>
-                    <span>👥 {profile?.company_size || 'N/A'} employees</span>
+                    <span><Globe size={14} /> {profile?.industry || 'Unspecified Industry'}</span>
+                    <span><Users size={14} /> {profile?.company_size || 'N/A'} employees</span>
                   </div>
                 </div>
 
@@ -1423,7 +1624,10 @@ export default function AdminRecruitersPage() {
                       fontSize: '0.85rem'
                     }}
                   >
-                    {previewUser.is_active ? '🔴 Deactivate' : '🟢 Activate'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                      {previewUser.is_active ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+                      {previewUser.is_active ? 'Deactivate' : 'Activate'}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -1455,7 +1659,9 @@ export default function AdminRecruitersPage() {
                       fontSize: '0.85rem'
                     }}
                   >
-                    🗑️ Permanent Delete
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                      <Trash2 size={15} /> Permanent Delete
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1466,8 +1672,8 @@ export default function AdminRecruitersPage() {
                   background: '#fffbeb', border: '1px solid #fde68a',
                   borderRadius: '12px', padding: '1.25rem', marginBottom: '0.5rem'
                 }}>
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#92400e', fontWeight: 600 }}>
-                    ⏳ Email Not Yet Verified
+                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#92400e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={16} /> Email Not Yet Verified
                   </p>
                   <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#78350f' }}>
                     This recruiter has not verified their email yet. Call them, get the OTP code from their inbox, and verify on their behalf.
@@ -1478,10 +1684,11 @@ export default function AdminRecruitersPage() {
                       width: '100%', padding: '0.75rem',
                       background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                       color: 'white', border: 'none', borderRadius: '8px',
-                      fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem'
+                      fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                     }}
                   >
-                    📱 Enter OTP Code (Verify on Behalf)
+                    <Smartphone size={16} /> Enter OTP Code (Verify on Behalf)
                   </button>
                 </div>
               )}
@@ -1548,9 +1755,22 @@ export default function AdminRecruitersPage() {
                     <span style={{
                       padding: '2px 8px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
                       background: isPendingVerification(previewUser) ? '#fef3c7' : previewUser.is_active ? '#dcfce7' : '#fee2e2',
-                      color: isPendingVerification(previewUser) ? '#92400e' : previewUser.is_active ? '#166534' : '#991b1b'
+                      color: isPendingVerification(previewUser) ? '#92400e' : previewUser.is_active ? '#166534' : '#991b1b',
+                      display: 'inline-flex', alignItems: 'center', gap: '4px'
                     }}>
-                      {isPendingVerification(previewUser) ? '⏳ Pending Verification' : previewUser.is_active ? '✅ Active' : '🔴 Suspended'}
+                      {isPendingVerification(previewUser) ? (
+                        <>
+                          <Clock size={12} /> Pending Verification
+                        </>
+                      ) : previewUser.is_active ? (
+                        <>
+                          <CheckCircle2 size={12} /> Active
+                        </>
+                      ) : (
+                        <>
+                          <XCircle size={12} /> Suspended
+                        </>
+                      )}
                     </span>
                   </div>
                   {getProfile(previewUser)?.website_url && (
@@ -1566,14 +1786,14 @@ export default function AdminRecruitersPage() {
                         onClick={() => handleView(getProfile(previewUser)!.document_url!)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
                       >
-                        📄 View Document
+                        <FileText size={15} /> View Document
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDownload(getProfile(previewUser)!.document_url!, 'company_document.pdf')}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
                       >
-                        📥 Download
+                        <Download size={15} /> Download
                       </button>
                     </div>
                   </div>
@@ -1602,14 +1822,14 @@ export default function AdminRecruitersPage() {
                         onClick={() => handleView(getProfile(previewUser)!.kyc_document_url!)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
                       >
-                        📋 View KYC
+                        <FileText size={15} /> View KYC
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDownload(getProfile(previewUser)!.kyc_document_url!, 'kyc_document.pdf')}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
                       >
-                        📥 Download
+                        <Download size={15} /> Download
                       </button>
                     </div>
                   </div>
@@ -1618,7 +1838,7 @@ export default function AdminRecruitersPage() {
 
               {/* Emergency Contact Section */}
               <section className={styles.profileSection} style={{ background: '#fef3c7', padding: '1.25rem', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#78350f', borderBottom: '1px solid #fde68a', paddingBottom: '0.5rem' }}>🚨 Emergency Contact</h4>
+                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#78350f', borderBottom: '1px solid #fde68a', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldAlert size={18} /> Emergency Contact</h4>
                 <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.875rem', color: '#451a03' }}>
                   <div><strong>Name:</strong> {getProfile(previewUser)?.emergency_contact_name || '—'}</div>
                   <div><strong>Phone:</strong> {getProfile(previewUser)?.emergency_contact_phone || '—'}</div>
@@ -1649,10 +1869,10 @@ export default function AdminRecruitersPage() {
               {!getProfile(previewUser)?.is_approved && (
                 <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #ede9fe, #fce7f3)', border: '1px solid #c4b5fd', borderRadius: '16px' }}>
                   <p style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#4c1d95' }}>
-                    🛡️ Recruiter Approval Required
+                    Verify Recruiter Account
                   </p>
                   <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#6d28d9', lineHeight: 1.5 }}>
-                    Review the KYC details above. Click below to approve this recruiter, optionally set a new password, and send login credentials.
+                    Review the details above. Click below to verify this recruiter, set a password, and send login credentials.
                   </p>
                   <button
                     onClick={() => setApproveSetupTarget(previewUser)}
@@ -1664,14 +1884,14 @@ export default function AdminRecruitersPage() {
                       boxShadow: '0 4px 15px rgba(109, 40, 217, 0.3)'
                     }}
                   >
-                    🛡️ Approve & Setup Recruiter
+                    Verify Recruiter
                   </button>
                 </div>
               )}
 
               <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <h4>Create Custom Pricing Proposal</h4>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Send a custom tailored pricing plan to this recruiter.</p>
+                <h4>Send Custom Price Plan</h4>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Send a custom pricing plan to this recruiter.</p>
 
                 <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
                   {['Unlimited Talent Search', 'Dedicated Account Manager', 'AI Candidate Matching', 'Featured Job Posts', 'API Integration'].map(f => (
@@ -1713,12 +1933,12 @@ export default function AdminRecruitersPage() {
         <div className={styles.drawerOverlay} onClick={() => setShowCompanyRegister(false)}>
           <div className={styles.drawer} onClick={e => e.stopPropagation()}>
             <header className={styles.drawerHeader}>
-              <h2>Register New Company</h2>
+              <h2>Add New Company</h2>
               <button className={styles.drawerClose} onClick={() => setShowCompanyRegister(false)}>×</button>
             </header>
             <div className={styles.drawerContent} style={{ padding: '2rem' }}>
               <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '2rem' }}>
-                Establish a new organizational entity. You can then associate recruiters with this company.
+                Create a new company profile first. You can then associate recruiters with this company.
               </p>
               <CompanyRegisterForm
                 onSuccess={() => setShowCompanyRegister(false)}

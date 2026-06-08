@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (user) {
       fetchData();
-      const interval = setInterval(fetchData, 60000);
+      const interval = setInterval(fetchData, 5000);
       return () => clearInterval(interval);
     }
   }, [fetchData, user?.id]);
@@ -102,14 +102,14 @@ export default function AdminDashboardPage() {
     <div className={styles.dash}>
       <div className={styles.greet}>
         <h1 className={styles.greetTitle}>Welcome back, {user?.name || 'Admin'}!</h1>
-        <p className={styles.greetSub}>System Intelligence Overview: Monitor, moderate, and manage your platform ecosystem.</p>
+        <p className={styles.greetSub}>Overview: Monitor, approve, and manage jobs, recruiters, and candidates.</p>
       </div>
 
       <AnimateOnScroll animation="fadeUp" delay={100}>
         <div className={styles.stats}>
           <div className={styles.stat}>
             <div className={styles.statTop}>
-              <span className={styles.statLabel}>Global User Base</span>
+              <span className={styles.statLabel}>Total Users</span>
               <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
             </div>
             <span className={styles.statVal}>{stats?.users.value || 0}</span>
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className={styles.stat}>
             <div className={styles.statTop}>
-              <span className={styles.statLabel}>Active Positions</span>
+              <span className={styles.statLabel}>Active Jobs</span>
               <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
             </div>
             <span className={styles.statVal}>{stats?.jobs.value || 0}</span>
@@ -125,7 +125,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className={styles.stat}>
             <div className={styles.statTop}>
-              <span className={styles.statLabel}>Application Velocity</span>
+              <span className={styles.statLabel}>Total Applications</span>
               <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
             </div>
             <span className={styles.statVal}>{stats?.applications.value || 0}</span>
@@ -149,13 +149,13 @@ export default function AdminDashboardPage() {
             {alerts && (alerts.pendingRecruiters > 0 || alerts.pendingJobs > 0 || alerts.reportedJobs > 0) && (
               <div className={styles.card}>
                 <div className={styles.cardHead}>
-                  <h2 className={styles.cardTitle}>Critical Moderation Queue</h2>
+                  <h2 className={styles.cardTitle}>Review Queue</h2>
                 </div>
                 {alerts.pendingRecruiters > 0 && (
                   <div className={styles.actItem}>
                     <span className={styles.actIcon} style={{ color: '#f59e0b' }}>{IC.alertCircle}</span>
                     <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{alerts.pendingRecruiters} Approval Requests</strong> - Recruiters waiting for portal access</span>
+                      <span className={styles.actText}><strong>{alerts.pendingRecruiters} Approval Requests</strong> - Recruiters waiting for access</span>
                     </div>
                     <Link href="/dashboard/admin/recruiters?status=pending" className={styles.actAction}>Review</Link>
                   </div>
@@ -164,7 +164,7 @@ export default function AdminDashboardPage() {
                   <div className={styles.actItem}>
                     <span className={styles.actIcon} style={{ color: '#f59e0b' }}>{IC.alertCircle}</span>
                     <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{alerts.pendingJobs} Job Reviews</strong> - New listings requiring verification</span>
+                      <span className={styles.actText}><strong>{alerts.pendingJobs} Job Reviews</strong> - New listings requiring approval</span>
                     </div>
                     <Link href="/dashboard/admin/jobs?status=pending" className={styles.actAction}>Review</Link>
                   </div>
@@ -173,7 +173,7 @@ export default function AdminDashboardPage() {
                   <div className={styles.actItem}>
                     <span className={styles.actIcon} style={{ color: '#ef4444' }}>{IC.alertCircle}</span>
                     <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{alerts.reportedJobs} Flagged Reports</strong> - Safety violations requiring attention</span>
+                      <span className={styles.actText}><strong>{alerts.reportedJobs} Flagged Reports</strong> - Reported jobs requiring attention</span>
                     </div>
                     <Link href="/dashboard/admin/jobs?status=reported" className={styles.actAction}>Review</Link>
                   </div>
@@ -204,12 +204,12 @@ export default function AdminDashboardPage() {
 
           <div className={styles.rightCol}>
             <div className={styles.card}>
-              <h2 className={styles.cardTitle}>High Frequency Operations</h2>
+              <h2 className={styles.cardTitle}>Quick Actions</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <Link href="/dashboard/admin/jobs" style={{ textDecoration: 'none' }}>
                   <button className={styles.quickAction}>
                     <span className={styles.qaIcon}>{IC.plus}</span>
-                    <span className={styles.qaLabel}>Deploy New Job</span>
+                    <span className={styles.qaLabel}>Post Job</span>
                   </button>
                 </Link>
                 <Link href="/dashboard/admin/blogs" style={{ textDecoration: 'none' }}>
@@ -221,22 +221,22 @@ export default function AdminDashboardPage() {
                 <Link href="/dashboard/admin/reports" style={{ textDecoration: 'none' }}>
                   <button className={styles.quickAction}>
                     <span className={styles.qaIcon}>{IC.users}</span>
-                    <span className={styles.qaLabel}>Deep Analytics</span>
+                    <span className={styles.qaLabel}>Reports</span>
                   </button>
                 </Link>
                 <Link href="/dashboard/admin/settings" style={{ textDecoration: 'none' }}>
                   <button className={styles.quickAction}>
                     <span className={styles.qaIcon}>{IC.settings}</span>
-                    <span className={styles.qaLabel}>System Prefs</span>
+                    <span className={styles.qaLabel}>Settings</span>
                   </button>
                 </Link>
               </div>
             </div>
 
             <div className={styles.featuredCard}>
-              <span className={styles.featuredLabel}>PLATFORM HEALTH</span>
-              <span className={styles.featuredName}>Optimal & Operational</span>
-              <button className={styles.featuredLink}>All nodes are running. Request latency is at 24ms. No active incidents. {IC.checkCircle}</button>
+              <span className={styles.featuredLabel}>PLATFORM STATUS</span>
+              <span className={styles.featuredName}>Operational</span>
+              <button className={styles.featuredLink}>All services are working correctly. No incidents. {IC.checkCircle}</button>
             </div>
           </div>
         </div>

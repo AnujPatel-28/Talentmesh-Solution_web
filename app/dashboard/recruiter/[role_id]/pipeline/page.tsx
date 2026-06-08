@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { invokeFunction } from '@/lib/insforge';
+import { invokeFunction, insforge } from '@/lib/insforge';
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import styles from './pipeline.module.css';
 
@@ -25,31 +25,130 @@ export default function HiringPipelinePage() {
     const [loading, setLoading] = useState(true);
     const dragging = useRef<{ card: Card; fromStage: Stage } | null>(null);
 
-    useEffect(() => {
+    const load = useCallback(async () => {
         if (!user?.id) return;
-        const load = async () => {
-            const { data } = await invokeFunction('recruiter-dashboard');
-            if (data?.pipeline) {
+        try {
+            const { data, error } = await insforge.database
+                .from('applications')
+                .select('id, candidate:profiles!candidate_id(id, name, location, avatar_url, candidate_profiles(headline, skills)), jobs!inner(title, recruiter_id), status, applied_at')
+                .eq('jobs.recruiter_id', user.id);
+
+            if (error) {
+                console.error('Failed to load applications:', error);
+                return;
+            }
+
+            if (data) {
                 const grouped: any = { applied: [], screening: [], interview: [], offer: [], hired: [], rejected: [] };
-                (data.pipeline as any[]).forEach((item: any) => {
-                    const stageKey = item.stage?.toLowerCase() as Stage;
+                (data as any[]).forEach((item: any) => {
+                    const stageKey = item.status?.toLowerCase() as Stage;
                     if (grouped[stageKey]) {
+                        const p = item.candidate;
+                        const cp = p?.candidate_profiles ? (Array.isArray(p.candidate_profiles) ? p.candidate_profiles[0] : p.candidate_profiles) : null;
                         grouped[stageKey].push({
-                            id: item.id || Math.random().toString(),
-                            name: item.name || item.candidate_name || 'Candidate',
-                            role: item.role || item.job_title || '—',
-                            job: item.job || item.job_name || '—',
-                            avatar: (item.name || 'C').split(' ').map((n: string) => n[0]).join(''),
+                            id: item.id,
+                            name: p?.name || 'Candidate',
+                            role: cp?.headline || '—',
+                            job: item.jobs?.title || '—',
+                            avatar: (p?.name || 'C').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
                             stage: stageKey,
                         });
                     }
                 });
                 setPipeline(grouped);
             }
+        } catch (err) {
+            console.error('Unexpected error loading pipeline:', err);
+        } finally {
             setLoading(false);
-        };
-        load();
+        }
     }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        
+        load();
+
+        const channel = (insforge.realtime as any).channel('pipeline_changes');
+        
+        channel
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, async (payload: any) => {
+                const { eventType, new: newRow, old: oldRow } = payload;
+                
+                if (eventType === 'UPDATE') {
+                    const newStage = newRow.status?.toLowerCase() as Stage;
+                    const appId = newRow.id;
+                    
+                    setPipeline(prev => {
+                        let foundCard: Card | null = null;
+                        let fromStage: Stage | null = null;
+                        
+                        for (const stage of Object.keys(prev) as Stage[]) {
+                            const match = prev[stage].find(c => c.id === appId);
+                            if (match) {
+                                foundCard = match;
+                                fromStage = stage;
+                                break;
+                            }
+                        }
+                        
+                        if (foundCard && fromStage && fromStage !== newStage) {
+                            return {
+                                ...prev,
+                                [fromStage]: prev[fromStage].filter(c => c.id !== appId),
+                                [newStage]: [...prev[newStage], { ...foundCard, stage: newStage }]
+                            };
+                        }
+                        return prev;
+                    });
+                } else if (eventType === 'INSERT') {
+                    // Fetch details of the newly inserted application
+                    const { data: item, error } = await insforge.database
+                        .from('applications')
+                        .select('id, candidate:profiles!candidate_id(id, name, location, avatar_url, candidate_profiles(headline, skills)), jobs!inner(title, recruiter_id), status, applied_at')
+                        .eq('id', newRow.id)
+                        .single();
+                        
+                    if (!error && item) {
+                        const rawItem = item as any;
+                        const stageKey = rawItem.status?.toLowerCase() as Stage;
+                        const p = rawItem.candidate;
+                        const cp = p?.candidate_profiles ? (Array.isArray(p.candidate_profiles) ? p.candidate_profiles[0] : p.candidate_profiles) : null;
+                        
+                        const newCard: Card = {
+                            id: rawItem.id,
+                            name: p?.name || 'Candidate',
+                            role: cp?.headline || '—',
+                            job: rawItem.jobs?.title || '—',
+                            avatar: (p?.name || 'C').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase(),
+                            stage: stageKey,
+                        };
+                        
+                        setPipeline(prev => {
+                            if (prev[stageKey].some(c => c.id === newCard.id)) return prev;
+                            return {
+                                ...prev,
+                                [stageKey]: [...prev[stageKey], newCard]
+                            };
+                        });
+                    }
+                } else if (eventType === 'DELETE') {
+                    const appId = oldRow.id;
+                    setPipeline(prev => {
+                        const next = { ...prev };
+                        for (const stage of Object.keys(next) as Stage[]) {
+                            next[stage] = next[stage].filter(c => c.id !== appId);
+                        }
+                        return next;
+                    });
+                }
+            })
+            .subscribe();
+
+        return () => {
+            (insforge.realtime as any).removeChannel(channel);
+        };
+    }, [user?.id, load]);
 
     const handleDragStart = (card: Card, fromStage: Stage) => {
         dragging.current = { card, fromStage };
@@ -60,12 +159,26 @@ export default function HiringPipelinePage() {
         const { card, fromStage } = dragging.current;
         if (fromStage === toStage) return;
 
+        const originalPipeline = { ...pipeline };
+
+        // Optimistic UI update
         setPipeline(prev => ({
             ...prev,
             [fromStage]: prev[fromStage].filter(c => c.id !== card.id),
             [toStage]: [...prev[toStage], { ...card, stage: toStage }],
         }));
         dragging.current = null;
+
+        // Persist status change in DB
+        invokeFunction('update-application', { body: { id: card.id, status: toStage } }).then(({ error }) => {
+            if (error) {
+                console.error('Failed to update stage in DB:', error.message);
+                setPipeline(originalPipeline);
+            }
+        }).catch((err) => {
+            console.error('Unexpected error updating stage:', err);
+            setPipeline(originalPipeline);
+        });
     };
 
     if (loading) return <HomeSkeleton />;

@@ -231,6 +231,7 @@ const getRecruiterNav = (roleId: string): NavItem[] => [
 const SUPER_ADMIN_NAV = (counts?: { jobs: number, candidates: number, recruiters: number, pendingJobs: number }): NavItem[] => [
     { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
     { label: 'Job Approvals', href: '/dashboard/admin/job-approvals', icon: Icons.inbox, badge: counts?.pendingJobs || undefined, badgeType: 'red' },
+    { label: 'Job Applications', href: '/dashboard/admin/applications', icon: Icons.clipboard },
     { label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, badge: counts?.jobs || undefined },
     { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: counts?.candidates || undefined },
     { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: Icons.recruiter, badge: counts?.recruiters || undefined },
@@ -344,7 +345,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 // Use directInsforge to bypass Next.js API proxy which doesn't support WebSockets well
                 if (token) {
                     // Set auth token before connecting if we have one
-                    // directInsforge.realtime.setAuth(token); // Usually needed if RLS is on channels
+                    (directInsforge.realtime as any).setAuth(token); // Usually needed if RLS is on channels
                 }
 
                 // Ensure connect() doesn't block forever
@@ -473,8 +474,37 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         // Only redirect if we are sure there is no session
         if (!isDedicatedBranch && !authUser && !hasToken) {
             router.push('/login');
+            return;
         }
-    }, [isLoading, authUser, router, pathname]);
+
+        // Guard unapproved recruiters from accessing subpages
+        if (authUser && authUser.role === 'recruiter') {
+            if (pathname.includes('/pending-approval')) {
+                return;
+            }
+            const checkApproval = async () => {
+                try {
+                    const { data, error } = await insforge.database
+                        .from('recruiter_profiles')
+                        .select('is_approved')
+                        .eq('id', authUser.id)
+                        .single();
+
+                    if (error) {
+                        console.error('Error verifying recruiter approval status:', error);
+                        return;
+                    }
+
+                    if (data && !data.is_approved) {
+                        router.push(`/dashboard/recruiter/${authUser.id}/pending-approval`);
+                    }
+                } catch (err) {
+                    console.error('Failed to verify recruiter approval:', err);
+                }
+            };
+            checkApproval();
+        }
+    }, [isLoading, isInitialized, authUser, router, pathname]);
 
 
 

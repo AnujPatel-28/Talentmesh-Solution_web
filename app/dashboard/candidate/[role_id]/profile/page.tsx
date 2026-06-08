@@ -5,6 +5,8 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import ProfileStrengthWidget from '@/components/candidate/ProfileStrengthWidget';
 // ResumeManager separated to its own page
 import { insforge, invokeFunction } from '@/lib/insforge';
+import { useRouter } from 'next/navigation';
+import { getPathFromUrl } from '@/lib/api/storage';
 import type { UserProfile, CandidateProfile } from '@/types/user';
 import { validateCandidateProfile } from '@/lib/validation/candidate';
 import Toast from '@/components/ui/Toast';
@@ -30,6 +32,7 @@ const IC = {
 
 export default function ProfilePage() {
     const { user } = useAuth();
+    const router = useRouter();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -160,6 +163,72 @@ export default function ProfilePage() {
                 await invokeFunction('candidate-profile', {
                     method: 'PUT',
                     body: { profile: { avatar_url: url } }
+                });
+            } else if (type === 'resume') {
+                // 1. Storage cleanup: delete old resume from storage if it exists
+                const cp = profile?.candidate_profiles;
+                if (cp?.resume_url) {
+                    const oldPath = getPathFromUrl(cp.resume_url, 'resumes');
+                    if (oldPath) {
+                        const { error: storageDeleteError } = await insforge.storage
+                            .from('resumes')
+                            .remove(oldPath);
+                        if (storageDeleteError) {
+                            console.error('Failed to clean up old resume from storage:', storageDeleteError.message);
+                        }
+                    }
+                }
+
+                // 2. Synchronize candidate_resumes table
+                let existingResumeId = null;
+                if (cp?.resume_url) {
+                    const { data: existingResumes } = await insforge.database
+                        .from('candidate_resumes')
+                        .select('id')
+                        .eq('file_url', cp.resume_url)
+                        .limit(1);
+                    if (existingResumes && existingResumes.length > 0) {
+                        existingResumeId = existingResumes[0].id;
+                    }
+                }
+
+                const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                if (existingResumeId) {
+                    // Update current record
+                    await insforge.database
+                        .from('candidate_resumes')
+                        .update({
+                            label: baseName,
+                            file_url: url,
+                            file_name: file.name,
+                            file_size_bytes: file.size,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', existingResumeId);
+                } else {
+                    // Mark other resumes as non-default
+                    await insforge.database
+                        .from('candidate_resumes')
+                        .update({ is_default: false })
+                        .eq('candidate_id', user.id);
+
+                    // Insert a new default resume
+                    await insforge.database
+                        .from('candidate_resumes')
+                        .insert([{
+                            candidate_id: user.id,
+                            label: baseName,
+                            file_url: url,
+                            file_name: file.name,
+                            file_size_bytes: file.size,
+                            is_default: true
+                        }]);
+                }
+
+                // 3. Update candidate_profiles table
+                await invokeFunction('candidate-profile', {
+                    method: 'PUT',
+                    body: { candidateProfile: { resume_url: url } }
                 });
             }
             setUploadProgress(prev => ({ ...prev, [type]: 100 }));
@@ -359,6 +428,160 @@ export default function ProfilePage() {
                                 <strong>{cp?.experience_years || 0}</strong>
                                 <span>Years Experience</span>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className={styles.profileSection}>
+                    <div className={styles.sectionHead}>
+                        <h2 className={styles.sectionTitle}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            Resume / CV
+                        </h2>
+                        <button 
+                            className={styles.addBtn}
+                            onClick={() => router.push(`/dashboard/candidate/${user?.id}/resumes`)}
+                        >
+                            Manage Resumes
+                        </button>
+                    </div>
+
+                    {cp?.resume_url ? (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '1rem',
+                            background: '#f8fafc',
+                            borderRadius: '8px',
+                            border: '1px solid #e2e8f0',
+                            marginTop: '0.5rem'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '6px',
+                                    background: '#fee2e2',
+                                    color: '#ef4444',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0
+                                }}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                    <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                        {cp.resume_url.split('/').pop()?.split('?')[0].replace(/^\d+_/, '') || 'Active Resume'}
+                                    </p>
+                                    <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>
+                                        Primary default resume
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <a 
+                                    href={cp.resume_url} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '6px',
+                                        background: '#fff',
+                                        border: '1px solid #e2e8f0',
+                                        color: '#475569',
+                                        cursor: 'pointer'
+                                    }}
+                                    title="View Resume"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                                </a>
+                                <button
+                                    onClick={() => resumeInputRef.current?.click()}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        height: '32px',
+                                        padding: '0 0.75rem',
+                                        borderRadius: '6px',
+                                        background: '#fff',
+                                        border: '1px solid #e2e8f0',
+                                        color: '#334155',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Replace
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '2rem 1rem',
+                            background: '#f8fafc',
+                            borderRadius: '8px',
+                            border: '1px dashed #cbd5e1',
+                            textAlign: 'center',
+                            marginTop: '0.5rem'
+                        }}>
+                            <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: '0.75rem'
+                            }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            </div>
+                            <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', margin: '0 0 0.25rem 0' }}>No resume uploaded yet</p>
+                            <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '0 0 1rem 0' }}>Upload a resume to apply for jobs and improve matches</p>
+                            <button
+                                onClick={() => resumeInputRef.current?.click()}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '36px',
+                                    padding: '0 1rem',
+                                    borderRadius: '8px',
+                                    background: 'var(--primary-blue)',
+                                    color: '#fff',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Upload Resume
+                            </button>
+                        </div>
+                    )}
+                    <input
+                        type="file"
+                        ref={resumeInputRef}
+                        style={{ display: 'none' }}
+                        accept=".pdf,.doc,.docx"
+                        onChange={(e) => handleFileUpload(e, 'resume')}
+                    />
+                    {uploadProgress.resume > 0 && (
+                        <div className={styles.uploadProgressSmall} style={{ marginTop: '0.75rem' }}>
+                            <div className={styles.progressFill} style={{ width: `${uploadProgress.resume}%` }} />
                         </div>
                     )}
                 </div>

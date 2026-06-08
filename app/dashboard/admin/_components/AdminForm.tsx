@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface AdminInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -97,15 +96,34 @@ interface AdminSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectEle
 export const AdminSelect: React.FC<AdminSelectProps> = ({ label, options, value, onChange, ...props }) => (
   <div style={{ marginBottom: '20px' }}>
     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>{label}</label>
-    <CustomSelect
+    <select
       {...props as any}
       value={value}
       onChange={onChange}
-      options={options}
       style={{
+        width: '100%',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid #e2e8f0',
+        fontSize: '0.95rem',
+        outline: 'none',
+        backgroundColor: '#ffffff',
+        cursor: 'pointer',
+        appearance: 'none',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'right 16px center',
+        backgroundSize: '1rem',
+        boxSizing: 'border-box',
         ...props.style
       }}
-    />
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
   </div>
 );
 

@@ -31,15 +31,15 @@ const IC = {
 };
 
 export default function CandidateHome({ params }: { params: Promise<{ role_id: string }> }) {
+    const { role_id } = React.use(params);
     return (
         <React.Suspense fallback={<HomeSkeleton />}>
-            <CandidateHomeInner params={params} />
+            <CandidateHomeInner role_id={role_id} />
         </React.Suspense>
     );
 }
 
-function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }) {
-    const { role_id } = React.use(params) || {}; // Handle async params
+function CandidateHomeInner({ role_id }: { role_id: string }) {
     const router = useRouter();
     const { user: authUser, isLoading: authLoading } = useAuth();
     const [profile, setProfile] = useState<any>(null);
@@ -69,8 +69,8 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
         // 1. Guard against uninitialized role_id
         if (!role_id || role_id === ':role_id' || role_id === 'undefined') return;
 
-        // 2. Self-Correction: If URL has an invalid ID (e.g. cand_...), redirect to actual user UUID
-        if (!isUUID(role_id) && authUser?.id && isUUID(authUser.id)) {
+        // 2. Self-Correction: If URL has an invalid ID or doesn't match the logged-in user, redirect to actual user UUID
+        if (authUser?.id && role_id !== authUser.id) {
             console.log('Redirecting to valid UUID dashboard path...');
             router.replace(`/dashboard/candidate/${authUser.id}`);
             return;
@@ -78,14 +78,17 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
 
         // 3. Final safety: Don't query if still not a UUID
         if (!isUUID(role_id)) {
-            if (!authUser) return;
             return;
         }
+
+        let isFirstLoad = true;
 
         async function fetchData() {
             if (fetching.current) return;
             fetching.current = true;
-            setLoading(true);
+            if (isFirstLoad) {
+                setLoading(true);
+            }
             try {
                 // Fetch All Dashboard Data via Unified Function (passing the correct role_id)
                 const { data: dash, error: dError } = await invokeFunction('candidate-dashboard', {
@@ -118,12 +121,15 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
             } finally {
                 setLoading(false);
                 fetching.current = false;
+                isFirstLoad = false;
             }
         }
 
         async function fetchRecommendations() {
             if (!role_id) return;
-            setRecommendationsLoading(true);
+            if (isFirstLoad) {
+                setRecommendationsLoading(true);
+            }
             try {
                 const { data, error } = await invokeFunction('recommendations', {
                     body: { candidate_id: role_id, limit: 6 }
@@ -152,6 +158,13 @@ function CandidateHomeInner({ params }: { params: Promise<{ role_id: string }> }
         
         fetchData();
         fetchRecommendations();
+
+        const interval = setInterval(() => {
+            fetchData();
+            fetchRecommendations();
+        }, 60000);
+
+        return () => clearInterval(interval);
     }, [authLoading, authUser?.id, role_id, router]);
 
     if (loading) {

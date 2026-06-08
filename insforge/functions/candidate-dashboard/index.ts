@@ -56,7 +56,7 @@ export default async function handler(req: Request): Promise<Response> {
       // 1. Profile
       dbClient.database.from('profiles').select('*').eq('id', targetUserId).single(),
       // 2. Candidate Profile
-      dbClient.database.from('candidate_profiles').select('*').eq('id', targetUserId).single(),
+      dbClient.database.from('candidate_profiles').select('*').eq('user_id', targetUserId).single(),
       // 3. Applications Count
       dbClient.database.from('applications').select('*', { count: 'exact', head: true }).eq('candidate_id', targetUserId),
       // 4. Interviews

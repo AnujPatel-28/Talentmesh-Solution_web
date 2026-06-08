@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import styles from './candidates.module.css';
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { MapPin, Briefcase, FileText, Download, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 
 
 type CandidateProfile = {
@@ -44,6 +45,80 @@ export default function AdminCandidatesPage() {
 
   // Detail view
   const [previewUser, setPreviewUser] = useState<AdminCandidate | null>(null);
+
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      let targetUrl = url;
+      if (url.startsWith(insforgeUrl)) {
+        targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+      }
+
+      const response = await fetch(targetUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Failed to download document:', err);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleView = async (url: string) => {
+    try {
+      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      let targetUrl = url;
+      if (url.startsWith(insforgeUrl)) {
+        targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+      }
+
+      const response = await fetch(targetUrl);
+      const blob = await response.blob();
+
+      let mimeType = blob.type;
+
+      try {
+        const buffer = await blob.slice(0, 4).arrayBuffer();
+        const arr = new Uint8Array(buffer);
+        if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
+          mimeType = 'application/pdf';
+        } else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+          mimeType = 'image/png';
+        } else if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+          mimeType = 'image/jpeg';
+        } else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
+          mimeType = 'image/gif';
+        }
+      } catch (readErr) {
+        console.error('Failed to parse magic bytes:', readErr);
+      }
+
+      if (mimeType === 'application/octet-stream' || !mimeType) {
+        if (url.toLowerCase().endsWith('.pdf')) {
+          mimeType = 'application/pdf';
+        } else if (url.toLowerCase().endsWith('.png')) {
+          mimeType = 'image/png';
+        } else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) {
+          mimeType = 'image/jpeg';
+        } else {
+          mimeType = 'application/pdf';
+        }
+      }
+
+      const fileBlob = new Blob([blob], { type: mimeType });
+      const blobUrl = window.URL.createObjectURL(fileBlob);
+      window.open(blobUrl, '_blank');
+    } catch (err) {
+      console.error('Failed to view document:', err);
+      window.open(url, '_blank');
+    }
+  };
 
   const fetchCandidates = useCallback(async (p = page, q = search) => {
     setLoading(true);
@@ -155,9 +230,9 @@ export default function AdminCandidatesPage() {
     <section className={styles.page}>
       <header className={styles.hero}>
         <div>
-          <p className={styles.eyebrow}>Candidate Registry</p>
-          <h1 className={styles.title}>Global Talent Index</h1>
-          <p className={styles.subtitle}>Audit, verify, and moderate professional profiles across the platform.</p>
+          <p className={styles.eyebrow}>Candidate Directory</p>
+          <h1 className={styles.title}>Candidates</h1>
+          <p className={styles.subtitle}>Manage and verify candidate profiles on the platform.</p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <strong style={{ fontSize: '1.5rem', display: 'block' }}>{totalCount}</strong>
@@ -186,7 +261,7 @@ export default function AdminCandidatesPage() {
 
       <div className={styles.grid}>
         {(authLoading || loading) ? (
-          <div className={styles.emptyState}>Syncing registry...</div>
+          <div className={styles.emptyState}>Loading candidates...</div>
         ) : candidates.length === 0 ? (
           <div className={styles.emptyState}>No candidates matched your criteria.</div>
         ) : (
@@ -213,8 +288,8 @@ export default function AdminCandidatesPage() {
                 <div className={styles.body}>
                   <p className={styles.headline}>{profile?.headline || 'Profile incomplete'}</p>
                   <div className={styles.meta}>
-                    <span>📍 {candidate.location || 'Remote'}</span>
-                    <span>💼 {profile?.experience_years ? `${profile.experience_years}y` : 'Entry'}</span>
+                    <span><MapPin size={14} /> {candidate.location || 'Remote'}</span>
+                    <span><Briefcase size={14} /> {profile?.experience_years ? `${profile.experience_years}y` : 'Entry'}</span>
                   </div>
                 </div>
 
@@ -250,7 +325,7 @@ export default function AdminCandidatesPage() {
         <div className={styles.drawerOverlay} onClick={() => setPreviewUser(null)}>
           <div className={styles.drawer} onClick={e => e.stopPropagation()}>
             <header className={styles.drawerHeader}>
-              <h2>Candidate Insight</h2>
+              <h2>Candidate Details</h2>
               <button className={styles.drawerClose} onClick={() => setPreviewUser(null)}>×</button>
             </header>
             
@@ -279,7 +354,10 @@ export default function AdminCandidatesPage() {
                       fontSize: '0.85rem'
                     }}
                   >
-                    {previewUser.is_active ? '🔴 Deactivate' : '🟢 Activate'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                      {previewUser.is_active ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+                      {previewUser.is_active ? 'Deactivate' : 'Activate'}
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -311,13 +389,15 @@ export default function AdminCandidatesPage() {
                       fontSize: '0.85rem'
                     }}
                   >
-                    🗑️ Permanent Delete
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                      <Trash2 size={15} /> Permanent Delete
+                    </span>
                   </button>
                 </div>
               </div>
 
               <section className={styles.profileSection}>
-                <h4>Professional Identity</h4>
+                <h4>Basic Information</h4>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                   <div className={styles.initials} style={{ width: '64px', height: '64px', fontSize: '1.5rem' }}>
                     {previewUser.name[0]}
@@ -330,19 +410,19 @@ export default function AdminCandidatesPage() {
               </section>
 
               <section className={styles.profileSection}>
-                <h4>Career Summary</h4>
+                <h4>Professional Summary</h4>
                 <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#334155' }}>
                   {currentProfile?.headline || 'No summary provided.'}
                 </p>
                 <div className={styles.meta} style={{ marginTop: '1rem' }}>
-                  <span>📍 {previewUser.location || 'Not specified'}</span>
-                  <span>💼 {currentProfile?.experience_years || '0'} years of experience</span>
+                  <span><MapPin size={14} /> {previewUser.location || 'Not specified'}</span>
+                  <span><Briefcase size={14} /> {currentProfile?.experience_years || '0'} years of experience</span>
                 </div>
               </section>
 
               {currentProfile?.skills && currentProfile.skills.length > 0 && (
                 <section className={styles.profileSection}>
-                  <h4>Verified Skills</h4>
+                  <h4>Skills</h4>
                   <div className={styles.skills}>
                     {currentProfile.skills.map((s, i) => (
                       <span key={i} className={styles.skillTag}>{s}</span>
@@ -352,12 +432,31 @@ export default function AdminCandidatesPage() {
               )}
 
               <section className={styles.profileSection}>
-                <h4>Resources & Presence</h4>
+                <h4>Links & Resume</h4>
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
                   {currentProfile?.resume_url && (
-                    <a href={currentProfile.resume_url} target="_blank" className={styles.primaryButton} style={{ textAlign: 'center', textDecoration: 'none' }}>
-                      📄 Download/View Resume
-                    </a>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
+                        onClick={() => handleView(currentProfile.resume_url!)}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                          <FileText size={15} /> View Resume
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.pageButton}
+                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
+                        onClick={() => handleDownload(currentProfile.resume_url!, 'candidate_resume.pdf')}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                          <Download size={15} /> Download
+                        </span>
+                      </button>
+                    </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     {currentProfile?.linkedin_url && (
@@ -371,21 +470,25 @@ export default function AdminCandidatesPage() {
               </section>
 
               <section className={styles.profileSection} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', marginTop: 'auto' }}>
-                <h4>Approval Workflow</h4>
+                <h4>Account Approval</h4>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
                   <button 
                     className={styles.primaryButton} 
                     style={{ flex: 1, background: previewUser.status === 'approved' ? '#f0fdf4' : '#10b981', color: previewUser.status === 'approved' ? '#166534' : 'white', border: previewUser.status === 'approved' ? '1px solid #bbf7d0' : 'none' }}
                     onClick={() => setApprovalStatus(previewUser, 'approved')}
                   >
-                    {previewUser.status === 'approved' ? '✅ Approved' : 'Accept Candidate'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                      <CheckCircle2 size={15} /> {previewUser.status === 'approved' ? 'Approved' : 'Approve Candidate'}
+                    </span>
                   </button>
                   <button 
                     className={styles.pageButton} 
                     style={{ flex: 1, color: previewUser.status === 'rejected' ? '#dc2626' : '#64748b', borderColor: previewUser.status === 'rejected' ? '#fecaca' : '#e2e8f0', background: previewUser.status === 'rejected' ? '#fef2f2' : 'white' }}
                     onClick={() => setApprovalStatus(previewUser, 'rejected')}
                   >
-                    {previewUser.status === 'rejected' ? '❌ Rejected' : 'Reject'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                      <XCircle size={15} /> {previewUser.status === 'rejected' ? 'Rejected' : 'Reject'}
+                    </span>
                   </button>
                 </div>
                 {previewUser.status === 'pending' && (

@@ -6,6 +6,7 @@ import { invokeFunction, insforge } from '@/lib/insforge';
 import { AdminHeader } from '../_components/AdminHeader';
 import { AdminStatCard } from '../_components/AdminStatCard';
 import { AdminInput, AdminButton } from '../_components/AdminForm';
+import { CheckCircle2, XCircle, AlertTriangle, Zap, FileText, Download, Folder } from 'lucide-react';
 
 type AdminCompany = {
   id: string;
@@ -256,8 +257,8 @@ export default function AdminCompaniesPage() {
   return (
     <section className={styles.page}>
       <AdminHeader
-        title="Companies Registry"
-        eyebrow="TalentMesh Organizational Index"
+        title="Manage Companies"
+        eyebrow="TalentMesh Organizations"
         subtitle="Manage the global list of verified organizations and their brand assets."
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard/admin' }, { label: 'Companies' }]}
         actions={
@@ -453,7 +454,11 @@ export default function AdminCompaniesPage() {
                       gap: '6px'
                     }}
                   >
-                    {verifying ? 'Updating...' : previewCompany.is_verified ? '❌ Unverify' : '✅ Verify Company'}
+                    {verifying ? 'Updating...' : previewCompany.is_verified ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><XCircle size={15} /> Unverify</span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={15} /> Verify Company</span>
+                    )}
                   </button>
                   <button
                     type="button"
@@ -476,7 +481,11 @@ export default function AdminCompaniesPage() {
                       gap: '6px'
                     }}
                   >
-                    {togglingActive ? 'Updating...' : previewCompany.is_active ? '⚠️ Suspend' : '⚡ Activate'}
+                    {togglingActive ? 'Updating...' : previewCompany.is_active ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><AlertTriangle size={15} /> Suspend</span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Zap size={15} /> Activate</span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -574,8 +583,8 @@ export default function AdminCompaniesPage() {
                         if (!docUrl) return null;
                         return (
                           <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '220px' }} title={docName}>
-                              📄 {docName}
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '220px', display: 'flex', alignItems: 'center', gap: '6px' }} title={docName}>
+                              <FileText size={15} /> {docName}
                             </span>
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <button
@@ -595,7 +604,7 @@ export default function AdminCompaniesPage() {
                                   fontWeight: 600
                                 }}
                               >
-                                View
+                                <FileText size={13} /> View
                               </button>
                               <button
                                 type="button"
@@ -614,7 +623,7 @@ export default function AdminCompaniesPage() {
                                   fontWeight: 600
                                 }}
                               >
-                                Download
+                                <Download size={13} /> Download
                               </button>
                             </div>
                           </div>
@@ -623,8 +632,8 @@ export default function AdminCompaniesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', color: '#64748b' }}>
-                    <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '4px' }}>📁</span>
+                  <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <Folder size={40} style={{ color: '#cbd5e1', marginBottom: '8px' }} />
                     <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>No verification documents uploaded.</span>
                   </div>
                 )}

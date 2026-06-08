@@ -100,6 +100,8 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
             }
         }
         fetchData();
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
     }, [authLoading, authUser?.id]);
 
     if (authLoading || loading) {
