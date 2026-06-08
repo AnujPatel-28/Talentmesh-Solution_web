@@ -184,6 +184,7 @@ export default function ProfilePage() {
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'resume') => {
         const file = e.target.files?.[0];
         if (!file || !user) return;
+        if (type === 'avatar' && !isEditing) return;
 
         setUploadProgress(prev => ({ ...prev, [type]: 10 }));
 
@@ -284,15 +285,15 @@ export default function ProfilePage() {
                 <div className={styles.profileCard}>
                     <div
                         className={styles.profileAvatar}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => avatarInputRef.current?.click()}
+                        style={{ cursor: isEditing ? 'pointer' : 'default' }}
+                        onClick={() => isEditing && avatarInputRef.current?.click()}
                     >
                         {profile.avatar_url ? (
                             <img src={getPublicStorageUrl('avatars', profile.avatar_url)} alt={profile.name} className={styles.avatarImg} />
                         ) : (
                             (profile.name || 'User').split(' ').filter(Boolean).map(n => n[0]).join('')
                         )}
-                        <div className={styles.avatarOverlay}>{IC.camera}</div>
+                        {isEditing && <div className={styles.avatarOverlay}>{IC.camera}</div>}
                         <span className={styles.onlineDot} />
                         <input
                             type="file"
