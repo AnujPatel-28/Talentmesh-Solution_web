@@ -52,22 +52,22 @@ export default React.memo(function StickyActionBar({
       />
 
       {showBar && (
-        <div className={styles.stickyActionBar} role="region" aria-label="Profile controls">
+        <div className={`${styles.stickyActionBar} ${isEditing ? styles.editing : ''}`} role="region" aria-label="Profile controls">
           <div className={styles.stickyActionContent}>
             <div>
               <span className={styles.stickyName}>{candidateName}</span>
               <span className={styles.stickySub}>
-                Strength: {completionScore}%{' '}
+                <span className={styles.stickyStrength}>Strength: {completionScore}% · </span>
                 {isEditing ? (
                   isSaving ? (
-                    <span className={styles.saveStatus} data-status="saving">· Saving...</span>
+                    <span className={styles.saveStatus} data-status="saving">Saving...</span>
                   ) : isDirty ? (
-                    <span className={styles.saveStatus} data-status="dirty">· ● Unsaved changes</span>
+                    <span className={styles.saveStatus} data-status="dirty">● Unsaved changes</span>
                   ) : (
-                    <span className={styles.saveStatus} data-status="saved">· ✓ Saved</span>
+                    <span className={styles.saveStatus} data-status="saved">✓ Saved</span>
                   )
                 ) : (
-                  <span className={styles.saveStatus} data-status="saved">· View mode</span>
+                  <span className={styles.saveStatus} data-status="saved">View mode</span>
                 )}
               </span>
             </div>
