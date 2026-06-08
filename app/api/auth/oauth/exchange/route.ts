@@ -117,15 +117,16 @@ export async function POST(request: NextRequest) {
     if (key.toLowerCase() === 'set-cookie') {
       let fixed = value;
       const host = request.headers.get('host') || '';
-      if (!fixed.toLowerCase().includes('domain=')) {
-        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        if (!fixed.toLowerCase().includes('domain=')) {
           const parts = host.split(':');
           const domainParts = parts[0].split('.');
           const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
           fixed = `${fixed}; Domain=.${baseDomain}`;
-        } else if (host.includes('localhost')) {
-          fixed = `${fixed}; Domain=localhost`;
         }
+      } else {
+        // Localhost: strip Domain if present so browser accepts it
+        fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
       }
 
       if (process.env.NODE_ENV === 'development') {

@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { insforge, directInsforge } from '@/lib/insforge';
+import { insforge, directInsforge, refreshAccessToken } from '@/lib/insforge';
 import type { User, UserRole } from '@/types/auth';
 
 interface AuthContextType {
@@ -203,9 +203,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
 
     try {
-      // Extract token from cookies for verification
-      let token;
-      if (typeof window !== 'undefined') {
+      // Proactively rotate/refresh token first to keep session active
+      const refreshedToken = await refreshAccessToken();
+
+      // Extract token from cookies for verification if refreshedToken isn't returned directly
+      let token = refreshedToken;
+      if (!token && typeof window !== 'undefined') {
         const match = document.cookie.match(/tm_access_token=([^;]+)/);
         token = match ? match[1] : null;
         if (token && token.startsWith('Bearer%20')) {

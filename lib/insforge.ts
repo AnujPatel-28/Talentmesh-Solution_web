@@ -18,6 +18,15 @@ export const insforge = createClient({
   anonKey: supabaseAnonKey,
 });
 
+/**
+ * Direct client that bypasses the local proxy.
+ * Use ONLY for public data fetching (like blogs) to avoid CORS/proxy header issues.
+ */
+export const directInsforge = createClient({
+  baseUrl: supabaseUrl,
+  anonKey: supabaseAnonKey,
+});
+
 if (typeof window !== 'undefined') {
   try {
     // Explicitly override baseUrl in the browser to prevent any SSR-leak of the remote URL
@@ -30,20 +39,15 @@ if (typeof window !== 'undefined') {
     const token = window.sessionStorage.getItem('tm_token');
     if (token) {
       insforge.setAccessToken(token);
+      directInsforge.setAccessToken(token);
+      if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
+        (directInsforge.realtime as any).setAuth(token);
+      }
     }
   } catch (err) {
     console.warn('Failed to auto-restore access token from sessionStorage:', err);
   }
 }
-
-/**
- * Direct client that bypasses the local proxy.
- * Use ONLY for public data fetching (like blogs) to avoid CORS/proxy header issues.
- */
-export const directInsforge = createClient({
-  baseUrl: supabaseUrl,
-  anonKey: supabaseAnonKey,
-});
 
 /**
  * Helper to invoke Edge Functions manually to bypass SDK URL construction bug.
@@ -210,7 +214,6 @@ export function getTokenRemainingSeconds(token: string): number {
  */
 function saveCsrfToken(csrf: string): void {
   if (typeof window === 'undefined') return;
-  window.sessionStorage.setItem('tm_csrf_token', csrf);
   const maxAge = 7 * 24 * 60 * 60;
   // Write with path=/ so it is accessible from any page via document.cookie
   document.cookie = `insforge_csrf_token=${encodeURIComponent(csrf)}; path=/; max-age=${maxAge}; SameSite=Lax`;
@@ -222,11 +225,6 @@ function saveCsrfToken(csrf: string): void {
  * then falls back to the insforge_csrf_token cookie (set by the SDK during OAuth).
  */
 function getCsrfToken(): string {
-  // sessionStorage holds the LATEST rotated value — check it first
-  if (typeof window !== 'undefined') {
-    const stored = window.sessionStorage.getItem('tm_csrf_token');
-    if (stored) return stored;
-  }
   // Cookie fallback (initial value set by SDK during OAuth code exchange)
   if (typeof document !== 'undefined') {
     const match = document.cookie.split(';').find((c) => c.trim().startsWith('insforge_csrf_token='));
@@ -283,6 +281,10 @@ export async function refreshAccessToken(): Promise<string | null> {
         
         // Synchronize refreshed token with active browser SDK client for direct queries
         insforge.setAccessToken(newToken);
+        directInsforge.setAccessToken(newToken);
+        if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
+          (directInsforge.realtime as any).setAuth(newToken);
+        }
       }
       return newToken;
     } catch {

@@ -141,6 +141,37 @@ export async function deleteFile(bucket: string, path: string): Promise<void> {
     throw new Error(`Failed to delete file from ${bucket}: ${error.message}`);
   }
 }
+
+/**
+ * Helper to extract bucket-relative path from an absolute storage URL.
+ * e.g. "https://your-app.region.insforge.app/storage/v1/object/public/resumes/userId/filename.pdf"
+ * -> "userId/filename.pdf"
+ */
+export function getPathFromUrl(url: string, bucketName: string): string {
+  if (!url) return '';
+  try {
+    const decodedUrl = decodeURIComponent(url);
+    const marker = `/${bucketName}/`;
+    const index = decodedUrl.indexOf(marker);
+    if (index !== -1) {
+      return decodedUrl.substring(index + marker.length).split('?')[0];
+    }
+    // Fallback if it is already a relative path or direct name
+    if (!url.startsWith('http')) {
+      return url;
+    }
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    const bucketIndex = pathParts.indexOf(bucketName);
+    if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+      return pathParts.slice(bucketIndex + 1).join('/');
+    }
+    return decodedUrl;
+  } catch (e) {
+    console.error('Error parsing storage URL:', e);
+    return url;
+  }
+}
 /**
  * Utility for uploading blog cover images to the 'blog-images' bucket.
  * Constraints: Max 5MB, patterns (jpeg, png, webp).

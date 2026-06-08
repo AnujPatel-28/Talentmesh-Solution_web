@@ -63,15 +63,16 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
   const isStorageGet = request.method === 'GET' && path.includes('storage/buckets/');
 
   try {
+    let requestBody: any = undefined;
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      requestBody = await request.arrayBuffer();
+    }
+
     const fetchOptions: RequestInit = {
       method: request.method,
       headers,
       redirect: isStorageGet ? 'follow' : 'manual',
-      // only pass body if not GET/HEAD
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body as any,
-      // allow binary bodies / duplex streams
-      // @ts-ignore
-      duplex: 'half',
+      body: requestBody,
       cache: 'no-store'
     };
 
@@ -151,11 +152,7 @@ function fixCookies(request: NextRequest, sourceResponse: Response, targetRespon
 
     // Override Domain
     if (isLocal) {
-      if (fixed.toLowerCase().includes('domain=')) {
-        fixed = fixed.replace(/Domain=[^;]+(;|$)/i, 'Domain=localhost;');
-      } else {
-        fixed = `${fixed}; Domain=localhost`;
-      }
+      fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
     } else {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');

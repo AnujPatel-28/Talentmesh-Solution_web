@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSessionClient } from '@/lib/auth/server-auth';
 
+const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL!;
+const ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
+
 /**
  * GET /api/auth/sessions/current
  * Helper endpoint for the SDK to retrieve the current session.
@@ -24,5 +27,65 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('[sessions/current] Error fetching session:', err);
     return NextResponse.json({ user: null }, { status: 200 });
+  }
+}
+
+/**
+ * POST /api/auth/sessions/current
+ * Handler to proxy token refresh requests from the SDK client to the InsForge backend.
+ */
+export async function POST(request: NextRequest) {
+  const body = await request.text();
+  const headers = new Headers(request.headers);
+  headers.delete('host');
+  headers.set('apikey', ANON_KEY);
+
+  const targetUrl = `${INSFORGE_URL.replace(/\/$/, '')}/api/auth/sessions/current`;
+
+  try {
+    const insforgeRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers,
+      body,
+    });
+
+    const responseBody = await insforgeRes.text();
+
+    const response = new NextResponse(responseBody, {
+      status: insforgeRes.status,
+      headers: { 'Content-Type': insforgeRes.headers.get('Content-Type') || 'application/json' },
+    });
+
+    // Fix cookies so the browser doesn't drop them on localhost / custom domain
+    insforgeRes.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') {
+        let fixed = value;
+        const host = request.headers.get('host') || '';
+        
+        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+          if (!fixed.toLowerCase().includes('domain=')) {
+            const parts = host.split(':');
+            const domainParts = parts[0].split('.');
+            const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+            fixed = `${fixed}; Domain=.${baseDomain}`;
+          }
+        } else {
+          // Localhost: strip Domain if present so browser accepts it
+          fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
+        }
+
+        if (process.env.NODE_ENV === 'development') {
+          fixed = fixed.replace(/SameSite=None/gi, 'SameSite=Lax');
+          fixed = fixed.replace(/Secure/gi, '');
+        }
+        
+        response.headers.append('Set-Cookie', fixed);
+      }
+    });
+
+    return response;
+  } catch (error) {
+    console.error('[sessions/current] POST Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

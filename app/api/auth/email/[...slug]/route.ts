@@ -81,11 +81,7 @@ function fixCookies(request: NextRequest, sourceResponse: Response, targetRespon
 
     // Override Domain
     if (isLocal) {
-      if (fixed.toLowerCase().includes('domain=')) {
-        fixed = fixed.replace(/Domain=[^;]+(;|$)/i, 'Domain=localhost;');
-      } else {
-        fixed = `${fixed}; Domain=localhost`;
-      }
+      fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
     } else {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
