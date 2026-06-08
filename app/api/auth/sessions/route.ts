@@ -34,11 +34,57 @@ export async function POST(request: NextRequest) {
   }
 
   const responseBody = await insforgeRes.text();
+  let parsedData: any = null;
+  try {
+    parsedData = JSON.parse(responseBody);
+  } catch (e) {
+    console.error('[sessions] Failed to parse JSON:', e);
+  }
 
   const response = new NextResponse(responseBody, {
     status: insforgeRes.status,
     headers: { 'Content-Type': insforgeRes.headers.get('Content-Type') || 'application/json' },
   });
+
+  if (insforgeRes.ok && parsedData) {
+    const accessToken = parsedData.access_token || parsedData.accessToken;
+    const refreshToken = parsedData.refresh_token || parsedData.refreshToken;
+    const expiresIn = parsedData.expires_in || parsedData.expiresIn || 3600;
+
+    const host = request.headers.get('host') || '';
+    let domain = undefined;
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      const parts = host.split(':');
+      const domainParts = parts[0].split('.');
+      domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
+    }
+
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      sameSite: 'lax' as const,
+      ...(domain ? { domain } : {})
+    };
+
+    if (accessToken) {
+      response.cookies.set('tm_access_token', accessToken, {
+        ...cookieOptions,
+        maxAge: expiresIn,
+      });
+    }
+
+    if (refreshToken) {
+      response.cookies.set('tm_refresh_token', refreshToken, {
+        ...cookieOptions,
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+      response.cookies.set('insforge_refresh_token', refreshToken, {
+        ...cookieOptions,
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+    }
+  }
 
   // Forward Set-Cookie headers, stripping Secure on localhost so the browser stores them
   insforgeRes.headers.forEach((value, key) => {
@@ -46,15 +92,16 @@ export async function POST(request: NextRequest) {
       let fixed = value;
       // Inject root domain for multi-tenant cookie sharing
       const host = request.headers.get('host') || '';
-      if (!fixed.toLowerCase().includes('domain=')) {
-        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        if (!fixed.toLowerCase().includes('domain=')) {
           const parts = host.split(':'); // remove port if present
           const domainParts = parts[0].split('.');
           const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
           fixed = `${fixed}; Domain=.${baseDomain}`;
-        } else if (host.includes('localhost')) {
-          fixed = `${fixed}; Domain=localhost`;
         }
+      } else {
+        // Localhost: strip Domain if present so browser accepts it
+        fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
       }
 
       if (process.env.NODE_ENV === 'development') {

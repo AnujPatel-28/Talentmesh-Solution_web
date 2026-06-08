@@ -237,6 +237,27 @@ export default function CandidateOnboardingPage() {
 
                 if (uploadError) throw new Error('Resume upload failed: ' + uploadError.message);
                 finalResumeUrl = uploadData?.url || null;
+                setUploadProgress(40);
+
+                if (finalResumeUrl) {
+                    // Mark any existing resumes as non-default
+                    await insforge.database
+                        .from('candidate_resumes')
+                        .update({ is_default: false })
+                        .eq('candidate_id', user.id);
+
+                    const baseName = resume.name.substring(0, resume.name.lastIndexOf('.')) || resume.name;
+                    await insforge.database
+                        .from('candidate_resumes')
+                        .insert([{
+                            candidate_id: user.id,
+                            label: baseName,
+                            file_url: finalResumeUrl,
+                            file_name: resume.name,
+                            file_size_bytes: resume.size,
+                            is_default: true
+                        }]);
+                }
                 setUploadProgress(60);
             }
 

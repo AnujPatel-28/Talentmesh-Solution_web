@@ -33,8 +33,6 @@ export async function POST(request: NextRequest) {
     const domainParts = parts[0].split('.');
     const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
     cookieOptions += `; Domain=.${baseDomain}`;
-  } else if (host.includes('localhost')) {
-    cookieOptions += `; Domain=localhost`;
   }
 
   const response = NextResponse.json({ success: true }, { status: 200 });

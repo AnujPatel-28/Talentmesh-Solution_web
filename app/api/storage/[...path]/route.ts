@@ -129,6 +129,11 @@ async function handleProxy(
   console.log('[Storage Proxy] Final auth:', `Bearer ${token.substring(0, 15)}...`);
 
   try {
+    let requestBody: any = undefined;
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      requestBody = await request.arrayBuffer();
+    }
+
     const fetchOptions: RequestInit = {
       method: request.method,
       headers,
@@ -213,11 +218,7 @@ function fixCookies(request: NextRequest, sourceResponse: Response, targetRespon
     let fixed = value;
 
     if (isLocal) {
-      if (fixed.toLowerCase().includes('domain=')) {
-        fixed = fixed.replace(/Domain=[^;]+(;|$)/i, 'Domain=localhost;');
-      } else {
-        fixed = `${fixed}; Domain=localhost`;
-      }
+      fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
     } else {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');

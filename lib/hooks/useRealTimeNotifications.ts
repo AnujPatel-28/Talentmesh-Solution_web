@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { insforge } from '@/lib/insforge';
+import { insforge, directInsforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 
 export interface NotificationData {
@@ -65,9 +65,9 @@ export function useRealTimeNotifications() {
 
     const setupRealtime = async () => {
       try {
-        await insforge.realtime.connect();
-        await insforge.realtime.subscribe('notifications:' + user.id);
-        insforge.realtime.on('INSERT_notifications', handleNewNotification);
+        await directInsforge.realtime.connect();
+        await directInsforge.realtime.subscribe('notifications:' + user.id);
+        directInsforge.realtime.on('INSERT_notifications', handleNewNotification);
       } catch (err) {
         console.error('Realtime connection error:', err);
       }
@@ -76,8 +76,8 @@ export function useRealTimeNotifications() {
     setupRealtime();
 
     return () => {
-      insforge.realtime.off('INSERT_notifications', handleNewNotification);
-      insforge.realtime.unsubscribe('notifications:' + user.id);
+      directInsforge.realtime.off('INSERT_notifications', handleNewNotification);
+      directInsforge.realtime.unsubscribe('notifications:' + user.id);
     };
   }, [user, fetchNotifications]);
 

@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@insforge/sdk';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './AnnouncementBanner.module.css';
-
 import { insforge } from '@/lib/insforge';
 
 interface Announcement {
@@ -12,6 +10,7 @@ interface Announcement {
     title: string;
     message: string;
     type: 'info' | 'success' | 'warning' | 'critical';
+    image_url?: string | null;
 }
 
 export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recruiter' }) {
@@ -26,28 +25,38 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
         const fetchAnnouncement = async () => {
             try {
                 const now = new Date().toISOString();
-                const client = insforge;
 
-                const { data, error } = await client.database
+                // Fetch the most recent active banner for this role
+                // Keep the filter simple to avoid PostgREST nested-AND quirks:
+                // fetch candidates and filter scheduling client-side
+                const { data, error } = await insforge.database
                     .from('announcements')
-                    .select('id, title, message, type')
+                    .select('id, title, message, type, image_url, scheduled_at, expires_at')
                     .eq('is_active', true)
                     .eq('show_as_banner', true)
                     .contains('target_roles', [role])
-                    .or(`and(expires_at.is.null,scheduled_at.is.null),and(expires_at.is.null,scheduled_at.lte.${now}),and(expires_at.gt.${now},scheduled_at.is.null),and(expires_at.gt.${now},scheduled_at.lte.${now})`)
                     .order('created_at', { ascending: false })
-                    .limit(1);
+                    .limit(10);
 
                 if (error) throw error;
                 if (!data || data.length === 0) return;
 
-                const ann = data[0];
+                // Client-side scheduling filter (safe, avoids PostgREST AND nesting issues)
+                const validNow = data.filter((ann: any) => {
+                    const scheduledOk = !ann.scheduled_at || ann.scheduled_at <= now;
+                    const notExpired = !ann.expires_at || ann.expires_at > now;
+                    return scheduledOk && notExpired;
+                });
+
+                if (validNow.length === 0) return;
+
+                const ann = validNow[0];
 
                 // Check local dismissal
                 if (localStorage.getItem(`dismissed_announcement_${ann.id}`)) return;
 
                 // Check DB dismissal
-                const { data: dismissal } = await client.database
+                const { data: dismissal } = await insforge.database
                     .from('announcement_dismissals')
                     .select('id')
                     .eq('announcement_id', ann.id)
@@ -59,11 +68,11 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
                 setAnnouncement(ann);
                 setIsVisible(true);
 
-                // Increment view count via RPC
-                await client.database.rpc('increment_announcement_view', { ann_id: ann.id });
+                // Increment view count
+                await insforge.database.rpc('increment_announcement_view', { ann_id: ann.id });
 
-            } catch (err: any) {
-                // Ignore all banner fetch errors silently since the banner is non-critical
+            } catch {
+                // Non-critical — banner errors are silent
             }
         };
 
@@ -77,32 +86,22 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
         setTimeout(() => setIsVisible(false), 300);
 
         try {
-            // Store locally
             localStorage.setItem(`dismissed_announcement_${announcement.id}`, '1');
 
-            const client = insforge;
-
-            // Store in DB
-            await client.database.from('announcement_dismissals').insert({
+            await insforge.database.from('announcement_dismissals').insert({
                 announcement_id: announcement.id,
-                user_id: user.id
+                user_id: user.id,
             });
 
-            // Increment dismiss count via RPC
-            await client.database.rpc('increment_announcement_dismiss', { ann_id: announcement.id });
-
-        } catch (err: any) {
-            // Ignore banner dismissal errors silently
+            await insforge.database.rpc('increment_announcement_dismiss', { ann_id: announcement.id });
+        } catch {
+            // Silent
         }
     };
 
     if (!isVisible || !announcement) return null;
 
-    const renderMessage = (msg: string) => {
-        return msg.split('**').map((part, i) => (
-            i % 2 === 1 ? <strong key={i}>{part}</strong> : part
-        ));
-    };
+
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -139,9 +138,22 @@ export default function AnnouncementBanner({ role }: { role: 'candidate' | 'recr
                 {getIcon(announcement.type)}
                 <div className={styles.text}>
                     <span className={styles.title}>{announcement.title}</span>
-                    {renderMessage(announcement.message)}
+                    <span dangerouslySetInnerHTML={{ __html: announcement.message }} />
                 </div>
             </div>
+            {announcement.image_url && (
+                <img
+                    src={announcement.image_url}
+                    alt=""
+                    style={{
+                        height: '36px',
+                        borderRadius: '6px',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                        border: '1px solid rgba(0,0,0,0.08)',
+                    }}
+                />
+            )}
             <button className={styles.dismissBtn} onClick={handleDismiss} aria-label="Dismiss announcement">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

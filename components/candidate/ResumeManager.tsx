@@ -5,6 +5,7 @@ import styles from './ResumeManager.module.css';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import Toast from '@/components/ui/Toast';
+import { getPathFromUrl } from '@/lib/api/storage';
 
 interface Resume {
     id: string;
@@ -166,6 +167,13 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
 
             if (error) throw error;
 
+            if (isDefault) {
+                await insforge.database
+                    .from('candidate_profiles')
+                    .update({ resume_url: uploadedFile.url })
+                    .eq('id', activeCandidateId);
+            }
+
             setToast({ message: 'Resume added successfully!', type: 'success' });
             setShowModal(false);
             setUploadedFile(null);
@@ -197,6 +205,13 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                 .eq('id', resume.id);
 
             if (error) throw error;
+
+            const { error: profileError } = await insforge.database
+                .from('candidate_profiles')
+                .update({ resume_url: resume.file_url })
+                .eq('id', activeCandidateId);
+
+            if (profileError) throw profileError;
         } catch (err: any) {
             setResumes(oldResumes);
             setToast({ message: 'Failed to set default: ' + err.message, type: 'error' });
@@ -237,12 +252,60 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         }
 
         try {
+            // 1. Delete physical file from storage bucket first
+            const filePath = getPathFromUrl(resume.file_url, 'resumes');
+            if (filePath) {
+                const { error: storageError } = await insforge.storage.from('resumes').remove(filePath);
+                if (storageError) {
+                    console.error('Storage deletion failed:', storageError.message);
+                }
+            }
+
+            // 2. Delete from candidate_resumes table
             const { error } = await insforge.database
                 .from('candidate_resumes')
                 .delete()
                 .eq('id', resume.id);
 
             if (error) throw error;
+
+            // 3. Update candidate_profiles if needed
+            if (resume.is_default) {
+                const remainingResumes = resumes.filter(r => r.id !== resume.id);
+                if (remainingResumes.length > 0) {
+                    const newDefaultResume = remainingResumes[0];
+                    // Update remaining resume to be default
+                    await insforge.database
+                        .from('candidate_resumes')
+                        .update({ is_default: true })
+                        .eq('id', newDefaultResume.id);
+                    
+                    // Update profile with the new default resume url
+                    await insforge.database
+                        .from('candidate_profiles')
+                        .update({ resume_url: newDefaultResume.file_url })
+                        .eq('id', activeCandidateId);
+                } else {
+                    // No resumes left, clear the profile resume url
+                    await insforge.database
+                        .from('candidate_profiles')
+                        .update({ resume_url: null })
+                        .eq('id', activeCandidateId);
+                }
+            } else {
+                // If it wasn't default, but candidate_profiles.resume_url happens to match it, clear it
+                const { data: cpData } = await insforge.database
+                    .from('candidate_profiles')
+                    .select('resume_url')
+                    .eq('id', activeCandidateId)
+                    .single();
+                if (cpData?.resume_url === resume.file_url) {
+                    await insforge.database
+                        .from('candidate_profiles')
+                        .update({ resume_url: null })
+                        .eq('id', activeCandidateId);
+                }
+            }
 
             setToast({ message: 'Resume deleted.', type: 'success' });
             fetchResumes();

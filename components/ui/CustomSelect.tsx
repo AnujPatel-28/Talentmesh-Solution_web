@@ -12,9 +12,10 @@ export interface CustomSelectProps {
   style?: React.CSSProperties;
   footer?: React.ReactNode;
   disabled?: boolean;
+  dropUp?: boolean;
 }
 
-export function CustomSelect({ name, value, onChange, options, placeholder, className, required, style, footer, disabled }: CustomSelectProps) {
+export function CustomSelect({ name, value, onChange, options, placeholder, className, required, style, footer, disabled, dropUp }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +52,9 @@ export function CustomSelect({ name, value, onChange, options, placeholder, clas
       </div>
       {isOpen && (
         <div style={{ 
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, 
+          position: 'absolute', 
+          ...(dropUp ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
+          left: 0, right: 0, 
           background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', 
           zIndex: 100, maxHeight: '240px', overflowY: 'auto',
           boxShadow: '0 10px 25px rgba(0,0,0,0.05)',

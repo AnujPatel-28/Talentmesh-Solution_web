@@ -133,6 +133,104 @@ export async function proxy(request: NextRequest) {
   const isAdminPortal = host.startsWith('admin.');
   const isTenantPortal = !isJobsPortal && !isAppPortal && !isAdminPortal && !host.includes('localhost') && !host.includes('127.0.0.1');
 
+  const isStaticOrApi = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/static') || pathname.includes('.');
+  const isMainDomain = !isJobsPortal && !isAppPortal && !isAdminPortal;
+
+  if (isMainDomain && !isStaticOrApi) {
+    if (pathname.startsWith('/candidate') || pathname.startsWith('/dashboard/candidate')) {
+      const proto = request.url.startsWith('https') ? 'https://' : 'http://';
+      const cleanHost = host.replace(/^www\./, '');
+      let relative = pathname;
+      if (pathname.startsWith('/dashboard/candidate')) {
+        relative = pathname.substring('/dashboard/candidate'.length);
+      } else if (pathname.startsWith('/candidate/dashboard')) {
+        relative = pathname.substring('/candidate/dashboard'.length);
+      } else if (pathname.startsWith('/candidate')) {
+        relative = pathname.substring('/candidate'.length);
+      }
+      const newUrl = new URL(`${proto}jobs.${cleanHost}${relative || '/dashboard'}${request.nextUrl.search}`);
+      return NextResponse.redirect(newUrl);
+    }
+    if (pathname.startsWith('/recruiter') || pathname.startsWith('/dashboard/recruiter')) {
+      const proto = request.url.startsWith('https') ? 'https://' : 'http://';
+      const cleanHost = host.replace(/^www\./, '');
+      let relative = pathname;
+      if (pathname.startsWith('/dashboard/recruiter')) {
+        relative = pathname.substring('/dashboard/recruiter'.length);
+      } else if (pathname.startsWith('/recruiter/dashboard')) {
+        relative = pathname.substring('/recruiter/dashboard'.length);
+      } else if (pathname.startsWith('/recruiter')) {
+        relative = pathname.substring('/recruiter'.length);
+      }
+      const newUrl = new URL(`${proto}app.${cleanHost}${relative || '/dashboard'}${request.nextUrl.search}`);
+      return NextResponse.redirect(newUrl);
+    }
+    if (pathname.startsWith('/admin') || pathname.startsWith('/dashboard/admin')) {
+      const proto = request.url.startsWith('https') ? 'https://' : 'http://';
+      const cleanHost = host.replace(/^www\./, '');
+      let relative = pathname;
+      if (pathname.startsWith('/dashboard/admin')) {
+        relative = pathname.substring('/dashboard/admin'.length);
+      } else if (pathname.startsWith('/admin/dashboard')) {
+        relative = pathname.substring('/admin/dashboard'.length);
+      } else if (pathname.startsWith('/admin')) {
+        relative = pathname.substring('/admin'.length);
+      }
+      const newUrl = new URL(`${proto}admin.${cleanHost}${relative || '/dashboard'}${request.nextUrl.search}`);
+      return NextResponse.redirect(newUrl);
+    }
+  }
+
+  // Enforce subdomain routing for portal subdomains when accessing wrong portal path
+  if (!isMainDomain && !isStaticOrApi) {
+    const proto = request.url.startsWith('https') ? 'https://' : 'http://';
+    const cleanHost = host.replace(/^www\./, '').replace(/^(jobs|app|admin)\./, '');
+
+    // 1. Admin path enforcement
+    if (pathname.startsWith('/admin') && !isAdminPortal) {
+      return NextResponse.redirect(new URL(`${proto}admin.${cleanHost}${pathname}${request.nextUrl.search}`));
+    }
+    if (pathname.startsWith('/dashboard/admin')) {
+      const relativePath = pathname.substring('/dashboard/admin'.length);
+      return NextResponse.redirect(new URL(`${proto}admin.${cleanHost}/admin/dashboard${relativePath}${request.nextUrl.search}`));
+    }
+
+    // 2. Recruiter path enforcement
+    if ((pathname.startsWith('/recruiter') || pathname.startsWith('/onboarding/recruiter')) && !isAppPortal) {
+      return NextResponse.redirect(new URL(`${proto}app.${cleanHost}${pathname}${request.nextUrl.search}`));
+    }
+    if (pathname.startsWith('/dashboard/recruiter')) {
+      let relativePath = pathname.substring('/dashboard/recruiter'.length);
+      const segments = relativePath.split('/').filter(Boolean);
+      if (segments.length > 0) {
+        const firstSegment = segments[0];
+        if (firstSegment.startsWith('recr_') || firstSegment === user?.role_id || firstSegment === user?.id || (user && firstSegment.length > 15)) {
+          segments.shift();
+        }
+      }
+      relativePath = segments.length > 0 ? '/' + segments.join('/') : '';
+      return NextResponse.redirect(new URL(`${proto}app.${cleanHost}/recruiter/dashboard${relativePath}${request.nextUrl.search}`));
+    }
+
+    // 3. Candidate path enforcement
+    if ((pathname.startsWith('/candidate') || pathname.startsWith('/onboarding/candidate')) && !isJobsPortal) {
+      return NextResponse.redirect(new URL(`${proto}jobs.${cleanHost}${pathname}${request.nextUrl.search}`));
+    }
+    if (pathname.startsWith('/dashboard/candidate')) {
+      let relativePath = pathname.substring('/dashboard/candidate'.length);
+      const segments = relativePath.split('/').filter(Boolean);
+      if (segments.length > 0) {
+        const firstSegment = segments[0];
+        if (firstSegment.startsWith('cand_') || firstSegment === user?.id || (user && firstSegment.length > 15)) {
+          segments.shift();
+        }
+      }
+      relativePath = segments.length > 0 ? '/' + segments.join('/') : '';
+      return NextResponse.redirect(new URL(`${proto}jobs.${cleanHost}/candidate/dashboard${relativePath}${request.nextUrl.search}`));
+    }
+  }
+
+
   const authPages = ['/login', '/signup', '/forgot-password', '/admin/login', '/auth/forgot-password'];
 
   // If accessing a specific portal, we can restrict access or rewrite

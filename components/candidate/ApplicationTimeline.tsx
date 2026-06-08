@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { insforge } from '@/lib/insforge';
+import { STATUS_LABELS } from '@/lib/constants/applicationStatuses';
 import styles from './ApplicationTimeline.module.css';
 
 interface ApplicationTimelineProps {
@@ -18,18 +19,18 @@ interface StatusHistory {
 }
 
 const STAGES = [
-  { key: 'applied', label: 'Applied', icon: '📝', aliases: ['applied'] },
-  { key: 'screening', label: 'Under Review', icon: '🔍', aliases: ['screening', 'reviewing'] },
-  { key: 'shortlisted', label: 'Shortlisted', icon: '⭐', aliases: ['shortlisted'] },
-  { key: 'interviewing', label: 'Interview', icon: '🎙️', aliases: ['interviewing', 'interview'] },
-  { key: 'offer', label: 'Offer Extended', icon: '📋', aliases: ['offer', 'offered'] },
-  { key: 'hired', label: 'Hired', icon: '🎉', aliases: ['hired'] },
+  { key: 'applied', label: STATUS_LABELS.applied, icon: '📝', aliases: ['applied'] },
+  { key: 'reviewing', label: STATUS_LABELS.reviewing, icon: '🔍', aliases: ['screening', 'reviewing'] },
+  { key: 'shortlisted', label: STATUS_LABELS.shortlisted, icon: '⭐', aliases: ['shortlisted'] },
+  { key: 'interviewing', label: STATUS_LABELS.interviewing, icon: '🎙️', aliases: ['interviewing', 'interview'] },
+  { key: 'offered', label: STATUS_LABELS.offered, icon: '📋', aliases: ['offer', 'offered'] },
+  { key: 'hired', label: STATUS_LABELS.hired.replace(' 🎉', ''), icon: '🎉', aliases: ['hired'] },
 ];
 
 const TERMINAL_STAGES: Record<string, { label: string, icon: string, class: string }> = {
-  rejected: { label: 'Not Selected', icon: '✕', class: styles.terminal },
-  withdrawn: { label: 'Withdrawn', icon: '↩', class: styles.withdrawn },
-  accepted: { label: 'Accepted', icon: '✅', class: styles.completed }, // Some use accepted as terminal
+  rejected: { label: STATUS_LABELS.rejected, icon: '✕', class: styles.terminal },
+  withdrawn: { label: STATUS_LABELS.withdrawn, icon: '↩', class: styles.withdrawn },
+  accepted: { label: STATUS_LABELS.hired, icon: '✅', class: styles.completed }, // Some use accepted as terminal
 };
 
 const FRIENDLY_MESSAGES: Record<string, string> = {

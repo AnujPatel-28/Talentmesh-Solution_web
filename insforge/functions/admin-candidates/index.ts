@@ -98,7 +98,7 @@ export default async function handler(request: Request): Promise<Response> {
       const { error: cpError } = await db.database
         .from('candidate_profiles')
         .delete()
-        .eq('id', id);
+        .eq('user_id', id);
       if (cpError) throw cpError;
 
       // 2. Delete from profiles

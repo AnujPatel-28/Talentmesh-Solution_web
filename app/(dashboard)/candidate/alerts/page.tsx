@@ -94,8 +94,7 @@ export default function JobAlertsPage() {
     fetchAlerts();
   }, [fetchAlerts]);
 
-  // Realtime simulation
-  /*
+  // Realtime updates for newly inserted jobs matching alerts
   useEffect(() => {
     if (!user) return;
 
@@ -111,7 +110,6 @@ export default function JobAlertsPage() {
       (insforge.realtime as any).removeChannel(channel);
     };
   }, [user, alerts]);
-  */
 
   const checkAlertsMatch = (job: any) => {
     const activeAlerts = alerts.filter(a => a.is_active);

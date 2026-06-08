@@ -30,6 +30,80 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
     const [activeTab, setActiveTab] = useState('overview');
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+
+    const handleDownload = async (url: string, filename: string) => {
+        try {
+            const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+            let targetUrl = url;
+            if (url.startsWith(insforgeUrl)) {
+                targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+            }
+
+            const response = await fetch(targetUrl);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error('Failed to download document:', err);
+            window.open(url, '_blank');
+        }
+    };
+
+    const handleView = async (url: string) => {
+        try {
+            const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+            let targetUrl = url;
+            if (url.startsWith(insforgeUrl)) {
+                targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+            }
+
+            const response = await fetch(targetUrl);
+            const blob = await response.blob();
+
+            let mimeType = blob.type;
+
+            try {
+                const buffer = await blob.slice(0, 4).arrayBuffer();
+                const arr = new Uint8Array(buffer);
+                if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
+                    mimeType = 'application/pdf';
+                } else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+                    mimeType = 'image/png';
+                } else if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+                    mimeType = 'image/jpeg';
+                } else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
+                    mimeType = 'image/gif';
+                }
+            } catch (readErr) {
+                console.error('Failed to parse magic bytes:', readErr);
+            }
+
+            if (mimeType === 'application/octet-stream' || !mimeType) {
+                if (url.toLowerCase().endsWith('.pdf')) {
+                    mimeType = 'application/pdf';
+                } else if (url.toLowerCase().endsWith('.png')) {
+                    mimeType = 'image/png';
+                } else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) {
+                    mimeType = 'image/jpeg';
+                } else {
+                    mimeType = 'application/pdf';
+                }
+            }
+
+            const fileBlob = new Blob([blob], { type: mimeType });
+            const blobUrl = window.URL.createObjectURL(fileBlob);
+            window.open(blobUrl, '_blank');
+        } catch (err) {
+            console.error('Failed to view document:', err);
+            window.open(url, '_blank');
+        }
+    };
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const saveTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -47,7 +121,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                         job:jobs(id, title, recruiter_id)
                     )
                 `)
-                .eq('id', id)
+                .eq('user_id', id)
                 .single();
 
             // Handle session expiry and retry
@@ -69,7 +143,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                 job:jobs(id, title, recruiter_id)
                             )
                         `)
-                        .eq('id', id)
+                        .eq('user_id', id)
                         .single();
                 }
             }
@@ -338,9 +412,24 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
 
                                     <span className={styles.sectionTitle}>Resume</span>
                                     {candidate?.resume_url ? (
-                                        <a href={candidate.resume_url} target="_blank" rel="noreferrer" className={styles.resumeBtn}>
-                                            {IC.download} Download Resume (PDF)
-                                        </a>
+                                        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                            <button
+                                                type="button"
+                                                className={styles.resumeBtn}
+                                                style={{ flex: 1, justifyContent: 'center', cursor: 'pointer' }}
+                                                onClick={() => handleView(candidate.resume_url)}
+                                            >
+                                                📄 View Resume
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={styles.resumeBtn}
+                                                style={{ flex: 1, justifyContent: 'center', cursor: 'pointer', background: '#eff6ff' }}
+                                                onClick={() => handleDownload(candidate.resume_url, 'candidate_resume.pdf')}
+                                            >
+                                                📥 Download
+                                            </button>
+                                        </div>
                                     ) : (
                                         <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>No resume uploaded</p>
                                     )}
@@ -403,9 +492,23 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem', alignItems: 'center' }}>
                                                 <span>Method: <strong style={{ textTransform: 'uppercase', color: app.apply_type === 'manual' ? '#f59e0b' : '#3b82f6' }}>{app.apply_type || 'quick'}</strong></span>
                                                 {app.resume_url && (
-                                                    <a href={app.resume_url} target="_blank" rel="noreferrer" style={{ color: 'var(--primary-blue)', fontWeight: 600, textDecoration: 'none', fontSize: '0.8rem' }}>
-                                                        View Resume ↗
-                                                    </a>
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button
+                                                            type="button"
+                                                            style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}
+                                                            onClick={() => handleView(app.resume_url)}
+                                                        >
+                                                            View Resume ↗
+                                                        </button>
+                                                        <span style={{ color: '#cbd5e1' }}>|</span>
+                                                        <button
+                                                            type="button"
+                                                            style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}
+                                                            onClick={() => handleDownload(app.resume_url, 'application_resume.pdf')}
+                                                        >
+                                                            Download 📥
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
 

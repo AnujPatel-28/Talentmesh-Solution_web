@@ -10,7 +10,6 @@ import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter } from 'next/navigation';
 import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
-import { CustomSelect } from '@/components/ui/CustomSelect';
 
 
 type CompanyOption = {
@@ -279,25 +278,25 @@ export default function AdminJobsPage() {
     setSuccess('');
     try {
       if (!form.company_id) {
-        setError('Hiring Portfolio (Company) is mandatory for platform injection.');
+        setError('Company is required.');
         setSaving(false);
         return;
       }
 
       if (!form.title.trim()) {
-        setError('Professional Title is required.');
+        setError('Job Title is required.');
         setSaving(false);
         return;
       }
 
       if (!form.location.trim()) {
-        setError('Geographical Cluster (Location) is required.');
+        setError('Location is required.');
         setSaving(false);
         return;
       }
 
       if (form.description.length < 50) {
-        setError(`Insufficient Briefing: Description must be at least 50 characters (Current: ${form.description.length}).`);
+        setError(`Description must be at least 50 characters long (Current: ${form.description.length}).`);
         setSaving(false);
         return;
       }
@@ -332,13 +331,13 @@ export default function AdminJobsPage() {
 
       if (data) {
         console.log('[Job Creation] Success');
-        setSuccess('Job successfully injected into the ecosystem');
+        setSuccess('Job successfully saved');
         resetForm();
         fetchJobs();
       }
     } catch (err: any) {
       console.error('[Job Creation] Critical error:', err);
-      setError(err.message || 'A critical connectivity error occurred during injection.');
+      setError(err.message || 'An error occurred while saving the job.');
     } finally {
       setSaving(false);
     }
@@ -351,9 +350,9 @@ export default function AdminJobsPage() {
   return (
     <section className={styles.page}>
       <AdminHeader
-        title="Jobs Registry"
-        eyebrow="TalentMesh Cloud Platform"
-        subtitle="Manage, moderate, and deploy employment opportunities across the global ecosystem."
+        title="Manage Jobs"
+        eyebrow="Admin Portal"
+        subtitle="Manage, approve, and delete job listings on the platform."
         breadcrumbs={[{ label: 'Dashboard', href: '/dashboard/admin' }, { label: 'Jobs' }]}
         actions={
           <>
@@ -377,7 +376,7 @@ export default function AdminJobsPage() {
             </AdminButton>
             <AdminButton variant="secondary" onClick={() => exportJobsCSV(jobs)}>Export CSV</AdminButton>
             <AdminButton onClick={() => setShowCompanyForm(true)}>+ Add Company</AdminButton>
-            <AdminButton onClick={resetForm}>+ Create Live Role</AdminButton>
+            <AdminButton onClick={resetForm}>+ Post Job</AdminButton>
           </>
         }
       />
@@ -425,23 +424,26 @@ export default function AdminJobsPage() {
                 onKeyDown={e => e.key === 'Enter' && fetchJobs(0)}
               />
             </div>
-            <CustomSelect 
+            <select 
               className={styles.select} 
               style={{ width: '160px' }} 
               value={filterStatus} 
               onChange={e => setFilterStatus(e.target.value)}
-              options={[
-                { label: 'All Status', value: 'all' },
-                ...statusOptions,
-                { label: 'Pending Approval', value: 'pending' }
-              ]}
-            />
+            >
+              <option value="all">All Statuses</option>
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+              <option value="pending">Pending Approval</option>
+            </select>
             <AdminButton onClick={() => fetchJobs(0)}>Apply</AdminButton>
           </div>
 
           <div className={styles.listBody}>
-            {(authLoading || loading) ? <div className={styles.emptyState}>Syncing registry...</div> :
-              jobs.length === 0 ? <div className={styles.emptyState}>No roles match your search.</div> : (
+            {(authLoading || loading) ? <div className={styles.emptyState}>Loading jobs...</div> :
+              jobs.length === 0 ? <div className={styles.emptyState}>No jobs found.</div> : (
                 jobs.map(job => (
                   <article key={job.id}
                     className={`${styles.jobCard} ${previewJob?.id === job.id ? styles.cardActive : ''}`}
@@ -489,13 +491,13 @@ export default function AdminJobsPage() {
           <div className={styles.drawer} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
-                {selectedJob ? 'Refine Listing' : 'Platform Injection'}
+                {selectedJob ? 'Edit Job' : 'Post Job'}
               </h2>
               <button className={styles.drawerClose} onClick={() => setShowJobForm(false)}>×</button>
             </div>
             <div className={styles.drawerContent}>
               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                Directly curate global employment data points.
+                Fill in the details below to create or edit the job listing.
               </p>
 
               <div>
@@ -513,7 +515,7 @@ export default function AdminJobsPage() {
 
           <form className={styles.form} onSubmit={handleSave}>
             <AdminSelect
-              label="Hiring Portfolio (Company)"
+              label="Company"
               options={[
                 { label: 'Select a company...', value: '' },
                 ...companies.map(c => ({ label: c.name, value: c.id }))
@@ -523,7 +525,7 @@ export default function AdminJobsPage() {
             />
 
             <AdminInput
-              label="Professional Title"
+              label="Job Title"
               value={form.title}
               onChange={e => handleChange('title', e.target.value)}
               placeholder="e.g. Lead Dev-Ops Architect"
@@ -531,13 +533,13 @@ export default function AdminJobsPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <AdminSelect
-                label="Contract Modality"
+                label="Job Type"
                 options={typeOptions}
                 value={form.type}
                 onChange={e => handleChange('type', e.target.value)}
               />
               <AdminSelect
-                label="System Status"
+                label="Status"
                 options={statusOptions}
                 value={form.status}
                 onChange={e => handleChange('status', e.target.value)}
@@ -545,7 +547,7 @@ export default function AdminJobsPage() {
             </div>
 
             <AdminInput
-              label="Geographical Cluster"
+              label="Location"
               value={form.location}
               onChange={e => handleChange('location', e.target.value)}
               placeholder="City, Country or 'Remote'"
@@ -599,7 +601,7 @@ export default function AdminJobsPage() {
 
             <div className={styles.field}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label className={styles.label}>Detailed Briefing</label>
+                <label className={styles.label}>Job Description</label>
                 <span style={{ 
                   fontSize: '0.75rem', 
                   fontWeight: 600,
@@ -616,11 +618,11 @@ export default function AdminJobsPage() {
                 }}
                 value={form.description}
                 onChange={e => handleChange('description', e.target.value)}
-                placeholder="Describe the role, impact, and ecosystem context (min. 50 characters)..."
+                placeholder="Describe the job role, responsibilities, and details (min. 50 characters)..."
               />
               {(form.description?.length || 0) > 0 && (form.description?.length || 0) < 50 && (
                 <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: '4px' }}>
-                  Brief needs at least 50 characters to satisfy platform standards.
+                  Description needs to be at least 50 characters long.
                 </p>
               )}
             </div>
@@ -648,7 +650,7 @@ export default function AdminJobsPage() {
             <div className={styles.formActions} style={{ marginTop: '24px' }}>
               <AdminButton variant="secondary" type="button" onClick={() => setShowJobForm(false)}>Cancel</AdminButton>
               <AdminButton type="submit" isLoading={saving}>
-                {selectedJob ? 'Update Ecosystem' : 'Inject Listing'}
+                {selectedJob ? 'Save Changes' : 'Post Job'}
               </AdminButton>
             </div>
           </form>
@@ -661,12 +663,12 @@ export default function AdminJobsPage() {
         <div className={styles.drawerOverlay} onClick={() => setShowCompanyForm(false)}>
           <div className={styles.drawer} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
-              <h2>Register New Company</h2>
+              <h2>Add New Company</h2>
               <button className={styles.drawerClose} onClick={() => setShowCompanyForm(false)}>×</button>
             </div>
             <div className={styles.drawerContent} style={{ padding: '2rem' }}>
               <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '2rem' }}>
-                Establish a new organizational entity before attaching jobs.
+                Create a new company profile first.
               </p>
               <CompanyRegisterForm 
                 onSuccess={() => {
@@ -684,7 +686,7 @@ export default function AdminJobsPage() {
         <div className={styles.drawerOverlay} onClick={() => setPreviewJob(null)}>
           <div className={styles.drawer} onClick={e => e.stopPropagation()}>
             <div className={styles.drawerHeader}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Role Intelligence</h2>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Job Details</h2>
               <button className={styles.drawerClose} onClick={() => setPreviewJob(null)}>×</button>
             </div>
             <div className={styles.drawerContent}>
@@ -693,8 +695,8 @@ export default function AdminJobsPage() {
                 {!previewJob.is_approved && (
                   <AdminButton style={{ flex: 1, background: '#10b981' }} onClick={() => handleApprove(previewJob.id)}>Approve & Go Live</AdminButton>
                 )}
-                <AdminButton style={{ flex: 1 }} onClick={() => handleEdit(previewJob)}>Moderate Listing</AdminButton>
-                <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Purge</AdminButton>
+                <AdminButton style={{ flex: 1 }} onClick={() => handleEdit(previewJob)}>Edit Job</AdminButton>
+                <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Delete</AdminButton>
               </div>
               <div style={{ marginTop: '32px' }}>
                 <h3 style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Full Description</h3>

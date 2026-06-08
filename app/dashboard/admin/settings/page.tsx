@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 
 type PlatformSettings = {
   general: any;
-  featureFlags: any;
+  feature_flags: any;
   maintenance: any;
 };
 
@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
       if (!sRes.error) setSettings(sRes.data);
       if (!aRes.error) setAdmins(aRes.data.admins);
     } catch (err) {
-      setMessage({ text: 'Internal registry sync failed', type: 'error' });
+      setMessage({ text: 'Internal settings sync failed', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,8 @@ export default function AdminSettingsPage() {
 
   const toggleFeature = (flagKey: string) => {
     if (!settings) return;
-    const nextFlags = { ...settings.featureFlags, [flagKey]: !settings.featureFlags[flagKey] };
+    const currentFlags = settings.feature_flags || {};
+    const nextFlags = { ...currentFlags, [flagKey]: !currentFlags[flagKey] };
     updateSetting('feature_flags', nextFlags);
   };
 
@@ -178,7 +179,7 @@ export default function AdminSettingsPage() {
       <div className={styles.settingsGrid}>
         <div className={styles.mainCol}>
           <div className={styles.card}>
-            <h3 className={styles.chartTitle}>Personal Profile Settings</h3>
+            <h3 className={styles.cardTitle}>Personal Profile Settings</h3>
             <form onSubmit={handleSaveProfile}>
               <div className={styles.formGroup}>
                 <label>Full Name</label>
@@ -207,7 +208,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className={styles.card}>
-            <h3 className={styles.chartTitle}>General Configuration</h3>
+            <h3 className={styles.cardTitle}>General Configuration</h3>
             <form onSubmit={handleGeneralSave}>
               <div className={styles.formGroup}>
                 <label>Platform Identity Name</label>
@@ -238,7 +239,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className={styles.card}>
-            <h3 className={styles.chartTitle}>Administrative Registry</h3>
+            <h3 className={styles.cardTitle}>Administrators List</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
               <thead>
                 <tr style={{ textAlign: 'left', fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>
@@ -287,14 +288,14 @@ export default function AdminSettingsPage() {
 
         <div className={styles.sideCol}>
           <div className={styles.card}>
-            <h3 className={styles.chartTitle}>Architectural Flags</h3>
+            <h3 className={styles.cardTitle}>Architectural Flags</h3>
             <div className={styles.featureList}>
               {[
-                { key: 'candidateRegistration', label: 'Candidate Onboarding', desc: 'Allow new professional registration' },
-                { key: 'recruiterRegistration', label: 'Employer Onboarding', desc: 'Allow new company registration' },
-                { key: 'blogEnabled', label: 'Knowledge Hub', desc: 'Public content /blog visibility' },
-                { key: 'messagingEnabled', label: 'Direct Messaging', desc: 'Real-time peer-to-peer comms' },
-                { key: 'aiMatching', label: 'AI Intelligence', desc: 'Semantic profile/job matching' },
+                { key: 'candidateRegistration', label: 'Candidate Signups', desc: 'Allow new candidates to register' },
+                { key: 'recruiterRegistration', label: 'Employer Signups', desc: 'Allow new employers to register' },
+                { key: 'blogEnabled', label: 'Public Blog', desc: 'Show the public blog section' },
+                { key: 'messagingEnabled', label: 'Direct Chat', desc: 'Allow candidates and recruiters to chat' },
+                { key: 'aiMatching', label: 'AI Matching', desc: 'Automatically match candidates with jobs' },
               ].map(flag => (
                 <div key={flag.key} className={styles.featureItem}>
                   <div className={styles.featureInfo}>
@@ -302,7 +303,7 @@ export default function AdminSettingsPage() {
                     <span>{flag.desc}</span>
                   </div>
                   <div
-                    className={`${styles.toggle} ${settings?.featureFlags?.[flag.key] ? styles.toggleOn : ''}`}
+                    className={`${styles.toggle} ${settings?.feature_flags?.[flag.key] ? styles.toggleOn : ''}`}
                     onClick={() => toggleFeature(flag.key)}
                   >
                     <div className={styles.toggleKnob} />
@@ -313,18 +314,21 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className={`${styles.card} ${styles.dangerCard}`}>
-            <h3 className={`${styles.chartTitle} ${styles.dangerTitle}`}>Danger Nexus</h3>
+            <h3 className={`${styles.cardTitle} ${styles.dangerTitle}`}>Danger Nexus</h3>
             <div className={styles.warningBox}>
               CRITICAL: Enabling Maintenance Mode will immediately redirect all non-administrative traffic to the construction gateway.
             </div>
             <div className={styles.featureItem} style={{ background: '#fef2f2' }}>
               <div className={styles.featureInfo}>
-                <strong style={{ color: '#991b1b' }}>Platform Maintenance</strong>
-                <span>Global Traffic Redirection</span>
+                <strong style={{ color: '#991b1b' }}>Maintenance Mode</strong>
+                <span>Block access for non-administrators</span>
               </div>
               <div
                 className={`${styles.toggle} ${settings?.maintenance?.enabled ? styles.toggleOn : ''}`}
-                onClick={() => updateSetting('maintenance', { ...settings!.maintenance, enabled: !settings!.maintenance.enabled })}
+                onClick={() => {
+                  const currentMaintenance = settings?.maintenance || { enabled: false };
+                  updateSetting('maintenance', { ...currentMaintenance, enabled: !currentMaintenance.enabled });
+                }}
                 style={{ background: settings?.maintenance?.enabled ? '#dc2626' : '#cbd5e1' }}
               >
                 <div className={styles.toggleKnob} />

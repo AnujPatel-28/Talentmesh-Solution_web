@@ -6,22 +6,20 @@ const serviceKey = 'ik_1a616463854d5d7b3fef4c4bf7516aee'; // SERVICE KEY from .e
 const insforge = createClient({ baseUrl, anonKey: serviceKey });
 
 async function run() {
-  console.log('Fetching ALL policies for profiles...');
-  const { data, error } = await insforge.database.rpc('get_policies_for_table', { t_name: 'profiles' });
+  console.log('Fetching ALL policies for platform_settings...');
+  const { data, error } = await insforge.database.rpc('get_policies_for_table', { t_name: 'platform_settings' });
 
   if (error) {
-    // If RPC doesn't exist, use raw SQL via a custom RPC if available, or just try to select from pg_policies
-    console.log('RPC failed, trying raw select from pg_policies...');
-    const { data: policies, error: sqlError } = await insforge.database
-      .from('pg_policies')
-      .select('*')
-      .eq('tablename', 'profiles');
+    console.log('RPC failed, trying raw query via exec_sql...');
+    const { data: resCode, error: sqlError } = await insforge.database.rpc('exec_sql', { 
+      query: "SELECT * FROM pg_policies WHERE tablename = 'platform_settings'" 
+    });
     
-    if (sqlError) {
-      console.error('Failed to fetch policies:', sqlError);
+    if (sqlError || !resCode.success) {
+      console.error('Failed to fetch policies:', sqlError || resCode.error);
       process.exit(1);
     }
-    console.log('Policies:', JSON.stringify(policies, null, 2));
+    console.log('Policies:', JSON.stringify(resCode.data, null, 2));
   } else {
     console.log('Policies (via RPC):', JSON.stringify(data, null, 2));
   }

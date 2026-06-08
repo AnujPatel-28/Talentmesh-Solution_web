@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { insforge } from '@/lib/insforge';
+import { insforge, directInsforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
 
@@ -74,9 +74,9 @@ export function useMessages(receiverId: string | null) {
 
     const setupRealtime = async () => {
       try {
-        await insforge.realtime.connect();
-        await insforge.realtime.subscribe('messages:' + user.id);
-        insforge.realtime.on('INSERT_messages', handleNewMessage);
+        await directInsforge.realtime.connect();
+        await directInsforge.realtime.subscribe('messages:' + user.id);
+        directInsforge.realtime.on('INSERT_messages', handleNewMessage);
       } catch (err) {
         console.error('Realtime setup error:', err);
       }
@@ -85,8 +85,8 @@ export function useMessages(receiverId: string | null) {
     setupRealtime();
 
     return () => {
-        insforge.realtime.off('INSERT_messages', handleNewMessage);
-        insforge.realtime.unsubscribe('messages:' + user.id);
+        directInsforge.realtime.off('INSERT_messages', handleNewMessage);
+        directInsforge.realtime.unsubscribe('messages:' + user.id);
     };
   }, [user, receiverId, fetchMessages]);
 

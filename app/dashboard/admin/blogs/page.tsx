@@ -5,7 +5,7 @@ import * as Ico from 'lucide-react';
 import styles from './blogs.module.css';
 import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { CustomSelect } from '@/components/ui/CustomSelect';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 
 interface BlogPost {
@@ -66,7 +66,7 @@ export default function AdminBlogsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
-  const [totalViews, setTotalViews] = useState(0);
+  const [avgReadTime, setAvgReadTime] = useState(0);
   const [autoSlug, setAutoSlug] = useState(true);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,8 +74,6 @@ export default function AdminBlogsPage() {
   useEffect(() => {
     if (user) {
       fetchPosts();
-      // Simulate premium views
-      setTotalViews(Math.floor(Math.random() * 5000) + 1200);
     }
   }, [user]);
 
@@ -105,7 +103,16 @@ export default function AdminBlogsPage() {
       if (fetchError) throw new Error(fetchError.message);
       
       if (data) {
-        setPosts(Array.isArray(data.blogs) ? data.blogs : []);
+        const blogList: BlogPost[] = Array.isArray(data.blogs) ? data.blogs : [];
+        setPosts(blogList);
+        // Compute avg read time from real content (avg 200 words/min)
+        if (blogList.length > 0) {
+          const totalWords = blogList.reduce((sum, p) => sum + (p.content?.split(/\s+/).filter(Boolean).length || 0), 0);
+          const avgWords = totalWords / blogList.length;
+          setAvgReadTime(Math.max(1, Math.round(avgWords / 200)));
+        } else {
+          setAvgReadTime(0);
+        }
       }
     } catch (err) {
       setError('Failed to fetch articles');
@@ -253,16 +260,13 @@ export default function AdminBlogsPage() {
                   {form.cover_image && <img src={form.cover_image} alt="Cover" width="100%" />}
                   <h1>{form.title}</h1>
                   <p className="lead">{form.excerpt}</p>
-                  <div className="content">
-                    {form.content.split('\n').map((p, i) => p.trim() ? <p key={i}>{p}</p> : <br key={i} />)}
-                  </div>
+                  <div className="content" dangerouslySetInnerHTML={{ __html: form.content }} />
                 </article>
               ) : (
-                <textarea 
-                  className={styles.editorContent}
-                  placeholder="Tell your story..."
+                <RichTextEditor
                   value={form.content}
-                  onChange={e => setForm(prev => ({ ...prev, content: e.target.value }))}
+                  onChange={html => setForm(prev => ({ ...prev, content: html }))}
+                  placeholder="Tell your story..."
                 />
               )}
             </main>
@@ -321,25 +325,29 @@ export default function AdminBlogsPage() {
 
             <div className={styles.sidebarSection}>
               <span className={styles.sidebarLabel}>Category</span>
-              <CustomSelect
+              <select
                 value={form.category}
                 onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}
-                options={categoryOptions.map(c => ({ label: c, value: c }))}
                 className={styles.filterSelect}
-              />
+              >
+                {categoryOptions.map(c => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className={styles.sidebarSection}>
               <span className={styles.sidebarLabel}>Post Status</span>
-              <CustomSelect
+              <select
                 value={form.status}
                 onChange={e => setForm(prev => ({ ...prev, status: e.target.value as any }))}
-                options={[
-                  { label: 'Draft - Private', value: 'draft' },
-                  { label: 'Published - Live', value: 'published' }
-                ]}
                 className={styles.filterSelect}
-              />
+              >
+                <option value="draft">Draft - Private</option>
+                <option value="published">Published - Live</option>
+              </select>
             </div>
           </aside>
         </div>
@@ -377,8 +385,8 @@ export default function AdminBlogsPage() {
           <strong className={styles.statValue}>{posts.length}</strong>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Avg. Views</span>
-          <strong className={styles.statValue}>{totalViews.toLocaleString()}</strong>
+          <span className={styles.statLabel}>Avg. Read Time</span>
+          <strong className={styles.statValue}>{avgReadTime > 0 ? `${avgReadTime} min` : '—'}</strong>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>Live Articles</span>
@@ -396,12 +404,17 @@ export default function AdminBlogsPage() {
             onChange={e => { setSearch(e.target.value); fetchPosts(e.target.value, status); }}
           />
         </div>
-        <CustomSelect
+        <select
           value={status}
           onChange={e => { setStatus(e.target.value); fetchPosts(search, e.target.value); }}
-          options={statusOptions.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))}
           className={styles.filterSelect}
-        />
+        >
+          {statusOptions.map(s => (
+            <option key={s} value={s}>
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </option>
+          ))}
+        </select>
       </div>
 
       {(authLoading || loading) ? (
