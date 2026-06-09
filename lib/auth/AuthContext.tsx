@@ -56,7 +56,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set token in local cookie so invokeFunction can find it immediately
     const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-    document.cookie = `tm_access_token=${token}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
+    
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    let domainStr = '';
+    if (host) {
+      if (host.includes('localhost')) {
+        domainStr = '; domain=.localhost';
+      } else if (!host.includes('127.0.0.1')) {
+        const domainParts = host.split('.');
+        const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+        domainStr = `; domain=.${baseDomain}`;
+      }
+    }
+    document.cookie = `tm_access_token=${token}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}${domainStr}`;
 
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('tm_token', token);
@@ -229,8 +241,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Proactively rotate/refresh token first to keep session active
       const refreshedToken = await refreshAccessToken();
 
-      // Extract token from cookies for verification if refreshedToken isn't returned directly
+      // Extract token from session storage or cookies for verification
       let token = refreshedToken;
+      if (!token && typeof window !== 'undefined') {
+        token = window.sessionStorage.getItem('tm_token');
+      }
       if (!token && typeof window !== 'undefined') {
         const match = document.cookie.match(/tm_access_token=([^;]+)/);
         token = match ? match[1] : null;
@@ -266,9 +281,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const resolvedUser = payload.user as User;
 
-      document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax`;
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      let domainStr = '';
+      if (host) {
+        if (host.includes('localhost')) {
+          domainStr = '; domain=.localhost';
+        } else if (!host.includes('127.0.0.1')) {
+          const domainParts = host.split('.');
+          const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+          domainStr = `; domain=.${baseDomain}`;
+        }
+      }
+      document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax${domainStr}`;
       if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin') {
-        document.cookie = 'tm_admin_access=true; path=/; SameSite=Lax';
+        document.cookie = `tm_admin_access=true; path=/; SameSite=Lax${domainStr}`;
       }
 
       // Sync token to local cookie/SDK if we have a token
@@ -421,29 +447,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, refreshUser]);
 
   useEffect(() => {
-    let hasLoadedCached = false;
-    try {
-      const cached = window.sessionStorage.getItem(USER_STORAGE_KEY);
-      if (cached) {
-        setUser(JSON.parse(cached) as User);
-        hasLoadedCached = true;
+    const initAuth = async () => {
+      let urlToken: string | null = null;
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlToken = urlParams.get('token');
+        if (urlToken) {
+          // Store token in session storage
+          window.sessionStorage.setItem('tm_token', urlToken);
+          
+          // Set cookie for local subdomain context
+          const isSecure = window.location.protocol === 'https:';
+          const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
+          document.cookie = `tm_access_token=${urlToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
+          
+          // Remove the token query param to keep the URL clean
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('token');
+          window.history.replaceState({}, '', newUrl.toString());
+        }
       }
-    } catch {
-      window.sessionStorage.removeItem(USER_STORAGE_KEY);
-    }
 
-    // Auto-refresh if we have a cached user OR a matching access cookie.
-    // This ensures cookie-only sessions (OAuth returns) are picked up on mount.
-    const hasAccessToken = document.cookie.includes('tm_access_token');
-    const isAuthPage = typeof window !== 'undefined' &&
-      (window.location.pathname === '/auth/callback' || window.location.pathname === '/login');
+      let hasLoadedCached = false;
+      try {
+        const cached = window.sessionStorage.getItem(USER_STORAGE_KEY);
+        if (cached) {
+          setUser(JSON.parse(cached) as User);
+          hasLoadedCached = true;
+        }
+      } catch {
+        window.sessionStorage.removeItem(USER_STORAGE_KEY);
+      }
 
-    if ((hasLoadedCached || hasAccessToken) && !isAuthPage) {
-      refreshUser();
-    } else {
-      setIsLoading(false);
-      setIsInitialized(true);
-    }
+      const hasAccessToken = urlToken || document.cookie.includes('tm_access_token');
+      const isAuthPage = typeof window !== 'undefined' &&
+        (window.location.pathname === '/auth/callback' || window.location.pathname === '/login');
+
+      if ((hasLoadedCached || hasAccessToken) && !isAuthPage) {
+        await refreshUser();
+      } else {
+        setIsLoading(false);
+        setIsInitialized(true);
+      }
+    };
+
+    initAuth();
   }, [refreshUser]);
 
   // 🔥 Listen for session-expired events from invokeFunction

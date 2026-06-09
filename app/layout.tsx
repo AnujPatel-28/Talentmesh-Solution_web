@@ -56,12 +56,17 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import { headers } from "next/headers";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const host = headersList.get("host") || "";
+  const isPortal = host.startsWith("jobs.") || host.startsWith("app.") || host.startsWith("admin.");
+
   return (
     <html lang="en">
       <body
@@ -69,13 +74,19 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          <NavbarWrapper>
-            <Navbar />
-          </NavbarWrapper>
-          {children}
-          <NavbarWrapper showFooter>
-            <Footer />
-          </NavbarWrapper>
+          {!isPortal ? (
+            <>
+              <NavbarWrapper>
+                <Navbar />
+              </NavbarWrapper>
+              {children}
+              <NavbarWrapper showFooter>
+                <Footer />
+              </NavbarWrapper>
+            </>
+          ) : (
+            children
+          )}
         </AuthProvider>
       </body>
     </html>

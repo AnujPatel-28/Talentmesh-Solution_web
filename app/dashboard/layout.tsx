@@ -181,10 +181,10 @@ const PlugIcon = (
 interface NavChild { label: string; href: string; }
 interface NavItem { label: string; href: string; icon: React.ReactNode; badge?: number; badgeType?: 'primary' | 'red'; id?: string; children?: NavChild[]; }
 
-const getCandidateNav = (role_id: string, nviteCount?: number, offerCount?: number): NavItem[] => [
+const getCandidateNav = (role_id: string, nviteCount?: number, offerCount?: number, applicationCount?: number): NavItem[] => [
     { label: 'Dashboard', href: `/dashboard/candidate/${role_id}`, icon: Icons.home },
     { label: 'Find Jobs', href: `/dashboard/candidate/${role_id}/jobs`, icon: Icons.briefcase },
-    { label: 'My Applications', href: `/dashboard/candidate/${role_id}/applications`, icon: Icons.clipboard, badge: 5 },
+    { label: 'My Applications', href: `/dashboard/candidate/${role_id}/applications`, icon: Icons.clipboard, badge: applicationCount },
     { label: 'NVite Inbox', href: `/candidate/nvite`, icon: Icons.nvite, badge: nviteCount },
     { label: 'Referrals', href: `/dashboard/candidate/${role_id}/referrals`, icon: Icons.gift },
     { label: 'Messages', href: `/dashboard/candidate/${role_id}/messages`, icon: Icons.messageSquare, badge: 3 },
@@ -270,6 +270,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const [nviteCount, setNviteCount] = useState(0);
     const [offerCount, setOfferCount] = useState(0);
     const [notifCount, setNotifCount] = useState(0);
+    const [applicationCount, setApplicationCount] = useState(0);
     const isImpersonating = typeof window !== 'undefined' ? document.cookie.includes('tm_impersonating_user_id=') : false;
 
     React.useEffect(() => {
@@ -297,6 +298,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     const { data } = await invokeFunction('candidate-dashboard');
                     if (data) {
                         setNotifCount(data.appCount || 0);
+                        setApplicationCount(data.appCount || 0);
                     }
                     
                     // Fetch NVite and Offer unread counts dynamically
@@ -396,7 +398,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     ) || '';
 
     const roleId = authUser?.id || roleIdFromPath;
-    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV(adminCounts) : isRecruiter ? getRecruiterNav(roleId) : getCandidateNav(roleId, nviteCount, offerCount);
+    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV(adminCounts) : isRecruiter ? getRecruiterNav(roleId) : getCandidateNav(roleId, nviteCount, offerCount, applicationCount);
 
     /* Auto-open the accordion group that contains the active route (recruiter) */
     useEffect(() => {

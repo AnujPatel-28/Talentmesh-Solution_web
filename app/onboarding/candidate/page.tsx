@@ -78,7 +78,7 @@ export default function CandidateOnboardingPage() {
                 // ── DB-authoritative gate: redirect immediately if already onboarded ──
                 const accessState = await getCandidateAccessState(user.id);
                 if (accessState.completedOnboarding) {
-                    router.replace(`/dashboard/candidate/${user.id}`);
+                    window.location.replace(`/dashboard/candidate/${user.id}`);
                     return;
                 }
 
@@ -289,8 +289,8 @@ export default function CandidateOnboardingPage() {
 
             // Navigate immediately — don't await refreshUser() here because
             // it sets isLoading=true which re-renders this page to its loading
-            // guard and can cancel the router.replace call.
-            router.replace(`/dashboard/candidate/${user.id}`);
+            // guard and can cancel the window.location.replace call.
+            window.location.replace(`/dashboard/candidate/${user.id}`);
 
             // Refresh user state in the background so the dashboard is up-to-date
             refreshUser().catch(console.error);

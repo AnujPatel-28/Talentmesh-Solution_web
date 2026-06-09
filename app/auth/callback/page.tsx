@@ -237,31 +237,44 @@ function AuthCallbackContent() {
 
       setLoadingState('redirecting');
 
+      const getSubdomainUrl = (subdomain: string, path: string) => {
+        if (typeof window === 'undefined') return path;
+        const host = window.location.host;
+        const proto = window.location.protocol;
+        const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
+        let url = `${proto}//${subdomain}.${cleanHost}${path}`;
+        if (session.accessToken) {
+          const separator = url.includes('?') ? '&' : '?';
+          url = `${url}${separator}token=${session.accessToken}`;
+        }
+        return url;
+      };
+
       // (4) Route to onboarding if profile doesn't exist or onboarding isn't complete
       if (!existingProfile || !onboardingComplete) {
         if (finalRole === 'recruiter') {
-          router.replace('/onboarding/recruiter/setup');
+          window.location.replace(getSubdomainUrl('app', '/onboarding/recruiter/setup'));
         } else if (finalRole === 'admin' || finalRole === 'super_admin') {
           // Admins don't have onboarding, just go to dashboard
-          router.replace('/admin/dashboard');
+          window.location.replace(getSubdomainUrl('admin', '/admin/dashboard'));
         } else {
-          router.replace('/onboarding/candidate');
+          window.location.replace(getSubdomainUrl('jobs', '/onboarding/candidate'));
         }
         return;
       }
 
       // (3) route based on role: admin → /admin/dashboard, recruiter → /recruiter/dashboard, candidate → /candidate/dashboard
       if (finalRole === 'admin' || finalRole === 'super_admin') {
-        router.replace('/admin/dashboard');
+        window.location.replace(getSubdomainUrl('admin', '/admin/dashboard'));
         return;
       }
 
       if (finalRole === 'recruiter') {
-        router.replace('/recruiter/dashboard');
+        window.location.replace(getSubdomainUrl('app', '/recruiter/dashboard'));
         return;
       }
 
-      router.replace('/candidate/dashboard');
+      window.location.replace(getSubdomainUrl('jobs', '/'));
     };
 
     handleCallback();

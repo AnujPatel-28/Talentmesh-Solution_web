@@ -283,7 +283,19 @@ export async function refreshAccessToken(): Promise<string | null> {
         window.sessionStorage.setItem('tm_token', newToken);
         const isSecure = window.location.protocol === 'https:';
         const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-        document.cookie = `tm_access_token=${newToken}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}`;
+        
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        let domainStr = '';
+        if (host) {
+          if (host.includes('localhost')) {
+            domainStr = '; domain=.localhost';
+          } else if (!host.includes('127.0.0.1')) {
+            const domainParts = host.split('.');
+            const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+            domainStr = `; domain=.${baseDomain}`;
+          }
+        }
+        document.cookie = `tm_access_token=${newToken}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}${domainStr}`;
 
         // Synchronize refreshed token with active browser SDK client for direct queries
         insforge.setAccessToken(newToken);

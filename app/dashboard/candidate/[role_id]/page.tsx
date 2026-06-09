@@ -64,7 +64,7 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
 
         // 1. Auth Guard
         if (!authUser) {
-            router.replace('/login');
+            window.location.replace('/login');
             return;
         }
 
@@ -76,7 +76,7 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
         // 2. Self-Correction: If URL has an invalid ID or doesn't match the logged-in user, redirect to actual user UUID
         if ((!isUUID(role_id) || role_id !== userId) && isUUID(userId)) {
             console.log('Redirecting to valid UUID dashboard path...');
-            router.replace(`/dashboard/candidate/${userId}`);
+            window.location.replace(`/dashboard/candidate/${userId}`);
             return;
         }
 
@@ -169,7 +169,7 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
             const accessState = await getCandidateAccessState(userId);
 
             if (!accessState.completedOnboarding) {
-                router.replace('/onboarding/candidate');
+                window.location.replace('/onboarding/candidate');
                 return;
             }
 

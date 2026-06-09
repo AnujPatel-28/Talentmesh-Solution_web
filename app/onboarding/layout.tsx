@@ -19,17 +19,17 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
 
         // Global Guard: Admins/Super Admins should NEVER be in onboarding
         if (user.role === 'admin' || user.role === 'super_admin') {
-            router.replace('/dashboard/admin');
+            window.location.replace('/dashboard/admin');
             return;
         }
 
         // Prevent cross-onboarding access
         if (user.role === 'recruiter' && pathname.startsWith('/onboarding/candidate')) {
-            router.replace('/onboarding/recruiter/setup');
+            window.location.replace('/onboarding/recruiter/setup');
             return;
         }
         if (user.role === 'candidate' && pathname.startsWith('/onboarding/recruiter')) {
-            router.replace('/onboarding/candidate');
+            window.location.replace('/onboarding/candidate');
             return;
         }
     }, [user, isLoading, router, pathname]);

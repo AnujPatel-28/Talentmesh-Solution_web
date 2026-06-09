@@ -21,8 +21,31 @@ interface MiddlewareUser {
  * Separates access control logic into a dedicated edge layer.
  */
 export async function proxy(request: NextRequest) {
+  const queryToken = request.nextUrl.searchParams.get('token');
+  const response = await _proxy(request);
+
+  if (queryToken && response) {
+    const host = request.headers.get('host') || '';
+    let domainStr = '';
+    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+      const domainParts = host.split('.');
+      const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+      domainStr = `; domain=.${baseDomain}`;
+    }
+    const isSecure = request.url.startsWith('https');
+    const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
+    response.headers.append(
+      'Set-Cookie',
+      `tm_access_token=${queryToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}${domainStr}`
+    );
+  }
+
+  return response;
+}
+
+async function _proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get('tm_access_token')?.value;
+  const token = request.cookies.get('tm_access_token')?.value || request.nextUrl.searchParams.get('token') || undefined;
   const mfaVerified = request.cookies.get('mfa_verified')?.value === 'true';
 
   let user: MiddlewareUser | null = null;
@@ -137,7 +160,7 @@ export async function proxy(request: NextRequest) {
   const isMainDomain = !isJobsPortal && !isAppPortal && !isAdminPortal;
 
   if (isMainDomain && !isStaticOrApi) {
-    if (pathname.startsWith('/candidate') || pathname.startsWith('/dashboard/candidate')) {
+    if (pathname.startsWith('/candidate') || pathname.startsWith('/dashboard/candidate') || pathname.startsWith('/onboarding/candidate')) {
       const proto = request.url.startsWith('https') ? 'https://' : 'http://';
       const cleanHost = host.replace(/^www\./, '');
       let relative = pathname;
@@ -147,11 +170,13 @@ export async function proxy(request: NextRequest) {
         relative = pathname.substring('/candidate/dashboard'.length);
       } else if (pathname.startsWith('/candidate')) {
         relative = pathname.substring('/candidate'.length);
+      } else if (pathname.startsWith('/onboarding/candidate')) {
+        relative = pathname;
       }
       const newUrl = new URL(`${proto}jobs.${cleanHost}${relative || '/dashboard'}${request.nextUrl.search}`);
       return NextResponse.redirect(newUrl);
     }
-    if (pathname.startsWith('/recruiter') || pathname.startsWith('/dashboard/recruiter')) {
+    if (pathname.startsWith('/recruiter') || pathname.startsWith('/dashboard/recruiter') || pathname.startsWith('/onboarding/recruiter')) {
       const proto = request.url.startsWith('https') ? 'https://' : 'http://';
       const cleanHost = host.replace(/^www\./, '');
       let relative = pathname;
@@ -161,6 +186,8 @@ export async function proxy(request: NextRequest) {
         relative = pathname.substring('/recruiter/dashboard'.length);
       } else if (pathname.startsWith('/recruiter')) {
         relative = pathname.substring('/recruiter'.length);
+      } else if (pathname.startsWith('/onboarding/recruiter')) {
+        relative = pathname;
       }
       const newUrl = new URL(`${proto}app.${cleanHost}${relative || '/dashboard'}${request.nextUrl.search}`);
       return NextResponse.redirect(newUrl);
@@ -378,7 +405,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const isRecruiterPath = pathname.startsWith('/recruiter/') || pathname === '/recruiter' || 
-    (isAppPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static'));
+    (isAppPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
 
   if (isRecruiterPath) {
     if (!user) {
@@ -444,7 +471,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const isCandidatePath = pathname.startsWith('/candidate/dashboard') || 
-    (isJobsPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static'));
+    (isJobsPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
 
   if (isCandidatePath) {
     if (!user) {

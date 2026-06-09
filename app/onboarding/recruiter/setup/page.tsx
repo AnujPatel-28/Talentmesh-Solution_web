@@ -26,11 +26,11 @@ export default function RecruiterSetup() {
             return;
         }
         if (user.role === 'admin' || user.role === 'super_admin') {
-            router.replace('/dashboard/admin');
+            window.location.replace('/dashboard/admin');
             return;
         }
         if (user.role === 'candidate') {
-            router.replace('/dashboard/candidate');
+            window.location.replace('/dashboard/candidate');
             return;
         }
 

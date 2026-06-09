@@ -16,12 +16,25 @@ function LoginContent() {
     const { signIn, signOut } = useAuth();
 
     const reason = searchParams.get('reason');
+    const errorParam = searchParams.get('error');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (errorParam) {
+            if (errorParam === 'session_fetch_failed') {
+                setError('Session retrieval failed after OAuth callback.');
+            } else if (errorParam === 'callback_error') {
+                setError('An error occurred during authentication callback.');
+            } else {
+                setError(errorParam.replace(/_/g, ' '));
+            }
+        }
+    }, [errorParam]);
     const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
     const [showVerification, setShowVerification] = useState(false);
     const [otp, setOtp] = useState('');
@@ -212,7 +225,20 @@ function LoginContent() {
             console.log(`Login successful. User role: ${role}. Redirecting...`);
 
             // 🔥 STEP 2 — Redirect logic with safety delay for cookie persistence
-            let destination = '/dashboard/candidate';
+            const getSubdomainUrl = (subdomain: string, path: string) => {
+                if (typeof window === 'undefined') return path;
+                const host = window.location.host;
+                const proto = window.location.protocol;
+                const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
+                let url = `${proto}//${subdomain}.${cleanHost}${path}`;
+                if (result.accessToken) {
+                    const separator = url.includes('?') ? '&' : '?';
+                    url = `${url}${separator}token=${result.accessToken}`;
+                }
+                return url;
+            };
+
+            let destination = '';
             
             const isOnboarded = 
                 (profile as any)?.onboarding_complete === true ||
@@ -221,7 +247,7 @@ function LoginContent() {
                 (profile as any)?.completed_onboarding === true;
             
             if (isAdminRole) {
-                destination = '/admin/dashboard';
+                destination = getSubdomainUrl('admin', '/admin/dashboard');
             } else if (role === 'recruiter') {
                 let hasRecruiterData = false;
                 try {
@@ -241,10 +267,14 @@ function LoginContent() {
                     console.error('Failed to check recruiter profile data during login:', err);
                 }
 
-                destination = (isOnboarded && hasRecruiterData) ? '/recruiter/dashboard' : '/onboarding/recruiter/setup';
+                destination = (isOnboarded && hasRecruiterData) 
+                    ? getSubdomainUrl('app', '/recruiter/dashboard') 
+                    : getSubdomainUrl('app', '/onboarding/recruiter/setup');
             } else {
                 // Candidate
-                destination = isOnboarded ? '/candidate/dashboard' : '/onboarding/candidate';
+                destination = isOnboarded 
+                    ? getSubdomainUrl('jobs', '/') 
+                    : getSubdomainUrl('jobs', '/onboarding/candidate');
             }
 
             setTimeout(() => {

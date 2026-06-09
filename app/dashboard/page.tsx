@@ -15,13 +15,27 @@ export default function DashboardRedirect() {
             return;
         }
 
+        const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('tm_token') : null;
+        const getSubdomainUrl = (subdomain: string, path: string) => {
+            if (typeof window === 'undefined') return path;
+            const host = window.location.host;
+            const proto = window.location.protocol;
+            const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
+            let url = `${proto}//${subdomain}.${cleanHost}${path}`;
+            if (token) {
+                const separator = url.includes('?') ? '&' : '?';
+                url = `${url}${separator}token=${token}`;
+            }
+            return url;
+        };
+
         // Redirect based on role
         if (user.role === 'admin' || user.role === 'super_admin') {
-            router.replace('/dashboard/admin');
+            window.location.replace(getSubdomainUrl('admin', '/admin/dashboard'));
         } else if (user.role === 'recruiter') {
-            router.replace(`/dashboard/recruiter/${user.id}`);
+            window.location.replace(getSubdomainUrl('app', '/recruiter/dashboard'));
         } else {
-            router.replace(`/dashboard/candidate/${user.id}`);
+            window.location.replace(getSubdomainUrl('jobs', '/'));
         }
     }, [user, isLoading, router]);
 

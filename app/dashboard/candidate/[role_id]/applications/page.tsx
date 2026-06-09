@@ -20,6 +20,7 @@ const IC = {
     Check: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
     External: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>,
     Withdraw: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
+    ArrowRight: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>,
 };
 
 const STATUS_MAP: Record<string, { label: string, color: string, stage: number }> = {
@@ -189,18 +190,18 @@ export default function ApplicationsPage() {
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontWeight: 800, color: 'var(--primary-blue)', overflow: 'hidden'
                                         }}>
-                                            {app.jobs.companies.logo_url ? (
-                                                <img src={getPublicStorageUrl('company-logos', app.jobs.companies.logo_url)} alt={app.jobs.companies.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            ) : app.jobs.companies.name[0]}
+                                            {app.jobs?.companies?.logo_url ? (
+                                                <img src={getPublicStorageUrl('company-logos', app.jobs.companies.logo_url)} alt={app.jobs?.companies?.name || 'Company Logo'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (app.jobs?.companies?.name?.[0] || '🏢')}
                                         </div>
                                         <div>
-                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{app.jobs.title}</h3>
+                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{app.jobs?.title ?? 'Job Unavailable'}</h3>
                                             <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                                                <span>{app.jobs.companies.name}</span>
+                                                <span>{app.jobs?.companies?.name ?? 'Company Unavailable'}</span>
                                                 <span>•</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><IC.Location /> {app.jobs.location}</span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><IC.Location /> {app.jobs?.location ?? 'N/A'}</span>
                                                 <span>•</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><IC.Briefcase /> {app.jobs.type}</span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><IC.Briefcase /> {app.jobs?.type ?? 'N/A'}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -268,14 +269,14 @@ export default function ApplicationsPage() {
                                             <IC.Withdraw /> Withdraw
                                         </button>
                                     )}
-                                    <div style={{
+                                    <span style={{
                                         padding: '0.6rem 1rem', borderRadius: '10px',
                                         background: '#f1f5f9', color: '#475569',
                                         textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
                                         display: 'flex', alignItems: 'center', gap: '0.4rem'
                                     }}>
-                                        Tracking <IC.External />
-                                    </div>
+                                        View Details <IC.ArrowRight />
+                                    </span>
                                 </div>
                             </Link>
                         );

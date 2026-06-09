@@ -284,7 +284,8 @@ export default function ApplicationDetailPage() {
                         <h3 className={appStyles.helpTitle}>Need Help?</h3>
                         <p className={appStyles.helpText}>
                             If you have questions regarding this application, please visit our{' '}
-                            <Link href="#" className={appStyles.helpLink}>Support Center</Link> or check our FAQ.
+                            <Link href="/portals/jobs/contact" className={appStyles.helpLink}>Support Center</Link> or check our{' '}
+                            <Link href="/portals/jobs/contact#faq" className={appStyles.helpLink}>FAQ</Link>.
                         </p>
                     </div>
                 </aside>

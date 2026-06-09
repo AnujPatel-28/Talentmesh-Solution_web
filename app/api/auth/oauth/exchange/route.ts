@@ -83,10 +83,14 @@ export async function POST(request: NextRequest) {
 
     const host = request.headers.get('host') || '';
     let domain = undefined;
-    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    if (host) {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
-      domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
+      if (domainParts.includes('localhost')) {
+        domain = '.localhost';
+      } else if (!host.includes('127.0.0.1')) {
+        domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
+      }
     }
 
     if (accessToken) {

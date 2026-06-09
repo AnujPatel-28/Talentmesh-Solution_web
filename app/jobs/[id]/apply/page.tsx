@@ -82,7 +82,8 @@ function JobApplyPageContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resume) {
+    const isUploadingNew = !selectedResumeId || selectedResumeId === 'new';
+    if (isUploadingNew && !resume) {
       alert('Please upload your resume.');
       return;
     }

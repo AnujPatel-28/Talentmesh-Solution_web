@@ -32,7 +32,11 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+  const reqBaseUrl = req.headers.get('x-insforge-url') || baseUrl;
+  const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
+  const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
+
+  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey, edgeFunctionToken: token, isServerMode: true });
   const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
   if (authError || !authData?.user || authData.user.id === 'project-admin-with-api-key') {
@@ -42,7 +46,7 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey, isServerMode: true });
+  const insforgeAdmin = createClient({ baseUrl: reqBaseUrl, anonKey: reqServiceKey, isServerMode: true });
 
   // Check caller role — only candidates can use this endpoint
   const { data: profile } = await insforgeAdmin.database
@@ -126,10 +130,11 @@ export default async function handler(req: Request): Promise<Response> {
         );
       }
 
-      // Cannot withdraw if already hired / offered (terminal positive states)
-      if (['hired', 'offered', 'offer'].includes(existing.status)) {
+      // Explicit allow-list for withdrawable statuses
+      const WITHDRAWABLE_STATUSES = ['applied', 'reviewing', 'shortlisted'];
+      if (!WITHDRAWABLE_STATUSES.includes(existing.status)) {
         return new Response(
-          JSON.stringify({ error: 'Cannot withdraw an application that has an offer or is hired.' }),
+          JSON.stringify({ error: `Cannot withdraw an application with status '${existing.status}'.` }),
           { status: 409, headers: corsHeaders }
         );
       }
