@@ -27,6 +27,22 @@ export default function AnimateOnScroll({
     const ref = useRef<HTMLDivElement>(null);
     const [visible, setVisible] = useState(false);
     const [animating, setAnimating] = useState(false);
+    const [reduceMotion, setReduceMotion] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+        setReduceMotion(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setReduceMotion(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
+    // Skip animation if user prefers reduced motion
+    useEffect(() => {
+        if (reduceMotion) {
+            setVisible(true);
+        }
+    }, [reduceMotion]);
 
     useEffect(() => {
         if (visible) {
@@ -39,6 +55,7 @@ export default function AnimateOnScroll({
     };
 
     useEffect(() => {
+        if (reduceMotion) return;
         const el = ref.current;
         if (!el) return;
 

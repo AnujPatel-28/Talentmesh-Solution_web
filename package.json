@@ -22,7 +22,6 @@
     "@mui/icons-material": "^7.3.8",
     "@mui/material": "^7.3.8",
     "@radix-ui/react-popover": "^1.1.15",
-    "@supabase/supabase-js": "^2.104.1",
     "@tiptap/extension-color": "^3.26.0",
     "@tiptap/extension-link": "^3.26.0",
     "@tiptap/extension-text-align": "^3.26.0",

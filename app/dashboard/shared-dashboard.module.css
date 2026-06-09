@@ -101,7 +101,7 @@
 }
 
 .statLabel {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     color: #94a3b8;
     font-weight: 500;
 }
@@ -123,13 +123,13 @@
 }
 
 .statChange {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #10b981;
     font-weight: 600;
 }
 
 .statHint {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #94a3b8;
 }
 
@@ -178,7 +178,7 @@
 }
 
 .viewAll {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: var(--primary-blue);
     background: none;
@@ -251,7 +251,7 @@
 }
 
 .matchBadge {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #10b981;
     background: #f0fdf4;
@@ -273,7 +273,7 @@
 }
 
 .tag {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 500;
     color: #475569;
     background: #f5f7fa;
@@ -290,12 +290,12 @@
 }
 
 .jobTime {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     color: #b0b8c4;
 }
 
 .viewJobBtn {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: var(--primary-blue);
     background: #eff6ff;
@@ -346,12 +346,12 @@
 }
 
 .actTime {
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     color: #b0b8c4;
 }
 
 .actAction {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--primary-blue);
     background: none;
@@ -386,7 +386,7 @@
 }
 
 .schedBadge {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     font-weight: 800;
     color: var(--primary-blue);
     letter-spacing: 0.04em;
@@ -406,14 +406,14 @@
 .schedDetails {
     display: flex;
     gap: 0.75rem;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #64748b;
     margin-top: 0.15rem;
 }
 
 .joinBtn {
     margin-top: 0.3rem;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     background: #f5f7fa;
     border: 1px solid #eef0f2;
@@ -438,7 +438,7 @@
 }
 
 .schedDay {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #94a3b8;
 }
@@ -493,7 +493,7 @@
 }
 
 .featuredLabel {
-    font-size: 0.58rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: #94a3b8;
     letter-spacing: 0.08em;
@@ -506,7 +506,7 @@
 }
 
 .featuredLink {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: #60a5fa;
     background: none;
@@ -662,7 +662,7 @@
 }
 
 .jobListTag {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     font-weight: 500;
     color: #475569;
     background: #f5f7fa;
@@ -671,7 +671,7 @@
 }
 
 .jobListMatch {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: var(--primary-blue);
     margin-left: auto;
@@ -719,7 +719,7 @@
     display: flex;
     gap: 0.75rem;
     flex-wrap: wrap;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     color: #64748b;
 }
 
@@ -792,7 +792,7 @@
 }
 
 .matchPoint {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #15803d;
     display: flex;
     align-items: flex-start;
@@ -911,7 +911,7 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.5rem;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: #475569;
     text-transform: uppercase;
@@ -922,7 +922,7 @@
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -973,26 +973,26 @@
 }
 
 .kanbanRole {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #94a3b8;
 }
 
 .kanbanExtra {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     color: #94a3b8;
     margin-top: 0.15rem;
 }
 
 .kanbanTag {
     display: inline-block;
-    font-size: 0.58rem;
+    font-size: 0.7rem;
     font-weight: 600;
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
 }
 
 .kanbanLink {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--primary-blue);
     text-decoration: none;
@@ -1011,19 +1011,19 @@
 }
 
 .offerLabel {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: #10b981;
 }
 
 .offerAmount {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 800;
     color: #0f172a;
 }
 
 .offerExpiry {
-    font-size: 0.58rem;
+    font-size: 0.7rem;
     color: #10b981;
     text-align: right;
 }
@@ -1090,7 +1090,7 @@
 }
 
 .profileLoc {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     color: #94a3b8;
 }
 
@@ -1144,7 +1144,7 @@
 }
 
 .scoreBadge {
-    font-size: 0.58rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--primary-blue);
     background: #eff6ff;
@@ -1182,13 +1182,13 @@
 }
 
 .scoreSub {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--primary-blue);
 }
 
 .scoreText {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #94a3b8;
     text-align: center;
 }
@@ -1280,7 +1280,7 @@
 }
 
 .contactLabel {
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     color: #94a3b8;
 }
 
@@ -1332,7 +1332,7 @@
 }
 
 .profileActionHint {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #94a3b8;
 }
 
@@ -1368,7 +1368,7 @@
 }
 
 .addBtn {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: var(--primary-blue);
     background: none;
@@ -1446,7 +1446,7 @@
 }
 
 .skillGroupTitle {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
@@ -1460,7 +1460,7 @@
 }
 
 .skillTag {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: var(--primary-blue);
     background: #eff6ff;
@@ -1469,7 +1469,7 @@
 }
 
 .toolTag {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: #475569;
     background: #f5f7fa;
@@ -1733,7 +1733,7 @@
     border: none;
     padding: 0;
     color: #64748b;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     text-align: left;
     cursor: pointer;
 }
@@ -1774,7 +1774,7 @@
 }
 
 .field label {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: #64748b;
 }
@@ -1796,7 +1796,7 @@
 }
 
 .fieldFull label {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: #64748b;
 }
@@ -1811,7 +1811,7 @@
 }
 
 .errorText {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     color: #ef4444;
     margin-top: 0.1rem;
 }
@@ -1831,7 +1831,7 @@
     color: var(--primary-blue);
     padding: 0.25rem 0.6rem;
     border-radius: 6px;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
 }
 

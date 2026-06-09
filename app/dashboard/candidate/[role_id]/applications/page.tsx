@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants/applicationStatuses';
 
@@ -48,6 +49,7 @@ export default function ApplicationsPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'all' | 'active' | 'rejected' | 'withdrawn'>('all');
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+    const [withdrawTarget, setWithdrawTarget] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
@@ -84,7 +86,13 @@ export default function ApplicationsPage() {
     const handleWithdraw = async (id: string, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!confirm('Are you sure you want to withdraw this application?')) return;
+        setWithdrawTarget(id);
+    };
+
+    const confirmWithdraw = async () => {
+        if (!withdrawTarget) return;
+        const id = withdrawTarget;
+        setWithdrawTarget(null);
 
         const originalApps = [...applications];
         setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'withdrawn' } : app));
@@ -107,6 +115,16 @@ export default function ApplicationsPage() {
     return (
         <div className={styles.dash} style={{ gap: '2rem' }}>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+            <ConfirmModal
+                isOpen={!!withdrawTarget}
+                title="Withdraw Application"
+                message="Are you sure you want to withdraw this application? This action cannot be undone."
+                confirmLabel="Yes, Withdraw"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmWithdraw}
+                onCancel={() => setWithdrawTarget(null)}
+            />
 
             <div className={styles.pageHeader}>
                 <div className={styles.pageHeaderContent}>
@@ -155,7 +173,7 @@ export default function ApplicationsPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {filteredApps.length === 0 ? (
                     <div style={{ padding: '80px 0', textAlign: 'center', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
-                        <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📁</div>
+                        <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}><span role="img" aria-hidden="true">📁</span></div>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>No applications yet</h3>
                         <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Start your journey by browsing available roles.</p>
                         <Link href={`/dashboard/candidate/${roleId}/jobs`} style={{ background: 'var(--primary-blue)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '10px', textDecoration: 'none', fontWeight: 600 }}>Browse Jobs</Link>
