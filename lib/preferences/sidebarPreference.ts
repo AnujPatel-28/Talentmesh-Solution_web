@@ -111,11 +111,12 @@ export function useSidebarPreference(userId?: string) {
         const { data, error } = await insforge.database
           .from('user_preferences')
           .select('sidebar_preferences')
-          .eq('user_id', userId)
-          .single();
+          .eq('user_id', userId);
 
-        if (!error && data?.sidebar_preferences) {
-          const dbPref = data.sidebar_preferences as SidebarPreferencePayload;
+        const record = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+        if (!error && record?.sidebar_preferences) {
+          const dbPref = record.sidebar_preferences as SidebarPreferencePayload;
           if (dbPref.version && typeof dbPref.collapsed === 'boolean') {
             if (active) {
               console.log('[SidebarPreference] Loaded from DB successfully.');

@@ -75,7 +75,8 @@ export default function AdminDashboardPage() {
     try {
       const { data, error: fetchError } = await invokeFunction('admin-dashboard', {
         method: 'POST',
-        body: { action: 'get-summary', limit: 10 }
+        body: { action: 'get-summary', limit: 10 },
+        signal
       });
 
       if (signal?.aborted) {
