@@ -1,7 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 
-const HIDDEN_PATHS = ["/login", "/signup", "/forgot-password", "/dashboard", "/candidate", "/recruiter", "/onboarding", "/admin"];
+const HIDDEN_PATHS = ["/login", "/signup", "/forgot-password", "/dashboard", "/candidate", "/recruiter", "/onboarding", "/admin", "/candidates", "/recruiters"];
 
 interface NavbarWrapperProps {
     children: React.ReactNode;

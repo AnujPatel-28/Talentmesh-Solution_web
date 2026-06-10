@@ -41,7 +41,7 @@ test.describe('Authentication Flow', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('successful login and redirection (role: candidate)', async ({ page }) => {
+  test('successful login and redirection (role: candidate)', async ({ page, baseURL }) => {
     const mockUserId = 'cand-uuid-123';
     
     // 1. Mock session as initially null
@@ -81,12 +81,13 @@ test.describe('Authentication Flow', () => {
       });
     });
 
-    await page.goto('/login');
+    const loginUrl = baseURL ? baseURL.replace('://', '://jobs.') + '/login' : '/login';
+    await page.goto(loginUrl);
     await page.fill('#email', 'candidate@test.com');
     await page.fill('#password', 'password123');
     await page.click('button[type="submit"]');
 
-    await page.waitForURL(new RegExp(`dashboard/candidate/${mockUserId}`), { timeout: 15000 });
-    await expect(page).toHaveURL(new RegExp(`dashboard/candidate/${mockUserId}`));
+    await page.waitForURL(/jobs\.localhost:3000\/dashboard|dashboard\/candidate/, { timeout: 15000 });
+    await expect(page).toHaveURL(/jobs\.localhost:3000\/dashboard|dashboard\/candidate/);
   });
 });

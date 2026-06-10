@@ -11,6 +11,8 @@ import CenteredLoader from '@/components/ui/CenteredLoader';
 import { insforge, invokeFunction, directInsforge } from '@/lib/insforge';
 import ImpersonationBanner from '@/components/admin/ImpersonationBanner';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
+import { useSidebarPreference } from '@/lib/preferences/sidebarPreference';
+import { mutationQueue } from '@/lib/mutationQueue';
 
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import UniversalSearch from '@/components/admin/UniversalSearch';
@@ -178,7 +180,7 @@ const PlugIcon = (
 );
 
 /* ─── Nav Definitions ─── */
-interface NavChild { label: string; href: string; }
+interface NavChild { label: string; href: string; badge?: number; badgeType?: 'primary' | 'red'; }
 interface NavItem { label: string; href: string; icon: React.ReactNode; badge?: number; badgeType?: 'primary' | 'red'; id?: string; children?: NavChild[]; }
 
 const getCandidateNav = (role_id: string, nviteCount?: number, offerCount?: number, applicationCount?: number): NavItem[] => [
@@ -231,9 +233,14 @@ const getRecruiterNav = (roleId: string): NavItem[] => [
 
 const SUPER_ADMIN_NAV = (counts?: { jobs: number, candidates: number, recruiters: number, pendingJobs: number }): NavItem[] => [
     { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
-    { label: 'Job Approvals', href: '/dashboard/admin/job-approvals', icon: Icons.inbox, badge: counts?.pendingJobs || undefined, badgeType: 'red' },
+    { 
+        label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, id: 'admin_jobs',
+        children: [
+            { label: 'All Jobs', href: '/dashboard/admin/jobs' },
+            { label: 'Job Approvals', href: '/dashboard/admin/job-approvals', badge: counts?.pendingJobs || undefined, badgeType: 'red' },
+        ]
+    },
     { label: 'Job Applications', href: '/dashboard/admin/applications', icon: Icons.clipboard },
-    { label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, badge: counts?.jobs || undefined },
     { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: counts?.candidates || undefined },
     { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: Icons.recruiter, badge: counts?.recruiters || undefined },
     { label: 'Companies', href: '/dashboard/admin/companies', icon: Icons.building },
@@ -262,7 +269,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const isRecruiter = authUser?.role === 'recruiter' || pathname.includes('/dashboard/recruiter') || pathname.includes('/recruiter/dashboard');
     const { openSearch } = useSearch();
     const [isSigningOut, setIsSigningOut] = useState(false);
-    const [collapsed, setCollapsed] = useState(false);
+    const { collapsed, toggle: sidebarToggle } = useSidebarPreference(authUser?.id);
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+    const isCollapsed = mounted ? collapsed : false;
     const [mobileOpen, setMobileOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
@@ -272,6 +284,29 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const [notifCount, setNotifCount] = useState(0);
     const [applicationCount, setApplicationCount] = useState(0);
     const isImpersonating = typeof window !== 'undefined' ? document.cookie.includes('tm_impersonating_user_id=') : false;
+
+    React.useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setMobileOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    React.useEffect(() => {
+        if (typeof document === 'undefined') return;
+        if (mobileOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [mobileOpen]);
 
     React.useEffect(() => {
         if (!isInitialized || !authUser) return;
@@ -346,27 +381,29 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 }
 
                 // Use directInsforge to bypass Next.js API proxy which doesn't support WebSockets well
-                if (token) {
+                if (token && directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
                     // Set auth token before connecting if we have one
                     (directInsforge.realtime as any).setAuth(token); // Usually needed if RLS is on channels
                 }
 
-                // Ensure connect() doesn't block forever
-                const connectPromise = directInsforge.realtime.connect();
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Realtime timeout')), 8000));
-                
-                await Promise.race([connectPromise, timeoutPromise]);
+                if (directInsforge.realtime && typeof directInsforge.realtime.connect === 'function') {
+                    // Ensure connect() doesn't block forever
+                    const connectPromise = directInsforge.realtime.connect();
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Realtime timeout')), 8000));
+                    
+                    await Promise.race([connectPromise, timeoutPromise]);
 
-                if (isAdmin) {
-                    await directInsforge.realtime.subscribe('admin:alerts');
-                    directInsforge.realtime.on('new_alert', () => {
-                        if (active) setNotifCount(prev => prev + 1);
-                    });
-                } else if (authUser?.id) {
-                    await directInsforge.realtime.subscribe(`user:${authUser.id}`);
-                    directInsforge.realtime.on('new_notification', () => {
-                        if (active) setNotifCount(prev => prev + 1);
-                    });
+                    if (isAdmin && typeof directInsforge.realtime.subscribe === 'function' && typeof directInsforge.realtime.on === 'function') {
+                        await directInsforge.realtime.subscribe('admin:alerts');
+                        directInsforge.realtime.on('new_alert', () => {
+                            if (active) setNotifCount(prev => prev + 1);
+                        });
+                    } else if (authUser?.id && typeof directInsforge.realtime.subscribe === 'function' && typeof directInsforge.realtime.on === 'function') {
+                        await directInsforge.realtime.subscribe(`user:${authUser.id}`);
+                        directInsforge.realtime.on('new_notification', () => {
+                            if (active) setNotifCount(prev => prev + 1);
+                        });
+                    }
                 }
             } catch (err) {
                 // Silently fail realtime to avoid blocking UI cards
@@ -412,7 +449,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (toOpen.size > 0) {
             setOpenGroups(prev => new Set([...prev, ...toOpen]));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathname, roleId, isRecruiter]);
 
     const toggleGroup = useCallback((id: string) => {
@@ -459,9 +495,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined' && window.innerWidth <= 768) {
             setMobileOpen(prev => !prev);
         } else {
-            setCollapsed(prev => !prev);
+            sidebarToggle();
         }
-    }, []);
+    }, [sidebarToggle]);
 
     React.useEffect(() => {
         // Prevent redirect while loading
@@ -478,6 +514,22 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (!isDedicatedBranch && !authUser && !hasToken) {
             router.push('/login');
             return;
+        }
+
+        // Guard admin subpages from non-admins
+        if (authUser && pathname.startsWith('/dashboard/admin')) {
+            if (authUser.role !== 'admin' && authUser.role !== 'super_admin') {
+                router.push(authUser.role === 'recruiter' ? `/dashboard/recruiter/${authUser.id}` : `/dashboard/candidate/${authUser.id}`);
+                return;
+            }
+        }
+        
+        // Guard recruiter subpages from non-recruiters
+        if (authUser && pathname.startsWith('/dashboard/recruiter')) {
+            if (authUser.role !== 'recruiter' && authUser.role !== 'admin' && authUser.role !== 'super_admin') {
+                router.push(`/dashboard/candidate/${authUser.id}`);
+                return;
+            }
         }
 
         // Guard unapproved recruiters from accessing subpages
@@ -509,7 +561,97 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         }
     }, [isLoading, isInitialized, authUser, router, pathname]);
 
+    // Global Pending Actions Processing (Correction 3: Undo survives navigation)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
 
+        const processPendingSessionActions = async () => {
+            const now = Date.now();
+
+            // 1. Process Candidates pending actions
+            if (!pathname.includes('/dashboard/admin/candidates')) {
+                const storedCand = window.sessionStorage.getItem('tm_pending_action_candidates');
+                if (storedCand) {
+                    try {
+                        const parsed = JSON.parse(storedCand);
+                        if (now >= parsed.expiresAt) {
+                            // Expired while we were away! Commit it.
+                            window.sessionStorage.removeItem('tm_pending_action_candidates');
+                            const { action, ids } = parsed;
+                            await mutationQueue.enqueue(
+                                async (idemKey) => {
+                                    let error = null;
+                                    if (action === 'approve' || action === 'reject') {
+                                        const { error: err } = await invokeFunction('admin-candidates', {
+                                            method: 'POST',
+                                            body: { action: 'bulk-status', ids, status: action === 'approve' ? 'approved' : 'rejected' },
+                                            idempotencyKey: idemKey
+                                        });
+                                        error = err;
+                                    } else if (action === 'activate' || action === 'deactivate') {
+                                        const { error: err } = await invokeFunction('admin-candidates', {
+                                            method: 'POST',
+                                            body: { action: 'bulk-active', ids, is_active: action === 'activate' },
+                                            idempotencyKey: idemKey
+                                        });
+                                        error = err;
+                                    }
+                                    if (error) throw new Error(error.message);
+                                    window.dispatchEvent(new CustomEvent('admin-candidates:refresh'));
+                                },
+                                () => {}
+                            );
+                        }
+                    } catch (e) {
+                        window.sessionStorage.removeItem('tm_pending_action_candidates');
+                    }
+                }
+            }
+
+            // 2. Process Recruiters pending actions
+            if (!pathname.includes('/dashboard/admin/recruiters')) {
+                const storedRec = window.sessionStorage.getItem('tm_pending_action_recruiters');
+                if (storedRec) {
+                    try {
+                        const parsed = JSON.parse(storedRec);
+                        if (now >= parsed.expiresAt) {
+                            // Expired while we were away! Commit it.
+                            window.sessionStorage.removeItem('tm_pending_action_recruiters');
+                            const { action, ids } = parsed;
+                            await mutationQueue.enqueue(
+                                async (idemKey) => {
+                                    let error = null;
+                                    if (action === 'approve' || action === 'reject') {
+                                        const { error: err } = await invokeFunction('admin-recruiters', {
+                                            method: 'POST',
+                                            body: { action: 'bulk-status', ids, status: action === 'approve' ? 'approved' : 'rejected' },
+                                            idempotencyKey: idemKey
+                                        });
+                                        error = err;
+                                    } else if (action === 'activate' || action === 'deactivate') {
+                                        const { error: err } = await invokeFunction('admin-recruiters', {
+                                            method: 'POST',
+                                            body: { action: 'bulk-active', ids, is_active: action === 'activate' },
+                                            idempotencyKey: idemKey
+                                        });
+                                        error = err;
+                                    }
+                                    if (error) throw new Error(error.message);
+                                    window.dispatchEvent(new CustomEvent('admin-recruiters:refresh'));
+                                },
+                                () => {}
+                            );
+                        }
+                    } catch (e) {
+                        window.sessionStorage.removeItem('tm_pending_action_recruiters');
+                    }
+                }
+            }
+        };
+
+        const interval = setInterval(processPendingSessionActions, 2000);
+        return () => clearInterval(interval);
+    }, [pathname]);
 
     // Shell rendering logic
     const renderContent = () => {
@@ -541,10 +683,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             <SearchOverlay />
             {isAdmin && <div className={styles.adminAccent} />}
             {/* Sidebar */}
-            <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}>
+            <aside className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ''} ${mobileOpen ? styles.sidebarMobileOpen : ''}`}>
                 <div className={`${styles.sidebarHead} ${isAdmin ? styles.adminSidebarHead : ''}`}>
                     <Link href={homeUrl} className={styles.brand}>
-                        {collapsed ? (
+                        {isCollapsed ? (
                             <span className={styles.brandIcon}>
                                 <Image src="/TalentMesh_Logo-removebg-preview.png" alt="Icon" width={32} height={32} unoptimized />
                             </span>
@@ -582,17 +724,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                         className={`${styles.navGroupHeader} ${anyChildActive ? styles.navGroupActive : ''}`}
                                         onClick={() => toggleGroup(groupId)}
                                         aria-expanded={isOpen}
-                                        title={collapsed ? item.label : undefined}
+                                        title={isCollapsed ? item.label : undefined}
                                     >
                                         <span className={styles.navIcon}>{item.icon}</span>
-                                        {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
-                                        {!collapsed && (
+                                        {!isCollapsed && <span className={styles.navLabel}>{item.label}</span>}
+                                        {!isCollapsed && (
                                             <span className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ''}`}>
                                                 {ChevronDown}
                                             </span>
                                         )}
                                     </button>
-                                    {!collapsed && (
+                                    {!isCollapsed && (
                                         <div className={`${styles.navSubItems} ${isOpen ? styles.navSubItemsOpen : ''}`}>
                                             {item.children.map(child => {
                                                 const ch = (child.href.replace(/\/$/, '') || '')
@@ -605,9 +747,17 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                                         href={child.href}
                                                         className={`${styles.navSubLink} ${childActive ? styles.navSubLinkActive : ''}`}
                                                         onClick={() => setMobileOpen(false)}
+                                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}
                                                     >
-                                                        <span className={styles.subDot}>{DotIcon}</span>
-                                                        {child.label}
+                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <span className={styles.subDot}>{DotIcon}</span>
+                                                            {child.label}
+                                                        </span>
+                                                        {child.badge != null && (
+                                                            <span className={`${styles.navBadge} ${child.badgeType === 'red' ? styles.navBadgeRed : ''}`} style={{ marginRight: '0.75rem', position: 'static' }}>
+                                                                 {child.badge}
+                                                            </span>
+                                                        )}
                                                     </Link>
                                                 );
                                             })}
@@ -628,14 +778,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                 href={item.href}
                                 className={`${styles.navLink} ${active ? styles.navLinkActive : ''}`}
                                 onClick={() => setMobileOpen(false)}
-                                title={collapsed ? item.label : undefined}
+                                title={isCollapsed ? item.label : undefined}
                             >
                                 <span className={styles.navIcon}>{item.icon}</span>
-                                {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
-                                {item.badge != null && !collapsed && (
+                                {!isCollapsed && <span className={styles.navLabel}>{item.label}</span>}
+                                {item.badge != null && !isCollapsed && (
                                     <span className={`${styles.navBadge} ${item.badgeType === 'red' ? styles.navBadgeRed : ''}`}>{item.badge}</span>
                                 )}
-                                {item.badge != null && collapsed && (
+                                {item.badge != null && isCollapsed && (
                                     <span className={styles.navBadgeDot} />
                                 )}
                             </Link>
@@ -644,7 +794,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 </nav>
 
                 <div className={styles.sidebarFoot}>
-                    {isAdmin && !collapsed && (
+                    {isAdmin && !isCollapsed && (
                         <div className={styles.adminPortalHeader} style={{ marginBottom: '12px', justifyContent: 'center' }}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -658,7 +808,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         onClick={() => setMobileOpen(false)}
                     >
                         <span className={styles.navIcon}>{Icons.settings}</span>
-                        {!collapsed && <span className={styles.navLabel}>Settings</span>}
+                        {!isCollapsed && <span className={styles.navLabel}>Settings</span>}
                     </Link>
 
                     {!isAdmin && (
@@ -672,13 +822,13 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                     </svg>
                                 )}
                             </span>
-                            {!collapsed && <span className={styles.navLabel}>{isSigningOut ? 'Signing out...' : 'Logout'}</span>}
+                            {!isCollapsed && <span className={styles.navLabel}>{isSigningOut ? 'Signing out...' : 'Logout'}</span>}
                         </button>
                     )}
 
                     {isAdmin ? (
                         <div className={styles.adminMiniCard}>
-                            {!collapsed && (
+                            {!isCollapsed && (
                                 <div className={styles.adminMiniCardInner}>
                                     <div className={`${styles.userAvatar} ${styles.adminAvatar}`}>
                                         {authUser?.avatar_url ? (
@@ -700,9 +850,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                 onClick={handleSignOut}
                                 disabled={isSigningOut}
                                 className={styles.adminSignOutBtn}
-                                style={{ display: collapsed ? 'flex' : 'block', justifyContent: 'center' }}
+                                style={{ display: isCollapsed ? 'flex' : 'block', justifyContent: 'center' }}
                             >
-                                {isSigningOut ? '...' : collapsed ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg> : 'Sign Out'}
+                                {isSigningOut ? '...' : isCollapsed ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg> : 'Sign Out'}
                             </button>
                         </div>
                     ) : (
@@ -714,7 +864,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                     user.initials
                                 )}
                             </div>
-                            {!collapsed && (
+                            {!isCollapsed && (
                                 <div className={styles.userMeta}>
                                     <span className={styles.userName}>{user.name}</span>
                                     <span className={styles.userEmail}>{user.email}</span>

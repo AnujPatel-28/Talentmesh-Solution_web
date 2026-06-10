@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import styles from '../candidates/candidates.module.css'; // Reusing established styles
 import { invokeFunction, insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
 import { RecruiterRegisterForm } from '../_components/RecruiterRegisterForm';
 import { AdminButton } from '../_components/AdminForm';
+import { useSelection } from '@/hooks/useSelection';
+import { BulkConfirmModal } from '../_components/BulkConfirmModal';
+import { mutationQueue } from '@/lib/mutationQueue';
+import { canPerform, Role } from '@/lib/permissions';
+import { recordMetric, startTrace, endTrace } from '@/lib/observability';
 import { Globe, Users, Clock, CheckCircle2, XCircle, FileText, Download, Smartphone, Trash2, ShieldAlert } from 'lucide-react';
 
 
@@ -1217,6 +1223,110 @@ function ApproveSetupModal({
 // ── Main Page ───────────────────────────────────────────────────────────────
 export default function AdminRecruitersPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // URL Synced State Parameters
+  const urlSearch = searchParams.get('search') || '';
+  const urlStatus = searchParams.get('status') || 'all';
+  const urlPage = parseInt(searchParams.get('page') || '0');
+  const urlSort = searchParams.get('sort') || 'newest';
+
+  const [recruiters, setRecruiters] = useState<AdminRecruiter[]>([]);
+  const [searchVal, setSearchVal] = useState(urlSearch);
+  const [activeSearch, setActiveSearch] = useState(urlSearch);
+  const [statusFilter, setStatusFilter] = useState(urlStatus);
+  const [sort, setSort] = useState(urlSort);
+  const [page, setPage] = useState(urlPage);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const [previewUser, setPreviewUser] = useState<AdminRecruiter | null>(null);
+  const [showCompanyRegister, setShowCompanyRegister] = useState(false);
+  const [showRecruiterRegister, setShowRecruiterRegister] = useState(false);
+
+  // OTP + credentials state
+  const [verifyTarget, setVerifyTarget] = useState<AdminRecruiter | null>(null);
+  const [credentialsTarget, setCredentialsTarget] = useState<{ email: string; name: string; _plainPassword?: string } | null>(null);
+
+  // Approve & Setup Modal state
+  const [approveSetupTarget, setApproveSetupTarget] = useState<AdminRecruiter | null>(null);
+
+  // Custom Proposal State
+  const [proposalFeatures, setProposalFeatures] = useState<string[]>([]);
+  const [proposalPrice, setProposalPrice] = useState('');
+  const [sendingProposal, setSendingProposal] = useState(false);
+
+  // Background Export Queue State
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportProgress, setExportProgress] = useState('');
+
+  // Bulk Action Confirmation Dialog State
+  const [bulkActionTarget, setBulkActionTarget] = useState<{ action: string; impact: string } | null>(null);
+
+  // Bulk Undo State
+  const [pendingAction, setPendingAction] = useState<{
+    action: string;
+    ids: string[];
+    backup: AdminRecruiter[];
+    timeLeft: number;
+  } | null>(null);
+  
+  const pendingActionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingActionRef = useRef<typeof pendingAction>(null);
+
+  // Permissions Guards
+  const hasEditPerm = user?.role ? canPerform(user.role as Role, 'recruiters', 'edit') : false;
+  const hasDeletePerm = user?.role ? canPerform(user.role as Role, 'recruiters', 'delete') : false;
+  const hasApprovePerm = user?.role ? canPerform(user.role as Role, 'recruiters', 'approve') : false;
+  const hasExportPerm = user?.role ? canPerform(user.role as Role, 'recruiters', 'export') : false;
+
+  // page-scoped Selection hook reset dependency array
+  const filterDeps = useMemo(() => [activeSearch, statusFilter, sort], [activeSearch, statusFilter, sort]);
+  const {
+    selectedIds,
+    toggleSelect,
+    selectAll,
+    clearSelection,
+    isSelected
+  } = useSelection(filterDeps);
+
+  // Request Deduplication and Abort references
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchParamsRef = useRef<string>('');
+  const internalNavRef = useRef(false);
+
+  const toggleFeature = (f: string) => setProposalFeatures(p => p.includes(f) ? p.filter(x => x !== f) : [...p, f]);
+
+  const sendCustomProposal = async (targetUser: AdminRecruiter) => {
+    setSendingProposal(true);
+    try {
+      const res = await fetch('/api/admin/send-proposal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recruiterId: targetUser.id,
+          email: targetUser.email,
+          name: targetUser.name,
+          company: getProfile(targetUser)?.company_name || 'Your Company',
+          features: proposalFeatures,
+          price: proposalPrice
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert('Proposal sent successfully!');
+      setProposalFeatures([]);
+      setProposalPrice('');
+    } catch (err: any) {
+      alert('Failed to send proposal: ' + err.message);
+    } finally {
+      setSendingProposal(false);
+    }
+  };
 
   const handleDownload = async (url: string, filename: string) => {
     try {
@@ -1254,25 +1364,16 @@ export default function AdminRecruitersPage() {
       const blob = await response.blob();
 
       let mimeType = blob.type;
-
-      // Read magic bytes to determine the correct MIME type
       try {
         const buffer = await blob.slice(0, 4).arrayBuffer();
         const arr = new Uint8Array(buffer);
-        // PDF magic bytes: %PDF (25 50 44 46)
         if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
           mimeType = 'application/pdf';
-        }
-        // PNG magic bytes: 89 50 4E 47
-        else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
+        } else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
           mimeType = 'image/png';
-        }
-        // JPEG magic bytes: FF D8 FF
-        else if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
+        } else if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
           mimeType = 'image/jpeg';
-        }
-        // GIF magic bytes: 47 49 46 38 (GIF8)
-        else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
+        } else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
           mimeType = 'image/gif';
         }
       } catch (readErr) {
@@ -1287,7 +1388,7 @@ export default function AdminRecruitersPage() {
         } else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) {
           mimeType = 'image/jpeg';
         } else {
-          mimeType = 'application/pdf'; // Default to PDF for rendering KYC documents
+          mimeType = 'application/pdf';
         }
       }
 
@@ -1299,62 +1400,26 @@ export default function AdminRecruitersPage() {
       window.open(url, '_blank');
     }
   };
-  const [recruiters, setRecruiters] = useState<AdminRecruiter[]>([]);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-
-  const [previewUser, setPreviewUser] = useState<AdminRecruiter | null>(null);
-  const [showCompanyRegister, setShowCompanyRegister] = useState(false);
-  const [showRecruiterRegister, setShowRecruiterRegister] = useState(false);
-
-  // OTP + credentials state
-  const [verifyTarget, setVerifyTarget] = useState<AdminRecruiter | null>(null);
-  const [credentialsTarget, setCredentialsTarget] = useState<{ email: string; name: string; _plainPassword?: string } | null>(null);
-
-  // Approve & Setup Modal state
-  const [approveSetupTarget, setApproveSetupTarget] = useState<AdminRecruiter | null>(null);
-
-  // Custom Proposal State
-  const [proposalFeatures, setProposalFeatures] = useState<string[]>([]);
-  const [proposalPrice, setProposalPrice] = useState('');
-  const [sendingProposal, setSendingProposal] = useState(false);
-
-  const toggleFeature = (f: string) => setProposalFeatures(p => p.includes(f) ? p.filter(x => x !== f) : [...p, f]);
-
-  const sendCustomProposal = async (targetUser: AdminRecruiter) => {
-    setSendingProposal(true);
-    try {
-      const res = await fetch('/api/admin/send-proposal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recruiterId: targetUser.id,
-          email: targetUser.email,
-          name: targetUser.name,
-          company: getProfile(targetUser)?.company_name || 'Your Company',
-          features: proposalFeatures,
-          price: proposalPrice
-        })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      alert('Proposal sent successfully!');
-      setProposalFeatures([]);
-      setProposalPrice('');
-    } catch (err: any) {
-      alert('Failed to send proposal: ' + err.message);
-    } finally {
-      setSendingProposal(false);
+  const fetchRecruiters = useCallback(async (p = page, q = activeSearch, s = statusFilter, o = sort, force = false) => {
+    const fetchKey = `${p}-${q}-${s}-${o}`;
+    if (!force && lastFetchParamsRef.current === fetchKey) {
+      return;
     }
-  };
+    lastFetchParamsRef.current = fetchKey;
 
-  const fetchRecruiters = useCallback(async (p = page, q = search, s = statusFilter) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      recordMetric('abort', 1);
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
+    setError('');
+    recordMetric('request', 1);
+
+    const trace = startTrace('admin-recruiters', user?.role);
     try {
       const { data, error: fetchError } = await invokeFunction('admin-recruiters', {
         method: 'GET',
@@ -1362,67 +1427,272 @@ export default function AdminRecruitersPage() {
           search: q || undefined,
           status: s !== 'all' ? s : undefined,
           page: p.toString(),
-          limit: '20'
-        }
+          limit: '25',
+          sort: o
+        },
+        signal: controller.signal
       });
 
       if (fetchError) throw new Error(fetchError.message);
 
       if (data) {
-        setRecruiters(data.recruiters || []);
-        setTotalCount(data.total);
-        setTotalPages(Math.ceil(data.total / 20));
+        setRecruiters(data.items || data.recruiters || []);
+        setTotalCount(data.total || 0);
+        setTotalPages(Math.ceil((data.total || 0) / 25));
+        endTrace(trace, 'success');
+        recordMetric('search', performance.now() - trace.startTime);
       }
     } catch (err: any) {
-      setError('Failed to load recruiters');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, statusFilter]);
-
-  useEffect(() => {
-    if (user) {
-      fetchRecruiters();
-    }
-  }, [fetchRecruiters, user]);
-
-  const toggleStatus = async (user: AdminRecruiter) => {
-    try {
-      const { data, error: updateError } = await invokeFunction('admin-recruiters', {
-        method: 'PATCH',
-        body: { is_active: !user.is_active },
-        queries: { id: user.id }
-      });
-
-      if (updateError) throw new Error(updateError.message);
-
-      if (data) {
-        fetchRecruiters();
-        if (previewUser?.id === user.id) {
-          setPreviewUser({ ...user, is_active: !user.is_active });
-        }
+      if (err.name !== 'AbortError') {
+        setError('Failed to load recruiters');
+        endTrace(trace, 'error', err.message);
       }
-    } catch (err) {
-      setError('Failed to update status');
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [page, activeSearch, statusFilter, sort, user?.role]);
+
+  // Synchronize component states when URL parameters change (back/forward history or mount)
+  useEffect(() => {
+    if (internalNavRef.current) {
+      internalNavRef.current = false;
+      return;
+    }
+    const q = searchParams.get('search') || '';
+    const p = parseInt(searchParams.get('page') || '0');
+    const s = searchParams.get('status') || 'all';
+    const o = searchParams.get('sort') || 'newest';
+
+    setPage(p);
+    setActiveSearch(q);
+    setSearchVal(q);
+    setStatusFilter(s);
+    setSort(o);
+
+    if (user) {
+      fetchRecruiters(p, q, s, o);
+    }
+  }, [searchParams, fetchRecruiters, user]);
+
+  // Keep ref in sync
+  useEffect(() => {
+    pendingActionRef.current = pendingAction;
+  }, [pendingAction]);
+
+  // Listen to background refresh events from layout (surviving navigation)
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchRecruiters(page, activeSearch, statusFilter, sort, true);
+    };
+    window.addEventListener('admin-recruiters:refresh', handleRefresh);
+    return () => {
+      window.removeEventListener('admin-recruiters:refresh', handleRefresh);
+    };
+  }, [fetchRecruiters, page, activeSearch, statusFilter, sort]);
+
+  const commitPendingAction = useCallback(async (action: string, ids: string[], backup: AdminRecruiter[]) => {
+    window.sessionStorage.removeItem('tm_pending_action_recruiters');
+    try {
+      await mutationQueue.enqueue(
+        async (idemKey) => {
+          let error = null;
+          if (action === 'approve') {
+            const { error: patchError } = await invokeFunction('admin-recruiters', {
+              method: 'POST',
+              body: { action: 'bulk-status', ids, status: 'active' },
+              idempotencyKey: idemKey
+            });
+            error = patchError;
+          } else if (action === 'activate' || action === 'deactivate') {
+            const { error: patchError } = await invokeFunction('admin-recruiters', {
+              method: 'POST',
+              body: { action: 'bulk-active', ids, is_active: action === 'activate' },
+              idempotencyKey: idemKey
+            });
+            error = patchError;
+          }
+
+          if (error) throw new Error(error.message);
+          
+          recordMetric('bulk_action', ids.length);
+          fetchRecruiters(page, activeSearch, statusFilter, sort, true);
+        },
+        () => {
+          setRecruiters(backup);
+          alert('Bulk operation failed, rolled back changes.');
+        },
+        { key: `bulk_recruiters_${action}_${Date.now()}` }
+      );
+    } catch (err: any) {
+      setError(err.message || 'Bulk operation execution failed.');
+    }
+  }, [page, activeSearch, statusFilter, sort, fetchRecruiters]);
+
+  // Load initial pending action from sessionStorage on mount
+  useEffect(() => {
+    const stored = window.sessionStorage.getItem('tm_pending_action_recruiters');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const timeLeft = Math.ceil((parsed.expiresAt - Date.now()) / 1000);
+        if (timeLeft <= 0) {
+          commitPendingAction(parsed.action, parsed.ids, parsed.backup);
+          window.sessionStorage.removeItem('tm_pending_action_recruiters');
+        } else {
+          setPendingAction({
+            action: parsed.action,
+            ids: parsed.ids,
+            backup: parsed.backup,
+            timeLeft
+          });
+        }
+      } catch (e) {
+        window.sessionStorage.removeItem('tm_pending_action_recruiters');
+      }
+    }
+  }, [commitPendingAction]);
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (!pendingAction) return;
+
+    pendingActionTimerRef.current = setInterval(() => {
+      setPendingAction(prev => {
+        if (!prev) return null;
+        if (prev.timeLeft <= 1) {
+          commitPendingAction(prev.action, prev.ids, prev.backup);
+          return null;
+        }
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+
+    return () => {
+      if (pendingActionTimerRef.current) {
+        clearInterval(pendingActionTimerRef.current);
+      }
+    };
+  }, [pendingAction, commitPendingAction]);
+
+  const handleUndoPending = () => {
+    if (pendingActionTimerRef.current) {
+      clearInterval(pendingActionTimerRef.current);
+    }
+    if (pendingAction) {
+      setRecruiters(pendingAction.backup);
+    }
+    setPendingAction(null);
+    window.sessionStorage.removeItem('tm_pending_action_recruiters');
+  };
+
+  const updateUrl = (p: number, q: string, s: string, o: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set('search', q);
+    if (p > 0) params.set('page', p.toString());
+    if (s && s !== 'all') params.set('status', s);
+    if (o && o !== 'newest') params.set('sort', o);
+    internalNavRef.current = true;
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearch(searchVal);
+    setPage(0);
+    updateUrl(0, searchVal, statusFilter, sort);
+    fetchRecruiters(0, searchVal, statusFilter, sort, true);
+  };
+
+  const handlePageChange = (newPageIdx: number) => {
+    setPage(newPageIdx);
+    updateUrl(newPageIdx, activeSearch, statusFilter, sort);
+    fetchRecruiters(newPageIdx, activeSearch, statusFilter, sort, true);
+  };
+
+  const handleSortChange = (newSort: string) => {
+    setSort(newSort);
+    setPage(0);
+    updateUrl(0, activeSearch, statusFilter, newSort);
+    fetchRecruiters(0, activeSearch, statusFilter, newSort, true);
+  };
+
+  const handleStatusFilterChange = (newStatus: string) => {
+    setStatusFilter(newStatus);
+    setPage(0);
+    updateUrl(0, activeSearch, newStatus, sort);
+    fetchRecruiters(0, activeSearch, newStatus, sort, true);
+  };
+
+  const handleClearFilters = () => {
+    setSearchVal('');
+    setActiveSearch('');
+    setStatusFilter('all');
+    setSort('newest');
+    setPage(0);
+    updateUrl(0, '', 'all', 'newest');
+    fetchRecruiters(0, '', 'all', 'newest', true);
+  };
+
+  const toggleStatus = async (targetUser: AdminRecruiter) => {
+    const backupRecruiters = [...recruiters];
+    
+    // Optimistic UI update
+    setRecruiters(prev => prev.map(r => r.id === targetUser.id ? { ...r, is_active: !targetUser.is_active } : r));
+    if (previewUser?.id === targetUser.id) {
+      setPreviewUser({ ...previewUser, is_active: !targetUser.is_active });
+    }
+
+    try {
+      await mutationQueue.enqueue(
+        async (idemKey) => {
+          const { data, error: updateError } = await invokeFunction('admin-recruiters', {
+            method: 'PATCH',
+            body: { is_active: !targetUser.is_active },
+            queries: { id: targetUser.id },
+            idempotencyKey: idemKey
+          });
+
+          if (updateError) throw new Error(updateError.message);
+          fetchRecruiters(page, activeSearch, statusFilter, sort, true);
+        },
+        () => {
+          setRecruiters(backupRecruiters);
+          if (previewUser?.id === targetUser.id) {
+            setPreviewUser(targetUser);
+          }
+          alert('Failed to update recruiter status, rolled back.');
+        },
+        { key: `toggle_recruiter_${targetUser.id}` }
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to update recruiter status');
     }
   };
 
   const approveRecruiter = async (profileId: string) => {
     try {
-      const { data, error: updateError } = await invokeFunction('admin-recruiters', {
-        method: 'PATCH',
-        body: { is_approved: true },
-        queries: { id: profileId }
-      });
+      await mutationQueue.enqueue(
+        async (idemKey) => {
+          const { data, error: updateError } = await invokeFunction('admin-recruiters', {
+            method: 'PATCH',
+            body: { is_approved: true },
+            queries: { id: profileId },
+            idempotencyKey: idemKey
+          });
 
-      if (updateError) throw new Error(updateError.message);
-
-      if (data) {
-        fetchRecruiters();
-        setPreviewUser(null);
-      }
-    } catch (err) {
-      setError('Approval failed');
+          if (updateError) throw new Error(updateError.message);
+          fetchRecruiters(page, activeSearch, statusFilter, sort, true);
+          setPreviewUser(null);
+        },
+        () => {
+          alert('Approval failed.');
+        },
+        { key: `approve_recruiter_${profileId}` }
+      );
+    } catch (err: any) {
+      setError(err.message || 'Approval failed.');
     }
   };
 
@@ -1439,34 +1709,355 @@ export default function AdminRecruitersPage() {
     return p?.status === 'pending_verification';
   };
 
-  // CSV Export Utility
-  const downloadCSV = (rows: string[][], filename: string) => {
-    const csv = rows.map(r => r.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  // Selection telemetry tracker
+  useEffect(() => {
+    recordMetric('selection', selectedIds.length);
+  }, [selectedIds]);
 
-  const exportRecruitersCSV = (data: AdminRecruiter[]) => {
-    const headers = ['Name', 'Email', 'Company', 'Industry', 'Size', 'Approved', 'Active', 'Joined Date']
-    const rows = data.map(r => {
-      const p = getProfile(r)
-      return [
-        r.name || 'Anonymous',
-        r.email,
-        p?.company_name || 'Individual',
-        p?.industry || '',
-        p?.company_size || '',
-        p?.is_approved ? 'Yes' : 'No',
-        r.is_active ? 'Yes' : 'No',
-        new Date(r.created_at).toLocaleDateString('en-IN')
-      ]
-    })
-    downloadCSV([headers, ...rows], `recruiters-export-${Date.now()}.csv`)
+  // Bulk Actions
+  const handleBulkClick = (action: string) => {
+    let impactText = '';
+    if (action === 'approve') impactText = `This will approve the profiles of ${selectedIds.length} recruiter(s).`;
+    if (action === 'activate') impactText = `This will activate access for ${selectedIds.length} recruiter(s).`;
+    if (action === 'deactivate') impactText = `This will suspend access for ${selectedIds.length} recruiter(s).`;
+    if (action === 'delete') impactText = `This will PERMANENTLY delete accounts and companies for ${selectedIds.length} selected recruiter(s). THIS IS IRREVERSIBLE.`;
+
+    setBulkActionTarget({ action, impact: impactText });
+  };
+
+  const executeBulkAction = async () => {
+    if (!bulkActionTarget) return;
+    const { action } = bulkActionTarget;
+    setBulkActionTarget(null);
+
+    const backupRecruiters = [...recruiters];
+    
+    // Optimistic UI updates
+    if (action === 'delete') {
+      setRecruiters(prev => prev.filter(r => !selectedIds.includes(r.id)));
+      setPreviewUser(null);
+    } else {
+      setRecruiters(prev => prev.map(r => {
+        if (selectedIds.includes(r.id)) {
+          if (action === 'approve') return { ...r, is_active: true };
+          if (action === 'activate') return { ...r, is_active: true };
+          if (action === 'deactivate') return { ...r, is_active: false };
+        }
+        return r;
+      }));
+    }
+
+    const idsToMutate = [...selectedIds];
+    clearSelection();
+
+    if (action === 'delete') {
+      try {
+        await mutationQueue.enqueue(
+          async (idemKey) => {
+            const { error } = await invokeFunction('admin-recruiters', {
+              method: 'POST',
+              body: { action: 'bulk-delete', ids: idsToMutate },
+              idempotencyKey: idemKey
+            });
+            if (error) throw new Error(error.message);
+
+            recordMetric('bulk_action', idsToMutate.length);
+            fetchRecruiters(page, activeSearch, statusFilter, sort, true);
+          },
+          () => {
+            setRecruiters(backupRecruiters);
+            alert('Bulk delete failed, rolled back list changes.');
+          },
+          { key: `bulk_recruiters_${action}` }
+        );
+      } catch (err: any) {
+        setError(err.message || 'Bulk operation execution failed.');
+      }
+    } else {
+      // Approve/Activate/Deactivate has a 30s Undo Window
+      const expiresAt = Date.now() + 30 * 1000;
+      window.sessionStorage.setItem('tm_pending_action_recruiters', JSON.stringify({
+        action,
+        ids: idsToMutate,
+        backup: backupRecruiters,
+        expiresAt
+      }));
+      setPendingAction({
+        action,
+        ids: idsToMutate,
+        backup: backupRecruiters,
+        timeLeft: 30
+      });
+    }
+  };
+
+  // Local/Queue CSV Export handler with Worker Locking
+  const runExportWorker = useCallback(async (jobId: string, itemsToExport: any[]) => {
+    const workerId = `client-worker-${Math.random().toString(36).substring(2, 9)}`;
+    window.sessionStorage.setItem('tm_active_export_recruiters_job_id', jobId);
+    try {
+      // Claiming and locking the job to prevent duplicate worker execution (server-enforced via RPC)
+      const { data: isClaimed, error: claimErr } = await insforge.database.rpc('claim_export_job', {
+        job_id: jobId,
+        worker_id: workerId
+      });
+
+      if (claimErr || !isClaimed) {
+        console.log('Job already claimed or processed by another worker.');
+        return;
+      }
+
+      const totalCount = itemsToExport.length;
+      let processedCount = 0;
+      await insforge.database.from('export_jobs').update({
+        total_count: totalCount,
+        processed_count: 0,
+        progress_percent: 0
+      }).eq('id', jobId);
+
+      const headers = ['Name', 'Email', 'Company', 'Industry', 'Size', 'Approved', 'Active', 'Joined Date'];
+      const rows: any[] = [];
+      const chunkSize = Math.max(1, Math.floor(totalCount / 5)); // 5 progress updates
+
+      for (let i = 0; i < totalCount; i += chunkSize) {
+        const chunk = itemsToExport.slice(i, i + chunkSize);
+        const chunkRows = chunk.map(r => {
+          const p = getProfile(r);
+          return [
+            r.name || 'Anonymous',
+            r.email,
+            p?.company_name || 'Individual',
+            p?.industry || '',
+            p?.company_size || '',
+            p?.is_approved ? 'Yes' : 'No',
+            r.is_active ? 'Yes' : 'No',
+            new Date(r.created_at).toLocaleDateString('en-IN')
+          ];
+        });
+        rows.push(...chunkRows);
+        processedCount = Math.min(totalCount, processedCount + chunk.length);
+        const progressPercent = Math.round((processedCount / totalCount) * 100);
+
+        setExportProgress(`Exporting ${progressPercent}% (${processedCount}/${totalCount} records)...`);
+
+        await insforge.database.from('export_jobs').update({
+          processed_count: processedCount,
+          progress_percent: progressPercent
+        }).eq('id', jobId);
+
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      const csv = [headers, ...rows].map(r => r.map((cell: any) => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const file = new File([new Blob(['\uFEFF' + csv], { type: 'text/csv' })], `export-${jobId}.csv`);
+
+      const { error: uploadErr } = await insforge.storage
+        .from('export-candidates')
+        .upload(`jobs/${jobId}.csv`, file);
+
+      if (uploadErr) throw uploadErr;
+
+      const downloadUrl = insforge.storage.from('export-candidates').getPublicUrl(`jobs/${jobId}.csv`);
+
+      // Completing and unlocking the job
+      await insforge.database.from('export_jobs').update({
+        status: 'completed',
+        download_url: downloadUrl,
+        completed_at: new Date().toISOString(),
+        locked_by: null,
+        locked_at: null
+      }).eq('id', jobId);
+
+      setExportProgress('Export complete! Triggering file download...');
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `recruiters-export-${jobId}.csv`;
+      a.click();
+    } catch (bgErr: any) {
+      // Unlocking and registering error
+      await insforge.database.from('export_jobs').update({
+        status: 'failed',
+        error_message: bgErr.message || 'Background processing failed.',
+        completed_at: new Date().toISOString(),
+        locked_by: null,
+        locked_at: null
+      }).eq('id', jobId);
+    } finally {
+      window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+      setExportLoading(false);
+    }
+  }, [user?.id]);
+
+  // Restore background export progress after page reload (Gap D)
+  useEffect(() => {
+    const activeJobId = window.sessionStorage.getItem('tm_active_export_recruiters_job_id');
+    if (!activeJobId || !user) return;
+
+    let isSubscribed = true;
+
+    async function checkAndResumeJob() {
+      try {
+        setExportLoading(true);
+        setExportProgress('Checking status of active export job...');
+
+        const { data: job, error: jobErr } = await insforge.database
+          .from('export_jobs')
+          .select('*')
+          .eq('id', activeJobId)
+          .single();
+
+        if (jobErr || !job) {
+          window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+          setExportLoading(false);
+          return;
+        }
+
+        if (job.status === 'completed') {
+          if (job.download_url) {
+            setExportProgress('Export complete! Triggering file download...');
+            const a = document.createElement('a');
+            a.href = job.download_url;
+            a.download = `recruiters-export-${activeJobId}.csv`;
+            a.click();
+          }
+          window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+          setExportLoading(false);
+        } else if (job.status === 'failed') {
+          alert(`Export job failed: ${job.error_message}`);
+          window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+          setExportLoading(false);
+        } else {
+          // Status is pending or running. We can resume the worker client-side!
+          setExportProgress('Resuming background export process...');
+          const { data: items, error: itemsErr } = await insforge.database
+            .from('export_job_items')
+            .select('entity_id')
+            .eq('job_id', activeJobId);
+
+          if (itemsErr || !items || items.length === 0) {
+            window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+            setExportLoading(false);
+            return;
+          }
+
+          const entityIds = items.map((x: any) => x.entity_id);
+          const { data: profiles, error: profsErr } = await insforge.database
+            .from('profiles')
+            .select('*, recruiter_profiles(*, companies(*))')
+            .in('id', entityIds);
+
+          if (profsErr || !profiles || profiles.length === 0) {
+            window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+            setExportLoading(false);
+            return;
+          }
+
+          if (isSubscribed) {
+            runExportWorker(activeJobId!, profiles);
+          }
+        }
+      } catch (e) {
+        window.sessionStorage.removeItem('tm_active_export_recruiters_job_id');
+        setExportLoading(false);
+      }
+    }
+
+    checkAndResumeJob();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [user, runExportWorker]);
+
+  // Local/Queue CSV Export handler
+  const handleExport = async () => {
+    const itemsToExport = selectedIds.length > 0
+      ? recruiters.filter(r => selectedIds.includes(r.id))
+      : recruiters;
+
+    if (itemsToExport.length === 0) {
+      alert('No recruiter records available to export.');
+      return;
+    }
+
+    if (itemsToExport.length < 100) {
+      // Local Export
+      const headers = ['Name', 'Email', 'Company', 'Industry', 'Size', 'Approved', 'Active', 'Joined Date'];
+      const rows = itemsToExport.map(r => {
+        const p = getProfile(r);
+        return [
+          r.name || 'Anonymous',
+          r.email,
+          p?.company_name || 'Individual',
+          p?.industry || '',
+          p?.company_size || '',
+          p?.is_approved ? 'Yes' : 'No',
+          r.is_active ? 'Yes' : 'No',
+          new Date(r.created_at).toLocaleDateString('en-IN')
+        ];
+      });
+      const csv = rows.map(r => r.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `recruiters-export-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // Background Queue Export
+      setExportLoading(true);
+      setExportProgress('Initializing background export job...');
+      try {
+        const { data: job, error: jobErr } = await insforge.database
+          .from('export_jobs')
+          .insert([{
+            user_id: user?.id,
+            status: 'pending',
+            type: 'recruiters',
+            filters: { search: activeSearch, status: statusFilter, sort }
+          }])
+          .select('id')
+          .single();
+
+        if (jobErr || !job) throw new Error(jobErr?.message || 'Failed to create export queue entry.');
+        const jobId = job.id;
+
+        setExportProgress('Logging export items relationships...');
+        const rels = itemsToExport.map(item => ({
+          job_id: jobId,
+          entity_type: 'recruiter',
+          entity_id: item.id
+        }));
+
+        const { error: relErr } = await insforge.database.from('export_job_items').insert(rels);
+        if (relErr) throw relErr;
+
+        setExportProgress('Compiling dataset in background export queue...');
+        runExportWorker(jobId, itemsToExport);
+      } catch (err: any) {
+        alert('Failed to start queue export: ' + err.message);
+        setExportLoading(false);
+      }
+    }
+  };
+
+  function RecruiterCardSkeleton() {
+    return (
+      <article className={`${styles.candidateCard} ${styles.skeletonCard}`}>
+        <div className={styles.cardHeader}>
+          <div className={`${styles.initials} ${styles.skeletonPulse}`} style={{ background: '#f59e0b', opacity: 0.3 }} />
+          <div className={styles.mainInfo} style={{ display: 'grid', gap: '6px' }}>
+            <div className={`${styles.name} ${styles.skeletonPulse}`} style={{ height: '18px', width: '120px' }} />
+            <div className={`${styles.email} ${styles.skeletonPulse}`} style={{ height: '14px', width: '160px' }} />
+          </div>
+        </div>
+        <div className={styles.body} style={{ display: 'grid', gap: '8px' }}>
+          <div className={`${styles.headline} ${styles.skeletonPulse}`} style={{ height: '16px', width: '95%' }} />
+          <div className={`${styles.meta} ${styles.skeletonPulse}`} style={{ height: '14px', width: '60%', marginTop: '6px' }} />
+        </div>
+      </article>
+    );
   }
 
   return (
@@ -1483,49 +2074,119 @@ export default function AdminRecruitersPage() {
         </div>
       </header>
 
+      {/* Toolbar / Filters Row */}
       <div className={styles.toolbarRow}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <form className={styles.toolbar} style={{ flex: 1 }} onSubmit={e => { e.preventDefault(); setPage(0); fetchRecruiters(0); }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', width: '100%', alignItems: 'center' }}>
+          <form className={styles.toolbar} style={{ flex: 1 }} onSubmit={handleSearchSubmit}>
             <input
               className={styles.searchInput}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={searchVal}
+              onChange={(event) => setSearchVal(event.target.value)}
               placeholder="Search by name, company, or email..."
             />
             <button type="submit" className={styles.primaryButton}>Search</button>
           </form>
+
+          {/* Status Filter */}
           <select
             className={styles.searchInput}
-            style={{ width: '200px' }}
+            style={{ maxWidth: '180px' }}
             value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
+            onChange={e => handleStatusFilterChange(e.target.value)}
           >
             <option value="all">All Recruiters</option>
             <option value="pending_verification">Pending Verification</option>
             <option value="active">Active</option>
           </select>
-          <AdminButton onClick={() => setShowRecruiterRegister(true)}>+ Add Recruiter</AdminButton>
-          <AdminButton onClick={() => setShowCompanyRegister(true)}>Register Company</AdminButton>
-          <button onClick={() => exportRecruitersCSV(recruiters)} className={styles.exportBtn}>
-            ↓ Export CSV
-          </button>
+
+          {/* Sort Filter */}
+          <select
+            className={styles.searchInput}
+            style={{ maxWidth: '160px' }}
+            value={sort}
+            onChange={e => handleSortChange(e.target.value)}
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="name_asc">Name (A-Z)</option>
+            <option value="name_desc">Name (Z-A)</option>
+          </select>
+
+          {hasEditPerm && (
+            <>
+              <AdminButton onClick={() => setShowRecruiterRegister(true)}>+ Add Recruiter</AdminButton>
+              <AdminButton onClick={() => setShowCompanyRegister(true)}>Register Company</AdminButton>
+            </>
+          )}
+
+          {hasExportPerm && (
+            <button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className={styles.exportBtn}
+            >
+              {exportLoading ? 'Exporting...' : '↓ Export CSV'}
+            </button>
+          )}
         </div>
       </div>
+
+      {exportLoading && (
+        <div id="export-progress-banner" style={{ background: '#f8fafc', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.875rem', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '14px', height: '14px', border: '2px solid rgba(59,130,246,0.3)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+          <span>{exportProgress}</span>
+        </div>
+      )}
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
       <div className={styles.grid}>
         {(authLoading || loading) ? (
-          <div className={styles.emptyState}>Loading recruiters...</div>
+          Array.from({ length: 6 }).map((_, i) => <RecruiterCardSkeleton key={i} />)
         ) : recruiters.length === 0 ? (
-          <div className={styles.emptyState}>No recruiters found.</div>
+          <div className={styles.emptyState}>
+            <h3>No recruiters found</h3>
+            <p style={{ margin: '8px 0 16px', color: '#64748b' }}>No recruiter accounts matched your active search criteria.</p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button onClick={handleClearFilters} className={styles.primaryButton} style={{ padding: '8px 16px', fontSize: '0.85rem', background: '#475569' }}>
+                Clear Filters
+              </button>
+              {hasEditPerm && (
+                <button onClick={() => setShowRecruiterRegister(true)} className={styles.primaryButton} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                  Invite Recruiter
+                </button>
+              )}
+            </div>
+          </div>
         ) : (
           recruiters.map((recruiter) => {
             const profile = getProfile(recruiter);
             const isPending = isPendingVerification(recruiter);
+            const isChecked = isSelected(recruiter.id);
             return (
-              <article key={recruiter.id} className={styles.candidateCard} onClick={() => setPreviewUser(recruiter)}>
-                <div className={styles.cardHeader}>
+              <article
+                key={recruiter.id}
+                className={`${styles.candidateCard} ${isChecked ? styles.cardSelected : ''}`}
+                onClick={() => setPreviewUser(recruiter)}
+                style={{ position: 'relative', cursor: 'pointer', border: isChecked ? '2px solid #3b82f6' : '1px solid #eef2f6' }}
+              >
+                {/* Selection Checkbox */}
+                <div
+                  style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    toggleSelect(recruiter.id);
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    readOnly
+                    className={styles.checkboxInput}
+                  />
+                </div>
+
+                <div className={styles.cardHeader} style={{ paddingRight: '24px' }}>
                   <div className={styles.initials} style={{ background: '#f59e0b', color: 'white' }}>
                     {recruiter.name ? recruiter.name.charAt(0).toUpperCase() : '?'}
                   </div>
@@ -1560,17 +2221,16 @@ export default function AdminRecruitersPage() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    {isPending && (
+                    {isPending && hasApprovePerm && (
                       <button
                         className={styles.actionBtn}
-                        style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}
+                        style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a', padding: '2px 8px', borderRadius: '6px', border: '1px solid' }}
                         onClick={e => { e.stopPropagation(); setVerifyTarget(recruiter); }}
                       >
                         ✉️ Verify OTP
                       </button>
                     )}
-
-                    <button className={styles.actionBtn}>Audit →</button>
+                    <span className={styles.actionBtn}>Audit →</span>
                   </div>
                 </div>
               </article>
@@ -1581,11 +2241,17 @@ export default function AdminRecruitersPage() {
 
       {totalPages > 1 && (
         <div className={styles.pagination}>
-          <button disabled={page === 0} onClick={() => setPage(page - 1)} className={styles.pageButton}>Prev</button>
+          <button disabled={page === 0} onClick={() => handlePageChange(page - 1)} className={styles.pageButton}>Prev</button>
           {Array.from({ length: totalPages }).map((_, i) => (
-            <button key={i} className={`${styles.pageButton} ${page === i ? styles.pageActive : ''}`} onClick={() => setPage(i)}>{i + 1}</button>
+            <button
+              key={i}
+              className={`${styles.pageButton} ${page === i ? styles.pageActive : ''}`}
+              onClick={() => handlePageChange(i)}
+            >
+              {i + 1}
+            </button>
           ))}
-          <button disabled={page === totalPages - 1} onClick={() => setPage(page + 1)} className={styles.pageButton}>Next</button>
+          <button disabled={page === totalPages - 1} onClick={() => handlePageChange(page + 1)} className={styles.pageButton}>Next</button>
         </div>
       )}
 
@@ -1610,6 +2276,7 @@ export default function AdminRecruitersPage() {
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
                     type="button"
+                    disabled={!hasEditPerm}
                     onClick={() => toggleStatus(previewUser)}
                     style={{
                       flex: 1,
@@ -1620,7 +2287,8 @@ export default function AdminRecruitersPage() {
                       borderColor: previewUser.is_active ? '#fca5a5' : '#86efac',
                       borderRadius: '8px',
                       fontWeight: 600,
-                      cursor: 'pointer',
+                      cursor: hasEditPerm ? 'pointer' : 'not-allowed',
+                      opacity: hasEditPerm ? 1 : 0.6,
                       fontSize: '0.85rem'
                     }}
                   >
@@ -1631,8 +2299,9 @@ export default function AdminRecruitersPage() {
                   </button>
                   <button
                     type="button"
+                    disabled={!hasDeletePerm}
                     onClick={async () => {
-                      if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete recruiter ${previewUser.name}?\n\nThis will delete their auth account and all database records, and cannot be undone.`)) {
+                      if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete recruiter ${previewUser.name}?\n\nThis will delete their auth account and database records.`)) {
                         try {
                           const { error: delError } = await invokeFunction('admin-recruiters', {
                             method: 'DELETE',
@@ -1641,7 +2310,7 @@ export default function AdminRecruitersPage() {
                           if (delError) throw new Error(delError.message);
                           alert('Recruiter deleted successfully');
                           setPreviewUser(null);
-                          fetchRecruiters();
+                          fetchRecruiters(page, activeSearch, statusFilter, sort, true);
                         } catch (err: any) {
                           alert('Failed to delete recruiter: ' + err.message);
                         }
@@ -1655,7 +2324,8 @@ export default function AdminRecruitersPage() {
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: 600,
-                      cursor: 'pointer',
+                      cursor: hasDeletePerm ? 'pointer' : 'not-allowed',
+                      opacity: hasDeletePerm ? 1 : 0.6,
                       fontSize: '0.85rem'
                     }}
                   >
@@ -1678,18 +2348,20 @@ export default function AdminRecruitersPage() {
                   <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#78350f' }}>
                     This recruiter has not verified their email yet. Call them, get the OTP code from their inbox, and verify on their behalf.
                   </p>
-                  <button
-                    onClick={() => setVerifyTarget(previewUser)}
-                    style={{
-                      width: '100%', padding: '0.75rem',
-                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                      color: 'white', border: 'none', borderRadius: '8px',
-                      fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                    }}
-                  >
-                    <Smartphone size={16} /> Enter OTP Code (Verify on Behalf)
-                  </button>
+                  {hasApprovePerm && (
+                    <button
+                      onClick={() => setVerifyTarget(previewUser)}
+                      style={{
+                        width: '100%', padding: '0.75rem',
+                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                        color: 'white', border: 'none', borderRadius: '8px',
+                        fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                      }}
+                    >
+                      <Smartphone size={16} /> Enter OTP Code (Verify on Behalf)
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1704,11 +2376,12 @@ export default function AdminRecruitersPage() {
                   <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#15803d' }}>Email the recruiter their credentials</p>
                 </div>
                 <button
+                  disabled={!hasEditPerm}
                   onClick={() => setCredentialsTarget({ email: previewUser.email, name: previewUser.name })}
                   style={{
                     padding: '0.5rem 1rem', background: '#16a34a',
                     color: 'white', border: 'none', borderRadius: '8px',
-                    fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem',
+                    fontWeight: 600, cursor: hasEditPerm ? 'pointer' : 'not-allowed', opacity: hasEditPerm ? 1 : 0.6, fontSize: '0.8rem',
                     whiteSpace: 'nowrap'
                   }}
                 >
@@ -1863,10 +2536,8 @@ export default function AdminRecruitersPage() {
                 </section>
               )}
 
-
-
               {/* Approve & Setup Button — shown when recruiter is NOT yet approved */}
-              {!getProfile(previewUser)?.is_approved && (
+              {!getProfile(previewUser)?.is_approved && hasApprovePerm && (
                 <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #ede9fe, #fce7f3)', border: '1px solid #c4b5fd', borderRadius: '16px' }}>
                   <p style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#4c1d95' }}>
                     Verify Recruiter Account
@@ -1889,40 +2560,42 @@ export default function AdminRecruitersPage() {
                 </div>
               )}
 
-              <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <h4>Send Custom Price Plan</h4>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Send a custom pricing plan to this recruiter.</p>
+              {hasEditPerm && (
+                <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h4>Send Custom Price Plan</h4>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Send a custom pricing plan to this recruiter.</p>
 
-                <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
-                  {['Unlimited Talent Search', 'Dedicated Account Manager', 'AI Candidate Matching', 'Featured Job Posts', 'API Integration'].map(f => (
-                    <label key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={proposalFeatures.includes(f)} onChange={() => toggleFeature(f)} />
-                      {f}
-                    </label>
-                  ))}
-                </div>
+                  <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                    {['Unlimited Talent Search', 'Dedicated Account Manager', 'AI Candidate Matching', 'Featured Job Posts', 'API Integration'].map(f => (
+                      <label key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={proposalFeatures.includes(f)} onChange={() => toggleFeature(f)} />
+                        {f}
+                      </label>
+                    ))}
+                  </div>
 
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '4px' }}>Custom Price (INR)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 50000"
-                    value={proposalPrice}
-                    onChange={e => setProposalPrice(e.target.value)}
-                    className={styles.searchInput}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '4px' }}>Custom Price (INR)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 50000"
+                      value={proposalPrice}
+                      onChange={e => setProposalPrice(e.target.value)}
+                      className={styles.searchInput}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <button
+                    className={styles.primaryButton}
                     style={{ width: '100%' }}
-                  />
-                </div>
-
-                <button
-                  className={styles.primaryButton}
-                  style={{ width: '100%' }}
-                  disabled={sendingProposal || !proposalPrice}
-                  onClick={() => sendCustomProposal(previewUser)}
-                >
-                  {sendingProposal ? 'Sending...' : 'Generate & Email Proposal'}
-                </button>
-              </section>
+                    disabled={sendingProposal || !proposalPrice}
+                    onClick={() => sendCustomProposal(previewUser)}
+                  >
+                    {sendingProposal ? 'Sending...' : 'Generate & Email Proposal'}
+                  </button>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -1981,6 +2654,41 @@ export default function AdminRecruitersPage() {
         </div>
       )}
 
+      {/* Floating Bulk Action Selection Bar */}
+      {selectedIds.length > 0 && (
+        <div className={styles.bulkBar}>
+          <span className={styles.bulkCount}>{selectedIds.length} recruiters selected</span>
+          <div className={styles.bulkActions}>
+            {hasApprovePerm && (
+              <button className={styles.bulkBtn} onClick={() => handleBulkClick('approve')}>Approve</button>
+            )}
+            {hasEditPerm && (
+              <>
+                <button className={styles.bulkBtn} onClick={() => handleBulkClick('activate')}>Activate</button>
+                <button className={styles.bulkBtn} onClick={() => handleBulkClick('deactivate')}>Deactivate</button>
+              </>
+            )}
+            {hasDeletePerm && (
+              <button className={`${styles.bulkBtn} ${styles.bulkBtnDanger}`} onClick={() => handleBulkClick('delete')}>Delete</button>
+            )}
+            {hasExportPerm && (
+              <button className={styles.bulkBtn} onClick={handleExport}>Export</button>
+            )}
+            <button className={styles.bulkBtn} style={{ background: '#475569' }} onClick={clearSelection}>Clear</button>
+          </div>
+        </div>
+      )}
+
+      {/* Reusable Bulk Action Confirmation Modal */}
+      <BulkConfirmModal
+        isOpen={!!bulkActionTarget}
+        onClose={() => setBulkActionTarget(null)}
+        onConfirm={executeBulkAction}
+        selectedCount={selectedIds.length}
+        actionName={bulkActionTarget?.action || ''}
+        impactText={bulkActionTarget?.impact || ''}
+      />
+
       {/* ── OTP Verification Modal ───────────────────────────────────────── */}
       {verifyTarget && (
         <VerifyOtpModal
@@ -2017,6 +2725,21 @@ export default function AdminRecruitersPage() {
             }
           }}
         />
+      )}
+
+      {/* Floating Bulk Action Undo Banner */}
+      {pendingAction && (
+        <div className={styles.undoBanner}>
+          <div className={styles.undoContent}>
+            <span className={styles.undoIcon}>⏳</span>
+            <span>
+              Bulk <strong>{pendingAction.action}</strong> pending... {pendingAction.timeLeft}s remaining
+            </span>
+          </div>
+          <button onClick={handleUndoPending} className={styles.undoButton}>
+            Undo
+          </button>
+        </div>
       )}
     </section>
   );

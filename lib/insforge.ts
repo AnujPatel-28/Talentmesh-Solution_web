@@ -1,6 +1,8 @@
 import { createClient } from '@insforge/sdk';
 import { User } from '@/types/auth';
 import { getServerStorageUrl } from '@/lib/utils/storage-url';
+import { startTrace, endTrace } from './observability';
+import { TIMEOUTS } from './requestTimeout';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
@@ -50,6 +52,20 @@ if (typeof window !== 'undefined') {
   }
 }
 
+function getBrowserRole(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const cached = window.sessionStorage.getItem('tm_user');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.role) return parsed.role;
+    }
+  } catch (e) {}
+  const match = document.cookie.match(/tm_role=([^;]+)/);
+  if (match) return match[1];
+  return undefined;
+}
+
 /**
  * Helper to invoke Edge Functions manually to bypass SDK URL construction bug.
  */
@@ -59,10 +75,26 @@ export async function invokeFunction(slug: string, options: {
   headers?: Record<string, string>;
   queries?: Record<string, string | undefined>;
   path?: string;
+  timeoutMs?: number;
+  idempotencyKey?: string;
+  signal?: AbortSignal;
 } = {}) {
   const { method = 'POST', body, headers = {}, queries = {}, path = '' } = options;
   const isBrowser = typeof window !== 'undefined';
   const baseUrl = isBrowser ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
+
+  // Determine request-specific timeout
+  const timeoutMs = options.timeoutMs || (
+    slug.includes('dashboard') ? TIMEOUTS.DASHBOARD :
+    slug.includes('candidate') ? TIMEOUTS.CANDIDATES :
+    slug.includes('reports') ? TIMEOUTS.REPORTS :
+    slug.includes('settings') ? TIMEOUTS.SETTINGS :
+    (slug.includes('approve') || slug.includes('job')) ? TIMEOUTS.APPROVE :
+    30000
+  );
+
+  const role = getBrowserRole();
+  const trace = startTrace(slug, role);
 
   // Construct URL with path and queries
   let url = `${baseUrl}/functions/${slug}${path}`;
@@ -107,11 +139,17 @@ export async function invokeFunction(slug: string, options: {
   const finalHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-client-info': 'talentmesh-web',
+    'x-request-id': trace.requestId,
+    'x-trace-id': trace.traceId,
     ...headers
   };
 
   if (authHeader) {
     finalHeaders['Authorization'] = authHeader;
+  }
+
+  if (options.idempotencyKey) {
+    finalHeaders['x-idempotency-key'] = options.idempotencyKey;
   }
 
   // GET requests cannot have a body
@@ -131,6 +169,7 @@ export async function invokeFunction(slug: string, options: {
     const isImpersonating = document.cookie.includes('tm_impersonating_user_id=');
     if (isImpersonating) {
       console.warn('Mutation blocked: You are in READ-ONLY impersonation mode.');
+      endTrace(trace, 'error', 'Blocked by read-only impersonation');
       return {
         data: null,
         error: {
@@ -141,9 +180,21 @@ export async function invokeFunction(slug: string, options: {
     }
   }
 
-  // 30-second timeout — allows for edge-function cold starts + multi-query dashboards
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort();
+      clearTimeout(timeoutId);
+    } else {
+      options.signal.addEventListener('abort', () => {
+        controller.abort();
+        clearTimeout(timeoutId);
+      });
+    }
+  }
+
   fetchOptions.signal = controller.signal;
 
   let response: Response;
@@ -153,7 +204,10 @@ export async function invokeFunction(slug: string, options: {
     if (response.status === 401) {
       const newToken = await refreshAccessToken();
       if (newToken) {
-        const retryHeaders = { ...finalHeaders, 'Authorization': `Bearer ${newToken}` };
+        const retryHeaders = { 
+          ...finalHeaders, 
+          'Authorization': `Bearer ${newToken}` 
+        };
         const retryOptions = { ...fetchOptions, headers: retryHeaders };
         const retryResponse = await fetch(url, retryOptions);
         // Always use retryResponse, regardless of status
@@ -162,14 +216,20 @@ export async function invokeFunction(slug: string, options: {
         // Refresh failed — session is truly dead
         console.error('[invokeFunction] Token refresh failed. Dispatching session-expiry.');
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        endTrace(trace, 'error', 'Session expired');
         return { data: null, error: { message: 'Session expired', status: 401 } };
       }
     }
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err?.name === 'AbortError') {
+      if (options.signal && options.signal.aborted) {
+        throw err;
+      }
+      endTrace(trace, 'timeout', `Request timed out after ${timeoutMs}ms`);
       return { data: null, error: { message: 'Request timed out — please try again.', status: 408 } };
     }
+    endTrace(trace, 'error', err?.message || 'Network error');
     throw err;
   }
   clearTimeout(timeoutId);
@@ -187,16 +247,22 @@ export async function invokeFunction(slug: string, options: {
     } catch (e) {
       // Not JSON, likely HTML error page
     }
+    endTrace(trace, 'error', errorMessage);
     return { data: null, error: { message: errorMessage, status: response.status, details: errorDetails } };
   }
 
   try {
     const text = await response.text();
-    if (!text) return { data: null, error: null };
+    if (!text) {
+      endTrace(trace, 'success');
+      return { data: null, error: null };
+    }
     const data = JSON.parse(text);
+    endTrace(trace, 'success');
     return { data, error: null };
   } catch (err) {
     console.error('Failed to parse response as JSON:', err);
+    endTrace(trace, 'error', 'JSON parse error');
     return { data: null, error: { message: 'Unexpected response format from server', status: response.status } };
   }
 }
@@ -302,6 +368,18 @@ export async function refreshAccessToken(): Promise<string | null> {
         directInsforge.setAccessToken(newToken);
         if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
           (directInsforge.realtime as any).setAuth(newToken);
+        }
+
+        // Broadcast session refresh to other open tabs to prevent duplicate refresh requests
+        try {
+          const { broadcastSessionEvent } = await import('@/lib/sessionSync');
+          broadcastSessionEvent('SESSION_REFRESHED', {
+            token: newToken,
+            user: data?.user,
+            csrfToken: data?.csrfToken
+          });
+        } catch (syncErr) {
+          console.warn('Failed to broadcast token refresh:', syncErr);
         }
       }
       return newToken;

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 
 import { insforge, directInsforge, refreshAccessToken } from '@/lib/insforge';
 import type { User, UserRole } from '@/types/auth';
+import { initSessionSync } from '@/lib/sessionSync';
+import { useSessionRefresh } from '@/hooks/useSessionRefresh';
+import { useNetworkState } from '@/hooks/useNetworkState';
 
 interface AuthContextType {
   user: User | null;
@@ -34,6 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [impersonatedUser, setImpersonatedUser] = useState<{ id: string; role: string } | null>(null);
   const [adminId, setAdminId] = useState<string | null>(null);
   const router = useRouter();
+
+  // Coordinated multi-tab session refresh hook
+  useSessionRefresh(user?.role);
+
+  // Global offline action queue monitor
+  useNetworkState();
 
   const isImpersonating = !!impersonatedUser && !!adminId;
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
@@ -435,16 +444,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Session Refresh Interval (every 10 minutes to prevent 15m expiry)
+  // Coordinated multi-tab session synchronization listener
   useEffect(() => {
-    if (user) {
-      const interval = setInterval(() => {
-        console.log('[AuthContext] Proactive session refresh...');
-        refreshUser();
-      }, 1000 * 60 * 10);
-      return () => clearInterval(interval);
-    }
-  }, [user, refreshUser]);
+    const cleanup = initSessionSync((type, payload) => {
+      if (type === 'LOGOUT') {
+        console.log('[AuthContext] Signout broadcast received. Signing out locally...');
+        clearAuthCookies();
+        setUser(null);
+        router.push('/login');
+      } else if (type === 'SESSION_REFRESHED') {
+        const { token, user: refreshedUser } = payload as { token: string; user?: User };
+        if (token) {
+          console.log('[AuthContext] Session refreshed in another tab. Syncing auth credentials...');
+          window.sessionStorage.setItem('tm_token', token);
+          const isSecure = window.location.protocol === 'https:';
+          const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
+          document.cookie = `tm_access_token=${token}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}`;
+          
+          insforge.setAccessToken(token);
+          directInsforge.setAccessToken(token);
+          
+          if (refreshedUser) {
+            setUser(refreshedUser);
+            cacheUser(refreshedUser);
+          }
+        }
+      }
+    });
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [clearAuthCookies, cacheUser, router]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -510,6 +540,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // InsForge SDK does not provide a separate onAuthStateChange listener like Supabase.
 
 
+
+  // Check for expired pending actions and commit them in the background
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkAndCommitPending = async () => {
+      const keys = ['tm_pending_action_candidates', 'tm_pending_action_recruiters'];
+      for (const storageKey of keys) {
+        const stored = window.sessionStorage.getItem(storageKey);
+        if (!stored) continue;
+
+        try {
+          const parsed = JSON.parse(stored);
+          if (Date.now() >= parsed.expiresAt) {
+            // Expired! Commit immediately.
+            const endpoint = storageKey.includes('candidates') ? 'admin-candidates' : 'admin-recruiters';
+            const { invokeFunction: invokeFn } = await import('@/lib/insforge');
+            const { mutationQueue: mutQueue } = await import('@/lib/mutationQueue');
+
+            await mutQueue.enqueue(
+              async (idemKey) => {
+                let error = null;
+                if (parsed.action === 'approve' || parsed.action === 'reject') {
+                  const { error: patchError } = await invokeFn(endpoint, {
+                    method: 'POST',
+                    body: { ids: parsed.ids, action: 'bulk-status', status: parsed.action === 'approve' ? 'approved' : 'rejected' },
+                    idempotencyKey: idemKey
+                  });
+                  error = patchError;
+                } else if (parsed.action === 'activate' || parsed.action === 'deactivate') {
+                  const { error: patchError } = await invokeFn(endpoint, {
+                    method: 'POST',
+                    body: { ids: parsed.ids, action: 'bulk-active', is_active: parsed.action === 'activate' },
+                    idempotencyKey: idemKey
+                  });
+                  error = patchError;
+                }
+                if (error) throw new Error(error.message);
+              },
+              () => {},
+              { key: `bg_commit_${endpoint}_${Date.now()}` }
+            );
+
+            window.sessionStorage.removeItem(storageKey);
+          }
+        } catch (e) {
+          window.sessionStorage.removeItem(storageKey);
+        }
+      }
+    };
+
+    checkAndCommitPending();
+    const interval = setInterval(checkAndCommitPending, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const login = useCallback(async (token: string, authUser: User) => {
     await syncAuthCookies(token, authUser);

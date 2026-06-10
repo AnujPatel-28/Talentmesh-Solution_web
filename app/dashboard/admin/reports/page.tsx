@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import styles from './reports.module.css';
 import { invokeFunction } from '@/lib/insforge';
-
+import { getAllFeatureFlags } from '@/lib/features';
 
 type ReportsData = {
   metrics: {
@@ -26,11 +26,81 @@ type ReportsData = {
   statusBreakdown: Record<string, number>;
 };
 
+type TraceLog = {
+  traceId: string;
+  requestId: string;
+  duration: number;
+  endpoint: string;
+  userRole?: string;
+  status: 'success' | 'error' | 'timeout';
+  errorDetails?: string;
+  timestamp: string;
+};
+
+type ContractViolation = {
+  error: unknown;
+  received: unknown;
+  timestamp: string;
+};
+
 export default function AdminReportsPage() {
   const [data, setData] = useState<ReportsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Tab switching state
+  const [activeTab, setActiveTab] = useState<'ecosystem' | 'operations'>('ecosystem');
+  
+  // System Telemetry states initialized using lazy functional initializers
+  const [traces, setTraces] = useState<TraceLog[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const storedTraces = localStorage.getItem('tm_traces');
+      return storedTraces ? JSON.parse(storedTraces).reverse() : [];
+    } catch {
+      return [];
+    }
+  });
 
+  const [opsMetrics, setOpsMetrics] = useState<{
+    search_count: number;
+    search_latency_sum: number;
+    search_latency_count: number;
+    bulk_actions: number;
+    selection_count: number;
+    abort_count: number;
+    total_requests: number;
+  } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('tm_operations_metrics');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [violations, setViolations] = useState<ContractViolation[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const storedViolations = localStorage.getItem('tm_contract_violations');
+      return storedViolations ? JSON.parse(storedViolations).reverse() : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [offlineQueueCount, setOfflineQueueCount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const queue = localStorage.getItem('tm_offline_mutations');
+      return queue ? JSON.parse(queue).length : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // Fetch reports data
   useEffect(() => {
     async function fetchReports() {
       try {
@@ -39,19 +109,55 @@ export default function AdminReportsPage() {
           body: { action: 'get-reports' }
         });
 
-        
         if (fetchError) throw new Error(fetchError.message);
         
         if (data) {
           setData(data);
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load platform analytics');
       } finally {
         setLoading(false);
       }
     }
     fetchReports();
+  }, []);
+  useEffect(() => {
+    // Live trace listener
+    const handleTrace = (event: CustomEvent<TraceLog>) => {
+      setTraces(prev => [event.detail, ...prev].slice(0, 50));
+    };
+
+    // Live metric listener
+    const handleMetric = (event: CustomEvent<any>) => {
+      setOpsMetrics(event.detail);
+    };
+
+    // Live contract violation listener
+    const handleViolation = (event: Event) => {
+      const customEvent = event as CustomEvent<{ error: unknown; received: unknown }>;
+      if (!customEvent.detail) return;
+      const newViolation: ContractViolation = {
+        error: customEvent.detail.error,
+        received: customEvent.detail.received,
+        timestamp: new Date().toISOString()
+      };
+      setViolations(prev => {
+        const updated = [newViolation, ...prev].slice(0, 50);
+        localStorage.setItem('tm_contract_violations', JSON.stringify(updated));
+        return updated;
+      });
+    };
+
+    window.addEventListener('observability:trace', handleTrace as unknown as EventListener);
+    window.addEventListener('observability:metric', handleMetric as EventListener);
+    window.addEventListener('observability:contract-violation', handleViolation as EventListener);
+
+    return () => {
+      window.removeEventListener('observability:trace', handleTrace as unknown as EventListener);
+      window.removeEventListener('observability:metric', handleMetric as EventListener);
+      window.removeEventListener('observability:contract-violation', handleViolation as EventListener);
+    };
   }, []);
 
   if (loading) return <div className={styles.emptyState}>Synthesizing professional intelligence...</div>;
@@ -61,153 +167,363 @@ export default function AdminReportsPage() {
   const growthMax = Math.max(...data.growth.map(g => g.count), 1);
   const skillsMax = Math.max(...data.topSkills.map(s => s.count), 1);
 
+  // Compute live trace averages
+  const totalTracesCount = traces.length;
+  const timeoutTraces = traces.filter(t => t.status === 'timeout');
+  const errorTraces = traces.filter(t => t.status === 'error');
+  
+  const avgLatency = totalTracesCount > 0 
+    ? (traces.reduce((acc, t) => acc + t.duration, 0) / totalTracesCount).toFixed(1) 
+    : '0';
+
+  const flags = getAllFeatureFlags();
+
   return (
     <section className={styles.page}>
       <header className={styles.hero}>
         <div>
           <p className={styles.eyebrow}>Platform Insights</p>
-          <h1 className={styles.title}>Professional Ecosystem Analytics</h1>
-          <p className={styles.subtitle}>Audit platform velocity, engagement trends, and ecosystem equilibrium.</p>
+          <h1 className={styles.title}>Ecosystem & Operations</h1>
+          <p className={styles.subtitle}>Audit platform velocity, telemetry traces, and infrastructure integrity.</p>
         </div>
         <button className={styles.primaryButton} onClick={() => window.print()}>Export Executive Summary</button>
       </header>
 
-      <div className={styles.metricsGrid}>
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Platform Velocity</span>
-          <div className={styles.metricValue}>{data.metrics.totalApplications}</div>
-          <span style={{ fontSize: '0.75rem', color: '#10b981' }}>+12% vs last month</span>
+      {error && (
+        <div style={{ padding: '1rem', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', color: '#b91c1c', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+          {error}
         </div>
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Hiring Friction</span>
-          <div className={styles.metricValue}>{data.metrics.avgTimeToHire}</div>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Network Average</span>
-        </div>
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Intent Density</span>
-          <div className={styles.metricValue}>{data.metrics.appsPerJob.toFixed(1)}</div>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Apps per listing</span>
-        </div>
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Network Scale</span>
-          <div className={styles.metricValue}>{data.metrics.totalCandidates + data.metrics.totalRecruiters}</div>
-          <span style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Active Entities</span>
-        </div>
+      )}
+
+      {/* Tabs Menu */}
+      <div className={styles.tabsContainer}>
+        <button 
+          onClick={() => setActiveTab('ecosystem')}
+          className={`${styles.tabButton} ${activeTab === 'ecosystem' ? styles.tabButtonActive : ''}`}
+        >
+          Ecosystem Analytics
+        </button>
+        <button 
+          onClick={() => setActiveTab('operations')}
+          className={`${styles.tabButton} ${activeTab === 'operations' ? styles.tabButtonActive : ''}`}
+        >
+          System Operations Audit
+        </button>
       </div>
 
-      <div className={styles.chartsGrid}>
-        {/* Hiring Funnel (Manual CSS/SVG bars) */}
-        <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Hiring Funnel <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Conversion Optimization</span></h3>
-          <div className={styles.funnelWrapper}>
-            {[
-              { label: 'Jobs Posted', value: data.funnel.jobsPosted, color: '#1e293b' },
-              { label: 'Total Intent', value: data.funnel.applications, color: '#334155' },
-              { label: 'Audit Stage', value: data.funnel.reviewed, color: '#3b82f6' },
-              { label: 'Candidate Shortlist', value: data.funnel.shortlisted, color: '#60a5fa' },
-              { label: 'Placement Secured', value: data.funnel.hired, color: '#10b981' },
-            ].map((step, i) => {
-              const width = (step.value / funnelMax) * 100;
-              return (
-                <div key={i} className={styles.funnelStep} style={{ width: `${Math.max(width, 20)}%`, background: step.color }}>
-                  <span className={styles.funnelLabel}>{step.label}</span>
-                  <span>{step.value}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Growth Trend (Hand-coded SVG) */}
-        <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Candidate Onboarding <span style={{ fontSize: '0.7rem', color: '#64748b' }}>4-Week Trajectory</span></h3>
-          <div className={styles.chartContainer}>
-            <svg viewBox="0 0 400 200" width="100%" height="100%">
-              {/* Grid Lines */}
-              <line x1="40" y1="180" x2="360" y2="180" stroke="#e2e8f0" strokeWidth="1" />
-              <line x1="40" y1="130" x2="360" y2="130" stroke="#f1f5f9" strokeWidth="1" />
-              <line x1="40" y1="80" x2="360" y2="80" stroke="#f1f5f9" strokeWidth="1" />
-              <line x1="40" y1="30" x2="360" y2="30" stroke="#f1f5f9" strokeWidth="1" />
-
-              {/* Data Line */}
-              <path
-                d={`M ${data.growth.map((g, i) => {
-                  const x = 40 + (i * (320 / (data.growth.length - 1)));
-                  const y = 180 - (g.count / growthMax) * 150;
-                  return `${i === 0 ? '' : 'L'} ${x} ${y}`;
-                }).join(' ')}`}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              
-              {/* Area under line */}
-              <path
-                d={`M 40 180 ${data.growth.map((g, i) => {
-                  const x = 40 + (i * (320 / (data.growth.length - 1)));
-                  const y = 180 - (g.count / growthMax) * 150;
-                  return `L ${x} ${y}`;
-                }).join(' ')} L 360 180 Z`}
-                fill="url(#growthGradient)"
-                opacity="0.1"
-              />
-
-              <defs>
-                <linearGradient id="growthGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="100%" stopColor="#ffffff" />
-                </linearGradient>
-              </defs>
-
-              {/* Data Points */}
-              {data.growth.map((g, i) => {
-                const x = 40 + (i * (320 / (data.growth.length - 1)));
-                const y = 180 - (g.count / growthMax) * 150;
-                return <circle key={i} cx={x} cy={y} r="4" fill="white" stroke="#3b82f6" strokeWidth="2" />;
-              })}
-
-              {/* X Axis Labels */}
-              {data.growth.map((g, i) => (
-                <text key={i} x={40 + (i * (320 / (data.growth.length - 1)))} y="195" textAnchor="middle" fontSize="10" fill="#94a3b8">
-                  {g.date}
-                </text>
-              ))}
-            </svg>
-          </div>
-        </div>
-
-        {/* Skill distribution */}
-        <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Skill Demand Heatmap <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Candidate Proficiencies</span></h3>
-          <div>
-            {data.topSkills.map((skill, i) => (
-              <div key={i} className={styles.skillBar}>
-                <span className={styles.skillName}>{skill.name}</span>
-                <div className={styles.barTrack}>
-                  <div className={styles.barFill} style={{ width: `${(skill.count / skillsMax) * 100}%`, opacity: 1 - (i * 0.15) }} />
-                </div>
-                <span className={styles.skillCount}>{skill.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Status Distribution (Custom Pie as CSS) */}
-        <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Application Lifecycle <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Stage Distribution</span></h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', height: '100%', alignItems: 'center' }}>
-            <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: 'conic-gradient(#3b82f6 0% 30%, #10b981 30% 55%, #f59e0b 55% 75%, #ef4444 75% 100%)', boxShadow: 'inset 0 0 0 30px white, 0 0 20px rgba(0,0,0,0.1)' }} />
-            <div style={{ fontSize: '0.8rem', display: 'grid', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }} /> Applied ({data.statusBreakdown.applied})</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} /> Shortlisted ({data.statusBreakdown.shortlisted})</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Interview ({data.statusBreakdown.interview})</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} /> Rejected ({data.statusBreakdown.rejected})</div>
+      {activeTab === 'ecosystem' ? (
+        <>
+          <div className={styles.metricsGrid}>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Platform Velocity</span>
+              <div className={styles.metricValue}>{data.metrics.totalApplications}</div>
+              <span style={{ fontSize: '0.75rem', color: '#10b981' }}>+12% vs last month</span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Hiring Friction</span>
+              <div className={styles.metricValue}>{data.metrics.avgTimeToHire}</div>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Network Average</span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Intent Density</span>
+              <div className={styles.metricValue}>{data.metrics.appsPerJob.toFixed(1)}</div>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Apps per listing</span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Network Scale</span>
+              <div className={styles.metricValue}>{data.metrics.totalCandidates + data.metrics.totalRecruiters}</div>
+              <span style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Active Entities</span>
             </div>
           </div>
+
+          <div className={styles.chartsGrid}>
+            {/* Hiring Funnel */}
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartTitle}>Hiring Funnel <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Conversion Optimization</span></h3>
+              <div className={styles.funnelWrapper}>
+                {[
+                  { label: 'Jobs Posted', value: data.funnel.jobsPosted, color: '#1e293b' },
+                  { label: 'Total Intent', value: data.funnel.applications, color: '#334155' },
+                  { label: 'Audit Stage', value: data.funnel.reviewed, color: '#3b82f6' },
+                  { label: 'Candidate Shortlist', value: data.funnel.shortlisted, color: '#60a5fa' },
+                  { label: 'Placement Secured', value: data.funnel.hired, color: '#10b981' },
+                ].map((step, i) => {
+                  const width = (step.value / funnelMax) * 100;
+                  return (
+                    <div key={i} className={styles.funnelStep} style={{ width: `${Math.max(width, 20)}%`, background: step.color }}>
+                      <span className={styles.funnelLabel}>{step.label}</span>
+                      <span>{step.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Growth Trend */}
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartTitle}>Candidate Onboarding <span style={{ fontSize: '0.7rem', color: '#64748b' }}>4-Week Trajectory</span></h3>
+              <div className={styles.chartContainer}>
+                <svg viewBox="0 0 400 200" width="100%" height="100%">
+                  <line x1="40" y1="180" x2="360" y2="180" stroke="#e2e8f0" strokeWidth="1" />
+                  <line x1="40" y1="130" x2="360" y2="130" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="40" y1="80" x2="360" y2="80" stroke="#f1f5f9" strokeWidth="1" />
+                  <line x1="40" y1="30" x2="360" y2="30" stroke="#f1f5f9" strokeWidth="1" />
+
+                  <path
+                    d={`M ${data.growth.map((g, i) => {
+                      const x = 40 + (i * (320 / (data.growth.length - 1)));
+                      const y = 180 - (g.count / growthMax) * 150;
+                      return `${i === 0 ? '' : 'L'} ${x} ${y}`;
+                    }).join(' ')}`}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  
+                  <path
+                    d={`M 40 180 ${data.growth.map((g, i) => {
+                      const x = 40 + (i * (320 / (data.growth.length - 1)));
+                      const y = 180 - (g.count / growthMax) * 150;
+                      return `L ${x} ${y}`;
+                    }).join(' ')} L 360 180 Z`}
+                    fill="url(#growthGradient)"
+                    opacity="0.1"
+                  />
+
+                  <defs>
+                    <linearGradient id="growthGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#ffffff" />
+                    </linearGradient>
+                  </defs>
+
+                  {data.growth.map((g, i) => {
+                    const x = 40 + (i * (320 / (data.growth.length - 1)));
+                    const y = 180 - (g.count / growthMax) * 150;
+                    return <circle key={i} cx={x} cy={y} r="4" fill="white" stroke="#3b82f6" strokeWidth="2" />;
+                  })}
+
+                  {data.growth.map((g, i) => (
+                    <text key={i} x={40 + (i * (320 / (data.growth.length - 1)))} y="195" textAnchor="middle" fontSize="10" fill="#94a3b8">
+                      {g.date}
+                    </text>
+                  ))}
+                </svg>
+              </div>
+            </div>
+
+            {/* Skill distribution */}
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartTitle}>Skill Demand Heatmap <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Candidate Proficiencies</span></h3>
+              <div>
+                {data.topSkills.map((skill, i) => (
+                  <div key={i} className={styles.skillBar}>
+                    <span className={styles.skillName}>{skill.name}</span>
+                    <div className={styles.barTrack}>
+                      <div className={styles.barFill} style={{ width: `${(skill.count / skillsMax) * 100}%`, opacity: 1 - (i * 0.15) }} />
+                    </div>
+                    <span className={styles.skillCount}>{skill.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Status Distribution */}
+            <div className={styles.chartCard}>
+              <h3 className={styles.chartTitle}>Application Lifecycle <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Stage Distribution</span></h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', height: '100%', alignItems: 'center' }}>
+                <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: 'conic-gradient(#3b82f6 0% 30%, #10b981 30% 55%, #f59e0b 55% 75%, #ef4444 75% 100%)', boxShadow: 'inset 0 0 0 30px white, 0 0 20px rgba(0,0,0,0.1)' }} />
+                <div style={{ fontSize: '0.8rem', display: 'grid', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }} /> Applied ({data.statusBreakdown.applied || 0})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} /> Shortlisted ({data.statusBreakdown.shortlisted || 0})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Interview ({data.statusBreakdown.interview || 0})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} /> Rejected ({data.statusBreakdown.rejected || 0})</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* System Operations & Telemetry Report View */
+        <div className={styles.operationsGrid}>
+          <div className={styles.metricsGrid}>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Average API Latency</span>
+              <div className={styles.metricValue}>{avgLatency} ms</div>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Based on recent transactions</span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>System Health</span>
+              <div className={styles.metricValue}>
+                {errorTraces.length > 0 ? 'Degraded' : 'Nominal'}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: errorTraces.length > 0 ? '#dc2626' : '#10b981' }}>
+                {errorTraces.length} errors · {timeoutTraces.length} timeouts
+              </span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Contract Health</span>
+              <div className={styles.metricValue}>
+                {violations.length === 0 ? '100%' : `${Math.max(100 - (violations.length * 5), 50)}%`}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: violations.length === 0 ? '#10b981' : '#d97706' }}>
+                {violations.length} Zod mismatches recorded
+              </span>
+            </div>
+            <div className={styles.metricCard}>
+              <span className={styles.metricLabel}>Offline Action Cache</span>
+              <div className={styles.metricValue}>{offlineQueueCount}</div>
+              <span style={{ fontSize: '0.75rem', color: offlineQueueCount > 0 ? '#d97706' : '#64748b' }}>
+                Pending offline replays
+              </span>
+            </div>
+          </div>
+
+          {/* Operations Metrics Panel */}
+          <div className={styles.chartCard} style={{ marginBottom: '1.5rem' }}>
+            <h3 className={styles.chartTitle}>Administrative Interface Performance Metrics</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', padding: '1.25rem 0.5rem' }}>
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Search Count</span>
+                <strong style={{ fontSize: '1.5rem', color: '#0f172a' }}>{opsMetrics?.search_count || 0}</strong>
+              </div>
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Avg Search Latency</span>
+                <strong style={{ fontSize: '1.5rem', color: '#0f172a' }}>
+                  {opsMetrics?.search_latency_count && opsMetrics.search_latency_count > 0 
+                    ? `${(opsMetrics.search_latency_sum / opsMetrics.search_latency_count).toFixed(1)} ms`
+                    : 'N/A'}
+                </strong>
+              </div>
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Bulk Actions Executed</span>
+                <strong style={{ fontSize: '1.5rem', color: '#0f172a' }}>{opsMetrics?.bulk_actions || 0}</strong>
+              </div>
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Current Selection Peak</span>
+                <strong style={{ fontSize: '1.5rem', color: '#0f172a' }}>{opsMetrics?.selection_count || 0}</strong>
+              </div>
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Request Abort Rate</span>
+                <strong style={{ fontSize: '1.5rem', color: '#0f172a' }}>
+                  {opsMetrics?.total_requests && opsMetrics.total_requests > 0
+                    ? `${((opsMetrics.abort_count / opsMetrics.total_requests) * 100).toFixed(1)}%`
+                    : '0.0%'}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Feature Flag rollouts list */}
+          <div className={styles.chartCard}>
+            <h3 className={styles.chartTitle}>Active Architectural Feature Flags</h3>
+            <div className={styles.tableContainer}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Flag Key</th>
+                    <th>Rollout Status</th>
+                    <th>Rollout Rate</th>
+                    <th>Allowed Target Roles</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(flags).map(([key, flag]) => (
+                    <tr key={key}>
+                      <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{key}</td>
+                      <td>
+                        <span className={flag.enabled ? styles.statusSuccess : styles.statusWarning}>
+                          {flag.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </td>
+                      <td>{flag.percentage}%</td>
+                      <td style={{ color: '#475569' }}>{flag.roles.join(', ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Observable traces table */}
+          <div className={styles.chartCard}>
+            <h3 className={styles.chartTitle}>Distributed Request Tracing Log (Live Telemetry)</h3>
+            <div className={styles.tableContainer}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Endpoint (Slug)</th>
+                    <th>Trace / Request ID</th>
+                    <th>Latency</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {traces.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>
+                        No API calls have been traced yet in this session.
+                      </td>
+                    </tr>
+                  ) : (
+                    traces.slice(0, 15).map((trace, i) => (
+                      <tr key={i}>
+                        <td style={{ color: '#64748b' }}>{new Date(trace.timestamp).toLocaleTimeString()}</td>
+                        <td style={{ fontWeight: 700 }}>{trace.endpoint}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#94a3b8' }}>
+                          {trace.traceId.slice(0, 8)}... / {trace.requestId.slice(0, 6)}...
+                        </td>
+                        <td>{trace.duration.toFixed(1)} ms</td>
+                        <td>{trace.userRole || 'anonymous'}</td>
+                        <td>
+                          <span className={
+                            trace.status === 'success' ? styles.statusSuccess :
+                            trace.status === 'timeout' ? styles.statusWarning :
+                            styles.statusError
+                          }>
+                            {trace.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Data Contract Violations */}
+          <div className={styles.chartCard}>
+            <h3 className={styles.chartTitle}>Contract Validation Drift Warnings</h3>
+            {violations.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#64748b', padding: '1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                ✓ No schema contract violations detected. API/Frontend are in sync.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                {violations.map((violation, i) => (
+                  <div key={i} style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '1rem', background: '#fffafb' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#b91c1c', fontWeight: 600, marginBottom: '0.5rem' }}>
+                      <span>Zod Validation Error</span>
+                      <span>{new Date(violation.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div className={styles.jsonBlock}>
+                      {JSON.stringify({
+                        errors: violation.error,
+                        receivedPayload: violation.received
+                      }, null, 2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

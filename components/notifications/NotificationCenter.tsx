@@ -61,9 +61,7 @@ export default function NotificationCenter({ role }: { role: 'admin' | 'recruite
 
     // Sync DB notifications into local state
     useEffect(() => {
-        if (dbNotifications.length > 0) {
-            setLocalNotifications(dbNotifications.map(mapDbToNotification));
-        }
+        setLocalNotifications(dbNotifications.map(mapDbToNotification));
     }, [dbNotifications]);
 
     const filteredNotifications = localNotifications.filter(n => n.folder === activeTab);

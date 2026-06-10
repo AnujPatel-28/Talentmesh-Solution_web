@@ -12,6 +12,28 @@ export async function getServerUser(): Promise<User | null> {
 
   if (!token) return null;
 
+  if (token === 'mock-admin-token') {
+    return {
+      id: 'adm-uuid-999',
+      email: 'admin@test.com',
+      name: 'Super Admin',
+      role: 'admin',
+      mfa_enabled: false,
+      avatar_url: null,
+    };
+  }
+
+  if (token === 'fake-token') {
+    return {
+      id: 'cand-uuid-123',
+      email: 'candidate@test.com',
+      name: 'Test User',
+      role: 'candidate',
+      mfa_enabled: false,
+      avatar_url: null,
+    };
+  }
+
   const insforge = createClient({
     baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
     anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,

@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno edge function: npm: imports and Deno globals are valid at runtime
 import { createClient } from 'npm:@insforge/sdk';
 
 export default async function handler(request: Request): Promise<Response> {
@@ -61,7 +62,17 @@ export default async function handler(request: Request): Promise<Response> {
       let query = db.database.from('jobs').select('*, companies!jobs_company_id_fkey(*)', { count: 'exact' });
 
       if (search) query = query.ilike('title', `%${search}%`);
-      if (status) query = query.eq('status', status);
+      if (status) {
+        if (status === 'pending') {
+          query = query.eq('is_approved', false).eq('status', 'active');
+        } else if (status === 'active') {
+          query = query.eq('is_approved', true).eq('status', 'active');
+        } else if (status === 'rejected') {
+          query = query.eq('is_approved', false).eq('status', 'closed');
+        } else {
+          query = query.eq('status', status);
+        }
+      }
 
       const { data, count, error } = await query
         .order('created_at', { ascending: false })
@@ -96,6 +107,41 @@ export default async function handler(request: Request): Promise<Response> {
         if (!id) return new Response(JSON.stringify({ error: 'ID required' }), { status: 400, headers: corsHeaders });
         const { error } = await db.database.from('jobs').update({ is_approved: true, status: 'active' }).eq('id', id);
         if (error) throw error;
+        
+        // Log to audit log
+        try {
+          await db.database.from('audit_log').insert([{
+            entity_type: 'job',
+            entity_id: id,
+            action: 'approve',
+            performed_by: userData.id,
+            metadata: { reason: body.reason || 'Admin approved job listing' }
+          }]);
+        } catch (e) {
+          console.warn('Failed to insert audit log entry:', e);
+        }
+
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: corsHeaders });
+      }
+
+      if (action === 'reject') {
+        if (!id) return new Response(JSON.stringify({ error: 'ID required' }), { status: 400, headers: corsHeaders });
+        const { error } = await db.database.from('jobs').update({ is_approved: false, status: 'closed' }).eq('id', id);
+        if (error) throw error;
+
+        // Log to audit log
+        try {
+          await db.database.from('audit_log').insert([{
+            entity_type: 'job',
+            entity_id: id,
+            action: 'reject',
+            performed_by: userData.id,
+            metadata: { reason: body.reason || 'Admin rejected job listing' }
+          }]);
+        } catch (e) {
+          console.warn('Failed to insert audit log entry:', e);
+        }
+
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: corsHeaders });
       }
 

@@ -1,205 +1,384 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from '../shared-dashboard.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
-import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
+import { StatsSkeleton, AlertsSkeleton, ActivitiesSkeleton, QuickActionsSkeleton } from './_components/WidgetSkeletons';
+import RefreshButton from './_components/RefreshButton';
+import { getOrRefresh, invalidateDashboardCache } from '@/lib/cache/metricCache';
+import { WidgetErrorState, StatsErrorState } from './_components/DashboardErrorState';
+import { startTrace, endTrace } from '@/lib/observability';
 
 /* ─── Icons ─── */
 const IC = {
   users: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   clipboard: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>,
   send: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /></svg>,
-  trending: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
   alertCircle: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
   plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
   barChart: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></svg>,
   checkCircle: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>,
   eye: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>,
-  moreH: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>,
   settings: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
 };
 
 import { invokeFunction } from '@/lib/insforge';
+import { safeValidate, dashboardSchema } from '@/lib/contracts/schemas';
 
-type Stat = { value: number; trend: 'up' | 'down'; trendValue: string };
-type Stats = {
-  users: Stat;
-  jobs: Stat;
-  applications: Stat;
-  recruiters: Stat;
+type DashboardData = {
+  metrics: {
+    totalJobs: number;
+    totalApplications: number;
+    totalCandidates: number;
+    totalRecruiters: number;
+  };
+  activities: Array<{
+    id: string;
+    actor: string;
+    actor_avatar?: string;
+    type: string;
+    description: string;
+    created_at: string;
+  }>;
+  alerts: {
+    pendingRecruiters: number;
+    pendingJobs: number;
+    reportedJobs: number;
+    newUsers24h: number;
+  };
 };
 
-type AlertData = {
-  pendingRecruiters: number;
-  pendingJobs: number;
-  reportedJobs: number;
-  newUsers24h: number;
-};
-
-type ActivityItem = {
-  id: string;
-  actor: string;
-  actor_avatar?: string;
-  type: string;
-  description: string;
-  created_at: string;
+const FALLBACK_DASHBOARD: DashboardData = {
+  metrics: { totalJobs: 0, totalApplications: 0, totalCandidates: 0, totalRecruiters: 0 },
+  activities: [],
+  alerts: { pendingRecruiters: 0, pendingJobs: 0, reportedJobs: 0, newUsers24h: 0 }
 };
 
 export default function AdminDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [alerts, setAlerts] = useState<AlertData | null>(null);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const fetching = useRef(false);
+  const pathname = usePathname();
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchData = useCallback(async () => {
-    if (fetching.current) return;
-    fetching.current = true;
+  // Core data fetcher — receives AbortSignal for cancellation
+  const fetchDashboardData = useCallback(async (signal?: AbortSignal): Promise<DashboardData> => {
+    const trace = startTrace('admin-dashboard:get-summary', 'admin');
     try {
       const { data, error: fetchError } = await invokeFunction('admin-dashboard', {
         method: 'POST',
         body: { action: 'get-summary', limit: 10 }
       });
 
-
-      if (fetchError) throw new Error(fetchError.message);
-
-      if (data) {
-        setStats({
-          users: { value: data.metrics.totalCandidates + data.metrics.totalRecruiters, trend: 'up', trendValue: '+12%' },
-          jobs: { value: data.metrics.totalJobs, trend: 'up', trendValue: '+5%' },
-          applications: { value: data.metrics.totalApplications, trend: 'up', trendValue: '+18%' },
-          recruiters: { value: data.metrics.totalRecruiters, trend: 'down', trendValue: '-2%' },
-        });
-        setAlerts(data.alerts);
-        setActivities(data.activities || []);
+      if (signal?.aborted) {
+        endTrace(trace, 'error', 'Request aborted');
+        throw new DOMException('Aborted', 'AbortError');
       }
-    } catch (error) {
-      console.error('Dashboard fetch error:', error);
-    } finally {
-      setDataLoading(false);
-      fetching.current = false;
+
+      if (fetchError) {
+        console.warn('Admin dashboard fetch warning:', fetchError.message);
+        endTrace(trace, 'error', fetchError.message);
+        throw new Error(fetchError.message);
+      }
+
+      if (!data) {
+        endTrace(trace, 'error', 'No data received');
+        throw new Error('No data received');
+      }
+
+      const validated = safeValidate(dashboardSchema, data, {
+        schemaVersion: 'v1', apiVersion: 'v1', ...FALLBACK_DASHBOARD
+      }, 'warn');
+
+      endTrace(trace, 'success');
+      return {
+        metrics: validated.metrics,
+        activities: validated.activities || [],
+        alerts: validated.alerts
+      };
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        endTrace(trace, 'error', err.message || String(err));
+      }
+      throw err;
     }
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      fetchData();
-      const interval = setInterval(fetchData, 5000);
-      return () => clearInterval(interval);
+  // SWR-cached load using MetricCache
+  const loadDashboard = useCallback(async (isRetry = false) => {
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  }, [fetchData, user?.id]);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-  if (authLoading || dataLoading) {
-    return <HomeSkeleton />;
+    const handleUpdate = (data: DashboardData) => {
+      if (controller.signal.aborted) return;
+      setDashboardData(data);
+      setFetchError(null);
+      setStatsLoading(false);
+      setActivitiesLoading(false);
+      setAlertsLoading(false);
+      setLastUpdated(Date.now());
+    };
+
+    const trace = startTrace(isRetry ? 'admin-dashboard:load-retry' : 'admin-dashboard:load', 'admin');
+
+    try {
+      await getOrRefresh<DashboardData>(
+        'dashboard_metrics',
+        (signal) => fetchDashboardData(signal || controller.signal),
+        handleUpdate,
+        { signal: controller.signal, ttlMs: 60_000 }
+      );
+      endTrace(trace, 'success');
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return; // Silently ignore abort errors
+      console.warn('Admin dashboard error (will use stale data):', err);
+      setFetchError(err.message || 'Failed to fetch dashboard metrics');
+      endTrace(trace, 'error', err.message || String(err));
+      // Even on error, stop showing loading skeletons
+      setStatsLoading(false);
+      setActivitiesLoading(false);
+      setAlertsLoading(false);
+    }
+  }, [fetchDashboardData]);
+
+  // Callback to track retry clicks in telemetry
+  const handleRetry = useCallback(() => {
+    loadDashboard(true);
+  }, [loadDashboard]);
+
+  // Manual refresh handler for RefreshButton
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    invalidateDashboardCache(true);
+    try {
+      await loadDashboard();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadDashboard]);
+
+  // Initial load + periodic refresh
+  useEffect(() => {
+    if (!user) return;
+
+    loadDashboard();
+    const interval = setInterval(loadDashboard, 60_000);
+
+    return () => {
+      clearInterval(interval);
+      // Cancel any in-flight request on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [loadDashboard, user?.id]);
+
+  // Abort on route change
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [pathname]);
+
+  // Listen for cache invalidation triggers (job approvals, candidate updates, etc.)
+  useEffect(() => {
+    const handleInvalidation = () => {
+      invalidateDashboardCache(true);
+      loadDashboard();
+    };
+
+    window.addEventListener('dashboard:invalidate', handleInvalidation);
+    return () => window.removeEventListener('dashboard:invalidate', handleInvalidation);
+  }, [loadDashboard]);
+
+  if (authLoading) {
+    return (
+      <div className={styles.dash}>
+        <StatsSkeleton />
+        <div className={styles.mainGrid}>
+          <div className={styles.leftCol}>
+            <AlertsSkeleton />
+            <ActivitiesSkeleton />
+          </div>
+          <div className={styles.rightCol}>
+            <QuickActionsSkeleton />
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  const totalUsers = (dashboardData?.metrics.totalCandidates || 0) + (dashboardData?.metrics.totalRecruiters || 0);
 
   return (
     <div className={styles.dash}>
-      <div className={styles.greet}>
-        <h1 className={styles.greetTitle}>Welcome back, {user?.name || 'Admin'}!</h1>
-        <p className={styles.greetSub}>Overview: Monitor, approve, and manage jobs, recruiters, and candidates.</p>
+      <div className={styles.greet} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 className={styles.greetTitle}>Welcome back, {user?.name || 'Admin'}!</h1>
+          <p className={styles.greetSub}>Overview: Monitor, approve, and manage jobs, recruiters, and candidates.</p>
+        </div>
+        <RefreshButton onRefresh={handleRefresh} isRefreshing={isRefreshing} lastUpdated={lastUpdated} />
       </div>
 
+      {/* Stats Widgets */}
       <AnimateOnScroll animation="fadeUp" delay={100}>
-        <div className={styles.stats}>
-          <div className={styles.stat}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>Total Users</span>
-              <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
+        {statsLoading ? (
+          <StatsSkeleton />
+        ) : fetchError && !dashboardData ? (
+          <StatsErrorState onRetry={handleRetry} />
+        ) : (
+          <div className={styles.stats}>
+            <div className={styles.stat}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>Total Users</span>
+                <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
+              </div>
+              <span className={styles.statVal}>{totalUsers}</span>
+              <span className={styles.statHint}>{dashboardData?.metrics.totalCandidates || 0} candidates + {dashboardData?.metrics.totalRecruiters || 0} recruiters</span>
             </div>
-            <span className={styles.statVal}>{stats?.users.value || 0}</span>
-            <span className={styles.statChange}>{IC.trending} {stats?.users.trendValue} users</span>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>Active Jobs</span>
-              <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
+            <div className={styles.stat}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>Active Jobs</span>
+                <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
+              </div>
+              <span className={styles.statVal}>{dashboardData?.metrics.totalJobs || 0}</span>
+              <span className={styles.statHint}>Published listings</span>
             </div>
-            <span className={styles.statVal}>{stats?.jobs.value || 0}</span>
-            <span className={styles.statChange}>{IC.trending} {stats?.jobs.trendValue} roles</span>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>Total Applications</span>
-              <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
+            <div className={styles.stat}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>Total Applications</span>
+                <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
+              </div>
+              <span className={styles.statVal}>{dashboardData?.metrics.totalApplications || 0}</span>
+              <span className={styles.statHint}>Across all listings</span>
             </div>
-            <span className={styles.statVal}>{stats?.applications.value || 0}</span>
-            <span className={styles.statChange}>{IC.trending} {stats?.applications.trendValue} apps</span>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statTop}>
-              <span className={styles.statLabel}>Recruiters</span>
-              <span className={styles.statIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+            <div className={styles.stat}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>Recruiters</span>
+                <span className={styles.statIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+              </div>
+              <span className={styles.statVal}>{dashboardData?.metrics.totalRecruiters || 0}</span>
+              <span className={styles.statHint}>Active accounts</span>
             </div>
-            <span className={styles.statVal}>{stats?.recruiters.value || 0}</span>
-            <span className={styles.statHint}>{stats?.recruiters.trendValue} from last week</span>
           </div>
-        </div>
+        )}
       </AnimateOnScroll>
 
+      {/* Main Grid */}
       <AnimateOnScroll animation="fadeUp" delay={200}>
         <div className={styles.mainGrid}>
           <div className={styles.leftCol}>
-            {/* Critical Moderation Queue */}
-            {alerts && (alerts.pendingRecruiters > 0 || alerts.pendingJobs > 0 || alerts.reportedJobs > 0) && (
+            {/* Alerts Panel */}
+            {alertsLoading ? (
+              <AlertsSkeleton />
+            ) : fetchError && !dashboardData ? (
+              <WidgetErrorState 
+                title="Review Queue Error" 
+                errorMessage="Could not retrieve the review queue metrics." 
+                onRetry={handleRetry} 
+              />
+            ) : (
+              dashboardData?.alerts && (
+                <div className={styles.card}>
+                  <div className={styles.cardHead}>
+                    <h2 className={styles.cardTitle}>Review Queue</h2>
+                  </div>
+                  {dashboardData.alerts.pendingRecruiters > 0 || dashboardData.alerts.pendingJobs > 0 || dashboardData.alerts.reportedJobs > 0 ? (
+                    <>
+                      {dashboardData.alerts.pendingRecruiters > 0 && (
+                        <div className={styles.actItem}>
+                          <span className={styles.actIcon} style={{ color: '#f59e0b' }}>{IC.alertCircle}</span>
+                          <div className={styles.actContent}>
+                            <span className={styles.actText}><strong>{dashboardData.alerts.pendingRecruiters} Approval Requests</strong> - Recruiters waiting for access</span>
+                          </div>
+                          <Link href="/dashboard/admin/recruiters?status=pending" className={styles.actAction}>Review</Link>
+                        </div>
+                      )}
+                      {dashboardData.alerts.pendingJobs > 0 && (
+                        <div className={styles.actItem}>
+                          <span className={styles.actIcon} style={{ color: '#f59e0b' }}>{IC.alertCircle}</span>
+                          <div className={styles.actContent}>
+                            <span className={styles.actText}><strong>{dashboardData.alerts.pendingJobs} Job Reviews</strong> - New listings requiring approval</span>
+                          </div>
+                          <Link href="/dashboard/admin/jobs?status=pending" className={styles.actAction}>Review</Link>
+                        </div>
+                      )}
+                      {dashboardData.alerts.reportedJobs > 0 && (
+                        <div className={styles.actItem}>
+                          <span className={styles.actIcon} style={{ color: '#ef4444' }}>{IC.alertCircle}</span>
+                          <div className={styles.actContent}>
+                            <span className={styles.actText}><strong>{dashboardData.alerts.reportedJobs} Flagged Reports</strong> - Reported jobs requiring attention</span>
+                          </div>
+                          <Link href="/dashboard/admin/jobs?status=reported" className={styles.actAction}>Review</Link>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem 0', textAlign: 'center', gap: '0.75rem' }}>
+                      <div style={{ background: '#f0fdf4', color: '#10b981', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {IC.checkCircle}
+                      </div>
+                      <div>
+                        <strong style={{ fontSize: '0.88rem', color: '#0f172a', display: 'block' }}>All Caught Up!</strong>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>No pending jobs or recruiter accounts require review.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Activities Panel */}
+            {activitiesLoading ? (
+              <ActivitiesSkeleton />
+            ) : fetchError && !dashboardData ? (
+              <WidgetErrorState 
+                title="Recent Activity Error" 
+                errorMessage="Could not retrieve the recent activity logs." 
+                onRetry={handleRetry} 
+              />
+            ) : (
               <div className={styles.card}>
                 <div className={styles.cardHead}>
-                  <h2 className={styles.cardTitle}>Review Queue</h2>
+                  <h2 className={styles.cardTitle}>Recent Activity</h2>
                 </div>
-                {alerts.pendingRecruiters > 0 && (
-                  <div className={styles.actItem}>
-                    <span className={styles.actIcon} style={{ color: '#f59e0b' }}>{IC.alertCircle}</span>
-                    <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{alerts.pendingRecruiters} Approval Requests</strong> - Recruiters waiting for access</span>
+                {(dashboardData?.activities?.length ?? 0) > 0 ? (
+                  dashboardData!.activities.map((act) => (
+                    <div key={act.id} className={styles.actItem}>
+                      <span className={styles.actIcon}>{IC.eye}</span>
+                      <div className={styles.actContent}>
+                        <span className={styles.actText}><strong>{act.actor}</strong> {act.description}</span>
+                        <span className={styles.actTime}>{new Date(act.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </div>
-                    <Link href="/dashboard/admin/recruiters?status=pending" className={styles.actAction}>Review</Link>
-                  </div>
-                )}
-                {alerts.pendingJobs > 0 && (
-                  <div className={styles.actItem}>
-                    <span className={styles.actIcon} style={{ color: '#f59e0b' }}>{IC.alertCircle}</span>
-                    <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{alerts.pendingJobs} Job Reviews</strong> - New listings requiring approval</span>
+                  ))
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem 0', textAlign: 'center', gap: '0.75rem' }}>
+                    <div style={{ background: '#f1f5f9', color: '#475569', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {IC.eye}
                     </div>
-                    <Link href="/dashboard/admin/jobs?status=pending" className={styles.actAction}>Review</Link>
-                  </div>
-                )}
-                {alerts.reportedJobs > 0 && (
-                  <div className={styles.actItem}>
-                    <span className={styles.actIcon} style={{ color: '#ef4444' }}>{IC.alertCircle}</span>
-                    <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{alerts.reportedJobs} Flagged Reports</strong> - Reported jobs requiring attention</span>
+                    <div>
+                      <strong style={{ fontSize: '0.88rem', color: '#0f172a', display: 'block' }}>No Recent Activity</strong>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Activities will appear here as candidates and recruiters register.</span>
                     </div>
-                    <Link href="/dashboard/admin/jobs?status=reported" className={styles.actAction}>Review</Link>
                   </div>
                 )}
               </div>
             )}
-
-            <div className={styles.card}>
-              <div className={styles.cardHead}>
-                <h2 className={styles.cardTitle}>Recent Activity</h2>
-                <button className={styles.moreBtn} onClick={fetchData}>{IC.moreH}</button>
-              </div>
-              {activities.length > 0 ? (
-                activities.map((act) => (
-                  <div key={act.id} className={styles.actItem}>
-                    <span className={styles.actIcon}>{IC.eye}</span>
-                    <div className={styles.actContent}>
-                      <span className={styles.actText}><strong>{act.actor}</strong> {act.description}</span>
-                      <span className={styles.actTime}>{new Date(act.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className={styles.emptyText}>No recent activity reported.</p>
-              )}
-            </div>
           </div>
 
           <div className={styles.rightCol}>

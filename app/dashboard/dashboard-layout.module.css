@@ -744,4 +744,30 @@
     to { transform: rotate(360deg); }
 }
 
-/* Admin Active Link Style matching candidate layout style but with Admin Theme */
+/* Admin Active Link Style matching candidate layout style but with Admin Theme */
+
+/* --- Collapsed Sidebar Enhancements --- */
+.sidebarCollapsed .brand {
+    justify-content: center;
+}
+
+.sidebarCollapsed .navLink,
+.sidebarCollapsed .navGroupHeader {
+    justify-content: center;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.sidebarCollapsed .adminMiniCard {
+    padding: 8px 4px !important;
+    margin: 12px 4px 4px 4px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebarCollapsed .userCard {
+    justify-content: center !important;
+    padding: 0.6rem 0 !important;
+}

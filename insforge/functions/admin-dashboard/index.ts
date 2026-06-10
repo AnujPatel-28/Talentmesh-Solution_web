@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno edge function: npm: imports and Deno globals are valid at runtime
 import { createClient } from 'npm:@insforge/sdk';
 
 export default async function handler(request: Request): Promise<Response> {

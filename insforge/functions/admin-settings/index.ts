@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno edge function: npm: imports and Deno globals are valid at runtime
 import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
@@ -116,6 +117,23 @@ export default async function handler(req: Request): Promise<Response> {
 
          if (insertAdminError && (insertAdminError.message || insertAdminError.code)) throw insertAdminError;
 
+         // Log audit entry
+         try {
+           const ipAddress = req.headers.get('x-real-ip') || req.headers.get('x-forwarded-for') || '';
+           await insforgeAdmin.database.from('audit_logs').insert([{
+             actor_id: userData.id,
+             action: 'add_admin',
+             table_name: 'profiles',
+             record_id: targetUser.id,
+             old_data: { role: targetUser.role },
+             new_data: { role: 'admin' },
+             ip_address: ipAddress,
+             created_at: new Date().toISOString()
+           }]);
+         } catch (auditErr) {
+           console.error('Audit failed:', auditErr);
+         }
+
          return new Response(JSON.stringify({ message: 'User granted admin access' }), { status: 200 });
        }
     }
@@ -127,6 +145,19 @@ export default async function handler(req: Request): Promise<Response> {
          return new Response(JSON.stringify({ error: 'Missing key or value' }), { status: 400 });
        }
 
+       // Fetch old value first for audit logs
+       let oldValue = null;
+       try {
+         const { data: oldData } = await insforgeAdmin.database
+           .from('platform_settings')
+           .select('value')
+           .eq('key', key)
+           .maybeSingle();
+         if (oldData) oldValue = oldData.value;
+       } catch (e) {
+         console.warn('Failed to fetch old setting value for audit:', e);
+       }
+
        const escapedValue = JSON.stringify(value).replace(/'/g, "''");
        const escapedKey = String(key).replace(/'/g, "''");
        const sql = `UPDATE public.platform_settings SET value = '${escapedValue}'::jsonb, updated_at = now() WHERE key = '${escapedKey}'`;
@@ -136,6 +167,28 @@ export default async function handler(req: Request): Promise<Response> {
        if (error && (error.message || error.code)) throw error;
        if (resData && resData.success === false) {
          throw new Error(resData.error || 'Database operation failed');
+       }
+
+       // Log to public.audit_logs
+       try {
+         const ipAddress = req.headers.get('x-real-ip') || req.headers.get('x-forwarded-for') || '';
+         const isFeature = key === 'feature_flags';
+         const actionName = isFeature ? 'toggle_feature' : 'update_settings';
+         
+         await insforgeAdmin.database
+           .from('audit_logs')
+           .insert([{
+             actor_id: userData.id,
+             action: actionName,
+             table_name: 'platform_settings',
+             record_id: key,
+             old_data: oldValue,
+             new_data: value,
+             ip_address: ipAddress,
+             created_at: new Date().toISOString()
+           }]);
+       } catch (auditErr) {
+         console.error('Failed to log admin settings audit entry:', auditErr);
        }
 
        return new Response(JSON.stringify({ message: 'Settings updated' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -156,6 +209,23 @@ export default async function handler(req: Request): Promise<Response> {
          .eq('user_id', id);
 
        if (deleteAdminError && (deleteAdminError.message || deleteAdminError.code)) throw deleteAdminError;
+
+       // Log audit entry
+       try {
+         const ipAddress = req.headers.get('x-real-ip') || req.headers.get('x-forwarded-for') || '';
+         await insforgeAdmin.database.from('audit_logs').insert([{
+           actor_id: userData.id,
+           action: 'remove_admin',
+           table_name: 'profiles',
+           record_id: id,
+           old_data: { role: 'admin' },
+           new_data: { role: 'candidate' },
+           ip_address: ipAddress,
+           created_at: new Date().toISOString()
+         }]);
+       } catch (auditErr) {
+         console.error('Audit failed:', auditErr);
+       }
 
        return new Response(JSON.stringify({ message: 'Admin access removed' }), { status: 200 });
     }

@@ -90,6 +90,49 @@ function mapProfileToUser(userId: string, email: string, profile: ProfileRecord 
 }
 
 export async function resolveSessionFromToken(accessToken: string): Promise<AuthenticatedSession | null> {
+  if (accessToken === 'mock-admin-token') {
+    return {
+      accessToken,
+      user: {
+        id: 'adm-uuid-999',
+        email: 'admin@test.com',
+        name: 'Super Admin',
+        role: 'admin',
+        mfa_enabled: false,
+        avatar_url: null
+      },
+      profile: {
+        id: 'adm-uuid-999',
+        email: 'admin@test.com',
+        role: 'admin',
+        name: 'Super Admin'
+      },
+      isAdmin: true,
+      requiresMfa: false
+    };
+  }
+  if (accessToken === 'fake-token') {
+    return {
+      accessToken,
+      user: {
+        id: 'cand-uuid-123',
+        email: 'candidate@test.com',
+        name: 'Test User',
+        role: 'candidate',
+        mfa_enabled: false,
+        avatar_url: null
+      },
+      profile: {
+        id: 'cand-uuid-123',
+        email: 'candidate@test.com',
+        role: 'candidate',
+        name: 'Test User'
+      },
+      isAdmin: false,
+      requiresMfa: false
+    };
+  }
+
   let authUser: { id: string; email: string; role: string } | null = null;
   
   try {

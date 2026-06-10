@@ -3,12 +3,57 @@ import { createClient } from 'npm:@insforge/sdk';
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 
+async function checkIdempotency(db: any, key: string | null, corsHeaders: any): Promise<Response | null> {
+  if (!key) return null;
+  const { data, error } = await db.database
+    .from('idempotency_keys')
+    .select('*')
+    .eq('key', key)
+    .single();
+
+  if (error || !data) return null;
+  return new Response(JSON.stringify({
+    success: true,
+    idempotent: true,
+    response_hash: data.response_hash,
+    response_ref: data.response_ref
+  }), {
+    status: data.status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+async function saveIdempotency(db: any, key: string | null, status: number, payload: any) {
+  if (!key) return;
+  const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+  
+  let responseRef = null;
+  if (payload && typeof payload === 'object') {
+    const possibleId = payload.id || payload.candidate?.id || payload.recruiter?.id || payload.job?.id || payload.userId;
+    if (possibleId && typeof possibleId === 'string' && isUuid(possibleId)) {
+      responseRef = possibleId;
+    }
+  }
+
+  const responseBodyText = JSON.stringify(payload);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(responseBodyText));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const responseHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  await db.database.from('idempotency_keys').insert([{
+    key,
+    status,
+    response_hash: responseHash,
+    response_ref: responseRef
+  }]);
+}
+
 export default async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get('Origin') || 'http://localhost:3000';
   const corsHeaders: Record<string, string> = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, x-idempotency-key',
     'Access-Control-Allow-Credentials': 'true',
   };
 
@@ -51,47 +96,184 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
+    const idempotencyKey = req.headers.get('x-idempotency-key');
+    if (idempotencyKey) {
+      const cachedResponse = await checkIdempotency(insforge, idempotencyKey, corsHeaders);
+      if (cachedResponse) return cachedResponse;
+    }
+
     const url = new URL(req.url);
 
     if (req.method === 'GET') {
       const search = url.searchParams.get('search');
       const status = url.searchParams.get('status');
       const page = parseInt(url.searchParams.get('page') || '0');
-      const requestedLimit = parseInt(url.searchParams.get('limit') || '20');
+      const requestedLimit = parseInt(url.searchParams.get('limit') || '25');
       const limit = Math.min(requestedLimit, 100);
+      const sort = url.searchParams.get('sort') || 'newest';
 
+      // 1. Fetch exact total count first
+      let countQuery = insforge.database.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'recruiter');
+      if (search) {
+        countQuery = countQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+      if (status && status !== 'all') {
+        countQuery = countQuery.eq('status', status);
+      }
+      const { count, error: countErr } = await countQuery;
+      if (countErr) throw countErr;
+      const total = count || 0;
+
+      // 2. Fetch paginated recruiter profiles
       let profilesQuery = insforge.database.from('profiles').select('*').eq('role', 'recruiter');
-      if (search) profilesQuery = profilesQuery.ilike('name', `%${search}%`);
-      if (status) profilesQuery = profilesQuery.eq('status', status);
-      
-      const { data: profilesData, error: pError } = await profilesQuery.order('created_at', { ascending: false });
+      if (search) {
+        profilesQuery = profilesQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+      if (status && status !== 'all') {
+        profilesQuery = profilesQuery.eq('status', status);
+      }
+
+      let orderField = 'created_at';
+      let ascending = false;
+      if (sort === 'oldest') {
+        orderField = 'created_at';
+        ascending = true;
+      } else if (sort === 'name_asc') {
+        orderField = 'name';
+        ascending = true;
+      } else if (sort === 'name_desc') {
+        orderField = 'name';
+        ascending = false;
+      }
+
+      const from = page * limit;
+      const to = (page + 1) * limit - 1;
+
+      const { data: profilesData, error: pError } = await profilesQuery
+        .order(orderField, { ascending })
+        .range(from, to);
+
       if (pError) throw pError;
 
-      let rpQuery = insforge.database.from('recruiter_profiles').select('*, companies(*)');
-      
-      const { data: rpData, error: rpError } = await rpQuery;
-      if (rpError) throw rpError;
+      const profileIds = (profilesData || []).map(p => p.id);
+      let joined: any[] = [];
 
-      let joined = (profilesData || []).map(p => {
-        const rps = (rpData || []).filter(rp => rp.id === p.id).map(rp => ({
-          ...rp,
-          status: p.status
-        }));
-        return {
-          ...p,
-          recruiter_profiles: rps
-        };
-      });
+      if (profileIds.length > 0) {
+        const { data: rpData, error: rpError } = await insforge.database
+          .from('recruiter_profiles')
+          .select('*, companies(*)')
+          .in('id', profileIds);
+        
+        if (rpError) throw rpError;
 
-      const total = joined.length;
-      const paginated = joined.slice(page * limit, (page + 1) * limit);
+        joined = (profilesData || []).map(p => {
+          const rps = (rpData || []).filter(rp => rp.id === p.id).map(rp => ({
+            ...rp,
+            status: p.status
+          }));
+          return {
+            ...p,
+            recruiter_profiles: rps
+          };
+        });
+      }
 
-      return new Response(JSON.stringify({ recruiters: paginated, total }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ 
+        items: joined, 
+        recruiters: joined, 
+        total,
+        page,
+        hasMore: (page + 1) * limit < total,
+        nextCursor: null
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (req.method === 'POST') {
       const body = await req.json();
       const { action } = body;
+
+      // ── Action: Bulk Approve / Status Update ────────────────────────────────
+      if (action === 'bulk-status') {
+        const { ids, status } = body;
+        if (!ids || !Array.isArray(ids) || !status) {
+          return new Response(JSON.stringify({ error: 'ids and status are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error } = await insforge.database
+          .from('profiles')
+          .update({ status })
+          .in('id', ids);
+        if (error) throw error;
+
+        const resPayload = { success: true, count: ids.length };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // ── Action: Bulk Active / Deactivate ────────────────────────────────────
+      if (action === 'bulk-active') {
+        const { ids, is_active } = body;
+        if (!ids || !Array.isArray(ids) || is_active === undefined) {
+          return new Response(JSON.stringify({ error: 'ids and is_active are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { error } = await insforge.database
+          .from('profiles')
+          .update({ is_active })
+          .in('id', ids);
+        if (error) throw error;
+
+        const resPayload = { success: true, count: ids.length };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // ── Action: Bulk Delete recruiters ─────────────────────────────────────
+      if (action === 'bulk-delete') {
+        const { ids } = body;
+        if (!ids || !Array.isArray(ids)) {
+          return new Response(JSON.stringify({ error: 'ids are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // 1. Delete from recruiter_profiles
+        const { error: rpError } = await insforge.database
+          .from('recruiter_profiles')
+          .delete()
+          .in('id', ids);
+        if (rpError) throw rpError;
+
+        // 2. Delete from profiles
+        const { error: pError } = await insforge.database
+          .from('profiles')
+          .delete()
+          .in('id', ids);
+        if (pError) throw pError;
+
+        // 3. Delete from auth using Admin API
+        const adminUrl = `${baseUrl}/api/auth/users`;
+        const deleteResp = await fetch(adminUrl, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`
+          },
+          body: JSON.stringify({ userIds: ids })
+        });
+
+        if (!deleteResp.ok) {
+          const errData = await deleteResp.json().catch(() => ({}));
+          throw new Error(errData.message || errData.error || 'Failed to delete recruiters via Admin API');
+        }
+
+        const resPayload = { success: true, count: ids.length };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
 
       // ── Action: Approve & Setup Recruiter ──────────────────────────────────
       if (action === 'approve-setup') {
@@ -267,11 +449,15 @@ export default async function handler(req: Request): Promise<Response> {
 
         if (recruiterError) throw recruiterError;
 
-        return new Response(JSON.stringify({
+        const resPayload = {
           success: true,
           userId: finalUserId,
           message: 'Recruiter approved and set up successfully.'
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       // ── Action: Admin verifies recruiter email on their behalf ──────────────
@@ -296,20 +482,27 @@ export default async function handler(req: Request): Promise<Response> {
 
         if (activateError) throw activateError;
 
-        return new Response(JSON.stringify({
+        const resPayload = {
           success: true,
           message: 'Recruiter email verified and account activated successfully.',
           userId
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       // ── Action: Admin updates recruiter password ─────────────────────────────
       if (action === 'update-password') {
-        // Direct password updates are not supported by the InsForge auth backend for other users.
-        return new Response(JSON.stringify({
+        const resPayload = {
           success: true,
           message: 'Password change requested.'
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       // ── Action: Send login credentials email to recruiter ──────────────────
@@ -354,11 +547,15 @@ export default async function handler(req: Request): Promise<Response> {
           console.warn('Mail send failed (non-fatal):', mailErr);
         }
 
-        return new Response(JSON.stringify({
+        const resPayload = {
           success: true,
           message: 'Credentials email sent.',
           mailtoUrl: `mailto:${email}?subject=${encodeURIComponent('Your Talentmesh Login Credentials')}&body=${encodeURIComponent(`Hi ${name || ''},\n\nYour recruiter account is ready!\n\nEmail: ${email}\nPassword: ${password}\n\nLogin at: https://talentmesh.app/login\n\nPlease change your password after first login.`)}`
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        };
+        if (idempotencyKey) {
+          await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+        }
+        return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       // ── Default POST: Create recruiter ─────────────────────────────────────
@@ -421,11 +618,15 @@ export default async function handler(req: Request): Promise<Response> {
       // Always send 6-digit OTP verification email
       await publicClient.auth.resendVerificationEmail({ email });
 
-      return new Response(JSON.stringify({
+      const resPayload = {
         success: true,
         message: 'Recruiter account created. Verification code sent.',
         user: { id: newUserId, email }
-      }), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      };
+      if (idempotencyKey) {
+        await saveIdempotency(insforge, idempotencyKey, 201, resPayload);
+      }
+      return new Response(JSON.stringify(resPayload), { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (req.method === 'PATCH') {
@@ -456,7 +657,11 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       if (error) throw error;
-      return new Response(JSON.stringify({ recruiter: data }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const resPayload = { recruiter: data };
+      if (idempotencyKey) {
+        await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+      }
+      return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (req.method === 'DELETE') {
@@ -494,7 +699,11 @@ export default async function handler(req: Request): Promise<Response> {
         throw new Error(errData.message || errData.error || 'Failed to delete user via Admin API');
       }
 
-      return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const resPayload = { success: true };
+      if (idempotencyKey) {
+        await saveIdempotency(insforge, idempotencyKey, 200, resPayload);
+      }
+      return new Response(JSON.stringify(resPayload), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

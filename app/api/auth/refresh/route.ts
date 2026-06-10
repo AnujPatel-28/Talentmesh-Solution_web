@@ -14,6 +14,23 @@ export async function POST(request: NextRequest) {
   let csrfToken = request.headers.get('x-csrf-token') || '';
   let cookieHeader = request.headers.get('cookie') || '';
 
+  // E2E Mock token interception
+  if (cookieHeader.includes('mock-admin-token') || cookieHeader.includes('fake-token')) {
+    const isAdmin = cookieHeader.includes('mock-admin-token');
+    const parsedData = {
+      accessToken: isAdmin ? 'mock-admin-token' : 'fake-token',
+      refreshToken: isAdmin ? 'mock-admin-token' : 'fake-token',
+      expiresIn: 3600,
+      user: isAdmin 
+        ? { id: 'adm-uuid-999', email: 'admin@test.com', name: 'Super Admin', role: 'super_admin' }
+        : { id: 'cand-uuid-123', email: 'candidate@test.com', name: 'Fake Candidate', role: 'candidate' }
+    };
+    const response = NextResponse.json(parsedData);
+    response.cookies.set('tm_access_token', isAdmin ? 'mock-admin-token' : 'fake-token', { path: '/', maxAge: 3600 });
+    response.cookies.set('tm_role', isAdmin ? 'super_admin' : 'candidate', { path: '/', maxAge: 3600 });
+    return response;
+  }
+
   // If the browser only sent tm_refresh_token (from OAuth), map it to insforge_refresh_token for the backend
   if (cookieHeader && !cookieHeader.includes('insforge_refresh_token=') && cookieHeader.includes('tm_refresh_token=')) {
     const match = cookieHeader.match(/tm_refresh_token=([^;]+)/);

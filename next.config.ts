@@ -80,7 +80,16 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [];
+    return [
+      {
+        source: '/candidates',
+        destination: '/dashboard/admin/candidates',
+      },
+      {
+        source: '/recruiters',
+        destination: '/dashboard/admin/recruiters',
+      },
+    ];
   },
 };
 

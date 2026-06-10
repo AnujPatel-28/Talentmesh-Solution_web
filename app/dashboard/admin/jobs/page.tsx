@@ -357,7 +357,7 @@ export default function AdminJobsPage() {
         actions={
           <>
             <AdminButton variant="secondary" onClick={() => router.push('/dashboard/admin/job-approvals')} style={{ position: 'relative' }}>
-              Review Queue
+              Job Approvals
               {summary.pending > 0 && (
                 <span style={{
                   position: 'absolute',
@@ -531,7 +531,7 @@ export default function AdminJobsPage() {
               placeholder="e.g. Lead Dev-Ops Architect"
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className={styles.twoColumn}>
               <AdminSelect
                 label="Job Type"
                 options={typeOptions}
@@ -553,7 +553,7 @@ export default function AdminJobsPage() {
               placeholder="City, Country or 'Remote'"
             />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <div className={styles.threeColumn}>
               <AdminInput
                 label="Salary Min"
                 type="number"
@@ -576,7 +576,7 @@ export default function AdminJobsPage() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <div className={styles.threeColumn}>
               <AdminInput
                 label="Exp Min (Years)"
                 type="number"

@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
+    "env:check": "tsx scripts/check-env.ts",
     "create-admin": "tsx scripts/create-admin.ts",
     "create-test-recruiter": "tsx scripts/create-test-recruiter.ts",
     "create-manual-recruiter": "tsx scripts/create-manual-recruiter.ts"

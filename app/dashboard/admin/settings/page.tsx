@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import styles from './settings.module.css';
 import { invokeFunction, insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { safeValidate, settingsSchema } from '@/lib/contracts/schemas';
 
 type PlatformSettings = {
   general: any;
@@ -43,9 +44,25 @@ export default function AdminSettingsPage() {
         invokeFunction('admin-settings', { method: 'GET', queries: { section: 'admins' } })
       ]);
       
-      if (!sRes.error) setSettings(sRes.data);
+      if (!sRes.error && sRes.data) {
+        const fallbackSettings = {
+          schemaVersion: 'v1',
+          general: {
+            platformName: 'TalentMesh',
+            supportEmail: 'support@talentmesh.ai',
+            tagline: 'The Future of Professional Integration'
+          },
+          feature_flags: {},
+          maintenance: {
+            enabled: false
+          }
+        };
+        const validatedSettings = safeValidate(settingsSchema, sRes.data, fallbackSettings, 'strict');
+        setSettings(validatedSettings);
+      }
       if (!aRes.error) setAdmins(aRes.data.admins);
     } catch (err) {
+      console.error('Settings fetch or validation failed:', err);
       setMessage({ text: 'Internal settings sync failed', type: 'error' });
     } finally {
       setLoading(false);
@@ -57,6 +74,23 @@ export default function AdminSettingsPage() {
   }, [fetchAll]);
 
   const updateSetting = async (key: string, value: any) => {
+    // If offline, queue setting update offline to prevent losing changes
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const { queueOfflineAction } = await import('@/hooks/useNetworkState');
+        queueOfflineAction('admin-settings', {
+          method: 'PATCH',
+          body: { key, value },
+        });
+        setSettings(prev => prev ? { ...prev, [key]: value } : null);
+        setMessage({ text: 'Offline: Changes queued and will sync when connection is restored.', type: 'info' });
+        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+        return;
+      } catch (err) {
+        console.error('Failed to queue setting change offline:', err);
+      }
+    }
+
     try {
       const { data, error } = await invokeFunction('admin-settings', {
         method: 'PATCH',
@@ -77,7 +111,7 @@ export default function AdminSettingsPage() {
         setMessage({ text: 'Global configuration persisted successfully', type: 'success' });
         setTimeout(() => setMessage({ text: '', type: '' }), 3000);
       }
-    } catch (err) {
+    } catch {
       setMessage({ text: 'Persistence failure', type: 'error' });
     }
   };
@@ -119,6 +153,22 @@ export default function AdminSettingsPage() {
 
   const addAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const { queueOfflineAction } = await import('@/hooks/useNetworkState');
+        queueOfflineAction('admin-settings', {
+          method: 'POST',
+          body: { email: newAdminEmail, action: 'add_admin' },
+        });
+        setNewAdminEmail('');
+        setMessage({ text: 'Offline: Grant access request queued for synchronization.', type: 'info' });
+        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+        return;
+      } catch (err) {
+        console.error('Failed to queue add admin offline:', err);
+      }
+    }
+
     try {
       const { data, error } = await invokeFunction('admin-settings', {
         method: 'POST',
@@ -131,13 +181,28 @@ export default function AdminSettingsPage() {
       } else {
         setMessage({ text: error.message, type: 'error' });
       }
-    } catch (err) {
+    } catch {
       setMessage({ text: 'Network failure', type: 'error' });
     }
   };
 
   const removeAdmin = async (id: string) => {
     if (!confirm('Are you sure you want to revoke administrative access for this user?')) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const { queueOfflineAction } = await import('@/hooks/useNetworkState');
+        queueOfflineAction('admin-settings', {
+          method: 'DELETE',
+          body: { id },
+        });
+        setMessage({ text: 'Offline: Revoke access request queued for synchronization.', type: 'info' });
+        setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+        return;
+      } catch (err) {
+        console.error('Failed to queue remove admin offline:', err);
+      }
+    }
+
     try {
       const { error } = await invokeFunction('admin-settings', {
         method: 'DELETE',
@@ -147,7 +212,7 @@ export default function AdminSettingsPage() {
         fetchAll();
         setMessage({ text: 'Admin privileges revoked', type: 'info' });
       }
-    } catch (err) {
+    } catch {
       setMessage({ text: 'Revocation failed', type: 'error' });
     }
   };
