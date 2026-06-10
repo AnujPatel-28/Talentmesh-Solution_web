@@ -19,7 +19,7 @@ export async function logAction(params: {
     const userAgent = headersList.get('user-agent') ?? 'unknown';
 
     try {
-        await insforgeAdmin.database.from('audit_logs').insert([{
+        await insforgeAdmin.database.from('audit_log').insert([{
             actor_id: params.adminId,
             action: params.action,
             table_name: params.tableName,

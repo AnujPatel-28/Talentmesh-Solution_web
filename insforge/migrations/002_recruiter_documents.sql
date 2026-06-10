@@ -23,17 +23,17 @@ CREATE POLICY admin_bypass_proposals ON custom_proposals TO project_admin USING 
 CREATE POLICY proposals_select_own ON custom_proposals FOR SELECT USING (auth.uid() = recruiter_id);
 
 -- Storage bucket for recruiter documents
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('recruiter_documents', 'recruiter_documents', false)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO storage.buckets (name, public) 
+VALUES ('recruiter_documents', false)
+ON CONFLICT (name) DO NOTHING;
 
 -- Storage policies for recruiter documents
 CREATE POLICY "Admin can do all with recruiter documents"
 ON storage.objects FOR ALL TO project_admin
-USING ( bucket_id = 'recruiter_documents' );
+USING ( bucket = 'recruiter_documents' );
 
 -- Note: We handle file uploads via edge functions which bypass RLS using the service role key,
 -- so we don't necessarily need an insert policy for public users, but it's good practice.
 CREATE POLICY "Anon can upload recruiter documents"
 ON storage.objects FOR INSERT TO public
-WITH CHECK ( bucket_id = 'recruiter_documents' );
+WITH CHECK ( bucket = 'recruiter_documents' );

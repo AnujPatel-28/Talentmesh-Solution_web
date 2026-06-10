@@ -84,6 +84,13 @@ Instead of writing imperative checks in the codebase (e.g., `if (job.recruiter_i
 2. **Retrieval (`components/recruiter/CandidateProfileDrawer.tsx`)**:
    - When a recruiter opens a candidate drawer, the app requests a **Signed URL** with a short expiration (e.g., 60 seconds) from InsForge Storage.
    - This prevents resumes from being hotlinked or leaked publicly.
+3. **Application Snapshots & Proxy Access**:
+   - To guarantee compliance and recruiter view stability, submitting an application uploads a copy of the candidate's active resume to the private `application-snapshots` bucket at `applications/{applicationId}/resume.pdf`.
+   - Even if the candidate later deletes or replaces their original resume in the Resume Manager, the application snapshot is unaffected.
+   - Recruiters view/download these snapshots via the `resume-proxy` edge function, which validates that the logged-in user is either an admin or the recruiter who owns the job, logs the event in `resume_access_log` (categorizing the `source` as `application` or `admin`), and streams the PDF.
+4. **Snapshot Storage Growth & Retention Policy**:
+   - *Production Risk*: Since every job application creates a separate immutable PDF file, storage requirements scale linearly (e.g., 100,000 applications = 100,000 PDFs).
+   - *Retention Policy*: In Phase A, snapshots are retained indefinitely. For long-term production, it is recommended to implement a cleanup worker that deletes snapshots associated with applications older than 3 years (or 7 years for strict enterprise compliance) where the status is closed/rejected/withdrawn.
 
 ### Feature D: Global Admin Oversight
 **Goal**: Admins can impersonate, audit, and moderate the platform.

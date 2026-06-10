@@ -54,15 +54,29 @@ export default async function handler(request: Request): Promise<Response> {
 
     if (request.method === 'GET') {
       const search = url.searchParams.get('search');
+      const discoverable = url.searchParams.get('discoverable');
       const page = parseInt(url.searchParams.get('page') || '0');
       const requestedLimit = parseInt(url.searchParams.get('limit') || '20');
       const limit = Math.min(requestedLimit, 100);
 
+      let selectClause = '*, candidate_profiles(*)';
+      if (discoverable === 'true' || discoverable === 'false') {
+        selectClause = '*, candidate_profiles!inner(*)';
+      }
+
       let query = db.database.from('profiles')
-        .select('*, candidate_profiles(*)', { count: 'exact' })
+        .select(selectClause, { count: 'exact' })
         .eq('role', 'candidate');
 
       if (search) query = query.ilike('name', `%${search}%`);
+
+      if (discoverable === 'true') {
+        query = query.eq('candidate_profiles.is_discoverable', true);
+      } else if (discoverable === 'false') {
+        query = query.eq('candidate_profiles.is_discoverable', false);
+      } else if (discoverable === 'missing_primary') {
+        query = query.filter('candidate_profiles.primary_resume_id', 'is', null);
+      }
 
       const { data, count, error } = await query
         .order('created_at', { ascending: false })

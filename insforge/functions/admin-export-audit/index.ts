@@ -23,7 +23,7 @@ export default async function handler(req: Request): Promise<Response> {
       const to = url.searchParams.get('to');
 
       let query = insforge.database
-        .from('audit_logs')
+        .from('audit_log')
         .select(`
             id,
             created_at,

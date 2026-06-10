@@ -12,6 +12,7 @@ const CP_ALLOWED_KEYS = new Set([
   'resume_url', 'linkedin_url', 'github_url', 'portfolio_url',
   'salary_min', 'salary_max', 'preferred_locations', 'is_visible',
   'job_types', 'open_to_remote', 'currency', 'profile_strength',
+  'is_discoverable', 'primary_resume_id',
 ]);
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -132,6 +133,8 @@ function validateProfileBody(body: unknown): { errors: ValidationError[]; profil
       if (!isOptionalNumber(cp.salary_min)) errors.push({ field: 'candidateProfile.salary_min', message: 'salary_min must be a number' });
       if (!isOptionalNumber(cp.salary_max)) errors.push({ field: 'candidateProfile.salary_max', message: 'salary_max must be a number' });
       if (!isOptionalBool(cp.is_visible)) errors.push({ field: 'candidateProfile.is_visible', message: 'is_visible must be a boolean' });
+      if (!isOptionalBool(cp.is_discoverable)) errors.push({ field: 'candidateProfile.is_discoverable', message: 'is_discoverable must be a boolean' });
+      if (!isOptionalString(cp.primary_resume_id)) errors.push({ field: 'candidateProfile.primary_resume_id', message: 'primary_resume_id must be a string' });
       if (!isOptionalBool(cp.open_to_remote)) errors.push({ field: 'candidateProfile.open_to_remote', message: 'open_to_remote must be a boolean' });
       if (!isOptionalStringArray(cp.skills)) errors.push({ field: 'candidateProfile.skills', message: 'skills must be an array of strings' });
       if (!isOptionalStringArray(cp.preferred_locations)) errors.push({ field: 'candidateProfile.preferred_locations', message: 'preferred_locations must be an array of strings' });

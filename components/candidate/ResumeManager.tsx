@@ -23,12 +23,14 @@ interface ResumeManagerProps {
     candidateId: string;
 }
 
+import * as Icons from '@/components/ui/icons';
+
 const IC = {
     pdf: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15h3a2 2 0 0 0 0-4H9v4z" /><path d="M9 11v9" /></svg>,
     plus: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
     trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>,
-    eye: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>,
-    check: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>,
+    eye: <Icons.Eye width="16" height="16" strokeWidth="2" />,
+    check: <Icons.Check />,
     upload: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>,
     alert: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>,
 };
@@ -41,6 +43,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editLabel, setEditLabel] = useState('');
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+    const [primaryResumeId, setPrimaryResumeId] = useState<string | null>(null);
     
     // Modal state
     const [showModal, setShowModal] = useState(false);
@@ -70,6 +73,19 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             
             if (error) throw error;
             setResumes(data || []);
+
+            // Fetch primary resume ID from candidate profile
+            const { data: profileData, error: profileErr } = await insforge.database
+                .from('candidate_profiles')
+                .select('primary_resume_id')
+                .eq('id', activeCandidateId)
+                .single();
+            
+            if (profileErr) {
+                console.warn('Failed to fetch primary resume ID:', profileErr.message);
+            } else {
+                setPrimaryResumeId(profileData?.primary_resume_id || null);
+            }
         } catch (err: any) {
             setToast({ message: 'Failed to fetch resumes: ' + err.message, type: 'error' });
         } finally {
@@ -154,7 +170,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                     .eq('candidate_id', activeCandidateId);
             }
 
-            const { error } = await insforge.database
+            const { data: insertedData, error } = await insforge.database
                 .from('candidate_resumes')
                 .insert([{
                     candidate_id: activeCandidateId,
@@ -163,14 +179,20 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                     file_name: uploadedFile.name,
                     file_size_bytes: uploadedFile.size,
                     is_default: isDefault
-                }]);
+                }])
+                .select()
+                .single();
 
             if (error) throw error;
 
-            if (isDefault) {
+            if (isDefault || !primaryResumeId) {
+                const updatePayload: any = {};
+                if (isDefault) updatePayload.resume_url = uploadedFile.url;
+                if (isDefault || !primaryResumeId) updatePayload.primary_resume_id = insertedData.id;
+
                 await insforge.database
                     .from('candidate_profiles')
-                    .update({ resume_url: uploadedFile.url })
+                    .update(updatePayload)
                     .eq('id', activeCandidateId);
             }
 
@@ -180,6 +202,22 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             fetchResumes();
         } catch (err: any) {
             setToast({ message: 'Failed to save: ' + err.message, type: 'error' });
+        }
+    };
+
+    const setPrimaryResume = async (resumeId: string) => {
+        if (!activeCandidateId) return;
+        try {
+            const { error } = await insforge.database
+                .from('candidate_profiles')
+                .update({ primary_resume_id: resumeId })
+                .eq('id', activeCandidateId);
+            
+            if (error) throw error;
+            setPrimaryResumeId(resumeId);
+            setToast({ message: 'Primary resume set successfully!', type: 'success' });
+        } catch (err: any) {
+            setToast({ message: 'Failed to set primary resume: ' + err.message, type: 'error' });
         }
     };
 
@@ -224,9 +262,14 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             return;
         }
 
-        const confirmMsg = resume.upload_count > 0 
-            ? `This resume has been used in ${resume.upload_count} applications. Are you sure you want to delete it?`
-            : 'Are you sure you want to delete this resume?';
+        const isPrimary = resume.id === primaryResumeId;
+        let confirmMsg = 'Are you sure you want to delete this resume?';
+
+        if (isPrimary && resume.upload_count > 0) {
+            confirmMsg = 'This resume has been used in previous applications. Deleting it will not affect submitted applications because snapshots are preserved. Do you want to continue?';
+        } else if (resume.upload_count > 0) {
+            confirmMsg = `This resume has been used in ${resume.upload_count} applications. Are you sure you want to delete it?`;
+        }
 
         if (!window.confirm(confirmMsg)) return;
 
@@ -269,7 +312,29 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
 
             if (error) throw error;
 
-            // 3. Update candidate_profiles if needed
+            // 3. Update candidate_profiles primary_resume_id if needed
+            if (isPrimary) {
+                const remainingResumes = resumes.filter(r => r.id !== resume.id);
+                if (remainingResumes.length > 0) {
+                    const sortedRemaining = [...remainingResumes].sort((a, b) => 
+                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                    );
+                    const newPrimaryResume = sortedRemaining[0];
+                    await insforge.database
+                        .from('candidate_profiles')
+                        .update({ primary_resume_id: newPrimaryResume.id })
+                        .eq('id', activeCandidateId);
+                    setPrimaryResumeId(newPrimaryResume.id);
+                } else {
+                    await insforge.database
+                        .from('candidate_profiles')
+                        .update({ primary_resume_id: null })
+                        .eq('id', activeCandidateId);
+                    setPrimaryResumeId(null);
+                }
+            }
+
+            // 4. Update candidate_profiles if default was deleted
             if (resume.is_default) {
                 const remainingResumes = resumes.filter(r => r.id !== resume.id);
                 if (remainingResumes.length > 0) {
@@ -429,6 +494,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                         </span>
                                     )}
                                     {resume.is_default && <span className={`${styles.badge} ${styles.defaultBadge}`}>Default</span>}
+                                    {resume.id === primaryResumeId && <span className={`${styles.badge} ${styles.primaryBadge}`}>⭐ Primary</span>}
                                 </div>
                                 <div className={styles.meta}>
                                     <div className={styles.metaItem} title={resume.file_name}>{resume.file_name}</div>
@@ -451,6 +517,15 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                         title="Make default resume"
                                     >
                                         Make Default
+                                    </button>
+                                )}
+                                {resume.id !== primaryResumeId && (
+                                    <button 
+                                        className={`${styles.actionBtn} ${styles.primaryBtn}`} 
+                                        onClick={() => setPrimaryResume(resume.id)}
+                                        title="Set as primary resume"
+                                    >
+                                        ⭐ Set as Primary
                                     </button>
                                 )}
                                 <button 

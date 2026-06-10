@@ -56,6 +56,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import QueryProvider from "@/components/providers/QueryProvider";
 import { headers } from "next/headers";
 
 export default async function RootLayout({
@@ -74,19 +75,21 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
-          {!isPortal ? (
-            <>
-              <NavbarWrapper>
-                <Navbar />
-              </NavbarWrapper>
-              {children}
-              <NavbarWrapper showFooter>
-                <Footer />
-              </NavbarWrapper>
-            </>
-          ) : (
-            children
-          )}
+          <QueryProvider>
+            {!isPortal ? (
+              <>
+                <NavbarWrapper>
+                  <Navbar />
+                </NavbarWrapper>
+                {children}
+                <NavbarWrapper showFooter>
+                  <Footer />
+                </NavbarWrapper>
+              </>
+            ) : (
+              children
+            )}
+          </QueryProvider>
         </AuthProvider>
       </body>
     </html>

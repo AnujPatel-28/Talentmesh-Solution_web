@@ -175,39 +175,75 @@ ALTER TABLE subscription_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE application_events ENABLE ROW LEVEL SECURITY;
 
 -- 3. Admin RLS Bypass Policies
+DROP POLICY IF EXISTS admin_bypass ON public.profiles;
 CREATE POLICY admin_bypass ON profiles TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.candidate_profiles;
 CREATE POLICY admin_bypass ON candidate_profiles TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.recruiter_profiles;
 CREATE POLICY admin_bypass ON recruiter_profiles TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.company_profiles;
 CREATE POLICY admin_bypass ON company_profiles TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.jobs;
 CREATE POLICY admin_bypass ON jobs TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.applications;
 CREATE POLICY admin_bypass ON applications TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.audit_log;
 CREATE POLICY admin_bypass ON audit_log TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.job_alerts;
 CREATE POLICY admin_bypass ON job_alerts TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.nvites;
 CREATE POLICY admin_bypass ON nvites TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.subscription_events;
 CREATE POLICY admin_bypass ON subscription_events TO project_admin USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS admin_bypass ON public.application_events;
 CREATE POLICY admin_bypass ON application_events TO project_admin USING (true) WITH CHECK (true);
 
 -- 4. Specific RLS Policies
 -- Profiles
-CREATE POLICY profiles_self ON profiles FOR ALL USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS admin_bypass ON public.profiles;
+DROP POLICY IF EXISTS profiles_self ON public.profiles;
+CREATE POLICY profiles_self ON profiles FOR ALL USING (id = auth.uid()) WITH CHECK (id = auth.uid());
 
 -- Candidate Profiles
-CREATE POLICY candidate_profiles_self ON candidate_profiles FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY candidate_profiles_update ON candidate_profiles FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS admin_bypass ON public.candidate_profiles;
+DROP POLICY IF EXISTS candidate_profiles_self ON public.candidate_profiles;
+DROP POLICY IF EXISTS candidate_profiles_update ON public.candidate_profiles;
+CREATE POLICY candidate_profiles_self ON candidate_profiles FOR SELECT USING (id = auth.uid());
+CREATE POLICY candidate_profiles_update ON candidate_profiles FOR UPDATE USING (id = auth.uid());
 
 -- NVites
+DROP POLICY IF EXISTS nvites_insert_recruiter ON public.nvites;
+DROP POLICY IF EXISTS nvites_select_candidate ON public.nvites;
 CREATE POLICY nvites_insert_recruiter ON nvites FOR INSERT WITH CHECK (recruiter_id = auth.uid());
 CREATE POLICY nvites_select_candidate ON nvites FOR SELECT USING (candidate_id = auth.uid());
 
 -- Job Alerts
+DROP POLICY IF EXISTS job_alerts_self ON public.job_alerts;
 CREATE POLICY job_alerts_self ON job_alerts FOR ALL USING (candidate_id = auth.uid());
 
 -- Applications
+DROP POLICY IF EXISTS applications_self ON public.applications;
+DROP POLICY IF EXISTS applications_insert_candidate ON public.applications;
 CREATE POLICY applications_self ON applications FOR SELECT USING (candidate_id = auth.uid());
 CREATE POLICY applications_insert_candidate ON applications FOR INSERT WITH CHECK (candidate_id = auth.uid());
 
 -- Incorporate existing policies for jobs and applications
 -- Jobs
+DROP POLICY IF EXISTS "jobs_select_approved" ON public.jobs;
+DROP POLICY IF EXISTS "jobs_select_own" ON public.jobs;
+DROP POLICY IF EXISTS "jobs_insert_own" ON public.jobs;
+DROP POLICY IF EXISTS "jobs_update_own" ON public.jobs;
+DROP POLICY IF EXISTS "jobs_delete_own" ON public.jobs;
 CREATE POLICY "jobs_select_approved" ON public.jobs FOR SELECT USING (status = 'active' AND is_approved = true);
 CREATE POLICY "jobs_select_own" ON public.jobs FOR SELECT USING (auth.uid() = recruiter_id);
 CREATE POLICY "jobs_insert_own" ON public.jobs FOR INSERT WITH CHECK (auth.uid() = recruiter_id);
@@ -215,6 +251,11 @@ CREATE POLICY "jobs_update_own" ON public.jobs FOR UPDATE USING (auth.uid() = re
 CREATE POLICY "jobs_delete_own" ON public.jobs FOR DELETE USING (auth.uid() = recruiter_id);
 
 -- Applications (additional)
+DROP POLICY IF EXISTS "apps_select_own" ON public.applications;
+DROP POLICY IF EXISTS "apps_insert_own" ON public.applications;
+DROP POLICY IF EXISTS "apps_update_own" ON public.applications;
+DROP POLICY IF EXISTS "apps_recruiter_view" ON public.applications;
+DROP POLICY IF EXISTS "apps_recruiter_update" ON public.applications;
 CREATE POLICY "apps_select_own" ON public.applications FOR SELECT USING (auth.uid() = candidate_id);
 CREATE POLICY "apps_insert_own" ON public.applications FOR INSERT WITH CHECK (auth.uid() = candidate_id);
 CREATE POLICY "apps_update_own" ON public.applications FOR UPDATE USING (auth.uid() = candidate_id);

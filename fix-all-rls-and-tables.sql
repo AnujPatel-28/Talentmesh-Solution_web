@@ -172,11 +172,11 @@ ON public.subscriptions TO project_admin
 USING (true) WITH CHECK (true);
 
 -- ═══════════════════════════════════════════════════════════
--- PART 8: Add missing columns to audit_logs if needed
+-- PART 8: Add missing columns to audit_log if needed
 -- ═══════════════════════════════════════════════════════════
 
-ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT;
-ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'success';
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS user_agent TEXT;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'success';
 
 -- ═══════════════════════════════════════════════════════════
 -- DONE! After running this, reload the admin dashboard.

@@ -64,12 +64,12 @@ export default function EmailTemplatesPage() {
         if (!testModal.template || !adminUser) return;
         
         try {
-            // Log to audit logs (actual sending would be an edge function call)
-            await insforge.database.from('audit_logs').insert({
-                admin_id: adminUser.id,
+            // Log to audit_log
+            await insforge.database.from('audit_log').insert({
+                actor_id: adminUser.id,
                 action: 'send_test_email',
-                resource_type: 'email_template',
-                resource_id: testModal.template.id,
+                table_name: 'email_template',
+                record_id: testModal.template.id,
                 metadata: { template_key: testModal.template.key, target: adminUser.email }
             });
 

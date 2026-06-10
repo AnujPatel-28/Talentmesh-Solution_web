@@ -73,7 +73,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       let query = insforgeAdmin.database
-        .from('audit_logs')
+        .from('audit_log')
         .select('*', { count: 'exact' });
 
       if (search) {

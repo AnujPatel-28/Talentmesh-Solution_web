@@ -362,21 +362,21 @@ export default function ProfilePage() {
   }, [cp]);
 
   const handleToggleVisibility = useCallback(async () => {
-    const newVal = !cp.is_visible;
+    const newVal = cp.is_discoverable === undefined ? false : !cp.is_discoverable;
     setProfile(prev => {
       if (!prev) return null;
       return {
         ...prev,
         candidate_profiles: {
           ...cp,
-          is_visible: newVal
+          is_discoverable: newVal
         } as CandidateProfile
       };
     });
-    const { success } = await updateCandidateProfile({ is_visible: newVal });
+    const { success } = await updateCandidateProfile({ is_discoverable: newVal });
     if (success) {
       setToast({ message: newVal ? 'Profile is now discoverable!' : 'Profile hidden from recruiter searches.', type: 'info' });
-      trackProfileEvent('Profile Visibility Toggled', { visible: newVal });
+      trackProfileEvent('Profile Visibility Toggled', { discoverable: newVal });
     }
   }, [cp, updateCandidateProfile]);
 
@@ -448,7 +448,7 @@ export default function ProfilePage() {
         salaryMin={cp.salary_min ?? undefined}
         salaryMax={cp.salary_max ?? undefined}
         currency={cp.currency}
-        isVisible={cp.is_visible}
+        isVisible={cp.is_discoverable ?? true}
         resumeUrl={cp.resume_url}
         isEditing={isEditing}
         uploadProgressAvatar={uploadProgress.avatar}
@@ -485,18 +485,22 @@ export default function ProfilePage() {
         <div className={styles.profileSidebar}>
           
           <div className={styles.openToggleCard}>
-            <div className={styles.openToggle} style={{ borderTop: 'none', paddingTop: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div>
                 <span className={styles.openLabel}>Recruiter Visibility</span>
-                <span className={styles.openHint}>Toggle profile searches visibility</span>
+                <span className={styles.openHint}>Control search discoverability</span>
               </div>
-              <button
-                type="button"
-                className={`${styles.toggleSwitch} ${cp.is_visible ? styles.toggleOn : ''}`}
-                onClick={handleToggleVisibility}
-              >
-                <span className={styles.toggleDot} />
-              </button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none', marginTop: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={cp.is_discoverable ?? true}
+                  onChange={handleToggleVisibility}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
+                  Visible in recruiter searches
+                </span>
+              </label>
             </div>
           </div>
 

@@ -1,8 +1,7 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { invokeFunction } from '@/lib/insforge';
 import type { Application, ApplicationStatus } from '@/types/user';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,18 +9,20 @@ import Toast from '@/components/ui/Toast';
 import styles from '../../../shared-dashboard.module.css';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { useCandidateApplicationsQuery, useWithdrawApplicationMutation } from '@/lib/queries/applications';
+import * as Icons from '@/components/ui/icons';
 
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants/applicationStatuses';
-
+ 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
     Location: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>,
     Briefcase: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /></svg>,
-    Clock: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
-    Check: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>,
-    External: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>,
+    Clock: () => <Icons.Clock />,
+    Check: () => <Icons.Check />,
+    External: () => <Icons.External />,
     Withdraw: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
-    ArrowRight: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>,
+    ArrowRight: () => <Icons.ArrowRight />,
 };
 
 const STATUS_MAP: Record<string, { label: string, color: string, stage: number }> = {
@@ -43,31 +44,14 @@ export default function ApplicationsPage() {
     const { user } = useAuth();
     const params = useParams();
     const router = useRouter();
-    const roleId = params.role_id;
+    const roleId = params.role_id as string;
 
-    const [applications, setApplications] = useState<Application[]>([]);
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'all' | 'active' | 'rejected' | 'withdrawn'>('all');
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
     const [withdrawTarget, setWithdrawTarget] = useState<string | null>(null);
 
-    const fetchData = async () => {
-        try {
-            const { data, error } = await invokeFunction('candidate-applications', { method: 'GET' });
-            if (error) throw new Error(error.message);
-            setApplications(data?.applications || []);
-        } catch (err) {
-            console.error('Failed to fetch applications:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (user) {
-            fetchData();
-        }
-    }, [user]);
+    const { data: applications = [], isLoading: loading } = useCandidateApplicationsQuery(roleId, !!user);
+    const withdrawMutation = useWithdrawApplicationMutation(roleId);
 
     const stats = useMemo(() => {
         return {
@@ -94,20 +78,14 @@ export default function ApplicationsPage() {
         const id = withdrawTarget;
         setWithdrawTarget(null);
 
-        const originalApps = [...applications];
-        setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'withdrawn' } : app));
-
-        try {
-            const { error: withdrawError } = await invokeFunction('candidate-applications-id', {
-                method: 'DELETE',
-                queries: { id }
-            });
-            if (withdrawError) throw new Error(withdrawError.message);
-            setToast({ message: 'Application withdrawn successfully', type: 'success' });
-        } catch (err) {
-            setApplications(originalApps);
-            setToast({ message: 'Failed to withdraw application', type: 'error' });
-        }
+        withdrawMutation.mutate(id, {
+            onSuccess: () => {
+                setToast({ message: 'Application withdrawn successfully', type: 'success' });
+            },
+            onError: (err: any) => {
+                setToast({ message: err.message || 'Failed to withdraw application', type: 'error' });
+            }
+        });
     };
 
     if (loading) return <div style={{ padding: '80px 0', textAlign: 'center' }}>Loading applications...</div>;

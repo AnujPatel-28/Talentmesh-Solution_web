@@ -43,6 +43,8 @@ export interface CandidateProfile {
   profile_strength: number;
   is_visible?: boolean;
   updated_at?: string;
+  primary_resume_id?: string;
+  is_discoverable?: boolean;
 }
 
 export interface UserProfile {

@@ -17,6 +17,7 @@ type AdminApplication = {
   ai_match_score?: number;
   apply_type?: string;
   resume_url?: string;
+  resume_snapshot_key?: string;
   jobs: {
     id: string;
     title: string;
@@ -186,15 +187,17 @@ export default function AdminApplicationsPage() {
     }
   };
 
-  const handleDownload = async (url: string, filename: string) => {
+  const handleDownload = async (appId: string, filename: string, fallbackUrl?: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
-      let targetUrl = url;
-      if (url.startsWith(insforgeUrl)) {
-        targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
-      }
+      const token = window.sessionStorage.getItem('tm_token');
+      const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?applicationId=${appId}&accessType=downloaded`;
 
-      const response = await fetch(targetUrl);
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch from proxy');
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -206,57 +209,32 @@ export default function AdminApplicationsPage() {
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error('Failed to download document:', err);
-      window.open(url, '_blank');
+      if (fallbackUrl) {
+        window.open(fallbackUrl, '_blank');
+      }
     }
   };
 
-  const handleView = async (url: string) => {
+  const handleView = async (appId: string, fallbackUrl?: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
-      let targetUrl = url;
-      if (url.startsWith(insforgeUrl)) {
-        targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
-      }
+      const token = window.sessionStorage.getItem('tm_token');
+      const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?applicationId=${appId}&accessType=viewed`;
 
-      const response = await fetch(targetUrl);
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch from proxy');
       const blob = await response.blob();
-
-      let mimeType = blob.type;
-
-      try {
-        const buffer = await blob.slice(0, 4).arrayBuffer();
-        const arr = new Uint8Array(buffer);
-        if (arr[0] === 0x25 && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46) {
-          mimeType = 'application/pdf';
-        } else if (arr[0] === 0x89 && arr[1] === 0x50 && arr[2] === 0x4E && arr[3] === 0x47) {
-          mimeType = 'image/png';
-        } else if (arr[0] === 0xFF && arr[1] === 0xD8 && arr[2] === 0xFF) {
-          mimeType = 'image/jpeg';
-        } else if (arr[0] === 0x47 && arr[1] === 0x49 && arr[2] === 0x46 && arr[3] === 0x38) {
-          mimeType = 'image/gif';
-        }
-      } catch (readErr) {
-        console.error('Failed to parse magic bytes:', readErr);
-      }
-
-      if (mimeType === 'application/octet-stream' || !mimeType) {
-        if (url.toLowerCase().endsWith('.pdf')) {
-          mimeType = 'application/pdf';
-        } else if (url.toLowerCase().endsWith('.png')) {
-          mimeType = 'image/png';
-        } else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) {
-          mimeType = 'image/jpeg';
-        } else {
-          mimeType = 'application/pdf';
-        }
-      }
-
-      const fileBlob = new Blob([blob], { type: mimeType });
+      const fileBlob = new Blob([blob], { type: 'application/pdf' });
       const blobUrl = window.URL.createObjectURL(fileBlob);
       window.open(blobUrl, '_blank');
     } catch (err) {
       console.error('Failed to view document:', err);
-      window.open(url, '_blank');
+      if (fallbackUrl) {
+        window.open(fallbackUrl, '_blank');
+      }
     }
   };
 
@@ -659,20 +637,20 @@ export default function AdminApplicationsPage() {
                     {/* Resume Assets */}
                     {(() => {
                       const resumeUrl = selectedApp.resume_url || profile?.resume_url;
-                      if (!resumeUrl) return null;
+                      if (!resumeUrl && !selectedApp.resume_snapshot_key) return null;
                       return (
                         <div>
                           <span className={styles.sectionTitle}>Assets & Resume</span>
                           <div style={{ display: 'flex', gap: '12px' }}>
                             <button 
-                              onClick={() => handleView(resumeUrl)}
+                              onClick={() => handleView(selectedApp.id, resumeUrl || undefined)}
                               className={styles.primaryButton}
                               style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                             >
                               <FileText size={14} /> View Resume
                             </button>
                             <button 
-                              onClick={() => handleDownload(resumeUrl, `${selectedApp.profiles.name.replace(/\s+/g, '_')}_resume.pdf`)}
+                              onClick={() => handleDownload(selectedApp.id, `${selectedApp.profiles.name.replace(/\s+/g, '_')}_resume.pdf`, resumeUrl || undefined)}
                               className={styles.primaryButton}
                               style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer', background: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}
                             >

@@ -35,6 +35,7 @@ export default function AdminCandidatesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [candidates, setCandidates] = useState<AdminCandidate[]>([]);
   const [search, setSearch] = useState('');
+  const [discoverableFilter, setDiscoverableFilter] = useState<'all' | 'discoverable' | 'hidden' | 'missing_primary'>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -120,7 +121,7 @@ export default function AdminCandidatesPage() {
     }
   };
 
-  const fetchCandidates = useCallback(async (p = page, q = search) => {
+  const fetchCandidates = useCallback(async (p = page, q = search, d = discoverableFilter) => {
     setLoading(true);
     setError('');
     try {
@@ -129,7 +130,8 @@ export default function AdminCandidatesPage() {
         queries: {
           search: q || undefined,
           page: p.toString(),
-          limit: '20'
+          limit: '20',
+          discoverable: d !== 'all' ? (d === 'discoverable' ? 'true' : (d === 'hidden' ? 'false' : 'missing_primary')) : undefined
         }
       });
 
@@ -146,7 +148,13 @@ export default function AdminCandidatesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, discoverableFilter]);
+
+  const handleFilterChange = (filterVal: 'all' | 'discoverable' | 'hidden' | 'missing_primary') => {
+    setDiscoverableFilter(filterVal);
+    setPage(0);
+    fetchCandidates(0, search, filterVal);
+  };
 
   useEffect(() => {
     if (user) {
@@ -241,8 +249,8 @@ export default function AdminCandidatesPage() {
       </header>
 
       <div className={styles.toolbarRow}>
-        <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-          <form className={styles.toolbar} onSubmit={e => { e.preventDefault(); setPage(0); fetchCandidates(0); }}>
+        <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'center' }}>
+          <form className={styles.toolbar} onSubmit={e => { e.preventDefault(); setPage(0); fetchCandidates(0); }} style={{ margin: 0 }}>
             <input
               className={styles.searchInput}
               value={search}
@@ -251,7 +259,18 @@ export default function AdminCandidatesPage() {
             />
             <button type="submit" className={styles.primaryButton}>Search</button>
           </form>
-          <button onClick={() => exportCandidatesCSV(candidates)} className={styles.exportBtn}>
+          <select
+            value={discoverableFilter}
+            onChange={(e) => handleFilterChange(e.target.value as any)}
+            className={styles.searchInput}
+            style={{ maxWidth: '240px', cursor: 'pointer', paddingRight: '2rem' }}
+          >
+            <option value="all">All Candidates</option>
+            <option value="discoverable">Discoverable Candidates</option>
+            <option value="hidden">Hidden Candidates</option>
+            <option value="missing_primary">Missing Primary Resume</option>
+          </select>
+          <button onClick={() => exportCandidatesCSV(candidates)} className={styles.exportBtn} style={{ marginLeft: 'auto' }}>
             ↓ Export CSV
           </button>
         </div>

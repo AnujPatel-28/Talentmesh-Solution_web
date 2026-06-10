@@ -37,7 +37,7 @@ export default function ImpersonationPage() {
         setIsLoadingLogs(true);
         try {
             const { data, error } = await insforge.database
-                .from('audit_logs')
+                .from('audit_log')
                 .select('*')
                 .eq('action', 'user_impersonation_start')
                 .order('created_at', { ascending: false })

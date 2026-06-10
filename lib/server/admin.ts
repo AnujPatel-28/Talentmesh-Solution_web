@@ -101,7 +101,7 @@ export async function logAudit(actorId: string, action: string, tableName: strin
   if (!insforgeAdmin) return; // Silent fail for audit logging in this context
 
   await insforgeAdmin.database
-    .from('audit_logs')
+    .from('audit_log')
     .insert([{
       actor_id: actorId,
       action,

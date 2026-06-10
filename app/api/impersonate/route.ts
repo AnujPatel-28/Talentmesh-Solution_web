@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
         .eq('id', userId)
         .single();
 
-    // Log to audit_logs
-    await insforgeAdmin.database.from('audit_logs').insert([{
+    // Log to audit_log
+    await insforgeAdmin.database.from('audit_log').insert([{
         actor_id: user.id,
         action: 'user_impersonation_start',
         target_type: 'profile',
@@ -79,7 +79,7 @@ export async function DELETE(req: NextRequest) {
 
     if (adminId && insforgeAdmin) {
         // Log end of impersonation
-        await insforgeAdmin.database.from('audit_logs').insert([{
+        await insforgeAdmin.database.from('audit_log').insert([{
             actor_id: adminId,
             action: 'user_impersonation_end',
             target_type: 'profile',
