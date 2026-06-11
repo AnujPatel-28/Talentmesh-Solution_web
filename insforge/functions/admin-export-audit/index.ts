@@ -32,8 +32,7 @@ export default async function handler(req: Request): Promise<Response> {
             table_name,
             record_id,
             status,
-            ip_address,
-            profiles:actor_id (full_name)
+            ip_address
         `)
         .order('created_at', { ascending: false });
 
@@ -55,11 +54,27 @@ export default async function handler(req: Request): Promise<Response> {
       const { data, error } = await query;
       if (error) throw error;
 
+      const results = data || [];
+      const actorIdsToFetch = [...new Set(results.map((l: any) => l.actor_id).filter(Boolean))];
+
+      let profileMap: Record<string, string> = {};
+      if (actorIdsToFetch.length > 0) {
+        const { data: profilesList } = await insforge.database
+          .from('profiles')
+          .select('id, name')
+          .in('id', actorIdsToFetch);
+        if (profilesList) {
+          profilesList.forEach((p: any) => {
+            profileMap[p.id] = p.name || 'System Admin';
+          });
+        }
+      }
+
       // Convert to CSV
       const headers = ['Timestamp', 'Admin', 'Action', 'Resource', 'Status', 'IP Address'];
-      const rows = (data || []).map((log: any) => [
+      const rows = results.map((log: any) => [
         new Date(log.created_at).toISOString(),
-        log.profiles?.full_name || 'System',
+        profileMap[log.actor_id] || 'System',
         log.action.toUpperCase(),
         `${log.table_name || ''} ${log.record_id || ''}`.trim(),
         log.status,

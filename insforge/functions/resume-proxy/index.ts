@@ -59,7 +59,9 @@ export default async function handler(req: Request): Promise<Response> {
 
     const isSystemAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
     const isJobRecruiter = profile?.role === 'recruiter' && appData.jobs && (appData.jobs as any).recruiter_id === user.id;
-    if (!isSystemAdmin && !isJobRecruiter) {
+    const isCandidateOwner = appData.candidate_id === user.id;
+
+    if (!isSystemAdmin && !isJobRecruiter && !isCandidateOwner) {
       return new Response(JSON.stringify({ error: 'Forbidden. You do not have access to this resume.' }), { status: 403, headers: corsHeaders });
     }
 

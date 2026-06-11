@@ -154,10 +154,7 @@ export async function createCandidateApplication(input: CreateApplicationInput) 
     throw new Error(`Application failed: ${error?.message || 'Unknown error'}`);
   }
 
-  await client.database
-    .from('jobs')
-    .update({ applications_count: (job.applications_count || 0) + 1 })
-    .eq('id', input.jobId);
+  // applications_count is now automatically updated via database triggers when a row is inserted in applications.
 
   await client.database
     .from('activity')

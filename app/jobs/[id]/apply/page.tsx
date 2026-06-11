@@ -156,10 +156,7 @@ function JobApplyPageContent() {
 
       if (applyError) throw applyError;
 
-      // 4. Increment usage count
-      if (finalResumeId) {
-        await insforge.database.rpc('increment_resume_count', { resume_id: finalResumeId });
-      }
+      // Resume usage count (upload_count) is now automatically handled via database trigger.
 
       setSubmitted(true);
     } catch (err: any) {

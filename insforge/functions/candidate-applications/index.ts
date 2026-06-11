@@ -143,7 +143,19 @@ export default async function handler(req: Request): Promise<Response> {
               .download(originalKey);
 
             if (downloadError || !fileBlob) {
-              throw new Error(`Failed to download original resume: ${downloadError?.message || 'Empty file'}`);
+              return new Response(JSON.stringify({ 
+                error: `Failed to download original resume: ${downloadError?.message || 'Empty file'}`,
+                code: 'SNAPSHOT_DOWNLOAD_FAILED'
+              }), { status: 500, headers: corsHeaders });
+            }
+
+            // Server-side file size validation (5MB)
+            const MAX_SIZE = 5 * 1024 * 1024;
+            if (fileBlob.size > MAX_SIZE) {
+              return new Response(JSON.stringify({ 
+                error: 'File too large. Resume must be less than 5MB.',
+                code: 'SNAPSHOT_FILE_TOO_LARGE'
+              }), { status: 400, headers: corsHeaders });
             }
 
             // Upload to private application-snapshots bucket
@@ -153,13 +165,19 @@ export default async function handler(req: Request): Promise<Response> {
               .upload(snapshotKey, fileBlob);
 
             if (uploadError || !uploadData) {
-              throw new Error(`Failed to upload resume snapshot: ${uploadError?.message}`);
+              return new Response(JSON.stringify({ 
+                error: `Failed to upload resume snapshot: ${uploadError?.message}`,
+                code: 'SNAPSHOT_UPLOAD_FAILED'
+              }), { status: 500, headers: corsHeaders });
             }
             snapshotUrl = uploadData.url;
           }
         } catch (err: any) {
           console.error('[candidate-applications] Resume snapshot failed:', err.message);
-          return new Response(JSON.stringify({ error: `Resume snapshot error: ${err.message}` }), { status: 500, headers: corsHeaders });
+          return new Response(JSON.stringify({ 
+            error: `Resume snapshot error: ${err.message}`,
+            code: 'SNAPSHOT_UNEXPECTED_ERROR'
+          }), { status: 500, headers: corsHeaders });
         }
       }
 
@@ -206,12 +224,6 @@ export default async function handler(req: Request): Promise<Response> {
         
         return new Response(JSON.stringify({ error: friendlyMessage }), { status: 400, headers: corsHeaders });
       }
-
-      // 3. Update Job Stats
-      await insforgeAdmin.database
-        .from('jobs')
-        .update({ applications_count: (job.applications_count || 0) + 1 })
-        .eq('id', input.jobId);
 
       return new Response(JSON.stringify({ application }), { status: 201, headers: corsHeaders });
     } catch (err: any) {

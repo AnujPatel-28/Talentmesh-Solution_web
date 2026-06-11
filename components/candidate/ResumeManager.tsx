@@ -6,6 +6,7 @@ import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import Toast from '@/components/ui/Toast';
 import { getPathFromUrl } from '@/lib/api/storage';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 interface Resume {
     id: string;
@@ -312,65 +313,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
 
             if (error) throw error;
 
-            // 3. Update candidate_profiles primary_resume_id if needed
-            if (isPrimary) {
-                const remainingResumes = resumes.filter(r => r.id !== resume.id);
-                if (remainingResumes.length > 0) {
-                    const sortedRemaining = [...remainingResumes].sort((a, b) => 
-                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                    );
-                    const newPrimaryResume = sortedRemaining[0];
-                    await insforge.database
-                        .from('candidate_profiles')
-                        .update({ primary_resume_id: newPrimaryResume.id })
-                        .eq('id', activeCandidateId);
-                    setPrimaryResumeId(newPrimaryResume.id);
-                } else {
-                    await insforge.database
-                        .from('candidate_profiles')
-                        .update({ primary_resume_id: null })
-                        .eq('id', activeCandidateId);
-                    setPrimaryResumeId(null);
-                }
-            }
-
-            // 4. Update candidate_profiles if default was deleted
-            if (resume.is_default) {
-                const remainingResumes = resumes.filter(r => r.id !== resume.id);
-                if (remainingResumes.length > 0) {
-                    const newDefaultResume = remainingResumes[0];
-                    // Update remaining resume to be default
-                    await insforge.database
-                        .from('candidate_resumes')
-                        .update({ is_default: true })
-                        .eq('id', newDefaultResume.id);
-                    
-                    // Update profile with the new default resume url
-                    await insforge.database
-                        .from('candidate_profiles')
-                        .update({ resume_url: newDefaultResume.file_url })
-                        .eq('id', activeCandidateId);
-                } else {
-                    // No resumes left, clear the profile resume url
-                    await insforge.database
-                        .from('candidate_profiles')
-                        .update({ resume_url: null })
-                        .eq('id', activeCandidateId);
-                }
-            } else {
-                // If it wasn't default, but candidate_profiles.resume_url happens to match it, clear it
-                const { data: cpData } = await insforge.database
-                    .from('candidate_profiles')
-                    .select('resume_url')
-                    .eq('id', activeCandidateId)
-                    .single();
-                if (cpData?.resume_url === resume.file_url) {
-                    await insforge.database
-                        .from('candidate_profiles')
-                        .update({ resume_url: null })
-                        .eq('id', activeCandidateId);
-                }
-            }
+            // Reassignment of primary resume and default flags is handled atomically on the database via trigger.
 
             setToast({ message: 'Resume deleted.', type: 'success' });
             fetchResumes();
@@ -507,7 +450,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                 </div>
                             </div>
                             <div className={styles.actions}>
-                                <a href={resume.file_url} target="_blank" rel="noreferrer" className={styles.actionBtn} title="Preview Resume">
+                                <a href={getPublicStorageUrl('resumes', resume.file_url)} target="_blank" rel="noreferrer" className={styles.actionBtn} title="Preview Resume">
                                     {IC.eye}
                                 </a>
                                 {!resume.is_default && (

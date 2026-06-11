@@ -60,7 +60,7 @@ export default async function handler(request: Request): Promise<Response> {
       const limit = Math.min(requestedLimit, 100);
 
       let selectClause = '*, candidate_profiles(*)';
-      if (discoverable === 'true' || discoverable === 'false') {
+      if (discoverable === 'true' || discoverable === 'false' || discoverable === 'missing_primary') {
         selectClause = '*, candidate_profiles!inner(*)';
       }
 
