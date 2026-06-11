@@ -183,15 +183,18 @@ export async function invokeFunction(slug: string, options: {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   
+  let abortHandler: (() => void) | null = null;
   if (options.signal) {
-    if (options.signal.aborted) {
-      controller.abort();
+    const parentSignal = options.signal;
+    if (parentSignal.aborted) {
+      controller.abort(parentSignal.reason);
       clearTimeout(timeoutId);
     } else {
-      options.signal.addEventListener('abort', () => {
-        controller.abort();
+      abortHandler = () => {
+        controller.abort(parentSignal.reason);
         clearTimeout(timeoutId);
-      });
+      };
+      parentSignal.addEventListener('abort', abortHandler);
     }
   }
 
@@ -221,8 +224,8 @@ export async function invokeFunction(slug: string, options: {
       }
     }
   } catch (err: any) {
-    clearTimeout(timeoutId);
-    if (err?.name === 'AbortError') {
+    const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted') || err?.message?.includes('abort');
+    if (isAbort) {
       if (options.signal && options.signal.aborted) {
         throw err;
       }
@@ -231,8 +234,12 @@ export async function invokeFunction(slug: string, options: {
     }
     endTrace(trace, 'error', err?.message || 'Network error');
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    if (options.signal && abortHandler) {
+      options.signal.removeEventListener('abort', abortHandler);
+    }
   }
-  clearTimeout(timeoutId);
 
   if (!response.ok) {
     let errorMessage = response.statusText;

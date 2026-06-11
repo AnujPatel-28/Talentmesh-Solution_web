@@ -91,7 +91,10 @@ export async function getOrRefresh<T>(
       })
       .catch((err) => {
         // Silently capture background fetch errors — stale data is already rendered
-        console.warn(`[MetricCache] Background cache refresh failed for key: ${key}`, err);
+        const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted') || err?.message?.includes('abort');
+        if (!isAbort) {
+          console.warn(`[MetricCache] Background cache refresh failed for key: ${key}`, err);
+        }
       });
 
     return entry.data;
@@ -110,8 +113,11 @@ export async function getOrRefresh<T>(
       onUpdate(freshData);
     }
     return freshData;
-  } catch (error) {
-    console.error(`[MetricCache] Cache miss fetch error for key: ${key}`, error);
+  } catch (error: any) {
+    const isAbort = error?.name === 'AbortError' || error?.message?.includes('aborted') || error?.message?.includes('abort');
+    if (!isAbort) {
+      console.error(`[MetricCache] Cache miss fetch error for key: ${key}`, error);
+    }
     throw error;
   }
 }
