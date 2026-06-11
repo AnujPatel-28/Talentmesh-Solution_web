@@ -1,19 +1,34 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { refreshAccessToken } from '@/lib/insforge';
 
 /**
- * Periodically refreshes user sessions to prevent surprise logouts while active.
+ * Periodically refreshes user sessions to prevent surprise logouts while active,
+ * and sends active-event-driven throttled heartbeats to the backend.
  * Timeout intervals scale based on roles:
  * - Admin / Super Admin: 5 minutes
  * - Recruiter: 10 minutes
  * - Candidate / Default: 15 minutes
  */
 export function useSessionRefresh(role?: string) {
+  const activeRef = useRef<boolean>(false);
+
   useEffect(() => {
     if (!role) return;
 
+    // 1. Activity listeners to capture real user engagement
+    const handleActivity = () => {
+      activeRef.current = true;
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousedown', handleActivity);
+      window.addEventListener('keydown', handleActivity);
+      window.addEventListener('scroll', handleActivity);
+      window.addEventListener('click', handleActivity);
+      window.addEventListener('touchstart', handleActivity);
+    }
+
     let intervalMs = 15 * 60 * 1000; // Default candidate / fallback rate: 15m
-    
     if (role === 'admin' || role === 'super_admin') {
       intervalMs = 5 * 60 * 1000; // Admin rate: 5m
     } else if (role === 'recruiter') {
@@ -26,7 +41,8 @@ export function useSessionRefresh(role?: string) {
     const jitter = Math.random() * 10000;
     const finalInterval = intervalMs + jitter;
 
-    const intervalId = setInterval(async () => {
+    // Timer for proactive token rotation
+    const rotationIntervalId = setInterval(async () => {
       // Avoid rotating tokens in inactive tabs to lower backend workloads
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         const lastRefresh = parseInt(localStorage.getItem('tm_last_refresh_time') || '0');
@@ -50,6 +66,45 @@ export function useSessionRefresh(role?: string) {
       }
     }, finalInterval);
 
-    return () => clearInterval(intervalId);
+    // Timer for active event-driven heartbeats (check every 10s)
+    const heartbeatIntervalId = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const now = Date.now();
+        const lastHeartbeat = parseInt(localStorage.getItem('tm_last_heartbeat_time') || '0');
+        
+        // Send heartbeat ONLY if there is active interaction AND at least 60s has elapsed
+        if (activeRef.current && (now - lastHeartbeat >= 60000)) {
+          // Reset activity flag immediately
+          activeRef.current = false;
+          localStorage.setItem('tm_last_heartbeat_time', now.toString());
+
+          try {
+            const authEndpoint = '/api/v1/remote/functions/auth-session?heartbeat=true';
+            await fetch(authEndpoint, {
+              method: 'GET',
+              headers: {
+                'x-client-info': 'talentmesh-web'
+              },
+              credentials: 'include'
+            });
+            console.log('[SessionRefresh] Throttled heartbeat sent.');
+          } catch (err) {
+            console.warn('[SessionRefresh] Heartbeat failed:', err);
+          }
+        }
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(rotationIntervalId);
+      clearInterval(heartbeatIntervalId);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('mousedown', handleActivity);
+        window.removeEventListener('keydown', handleActivity);
+        window.removeEventListener('scroll', handleActivity);
+        window.removeEventListener('click', handleActivity);
+        window.removeEventListener('touchstart', handleActivity);
+      }
+    };
   }, [role]);
 }

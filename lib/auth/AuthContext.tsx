@@ -1,13 +1,14 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { insforge, directInsforge, refreshAccessToken } from '@/lib/insforge';
 import type { User, UserRole } from '@/types/auth';
-import { initSessionSync } from '@/lib/sessionSync';
+import { initSessionSync, broadcastSessionEvent } from '@/lib/sessionSync';
 import { useSessionRefresh } from '@/hooks/useSessionRefresh';
 import { useNetworkState } from '@/hooks/useNetworkState';
+import { SessionExpireModal } from '@/components/system/SessionExpireModal';
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +39,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [adminId, setAdminId] = useState<string | null>(null);
   const router = useRouter();
 
+  // Session governance states & refs
+  const [isWarningOpen, setIsWarningOpen] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+  const [isOffline, setIsOffline] = useState(false);
+
+  const countdownIntervalRef = useRef<any>(null);
+  const warningTimerRef = useRef<any>(null);
+
+  const extendSession = useCallback(async () => {
+    setIsWarningOpen(false);
+    setIsOffline(false);
+    setCountdown(60);
+
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tm_last_active_time', Date.now().toString());
+      broadcastSessionEvent('SESSION_EXTENDED');
+    }
+
+    try {
+      await refreshAccessToken();
+    } catch (err) {
+      console.warn('[AuthContext] Session extension refresh failed:', err);
+    }
+  }, []);
+
+  const handleReconnect = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      alert('You are still offline. Please check your internet connection.');
+      return;
+    }
+
+    try {
+      await refreshAccessToken();
+      await extendSession();
+    } catch (err) {
+      console.warn('[AuthContext] Reconnection re-auth failed:', err);
+      alert('Failed to reconnect session. Your session may have expired.');
+    }
+  }, [extendSession]);
+
   // Coordinated multi-tab session refresh hook
   useSessionRefresh(user?.role);
 
@@ -65,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set token in local cookie so invokeFunction can find it immediately
     const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-    
+
     const host = typeof window !== 'undefined' ? window.location.hostname : '';
     let domainStr = '';
     if (host) {
@@ -81,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('tm_token', token);
-      
+
       // Inject token into global insforge SDK to fix 401 Unauthorized errors
       try {
         insforge.setAccessToken(token);
@@ -138,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
       const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
-      
+
       const response = await fetch(authEndpoint, {
         method: 'GET',
         headers: {
@@ -146,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
         const payload = await response.json();
         if (payload?.user) {
@@ -314,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.cookie = `tm_access_token=${finalToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
         // Also save to sessionStorage so invokeFunction can find it reliably
         window.sessionStorage.setItem('tm_token', finalToken);
-        
+
         // Inject token into global insforge SDK to fix 401 Unauthorized errors
         try {
           insforge.setAccessToken(finalToken);
@@ -322,7 +368,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (mainAuth.tokenManager) {
             mainAuth.tokenManager.saveSession({ user: resolvedUser, accessToken: finalToken });
           }
-        } catch (err) {}
+        } catch (err) { }
       }
 
       // Check impersonation status from cookies
@@ -460,15 +506,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const isSecure = window.location.protocol === 'https:';
           const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
           document.cookie = `tm_access_token=${token}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}`;
-          
+
           insforge.setAccessToken(token);
           directInsforge.setAccessToken(token);
-          
+
           if (refreshedUser) {
             setUser(refreshedUser);
             cacheUser(refreshedUser);
           }
         }
+      } else if (type === 'SESSION_WARNING') {
+        console.log('[AuthContext] Session warning broadcast received.');
+        setIsWarningOpen(true);
+        setCountdown(60);
+      } else if (type === 'SESSION_EXTENDED') {
+        console.log('[AuthContext] Session extended broadcast received.');
+        setIsWarningOpen(false);
+        setIsOffline(false);
+        setCountdown(60);
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+      } else if (type === 'SESSION_LOGOUT') {
+        console.log('[AuthContext] Session logout broadcast received.');
+        clearAuthCookies();
+        setUser(null);
+        router.push('/login?reason=session_expired');
       }
     });
     return () => {
@@ -485,12 +549,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (urlToken) {
           // Store token in session storage
           window.sessionStorage.setItem('tm_token', urlToken);
-          
+
           // Set cookie for local subdomain context
           const isSecure = window.location.protocol === 'https:';
           const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
           document.cookie = `tm_access_token=${urlToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
-          
+
           // Remove the token query param to keep the URL clean
           const newUrl = new URL(window.location.href);
           newUrl.searchParams.delete('token');
@@ -579,7 +643,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
                 if (error) throw new Error(error.message);
               },
-              () => {},
+              () => { },
               { key: `bg_commit_${endpoint}_${Date.now()}` }
             );
 
@@ -595,6 +659,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(checkAndCommitPending, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Inactivity timeout manager
+  useEffect(() => {
+    if (!user) {
+      if (warningTimerRef.current) clearInterval(warningTimerRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      setIsWarningOpen(false);
+      return;
+    }
+
+    // Role-based timeout settings
+    let idleMs = 30 * 60 * 1000; // default candidate: 30m
+    const warningMs = 60 * 1000;  // 60s
+
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      idleMs = 10 * 60 * 1000; // admin: 10m
+    } else if (user.role === 'recruiter') {
+      idleMs = 20 * 60 * 1000; // recruiter: 20m
+    }
+
+    const checkTimeout = () => {
+      const lastActiveGlobal = parseInt(localStorage.getItem('tm_last_active_time') || Date.now().toString());
+      const now = Date.now();
+      const elapsed = now - lastActiveGlobal;
+      console.log(`[checkTimeout] elapsed: ${elapsed}, threshold: ${idleMs - warningMs}, isWarningOpen: ${isWarningOpen}, userRole: ${user?.role}`);
+
+      if (elapsed >= (idleMs - warningMs) && !isWarningOpen) {
+        setIsWarningOpen(true);
+        setCountdown(60);
+        broadcastSessionEvent('SESSION_WARNING');
+
+        let currentCountdown = 60;
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = setInterval(() => {
+          const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+          setIsOffline(!online);
+
+          currentCountdown -= 1;
+          setCountdown(currentCountdown);
+
+          if (currentCountdown <= 0) {
+            clearInterval(countdownIntervalRef.current!);
+            countdownIntervalRef.current = null;
+
+            console.log('[AuthContext] Session warning countdown hit 0. Revoking session.');
+            broadcastSessionEvent('SESSION_LOGOUT');
+            signOut();
+            router.push('/login?reason=session_expired');
+          }
+        }, 1000);
+      }
+    };
+
+    if (!localStorage.getItem('tm_last_active_time')) {
+      localStorage.setItem('tm_last_active_time', Date.now().toString());
+    }
+
+    const intervalId = setInterval(checkTimeout, 5000);
+    warningTimerRef.current = intervalId;
+
+    const handleLocalActivity = () => {
+      const now = Date.now();
+      const lastActiveGlobal = parseInt(localStorage.getItem('tm_last_active_time') || '0');
+
+      if (now - lastActiveGlobal > 2000) {
+        localStorage.setItem('tm_last_active_time', now.toString());
+      }
+
+      if (isWarningOpen) {
+        extendSession();
+      }
+    };
+
+    window.addEventListener('mousedown', handleLocalActivity);
+    window.addEventListener('keydown', handleLocalActivity);
+    window.addEventListener('click', handleLocalActivity);
+    window.addEventListener('scroll', handleLocalActivity);
+
+    return () => {
+      clearInterval(intervalId);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      window.removeEventListener('mousedown', handleLocalActivity);
+      window.removeEventListener('keydown', handleLocalActivity);
+      window.removeEventListener('click', handleLocalActivity);
+      window.removeEventListener('scroll', handleLocalActivity);
+    };
+  }, [user, isWarningOpen, extendSession, signOut, router]);
 
   const login = useCallback(async (token: string, authUser: User) => {
     await syncAuthCookies(token, authUser);
@@ -619,6 +770,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       adminId
     }}>
       {children}
+      <SessionExpireModal
+        isOpen={isWarningOpen}
+        countdown={countdown}
+        onExtend={extendSession}
+        isOffline={isOffline}
+        onReconnect={handleReconnect}
+      />
     </AuthContext.Provider>
   );
 }

@@ -5,7 +5,10 @@ export type SessionSyncEvent =
   | 'NOTIFICATION_RECEIVED' 
   | 'CACHE_INVALIDATED' 
   | 'SIDEBAR_STATE'
-  | 'SESSION_REFRESHED';
+  | 'SESSION_REFRESHED'
+  | 'SESSION_WARNING'
+  | 'SESSION_EXTENDED'
+  | 'SESSION_LOGOUT';
 
 interface SyncMessage {
   type: SessionSyncEvent;
