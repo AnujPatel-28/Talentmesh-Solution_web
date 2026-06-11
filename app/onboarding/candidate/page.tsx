@@ -231,9 +231,9 @@ export default function CandidateOnboardingPage() {
             if (resume) {
                 setUploadProgress(20);
                 const path = `${user.id}/${Date.now()}_${resume.name}`;
-                const { data: uploadData, error: uploadError } = await insforge.storage
-                    .from('resumes')
-                    .upload(path, resume);
+                const { data: uploadData, error: uploadError } = await (insforge.storage
+                    .from('resumes') as any)
+                    .upload(path, resume, { contentType: resume.type || 'application/pdf' });
 
                 if (uploadError) throw new Error('Resume upload failed: ' + uploadError.message);
                 finalResumeUrl = uploadData?.url || null;
@@ -418,7 +418,7 @@ export default function CandidateOnboardingPage() {
             {step === 4 && (
                 <div className={styles.section}>
                     <div className={styles.fieldGroup}>
-                        <label className={styles.label}>Resume (PDF or DOCX)</label>
+                        <label className={styles.label}>Resume (PDF only)</label>
                         <ResumeUploader
                             onUpload={(f) => setResume(f)}
                             onClear={() => {

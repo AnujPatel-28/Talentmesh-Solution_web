@@ -155,9 +155,9 @@ export default function ApplyModal({
                         throw new Error('User session not found. Please log in again.');
                     }
                     const path = `${userId}/${Date.now()}_${manualResumeFile.name}`;
-                    const { data: uploadData, error: uploadError } = await insforge.storage
-                        .from('resumes')
-                        .upload(path, manualResumeFile);
+                    const { data: uploadData, error: uploadError } = await (insforge.storage
+                        .from('resumes') as any)
+                        .upload(path, manualResumeFile, { contentType: manualResumeFile.type || 'application/pdf' });
                     if (uploadError) {
                         throw new Error(uploadError.message || 'Resume upload failed.');
                     }
@@ -484,15 +484,37 @@ export default function ApplyModal({
                                                     const input = document.createElement('input');
                                                     input.type = 'file';
                                                     input.accept = '.pdf';
-                                                    input.onchange = (e: any) => {
-                                                        if (e.target.files?.[0]) setManualResumeFile(e.target.files[0]);
+                                                    input.onchange = async (e: any) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+                                                            if (ext !== '.pdf') { alert('Only PDF resumes are supported.'); return; }
+                                                            if (file.type !== 'application/pdf') { alert('Only PDF resumes are supported.'); return; }
+                                                            const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+                                                            const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2D;
+                                                            if (!isPdf) { alert('Only PDF resumes are supported.'); return; }
+                                                            setManualResumeFile(file);
+                                                        }
                                                     };
                                                     input.click();
                                                 }} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>Change</button>
                                             </div>
                                         ) : (
                                             <div style={{ background: 'white', border: '1px dashed #cbd5e1', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
-                                                <input type="file" accept=".pdf" onChange={e => setManualResumeFile(e.target.files?.[0] || null)} style={{ fontSize: '0.8rem', cursor: 'pointer' }} />
+                                                <input type="file" accept=".pdf" onChange={async e => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+                                                        if (ext !== '.pdf') { alert('Only PDF resumes are supported.'); e.target.value = ''; return; }
+                                                        if (file.type !== 'application/pdf') { alert('Only PDF resumes are supported.'); e.target.value = ''; return; }
+                                                        const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+                                                        const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2D;
+                                                        if (!isPdf) { alert('Only PDF resumes are supported.'); e.target.value = ''; return; }
+                                                        setManualResumeFile(file);
+                                                    } else {
+                                                        setManualResumeFile(null);
+                                                    }
+                                                }} style={{ fontSize: '0.8rem', cursor: 'pointer' }} />
                                                 {manualResumeFile && (
                                                     <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.5rem', fontWeight: 600 }}>
                                                         ✓ Selected: {manualResumeFile.name} ({(manualResumeFile.size / 1024 / 1024).toFixed(2)} MB)

@@ -29,8 +29,12 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Missing applicationId parameter' }), { status: 400, headers: corsHeaders });
   }
 
-  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
-  const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey || anonKey, isServerMode: true });
+  const reqBaseUrl = req.headers.get('x-insforge-url') || baseUrl;
+  const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
+  const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
+
+  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey, edgeFunctionToken: token, isServerMode: true });
+  const insforgeAdmin = createClient({ baseUrl: reqBaseUrl, anonKey: reqServiceKey, isServerMode: true });
 
   try {
     // 1. Authenticate caller
@@ -99,13 +103,29 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Resume snapshot file not found in storage.' }), { status: 404, headers: corsHeaders });
     }
 
+    // Determine content type and filename based on snapshot key extension
+    const keyLower = snapshotKey.toLowerCase();
+    let contentType = 'application/pdf';
+    let filename = 'resume.pdf';
+    let isAttachment = accessType === 'downloaded';
+
+    if (keyLower.endsWith('.docx')) {
+      contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      filename = 'resume.docx';
+      isAttachment = true;
+    } else if (keyLower.endsWith('.doc')) {
+      contentType = 'application/msword';
+      filename = 'resume.doc';
+      isAttachment = true;
+    }
+
     // 6. Return streamed file response
     return new Response(fileBlob, {
       status: 200,
       headers: {
         ...corsHeaders,
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': accessType === 'downloaded' ? 'attachment; filename="resume.pdf"' : 'inline',
+        'Content-Type': contentType,
+        'Content-Disposition': isAttachment ? `attachment; filename="${filename}"` : 'inline',
       },
     });
   } catch (err: any) {

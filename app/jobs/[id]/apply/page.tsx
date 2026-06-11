@@ -97,9 +97,9 @@ function JobApplyPageContent() {
         // 1. Upload Resume
         if (!resume) throw new Error('Please upload a resume.');
         const path = `${user?.id || 'anonymous'}/${Date.now()}_${resume.name}`;
-        const { data: uploadData, error: uploadError } = await insforge.storage
-          .from('resumes')
-          .upload(path, resume);
+        const { data: uploadData, error: uploadError } = await (insforge.storage
+          .from('resumes') as any)
+          .upload(path, resume, { contentType: resume.type || 'application/pdf' });
         
         if (uploadError) throw uploadError;
         finalResumeUrl = uploadData?.url || '';
@@ -280,7 +280,37 @@ function JobApplyPageContent() {
                     ref={fileInputRef} 
                     style={{ display: 'none' }} 
                     accept=".pdf"
-                    onChange={e => setResume(e.target.files?.[0] || null)}
+                    onChange={async e => {
+                      const file = e.target.files?.[0] || null;
+                      if (file) {
+                        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+                        if (ext !== '.pdf') {
+                          alert('Only PDF resumes are supported.');
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                          return;
+                        }
+                        if (file.type !== 'application/pdf') {
+                          alert('Only PDF resumes are supported.');
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                          return;
+                        }
+                        const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+                        const isPdf =
+                          bytes[0] === 0x25 &&
+                          bytes[1] === 0x50 &&
+                          bytes[2] === 0x44 &&
+                          bytes[3] === 0x46 &&
+                          bytes[4] === 0x2D;
+                        if (!isPdf) {
+                          alert('Only PDF resumes are supported.');
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                          return;
+                        }
+                        setResume(file);
+                      } else {
+                        setResume(null);
+                      }
+                    }}
                   />
                   {!resume ? (
                     <div className={styles.uploadArea} onClick={() => fileInputRef.current?.click()}>

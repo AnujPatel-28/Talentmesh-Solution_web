@@ -19,7 +19,7 @@ test.describe('Admin Stabilization E2E Tests', () => {
     page.on('response', res => console.log('RES:', res.status(), res.url()));
 
     // Mock auth-session Edge Function
-    await page.route('**/api/v1/remote/functions/auth-session', async route => {
+    await page.route(/\/api\/v1\/remote\/functions\/auth-session/, async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -31,7 +31,7 @@ test.describe('Admin Stabilization E2E Tests', () => {
     });
 
     // 1. Mock session as admin
-    await page.route('**/api/auth/session', async route => {
+    await page.route(/\/api\/auth\/session/, async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

@@ -222,6 +222,29 @@ export default function ProfilePage() {
     if (!file || !user) return;
     if (type === 'avatar' && !isEditing) return;
 
+    if (type === 'resume') {
+      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+      if (ext !== '.pdf') {
+        setToast({ message: 'Only PDF resumes are supported.', type: 'error' });
+        return;
+      }
+      if (file.type !== 'application/pdf') {
+        setToast({ message: 'Only PDF resumes are supported.', type: 'error' });
+        return;
+      }
+      const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+      const isPdf =
+        bytes[0] === 0x25 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x44 &&
+        bytes[3] === 0x46 &&
+        bytes[4] === 0x2D;
+      if (!isPdf) {
+        setToast({ message: 'Only PDF resumes are supported.', type: 'error' });
+        return;
+      }
+    }
+
     setUploadProgress(prev => ({ ...prev, [type]: 10 }));
 
     try {
@@ -255,9 +278,9 @@ export default function ProfilePage() {
         }
       }
 
-      const { data: uploadData, error: uploadError } = await insforge.storage
-        .from(bucketName)
-        .upload(path, file);
+      const { data: uploadData, error: uploadError } = await (insforge.storage
+        .from(bucketName) as any)
+        .upload(path, file, { contentType: file.type });
           
       if (uploadError) throw new Error(uploadError.message);
       url = (type === 'avatar' ? uploadData?.key : uploadData?.url) || '';
@@ -474,7 +497,7 @@ export default function ProfilePage() {
         type="file"
         ref={resumeInputRef}
         style={{ display: 'none', width: 0, height: 0, opacity: 0, position: 'absolute', pointerEvents: 'none', zIndex: -999 }}
-        accept=".pdf,.doc,.docx"
+        accept=".pdf"
         onChange={(e) => handleFileUpload(e, 'resume')}
       />
 

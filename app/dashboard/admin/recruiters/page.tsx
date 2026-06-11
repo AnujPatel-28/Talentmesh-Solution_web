@@ -1594,7 +1594,9 @@ export default function AdminRecruitersPage() {
     if (s && s !== 'all') params.set('status', s);
     if (o && o !== 'newest') params.set('sort', o);
     internalNavRef.current = true;
-    router.push(`${pathname}?${params.toString()}`);
+    const searchString = params.toString();
+    const newUrl = `${window.location.pathname}${searchString ? '?' + searchString : ''}`;
+    window.history.pushState(null, '', newUrl);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {

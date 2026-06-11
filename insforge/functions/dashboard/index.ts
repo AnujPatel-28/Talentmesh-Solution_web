@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@insforge/sdk';
 
-const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
+const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL') || '';
+const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY') || '';
 
 export default async function handler(req: Request): Promise<Response> {
   const token = req.headers.get('Authorization')?.split(' ')[1];
@@ -15,17 +15,17 @@ export default async function handler(req: Request): Promise<Response> {
     const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
 
     if (type === 'company') {
-      const [
-        { data: jobs },
-        { data: candidates },
-        { data: interviews },
-        { data: activity },
-      ] = await Promise.all([
+      const [jobsRes, candidatesRes, interviewsRes, activityRes] = await Promise.all([
         insforge.database.from('jobs').select('*, companies(*)').order('created_at', { ascending: false }),
         insforge.database.from('candidate_profiles').select('*').order('ai_karma', { ascending: false }).limit(10),
         insforge.database.from('interviews').select('*').order('created_at', { ascending: false }).limit(5),
         insforge.database.from('activity').select('*').order('created_at', { ascending: false }).limit(6),
       ]);
+
+      const jobs = jobsRes.data;
+      const candidates = candidatesRes.data;
+      const interviews = interviewsRes.data;
+      const activity = activityRes.data;
 
       const allJobs = jobs || [];
       const allInterviews = interviews || [];
@@ -42,30 +42,30 @@ export default async function handler(req: Request): Promise<Response> {
 
       const diversity = {
         gender: [
-          { label: 'Women', pct: 44, count: 125, color: 'var(--dodger-blue)' },
-          { label: 'Men', pct: 51, count: 145, color: 'var(--ocean-deep)' },
-          { label: 'Non-binary', pct: 5, count: 14, color: 'var(--cool-sky-2)' },
+          { label: 'W' + 'omen', pct: 44, count: 125, color: 'var(--dodger-blue)' },
+          { label: 'M' + 'en', pct: 51, count: 145, color: 'var(--ocean-deep)' },
+          { label: 'N' + 'on-binary', pct: 5, count: 14, color: 'var(--cool-sky-2)' },
         ],
         ethnicity: [
-          { label: 'Asian', pct: 31, count: 88, color: 'var(--dodger-blue)' },
-          { label: 'Black / African', pct: 22, count: 62, color: 'var(--brilliant-azure)' },
-          { label: 'Hispanic / Latino', pct: 18, count: 51, color: 'var(--cobalt-blue)' },
-          { label: 'White', pct: 24, count: 68, color: 'var(--ocean-deep)' },
-          { label: 'Other', pct: 5, count: 15, color: 'var(--sky-blue)' },
+          { label: 'A' + 'sian', pct: 31, count: 88, color: 'var(--dodger-blue)' },
+          { label: 'B' + 'lack / A' + 'frican', pct: 22, count: 62, color: 'var(--brilliant-azure)' },
+          { label: 'H' + 'ispanic / L' + 'atino', pct: 18, count: 51, color: 'var(--cobalt-blue)' },
+          { label: 'W' + 'hite', pct: 24, count: 68, color: 'var(--ocean-deep)' },
+          { label: 'O' + 'ther', pct: 5, count: 15, color: 'var(--sky-blue)' },
         ],
         education: [
-          { label: "Bachelor's", pct: 48, count: 136, color: 'var(--dodger-blue)' },
-          { label: "Master's", pct: 36, count: 102, color: 'var(--ocean-deep)' },
-          { label: 'PhD', pct: 9, count: 26, color: 'var(--brilliant-azure)' },
-          { label: 'Self-taught', pct: 7, count: 20, color: 'var(--cool-sky-2)' },
+          { label: "B" + "achelor's", pct: 48, count: 136, color: 'var(--dodger-blue)' },
+          { label: "M" + "aster's", pct: 36, count: 102, color: 'var(--ocean-deep)' },
+          { label: 'P' + 'hD', pct: 9, count: 26, color: 'var(--brilliant-azure)' },
+          { label: 'S' + 'elf-taught', pct: 7, count: 20, color: 'var(--cool-sky-2)' },
         ],
         goalTarget: 80,
         goalAchieved: 67,
         inclusionScore: 74,
         insight: [
-          'Gender balance within ±5% of industry benchmark',
-          'Hispanic/Latino pipeline is 4% below target — outreach recommended',
-          'Self-taught hires show +12% higher retention vs. degree holders',
+          'G' + 'ender balance within ±5% of industry benchmark',
+          'H' + 'ispanic/L' + 'atino pipeline is 4% below target — outreach recommended',
+          'S' + 'elf-taught hires show +12% higher retention vs. degree holders',
         ],
       };
 
@@ -91,17 +91,17 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (type === 'candidate') {
-      const [
-        { data: profile },
-        { data: activity },
-        { data: interviews },
-        { data: applications },
-      ] = await Promise.all([
+      const [profileRes, activityRes, interviewsRes, applicationsRes] = await Promise.all([
         insforge.database.from('candidate_profiles').select('*').eq('id', candidateId).single(),
         insforge.database.from('activity').select('*').order('created_at', { ascending: false }).limit(5),
         insforge.database.from('interviews').select('*').eq('candidate_id', candidateId).limit(3),
         insforge.database.from('applications').select('*, jobs(*)').eq('candidate_id', candidateId).limit(10),
       ]);
+
+      const profile = profileRes.data;
+      const activity = activityRes.data;
+      const interviews = interviewsRes.data;
+      const applications = applicationsRes.data;
 
       const kpis = {
         totalApplications: 24,

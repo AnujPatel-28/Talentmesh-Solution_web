@@ -21,6 +21,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ slug
   // Forward all headers except host
   const headers = new Headers(request.headers);
   headers.delete('host');
+  headers.delete('content-length');
   headers.set('x-client-info', 'talentmesh-web');
   headers.set('apikey', ANON_KEY);
 

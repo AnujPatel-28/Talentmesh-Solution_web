@@ -128,14 +128,85 @@ export default async function handler(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ error: 'Job not found' }), { status: 404, headers: corsHeaders });
       }
 
+      // Resolve candidate default/fallback resume if not supplied in input
+      let resumeUrl = input.resumeUrl;
+      let resumeId = input.resumeId;
+
+      if (!resumeUrl && candidateId) {
+        // 1️⃣ Try candidate_profiles.primary_resume_id
+        const { data: profile } = await insforgeAdmin.database
+          .from('candidate_profiles')
+          .select('primary_resume_id')
+          .eq('id', candidateId)
+          .maybeSingle();
+
+        if (profile?.primary_resume_id) {
+          const { data: primaryResume } = await insforgeAdmin.database
+            .from('candidate_resumes')
+            .select('id, file_url')
+            .eq('id', profile.primary_resume_id)
+            .maybeSingle();
+
+          if (primaryResume?.file_url) {
+            resumeUrl = primaryResume.file_url;
+            resumeId = primaryResume.id;
+          }
+        }
+
+        // 2️⃣ Try candidate_resumes.is_default = true
+        if (!resumeUrl) {
+          const { data: defaultResume } = await insforgeAdmin.database
+            .from('candidate_resumes')
+            .select('id, file_url')
+            .eq('candidate_id', candidateId)
+            .eq('is_default', true)
+            .maybeSingle();
+
+          if (defaultResume?.file_url) {
+            resumeUrl = defaultResume.file_url;
+            resumeId = defaultResume.id;
+          }
+        }
+
+        // 3️⃣ Try newest resume from candidate_resumes
+        if (!resumeUrl) {
+          const { data: newestResume } = await insforgeAdmin.database
+            .from('candidate_resumes')
+            .select('id, file_url')
+            .eq('candidate_id', candidateId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (newestResume?.file_url) {
+            resumeUrl = newestResume.file_url;
+            resumeId = newestResume.id;
+          }
+        }
+
+        // 4️⃣ Try legacy candidate_profiles.resume_url
+        if (!resumeUrl) {
+          const { data: legacyProfile } = await insforgeAdmin.database
+            .from('candidate_profiles')
+            .select('resume_url')
+            .eq('id', candidateId)
+            .maybeSingle();
+
+          if (legacyProfile?.resume_url) {
+            resumeUrl = legacyProfile.resume_url;
+          }
+        }
+      }
+
       // 2. Upload Resume Snapshot to Private Bucket
       const applicationId = crypto.randomUUID();
       let snapshotKey: string | null = null;
       let snapshotUrl: string | null = null;
 
-      if (input.resumeUrl) {
+      if (resumeUrl) {
         try {
-          const originalKey = getStorageKeyFromUrl(input.resumeUrl);
+          const originalKey = getStorageKeyFromUrl(resumeUrl);
+          console.log('[candidate-applications] resumeUrl:', resumeUrl, 'originalKey:', originalKey);
           if (originalKey) {
             // Download the resume blob from public resumes bucket
             const { data: fileBlob, error: downloadError } = await insforgeAdmin.storage
@@ -158,8 +229,50 @@ export default async function handler(req: Request): Promise<Response> {
               }), { status: 400, headers: corsHeaders });
             }
 
+            const keyLower = originalKey.toLowerCase();
+            const isLegacyDoc = keyLower.endsWith('.doc') || keyLower.endsWith('.docx');
+
+            if (isLegacyDoc) {
+              const ext = keyLower.endsWith('.docx') ? '.docx' : '.doc';
+              snapshotKey = `applications/${applicationId}/resume${ext}`;
+            } else {
+              // Enforce extension validation
+              if (!keyLower.endsWith('.pdf')) {
+                return new Response(JSON.stringify({ 
+                  error: 'Only PDF resumes are supported.',
+                  code: 'INVALID_FILE_TYPE'
+                }), { status: 400, headers: corsHeaders });
+              }
+
+              // Enforce MIME type validation
+              const allowedMimeTypes = ['application/pdf', 'application/octet-stream', 'binary/octet-stream', ''];
+              if (!allowedMimeTypes.includes(fileBlob.type)) {
+                return new Response(JSON.stringify({ 
+                  error: 'Only PDF resumes are supported.',
+                  code: 'INVALID_MIME_TYPE'
+                }), { status: 400, headers: corsHeaders });
+              }
+
+              // Enforce Magic Bytes validation
+              const bytes = new Uint8Array(await fileBlob.slice(0, 5).arrayBuffer());
+              const isPdf =
+                bytes[0] === 0x25 &&
+                bytes[1] === 0x50 &&
+                bytes[2] === 0x44 &&
+                bytes[3] === 0x46 &&
+                bytes[4] === 0x2D; // %PDF-
+              
+              if (!isPdf) {
+                return new Response(JSON.stringify({
+                  error: 'Only PDF resumes are supported.',
+                  code: 'INVALID_PDF_FILE'
+                }), { status: 400, headers: corsHeaders });
+              }
+
+              snapshotKey = `applications/${applicationId}/resume.pdf`;
+            }
+
             // Upload to private application-snapshots bucket
-            snapshotKey = `applications/${applicationId}/resume.pdf`;
             const { data: uploadData, error: uploadError } = await insforgeAdmin.storage
               .from('application-snapshots')
               .upload(snapshotKey, fileBlob);
@@ -196,8 +309,8 @@ export default async function handler(req: Request): Promise<Response> {
             applied_at: now,
             updated_at: now,
             apply_type: input.applyType,
-            resume_url: snapshotUrl || input.resumeUrl || null, // Keep legacy resume_url populated (Phase A)
-            resume_id: input.resumeId || null,
+            resume_url: snapshotUrl || resumeUrl || null,
+            resume_id: resumeId || null,
             resume_snapshot_key: snapshotKey || null,
             screening_answers: input.screeningAnswers || null,
           }])

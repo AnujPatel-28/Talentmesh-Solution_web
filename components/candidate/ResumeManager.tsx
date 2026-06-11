@@ -102,17 +102,33 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             return;
         }
 
-        const allowedTypes = ['.pdf', '.doc', '.docx'];
         const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-        if (!allowedTypes.includes(ext)) {
-            setToast({ message: 'Invalid file type. Only PDF and DOC/DOCX allowed.', type: 'error' });
+        if (ext !== '.pdf') {
+            setToast({ message: 'Only PDF resumes are supported.', type: 'error' });
+            return;
+        }
+
+        if (file.type !== 'application/pdf') {
+            setToast({ message: 'Only PDF resumes are supported.', type: 'error' });
+            return;
+        }
+
+        const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+        const isPdf =
+            bytes[0] === 0x25 &&
+            bytes[1] === 0x50 &&
+            bytes[2] === 0x44 &&
+            bytes[3] === 0x46 &&
+            bytes[4] === 0x2d;
+        if (!isPdf) {
+            setToast({ message: 'Only PDF resumes are supported.', type: 'error' });
             return;
         }
 
         setUploading(true);
         try {
             const path = `${activeCandidateId}/${Date.now()}_${file.name}`;
-            const { data, error } = await insforge.storage.from('resumes').upload(path, file);
+            const { data, error } = await (insforge.storage.from('resumes') as any).upload(path, file, { contentType: file.type || 'application/pdf' });
             
             if (error) throw error;
             
@@ -162,6 +178,11 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
 
     const saveNewResume = async () => {
         if (!uploadedFile || !newLabel.trim() || !activeCandidateId) return;
+
+        if (newLabel.trim().length > 255) {
+            setToast({ message: 'Resume label must be 255 characters or less.', type: 'error' });
+            return;
+        }
 
         try {
             if (isDefault) {
@@ -233,24 +254,11 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         })));
 
         try {
-            await insforge.database
-                .from('candidate_resumes')
-                .update({ is_default: false })
-                .eq('candidate_id', activeCandidateId);
-
-            const { error } = await insforge.database
-                .from('candidate_resumes')
-                .update({ is_default: true })
-                .eq('id', resume.id);
+            const { error } = await insforge.database.rpc('set_default_resume', {
+                p_resume_id: resume.id
+            });
 
             if (error) throw error;
-
-            const { error: profileError } = await insforge.database
-                .from('candidate_profiles')
-                .update({ resume_url: resume.file_url })
-                .eq('id', activeCandidateId);
-
-            if (profileError) throw profileError;
         } catch (err: any) {
             setResumes(oldResumes);
             setToast({ message: 'Failed to set default: ' + err.message, type: 'error' });
@@ -273,27 +281,6 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         }
 
         if (!window.confirm(confirmMsg)) return;
-
-        // Attempt storage cleanup (Release 2)
-        let storagePath: string | null = null;
-        try {
-            const urlObj = new URL(resume.file_url);
-            const pathSegments = urlObj.pathname.split('/');
-            const resumesIndex = pathSegments.indexOf('resumes');
-            if (resumesIndex !== -1 && resumesIndex < pathSegments.length - 1) {
-                storagePath = decodeURIComponent(pathSegments.slice(resumesIndex + 1).join('/'));
-            }
-        } catch (e) {
-            console.warn('Failed to parse storage path from url:', e);
-        }
-
-        if (storagePath) {
-            try {
-                await insforge.storage.from('resumes').remove(storagePath);
-            } catch (err) {
-                console.error('Failed to clean up storage file:', err);
-            }
-        }
 
         try {
             // 1. Delete physical file from storage bucket first
@@ -325,6 +312,11 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
     const updateLabel = async (id: string) => {
         if (!editLabel.trim()) {
             setEditingId(null);
+            return;
+        }
+
+        if (editLabel.trim().length > 255) {
+            setToast({ message: 'Resume label must be 255 characters or less.', type: 'error' });
             return;
         }
 
@@ -377,7 +369,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                         type="file" 
                         ref={fileInputRef} 
                         style={{ display: 'none' }} 
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf"
                         onChange={handleFileChange}
                     />
                     <div className={styles.dropzoneIcon}>
@@ -386,7 +378,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                     <p className={styles.dropzoneTitle}>
                         {uploading ? 'Uploading your file...' : 'Drag & drop your resume here, or click to browse'}
                     </p>
-                    <p className={styles.dropzoneHint}>Supports PDF, DOC, and DOCX (Max 5MB)</p>
+                    <p className={styles.dropzoneHint}>Supports PDF (Max 5MB)</p>
                 </div>
             ) : (
                 <div className={styles.limitNotice}>
@@ -421,6 +413,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                             autoFocus
                                             value={editLabel}
                                             onChange={(e) => setEditLabel(e.target.value)}
+                                            maxLength={255}
                                             onBlur={() => updateLabel(resume.id)}
                                             onKeyDown={(e) => e.key === 'Enter' && updateLabel(resume.id)}
                                         />
@@ -498,6 +491,7 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                 placeholder="e.g. Frontend Developer, Senior PM"
                                 value={newLabel}
                                 onChange={(e) => setNewLabel(e.target.value)}
+                                maxLength={255}
                                 autoFocus
                             />
                         </div>

@@ -17,7 +17,7 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
   onClear,
   existingUrl,
   maxSizeMB = 5,
-  acceptedFormats = ['.pdf', '.docx']
+  acceptedFormats = ['.pdf']
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -29,8 +29,12 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
   const validateFile = (file: File): boolean => {
     setError(null);
     const extension = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!acceptedFormats.includes(extension)) {
-      setError(`Invalid file type. Only ${acceptedFormats.join(' and ')} are allowed.`);
+    if (extension !== '.pdf') {
+      setError('Only PDF resumes are supported.');
+      return false;
+    }
+    if (file.type !== 'application/pdf') {
+      setError('Only PDF resumes are supported.');
       return false;
     }
     if (file.size > maxSizeMB * 1024 * 1024) {
@@ -40,9 +44,20 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
     return true;
   };
 
-  const handleFiles = (files: FileList) => {
+  const handleFiles = async (files: FileList) => {
     const selectedFile = files[0];
     if (selectedFile && validateFile(selectedFile)) {
+      const bytes = new Uint8Array(await selectedFile.slice(0, 5).arrayBuffer());
+      const isPdf =
+        bytes[0] === 0x25 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x44 &&
+        bytes[3] === 0x46 &&
+        bytes[4] === 0x2D;
+      if (!isPdf) {
+        setError('Only PDF resumes are supported.');
+        return;
+      }
       setFile(selectedFile);
       setIsSimulating(true);
       setSimulatedProgress(0);
@@ -119,7 +134,7 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
             </div>
             <p className={styles.text}>Drag & drop your resume</p>
             <p className={styles.hint}>
-              PDF or DOCX (max {maxSizeMB}MB)
+              PDF only (max {maxSizeMB}MB)
             </p>
           </>
         ) : (

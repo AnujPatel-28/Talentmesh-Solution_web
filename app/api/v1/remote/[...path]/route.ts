@@ -33,6 +33,7 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
   // Forward all headers except host
   const headers = new Headers(request.headers);
   headers.delete('host');
+  headers.delete('content-length');
   headers.set('x-insforge-url', INSFORGE_URL);
   headers.set('x-insforge-anon-key', ANON_KEY);
   if (process.env.INSFORGE_SERVICE_KEY) {

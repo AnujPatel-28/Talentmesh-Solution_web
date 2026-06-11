@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
   const headers = new Headers(request.headers);
   headers.delete('host');
+  headers.delete('content-length');
   headers.set('apikey', ANON_KEY);
 
   const targetUrl = `${INSFORGE_URL.replace(/\/$/, '')}/api/auth/sessions/current`;
