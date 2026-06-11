@@ -51,3 +51,14 @@ audits/
 | Background Export Queue System | `admin/export-system-audit.md` | ✅ Active |
 | Storage RLS Policies | `shared/storage-rls-audit.md` | ✅ Active |
 | Recruiter Portal | `recruiter/README.md` | 📋 Placeholder |
+| **Production Readiness Executive Summary** | [production-readiness-executive-summary.md](file:///d:/Talentmesh-AI-Recruiting-/audits/production-readiness-executive-summary.md) | 🚀 Controlled Release |
+| **Section 1: Auth & Sessions** | [shared/production-auth-session-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-auth-session-audit.md) | ✅ Active |
+| **Section 2: Candidate Module** | [candidate/production-candidate-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/candidate/production-candidate-audit.md) | ✅ Active |
+| **Section 3: Recruiter Module** | [recruiter/production-recruiter-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/recruiter/production-recruiter-audit.md) | 🔄 Upgrade Needed |
+| **Section 4: Admin Governance** | [admin/production-admin-governance-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/admin/production-admin-governance-audit.md) | ✅ Active |
+| **Section 5: DB & Storage** | [shared/production-database-storage-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-database-storage-audit.md) | ✅ Active |
+| **Section 6: API & Edge Functions** | [shared/production-edge-api-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-edge-api-audit.md) | ✅ Active |
+| **Section 7: Frontend Architecture** | [shared/production-frontend-architecture-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-frontend-architecture-audit.md) | ✅ Active |
+| **Section 8: Observability** | [shared/production-observability-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-observability-audit.md) | 🔄 Upgrade Needed |
+| **Section 9: UI/UX System** | [shared/production-ui-ux-system-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-ui-ux-system-audit.md) | ✅ Active |
+
