@@ -1,6 +1,6 @@
-# Talentmesh — Audit Reports Index
+# TalentMesh — Audit Reports Index
 
-This directory contains all technical audit reports for the Talentmesh AI Recruiting platform. Reports are organized by feature area. Each audit is a living document — update it whenever a related feature is changed, fixed, or extended.
+This directory contains all technical audit reports for the TalentMesh AI Recruiting platform, organized by role-based modules and platform infrastructure.
 
 ---
 
@@ -8,57 +8,76 @@ This directory contains all technical audit reports for the Talentmesh AI Recrui
 
 ```
 audits/
-├── README.md                          ← This file (index)
+├── README.md                                    ← This index file
+├── production-readiness-executive-summary.md    ← Platform Executive Summary & Scorecard
 │
-├── candidate/
-│   ├── README.md                      ← Index of all candidate-area audits
-│   ├── resume-system-audit.md         ← Resume upload, management, RLS, storage
-│   └── profile-system-audit.md        ← Profile page, sync bugs, hydration
-│
-├── admin/
-│   ├── README.md                      ← Index of all admin-area audits
-│   └── job-approvals-audit.md         ← Job approval workflow, constraint mapping
-│
-├── recruiter/
-│   └── README.md                      ← (Placeholder for future recruiter audits)
-│
-└── shared/
-    ├── README.md                      ← Shared/infrastructure audits
-    └── storage-rls-audit.md           ← Storage bucket RLS policies audit
+└── roles/
+    ├── candidate/                               ← Candidate Role Module Audits
+    │   ├── profile-audit.md                     ← Profile Edit, Avatar, snapshots
+    │   ├── resume-audit.md                      ← Upload, AI parsing, quarantine deletes
+    │   ├── applications-audit.md                ← App tracking and status transitions
+    │   ├── notifications-audit.md               ← Real-time notifications and toasts
+    │   ├── analytics-audit.md                   ← Candidate match calculation cache
+    │   └── security-audit.md                    ← Session check and MFA controls
+    │
+    ├── recruiter/                               ← Recruiter Role Module Audits
+    │   ├── jobs-audit.md                        ← Create, draft, approvals checks
+    │   ├── candidates-audit.md                  ← Search, select, and recruiter ownership
+    │   ├── pipeline-audit.md                    ← Hiring pipeline stage transitions
+    │   ├── team-access-audit.md                 ← Recruiter roles and team management
+    │   ├── reports-audit.md                     ← Background exports and S3 links
+    │   └── settings-audit.md                    ← Company settings and logo rescaling
+    │
+    ├── admin/                                   ← Admin Role Module Audits
+    │   ├── governance-audit.md                  ← Feature flags and maintenance configs
+    │   ├── sessions-audit.md                    ← Active devices list and concurrent caps
+    │   ├── audit-center-audit.md                ← Audit log search and PG partitions
+    │   ├── release-manager-audit.md             ← SQL migration registry and revert checks
+    │   ├── plans-billing-audit.md               ← Subscriptions, plans, and metrics
+    │   └── operations-audit.md                  ← Stale resources and webhook alerts
+    │
+    └── platform/                                ← Platform Infrastructure Audits
+        ├── observability-audit.md               ← Traces limit and database sync
+        ├── edge-audit.md                        ← Cold starts and pre-warming triggers
+        ├── database-audit.md                    ← Postgres RLS and Trigram index optimizations
+        ├── storage-audit.md                     ← Bucket security and logo quarantining
+        └── release-audit.md                     ← Deployment safety and staging checks
 ```
 
 ---
 
-## How to Use This Directory
+## Technical Audit Index
 
-- **When you change code** related to a feature, open the matching audit `.md` file and add a note at the bottom under `## Changelog`.
-- **When you find a new bug**, add it to the relevant audit file under `## Known Issues`.
-- **When a bug is fixed**, update its status to ✅ Fixed with the date and PR/commit ref.
-- **When sharing with teammates**, send the specific audit file link — each file is self-contained.
+### 👑 Executive
+* **Executive Summary**: [production-readiness-executive-summary.md](file:///d:/Talentmesh-AI-Recruiting-/audits/production-readiness-executive-summary.md)
 
----
+### 👤 Candidate Role Module
+* **Profile Edit & Snapshot Versions**: [profile-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/candidate/profile-audit.md)
+* **Resume Upload & AI Parsing**: [resume-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/candidate/resume-audit.md)
+* **Applications tracking**: [applications-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/candidate/applications-audit.md)
+* **Notifications**: [notifications-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/candidate/notifications-audit.md)
+* **Analytics Match Score**: [analytics-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/candidate/analytics-audit.md)
+* **Security & MFA**: [security-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/candidate/security-audit.md)
 
-## Feature Coverage Status
+### 👔 Recruiter Role Module
+* **Jobs Draft & Approval**: [jobs-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/recruiter/jobs-audit.md)
+* **Candidates Directory**: [candidates-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/recruiter/candidates-audit.md)
+* **Pipeline Transitions**: [pipeline-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/recruiter/pipeline-audit.md)
+* **Team Access Roles**: [team-access-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/recruiter/team-access-audit.md)
+* **Reports Export**: [reports-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/recruiter/reports-audit.md)
+* **Settings & Logo Rescaling**: [settings-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/recruiter/settings-audit.md)
 
-| Feature | Audit File | Status |
-|---|---|---|
-| Candidate Resume System | `candidate/resume-system-audit.md` | ✅ Active |
-| Candidate Profile System | `candidate/profile-system-audit.md` | 🔄 Pending |
-| Admin Job Approvals | `admin/job-approvals-audit.md` | ✅ Active |
-| Admin Dashboard & Sidebar | `admin/dashboard-sidebar-audit.md` | ✅ Active |
-| Admin Candidates Management | `admin/candidate-management-audit.md` | ✅ Active |
-| Admin Recruiters Management | `admin/recruiter-management-audit.md` | ✅ Active |
-| Background Export Queue System | `admin/export-system-audit.md` | ✅ Active |
-| Storage RLS Policies | `shared/storage-rls-audit.md` | ✅ Active |
-| Recruiter Portal | `recruiter/README.md` | 📋 Placeholder |
-| **Production Readiness Executive Summary** | [production-readiness-executive-summary.md](file:///d:/Talentmesh-AI-Recruiting-/audits/production-readiness-executive-summary.md) | 🚀 Controlled Release |
-| **Section 1: Auth & Sessions** | [shared/production-auth-session-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-auth-session-audit.md) | ✅ Active |
-| **Section 2: Candidate Module** | [candidate/production-candidate-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/candidate/production-candidate-audit.md) | ✅ Active |
-| **Section 3: Recruiter Module** | [recruiter/production-recruiter-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/recruiter/production-recruiter-audit.md) | 🔄 Upgrade Needed |
-| **Section 4: Admin Governance** | [admin/production-admin-governance-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/admin/production-admin-governance-audit.md) | ✅ Active |
-| **Section 5: DB & Storage** | [shared/production-database-storage-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-database-storage-audit.md) | ✅ Active |
-| **Section 6: API & Edge Functions** | [shared/production-edge-api-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-edge-api-audit.md) | ✅ Active |
-| **Section 7: Frontend Architecture** | [shared/production-frontend-architecture-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-frontend-architecture-audit.md) | ✅ Active |
-| **Section 8: Observability** | [shared/production-observability-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-observability-audit.md) | 🔄 Upgrade Needed |
-| **Section 9: UI/UX System** | [shared/production-ui-ux-system-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/shared/production-ui-ux-system-audit.md) | ✅ Active |
+### ⚙️ Admin Role Module
+* **Governance & Policies**: [governance-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/admin/governance-audit.md)
+* **Session Controls**: [sessions-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/admin/sessions-audit.md)
+* **Audit Center**: [audit-center-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/admin/audit-center-audit.md)
+* **Release Manager**: [release-manager-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/admin/release-manager-audit.md)
+* **Plans & Billing**: [plans-billing-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/admin/plans-billing-audit.md)
+* **Operations**: [operations-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/admin/operations-audit.md)
 
+### 💻 Platform Infrastructure
+* **Observability Tracing**: [observability-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/platform/observability-audit.md)
+* **Edge Functions Gateway**: [edge-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/platform/edge-audit.md)
+* **Database & RLS Constraints**: [database-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/platform/database-audit.md)
+* **Storage Quarantine Purge**: [storage-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/platform/storage-audit.md)
+* **Release Verification**: [release-audit.md](file:///d:/Talentmesh-AI-Recruiting-/audits/roles/platform/release-audit.md)
