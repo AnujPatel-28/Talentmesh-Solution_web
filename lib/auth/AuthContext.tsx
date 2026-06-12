@@ -39,6 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [adminId, setAdminId] = useState<string | null>(null);
   const router = useRouter();
 
+  const userRef = useRef<User | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   // Session governance states & refs
   const [isWarningOpen, setIsWarningOpen] = useState(false);
   const [countdown, setCountdown] = useState(60);
@@ -516,9 +521,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } else if (type === 'SESSION_WARNING') {
-        console.log('[AuthContext] Session warning broadcast received.');
-        setIsWarningOpen(true);
-        setCountdown(60);
+        if (userRef.current) {
+          console.log('[AuthContext] Session warning broadcast received.');
+          setIsWarningOpen(true);
+          setCountdown(60);
+        }
       } else if (type === 'SESSION_EXTENDED') {
         console.log('[AuthContext] Session extended broadcast received.');
         setIsWarningOpen(false);
@@ -663,8 +670,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Inactivity timeout manager
   useEffect(() => {
     if (!user) {
-      if (warningTimerRef.current) clearInterval(warningTimerRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (warningTimerRef.current) {
+        clearInterval(warningTimerRef.current);
+        warningTimerRef.current = null;
+      }
       setIsWarningOpen(false);
       return;
     }
@@ -689,26 +698,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsWarningOpen(true);
         setCountdown(60);
         broadcastSessionEvent('SESSION_WARNING');
-
-        let currentCountdown = 60;
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = setInterval(() => {
-          const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
-          setIsOffline(!online);
-
-          currentCountdown -= 1;
-          setCountdown(currentCountdown);
-
-          if (currentCountdown <= 0) {
-            clearInterval(countdownIntervalRef.current!);
-            countdownIntervalRef.current = null;
-
-            console.log('[AuthContext] Session warning countdown hit 0. Revoking session.');
-            broadcastSessionEvent('SESSION_LOGOUT');
-            signOut();
-            router.push('/login?reason=session_expired');
-          }
-        }, 1000);
       }
     };
 
@@ -739,13 +728,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       clearInterval(intervalId);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      warningTimerRef.current = null;
       window.removeEventListener('mousedown', handleLocalActivity);
       window.removeEventListener('keydown', handleLocalActivity);
       window.removeEventListener('click', handleLocalActivity);
       window.removeEventListener('scroll', handleLocalActivity);
     };
-  }, [user, isWarningOpen, extendSession, signOut, router]);
+  }, [user, isWarningOpen, extendSession]);
+
+  // Synchronized countdown timer across all tabs using shared localStorage
+  useEffect(() => {
+    if (!isWarningOpen || !user) {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Role-based timeout settings
+    let idleMs = 30 * 60 * 1000; // default candidate: 30m
+    if (user.role === 'admin' || user.role === 'super_admin') {
+      idleMs = 10 * 60 * 1000; // admin: 10m
+    } else if (user.role === 'recruiter') {
+      idleMs = 20 * 60 * 1000; // recruiter: 20m
+    }
+
+    const updateCountdown = () => {
+      const lastActiveGlobal = parseInt(localStorage.getItem('tm_last_active_time') || Date.now().toString());
+      const now = Date.now();
+      const elapsed = now - lastActiveGlobal;
+      
+      const remainingMs = idleMs - elapsed;
+      const secondsLeft = Math.max(0, Math.ceil(remainingMs / 1000));
+      
+      setCountdown(secondsLeft);
+
+      const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      setIsOffline(!online);
+
+      if (secondsLeft <= 0) {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+
+        console.log('[AuthContext] Session warning countdown hit 0. Revoking session.');
+        broadcastSessionEvent('SESSION_LOGOUT');
+        signOut();
+        router.push('/login?reason=session_expired');
+      }
+    };
+
+    updateCountdown();
+
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, [isWarningOpen, user, signOut, router]);
 
   const login = useCallback(async (token: string, authUser: User) => {
     await syncAuthCookies(token, authUser);

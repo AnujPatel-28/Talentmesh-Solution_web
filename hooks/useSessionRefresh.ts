@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { refreshAccessToken } from '@/lib/insforge';
+import { refreshAccessToken, invokeFunction } from '@/lib/insforge';
 
 /**
  * Periodically refreshes user sessions to prevent surprise logouts while active,
@@ -79,13 +79,9 @@ export function useSessionRefresh(role?: string) {
           localStorage.setItem('tm_last_heartbeat_time', now.toString());
 
           try {
-            const authEndpoint = '/api/v1/remote/functions/auth-session?heartbeat=true';
-            await fetch(authEndpoint, {
+            await invokeFunction('auth-session', {
               method: 'GET',
-              headers: {
-                'x-client-info': 'talentmesh-web'
-              },
-              credentials: 'include'
+              queries: { heartbeat: 'true' }
             });
             console.log('[SessionRefresh] Throttled heartbeat sent.');
           } catch (err) {
