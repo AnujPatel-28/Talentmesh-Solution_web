@@ -29,8 +29,9 @@ export function useWithdrawApplicationMutation(
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await invokeFunction('candidate-applications-id', {
-        method: 'DELETE',
-        queries: { id }
+        method: 'PATCH',
+        queries: { id },
+        body: { status: 'withdrawn' }
       });
       if (error) {
         throw new Error(error.message || 'Failed to withdraw application');

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { APPLICATION_STATUSES } from '../constants/application-status';
 
 /**
  * Shared Score Schema (0-100)
@@ -41,7 +42,7 @@ export const CandidateSchema = z.object({
   location: z.string(),
   appliedAt: IsoDateSchema,
   urgent: z.boolean(),
-  status: z.enum(['active', 'rejected', 'hired', 'withdrawn']),
+  status: z.enum(APPLICATION_STATUSES),
   salary: z.string(),
 });
 
@@ -192,7 +193,7 @@ export const CandidateDashboardDataSchema = z.object({
     lastUpdate: IsoDateSchema,
     aiMatchScore: ScoreSchema,
     nextAction: z.string(),
-    status: z.enum(['active', 'rejected', 'withdrawn', 'offered', 'accepted']),
+    status: z.enum(APPLICATION_STATUSES),
     salary: z.string(),
     type: JobTypeSchema,
     location: z.string(),

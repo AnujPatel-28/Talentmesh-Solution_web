@@ -1,15 +1,7 @@
 import { z } from 'zod';
+import { APPLICATION_STATUSES } from '../constants/application-status';
 
-export const applicationStatusSchema = z.enum([
-  'applied',
-  'reviewing',
-  'shortlisted',
-  'interview',
-  'offer',
-  'accepted',
-  'rejected',
-  'withdrawn',
-]);
+export const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 
 export const createApplicationSchema = z.object({
   jobId: z.string().min(1, 'Job id is required'),

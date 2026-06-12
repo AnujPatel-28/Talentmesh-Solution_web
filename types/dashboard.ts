@@ -36,7 +36,7 @@ export interface Candidate {
     location: string;
     appliedAt: string;     // ISO date string
     urgent: boolean;
-    status: 'active' | 'rejected' | 'hired' | 'withdrawn';
+    status: ApplicationStatus;
     salary: string;
 }
 
@@ -144,7 +144,7 @@ export interface CompanyDashboardData {
 
 // ─── Applications (Candidate view) ───────────────────────────────────────────
 
-export type ApplicationStatus = 'active' | 'rejected' | 'withdrawn' | 'offered' | 'accepted';
+export type ApplicationStatus = 'applied' | 'reviewing' | 'shortlisted' | 'interviewing' | 'offered' | 'hired' | 'rejected' | 'withdrawn';
 
 export interface Application {
     id: string;

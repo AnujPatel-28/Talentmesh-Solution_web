@@ -12,7 +12,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useCandidateApplicationsQuery, useWithdrawApplicationMutation } from '@/lib/queries/applications';
 import * as Icons from '@/components/ui/icons';
 
-import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants/applicationStatuses';
+import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/lib/constants/application-status-map';
  
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const IC = {
@@ -26,18 +26,14 @@ const IC = {
 };
 
 const STATUS_MAP: Record<string, { label: string, color: string, stage: number }> = {
-    applied:      { label: STATUS_LABELS.applied,      color: STATUS_COLORS.applied,      stage: 1 },
-    reviewing:    { label: STATUS_LABELS.reviewing,    color: STATUS_COLORS.reviewing,    stage: 2 },
-    shortlisted:  { label: STATUS_LABELS.shortlisted,  color: STATUS_COLORS.shortlisted,  stage: 3 },
-    interviewing: { label: STATUS_LABELS.interviewing, color: STATUS_COLORS.interviewing, stage: 4 },
-    interview:    { label: STATUS_LABELS.interviewing, color: STATUS_COLORS.interviewing, stage: 4 },
-    offered:      { label: STATUS_LABELS.offered,      color: STATUS_COLORS.offered,      stage: 5 },
-    offer:        { label: STATUS_LABELS.offered,      color: STATUS_COLORS.offered,      stage: 5 },
-    hired:        { label: STATUS_LABELS.hired,        color: STATUS_COLORS.hired,        stage: 5 },
-    accepted:     { label: STATUS_LABELS.hired,        color: STATUS_COLORS.hired,        stage: 5 },
-    rejected:     { label: STATUS_LABELS.rejected,     color: STATUS_COLORS.rejected,     stage: 0 },
-    withdrawn:    { label: STATUS_LABELS.withdrawn,    color: STATUS_COLORS.withdrawn,    stage: 0 },
-    active:       { label: STATUS_LABELS.applied,      color: STATUS_COLORS.applied,      stage: 1 },
+    applied:      { label: APPLICATION_STATUS_LABELS.applied,      color: APPLICATION_STATUS_COLORS.applied,      stage: 1 },
+    reviewing:    { label: APPLICATION_STATUS_LABELS.reviewing,    color: APPLICATION_STATUS_COLORS.reviewing,    stage: 2 },
+    shortlisted:  { label: APPLICATION_STATUS_LABELS.shortlisted,  color: APPLICATION_STATUS_COLORS.shortlisted,  stage: 3 },
+    interviewing: { label: APPLICATION_STATUS_LABELS.interviewing, color: APPLICATION_STATUS_COLORS.interviewing, stage: 4 },
+    offered:      { label: APPLICATION_STATUS_LABELS.offered,      color: APPLICATION_STATUS_COLORS.offered,      stage: 5 },
+    hired:        { label: APPLICATION_STATUS_LABELS.hired,        color: APPLICATION_STATUS_COLORS.hired,        stage: 5 },
+    rejected:     { label: APPLICATION_STATUS_LABELS.rejected,     color: APPLICATION_STATUS_COLORS.rejected,     stage: 0 },
+    withdrawn:    { label: APPLICATION_STATUS_LABELS.withdrawn,    color: APPLICATION_STATUS_COLORS.withdrawn,    stage: 0 },
 };
 
 export default function ApplicationsPage() {
@@ -56,14 +52,14 @@ export default function ApplicationsPage() {
     const stats = useMemo(() => {
         return {
             total: applications.length,
-            active: applications.filter(a => !['rejected', 'withdrawn', 'accepted'].includes(a.status)).length,
-            offers: applications.filter(a => a.status === 'offer').length
+            active: applications.filter(a => !['rejected', 'withdrawn'].includes(a.status)).length,
+            offers: applications.filter(a => a.status === 'offered').length
         };
     }, [applications]);
 
     const filteredApps = useMemo(() => {
         if (activeTab === 'all') return applications;
-        if (activeTab === 'active') return applications.filter(a => !['rejected', 'withdrawn', 'accepted'].includes(a.status));
+        if (activeTab === 'active') return applications.filter(a => !['rejected', 'withdrawn'].includes(a.status));
         return applications.filter(a => a.status === activeTab);
     }, [applications, activeTab]);
 
@@ -159,7 +155,7 @@ export default function ApplicationsPage() {
                 ) : (
                     filteredApps.map(app => {
                         const statusInfo = STATUS_MAP[app.status];
-                        const isTerminal = ['rejected', 'withdrawn', 'accepted'].includes(app.status);
+                        const isTerminal = ['rejected', 'withdrawn'].includes(app.status);
 
                         return (
                             <Link

@@ -2,8 +2,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import styles from './CandidateProfileDrawer.module.css';
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { ApplicationStatus } from '@/lib/constants/application-status';
+import { VALID_APPLICATION_TRANSITIONS } from '@/lib/constants/application-transitions';
+import { APPLICATION_STATUS_LABELS } from '@/lib/constants/application-status-map';
 import { format, differenceInMonths, differenceInYears } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -260,24 +263,34 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
 
     const updateApplicationStatus = async (appId: string, status: string) => {
         try {
-            let res = await insforge.database
-                .from('applications')
-                .update({ status, updated_at: new Date().toISOString() })
-                .eq('id', appId);
+            const app = candidate?.applications?.find((a: any) => a.id === appId);
+            if (app) {
+                const allowed = VALID_APPLICATION_TRANSITIONS[app.status as ApplicationStatus] || [];
+                if (status !== app.status && !allowed.includes(status as ApplicationStatus)) {
+                    toast.error(`Invalid status transition from ${app.status} to ${status}`);
+                    return;
+                }
+            }
 
-            const err = res.error as any;
+            const { error } = await invokeFunction('update-application', {
+                body: { id: appId, status }
+            });
+
+            const err = error as any;
             if (err && (err.statusCode === 401 || err.message?.includes('token') || err.error === 'AUTH_UNAUTHORIZED')) {
                 const { refreshAccessToken } = await import('@/lib/insforge');
                 const newToken = await refreshAccessToken();
                 if (newToken) {
-                    res = await insforge.database
-                        .from('applications')
-                        .update({ status, updated_at: new Date().toISOString() })
-                        .eq('id', appId);
+                    const retryRes = await invokeFunction('update-application', {
+                        body: { id: appId, status }
+                    });
+                    if (retryRes.error) throw retryRes.error;
+                } else {
+                    throw error;
                 }
+            } else if (error) {
+                throw error;
             }
-
-            if (res.error) throw res.error;
 
             setCandidate((prev: any) => ({
                 ...prev,
@@ -286,9 +299,9 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                 )
             }));
             toast.success(`Status updated to ${status}`);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Update status error:', err);
-            toast.error('Failed to update status');
+            toast.error(err.message || 'Failed to update status');
         }
     };
 
@@ -527,18 +540,36 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                             )}
 
                                             <div style={{ marginTop: '0.25rem' }}>
-                                                <CustomSelect
-                                                    value={app.status}
-                                                    onChange={(e) => updateApplicationStatus(app.id, e.target.value)}
-                                                    options={[
-                                                        { label: 'Screening', value: 'screening' },
-                                                        { label: 'Shortlisted', value: 'shortlisted' },
-                                                        { label: 'Interviewing', value: 'interviewing' },
-                                                        { label: 'Offer', value: 'offer' },
-                                                        { label: 'Rejected', value: 'rejected' }
-                                                    ]}
-                                                    className={styles.statusSelect}
-                                                />
+                                                {['hired', 'withdrawn'].includes(app.status) ? (
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '4px 12px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: 700,
+                                                        background: app.status === 'hired' ? '#ecfdf5' : '#f1f5f9',
+                                                        color: app.status === 'hired' ? '#059669' : '#475569',
+                                                        border: '1px solid currentColor',
+                                                        textTransform: 'capitalize'
+                                                    }}>
+                                                        {app.status}
+                                                    </span>
+                                                ) : (
+                                                    <CustomSelect
+                                                        value={app.status}
+                                                        onChange={(e) => updateApplicationStatus(app.id, e.target.value)}
+                                                        options={[
+                                                            { label: APPLICATION_STATUS_LABELS[app.status as ApplicationStatus] || app.status, value: app.status },
+                                                            ...(VALID_APPLICATION_TRANSITIONS[app.status as ApplicationStatus] || [])
+                                                                .filter((st: string) => st !== 'withdrawn') // recruiters can't withdraw applications
+                                                                .map((st: ApplicationStatus) => ({
+                                                                    label: APPLICATION_STATUS_LABELS[st] || st,
+                                                                    value: st
+                                                                }))
+                                                        ]}
+                                                        className={styles.statusSelect}
+                                                    />
+                                                )}
                                             </div>
                                         </div>
                                     )) : (

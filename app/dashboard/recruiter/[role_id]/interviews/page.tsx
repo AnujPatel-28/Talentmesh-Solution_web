@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import Link from 'next/link';
 import styles from './interviews.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -139,9 +139,10 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                 notes: form.notes || null,
             }]);
             if (error) throw error;
-            await insforge.database.from('applications')
-                .update({ status: 'interviewing' })
-                .eq('id', form.application_id);
+            const { error: updateErr } = await invokeFunction('update-application', {
+                body: { id: form.application_id, status: 'interviewing' }
+            });
+            if (updateErr) throw updateErr;
             onSuccess();
         } catch (err: any) {
             console.error(err);

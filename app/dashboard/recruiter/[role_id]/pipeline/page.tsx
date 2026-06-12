@@ -6,12 +6,14 @@ import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import styles from './pipeline.module.css';
 
 const STAGES = [
-    { id: 'applied',     label: 'Applied',    color: '#3b82f6', bg: '#eff6ff' },
-    { id: 'screening',   label: 'Screening',  color: '#8b5cf6', bg: '#f5f3ff' },
-    { id: 'interview',   label: 'Interview',  color: '#f59e0b', bg: '#fffbeb' },
-    { id: 'offer',       label: 'Offer',      color: '#10b981', bg: '#f0fdf4' },
-    { id: 'hired',       label: 'Hired',      color: '#059669', bg: '#ecfdf5' },
-    { id: 'rejected',    label: 'Rejected',   color: '#ef4444', bg: '#fff1f2' },
+    { id: 'applied',      label: 'Applied',      color: '#3b82f6', bg: '#eff6ff' },
+    { id: 'reviewing',    label: 'Reviewing',    color: '#f59e0b', bg: '#fffbeb' },
+    { id: 'shortlisted',  label: 'Shortlisted',  color: '#10b981', bg: '#f0fdf4' },
+    { id: 'interviewing', label: 'Interviewing', color: '#7c3aed', bg: '#f5f3ff' },
+    { id: 'offered',      label: 'Offered',      color: '#10b981', bg: '#f0fdf4' },
+    { id: 'hired',        label: 'Hired',        color: '#059669', bg: '#ecfdf5' },
+    { id: 'rejected',     label: 'Rejected',     color: '#ef4444', bg: '#fff1f2' },
+    { id: 'withdrawn',    label: 'Withdrawn',    color: '#64748b', bg: '#f1f5f9' },
 ] as const;
 
 type Stage = typeof STAGES[number]['id'];
@@ -20,7 +22,7 @@ type Card = { id: string; name: string; role: string; job: string; avatar: strin
 export default function HiringPipelinePage() {
     const { user } = useAuth();
     const [pipeline, setPipeline] = useState<Record<Stage, Card[]>>({
-        applied: [], screening: [], interview: [], offer: [], hired: [], rejected: [],
+        applied: [], reviewing: [], shortlisted: [], interviewing: [], offered: [], hired: [], rejected: [], withdrawn: [],
     });
     const [loading, setLoading] = useState(true);
     const dragging = useRef<{ card: Card; fromStage: Stage } | null>(null);
@@ -39,7 +41,7 @@ export default function HiringPipelinePage() {
             }
 
             if (data) {
-                const grouped: any = { applied: [], screening: [], interview: [], offer: [], hired: [], rejected: [] };
+                const grouped: any = { applied: [], reviewing: [], shortlisted: [], interviewing: [], offered: [], hired: [], rejected: [], withdrawn: [] };
                 (data as any[]).forEach((item: any) => {
                     const stageKey = item.status?.toLowerCase() as Stage;
                     if (grouped[stageKey]) {

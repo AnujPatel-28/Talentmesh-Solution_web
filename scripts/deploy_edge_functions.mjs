@@ -26,8 +26,13 @@ async function updateFunction(slug, filePath) {
 }
 
 async function main() {
+  await updateFunction('recruiter-dashboard', 'insforge/functions/recruiter-dashboard/index.ts');
+  await updateFunction('update-application', 'insforge/functions/update-application/index.ts');
   await updateFunction('candidate-applications', 'insforge/functions/candidate-applications/index.ts');
-  await updateFunction('resume-proxy', 'insforge/functions/resume-proxy/index.ts');
+  await updateFunction('candidate-applications-id', 'insforge/functions/candidate-applications-id/index.ts');
+  await updateFunction('admin-applications', 'insforge/functions/admin-applications/index.ts');
+  await updateFunction('admin-reports', 'insforge/functions/admin-reports/index.ts');
+  await updateFunction('dashboard', 'insforge/functions/dashboard/index.ts');
   console.log('\n=== Edge Functions Deployed Successfully ===\n');
 }
 

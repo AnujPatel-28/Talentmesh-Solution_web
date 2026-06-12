@@ -91,10 +91,10 @@ export default function CandidatesPage() {
             if (fetchErr) throw fetchErr;
 
             if (apps && apps.length > 0) {
-                const { error: updateErr } = await insforge.database
-                    .from('applications')
-                    .update({ status: newStatus, updated_at: new Date().toISOString() })
-                    .in('id', apps.map(a => a.id));
+                const appIds = apps.map(a => a.id);
+                const { error: updateErr } = await invokeFunction('update-application', {
+                    body: { ids: appIds, status: newStatus }
+                });
 
                 if (updateErr) throw updateErr;
                 toast.success(`Updated ${selectedIds.size} candidates to ${newStatus}`);
@@ -102,9 +102,9 @@ export default function CandidatesPage() {
                 toast.error('No active applications found for selected candidates');
             }
             setSelectedIds(new Set());
-        } catch (err) {
+        } catch (err: any) {
             console.error('Bulk update error:', err);
-            toast.error('Failed to update candidates');
+            toast.error(err.message || 'Failed to update candidates');
         } finally {
             setBulkLoading(false);
         }
@@ -207,7 +207,7 @@ export default function CandidatesPage() {
                         <button 
                             className={`${styles.bulkBtn} ${styles.bulkBtnSecondary}`}
                             disabled={bulkLoading}
-                            onClick={() => bulkUpdateStatus('screening')}
+                            onClick={() => bulkUpdateStatus('reviewing')}
                         >
                             Screening
                         </button>

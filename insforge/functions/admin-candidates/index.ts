@@ -220,7 +220,7 @@ export default async function handler(request: Request): Promise<Response> {
         const { error: cpErr } = await db.database
           .from('candidate_profiles')
           .delete()
-          .in('user_id', ids);
+          .in('id', ids);
         if (cpErr) throw cpErr;
 
         // 2. Delete from profiles
@@ -287,7 +287,7 @@ export default async function handler(request: Request): Promise<Response> {
       const { error: cpError } = await db.database
         .from('candidate_profiles')
         .delete()
-        .eq('user_id', id);
+        .eq('id', id);
       if (cpError) throw cpError;
 
       // 2. Delete from profiles

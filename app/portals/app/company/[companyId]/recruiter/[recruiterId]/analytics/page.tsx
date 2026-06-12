@@ -313,7 +313,7 @@ export default function AnalyticsPage() {
                         <div className={styles.chartCard}>
                             <h3 className={styles.chartTitle}>Status Funnel</h3>
                             <div className={styles.funnel}>
-                                {['applied', 'screening', 'interview', 'offer', 'hired'].map((stage, i) => {
+                                {['applied', 'reviewing', 'shortlisted', 'interviewing', 'offered', 'hired'].map((stage, i) => {
                                     const count = applications.filter(a => a.status === stage).length;
                                     const width = 100 - (i * 15);
                                     return (

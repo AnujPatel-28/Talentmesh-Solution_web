@@ -2,7 +2,7 @@ import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
-const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
+const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,86 +22,152 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { id, status } = await req.json();
+    const body = await req.json();
+    const { id, ids, status } = body;
 
-    if (!id || !status) {
-      return new Response(JSON.stringify({ error: 'id and status required' }), { status: 400, headers: corsHeaders });
+    if ((!id && !ids) || !status) {
+      return new Response(JSON.stringify({ error: 'id or ids, and status required' }), { status: 400, headers: corsHeaders });
     }
 
-    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+    const isBulk = Array.isArray(ids);
+    const targetIds = isBulk ? ids : [id];
 
-    // Extract actor ID from JWT token
-    let actorId;
-    try {
-      const payloadBase64 = token.split('.')[1];
-      const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-      actorId = payload.sub;
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Invalid token format' }), { status: 401, headers: corsHeaders });
+    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey, isServerMode: true });
+
+    // 1. Authenticate caller securely
+    const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
+    const actorId = authData.user.id;
 
-    // Resolve actor role/type
-    const { data: profile } = await insforgeAdmin.database
+    // 2. Resolve actor role/type
+    const { data: profile, error: profileError } = await insforgeAdmin.database
       .from('profiles')
       .select('role')
       .eq('id', actorId)
       .single();
 
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: 'Profile not found' }), { status: 404, headers: corsHeaders });
+    }
+
     let actorType = 'recruiter';
-    if (profile?.role === 'admin' || profile?.role === 'super_admin') {
+    if (profile.role === 'admin' || profile.role === 'super_admin') {
       actorType = 'admin';
-    } else if (profile?.role === 'candidate') {
+    } else if (profile.role === 'candidate') {
       actorType = 'candidate';
     }
 
-    // Invoke update_application_status RPC
-    const { data: rpcResult, error: rpcError } = await insforgeAdmin.database
-      .rpc('update_application_status', {
-        p_application_id: id,
-        p_status: status,
-        p_actor_id: actorId,
-        p_actor_type: actorType
-      });
+    // 3. Enforce access control verification before modifying the application status
+    if (profile.role !== 'admin' && profile.role !== 'super_admin') {
+      // Fetch application details to verify ownership
+      const { data: appsDetails, error: appError } = await insforgeAdmin.database
+        .from('applications')
+        .select('id, status, candidate_id, jobs!inner(recruiter_id)')
+        .in('id', targetIds);
 
-    if (rpcError) {
-      return new Response(JSON.stringify({ error: rpcError.message }), { status: 500, headers: corsHeaders });
+      if (appError) {
+        return new Response(JSON.stringify({ error: 'Database error fetching applications: ' + appError.message }), { status: 500, headers: corsHeaders });
+      }
+
+      if (!appsDetails || appsDetails.length === 0) {
+        return new Response(JSON.stringify({ error: 'Applications not found' }), { status: 404, headers: corsHeaders });
+      }
+
+      if (appsDetails.length !== targetIds.length) {
+        return new Response(JSON.stringify({ error: 'Some applications were not found' }), { status: 404, headers: corsHeaders });
+      }
+
+      for (const appDetails of appsDetails) {
+        const { candidate_id: candidateId, jobs: job } = appDetails;
+        const jobRecruiterId = Array.isArray(job) ? job[0]?.recruiter_id : (job as any)?.recruiter_id;
+
+        if (profile.role === 'candidate') {
+          if (isBulk) {
+            return new Response(JSON.stringify({ error: 'Forbidden. Candidates cannot perform bulk status updates.' }), { status: 403, headers: corsHeaders });
+          }
+          // Candidates can only update their own application
+          if (candidateId !== actorId) {
+            return new Response(JSON.stringify({ error: 'Forbidden. You do not own this application.' }), { status: 403, headers: corsHeaders });
+          }
+          // Candidates can only transition status to 'withdrawn'
+          if (status !== 'withdrawn') {
+            return new Response(JSON.stringify({ error: 'Forbidden. Candidates can only withdraw their application.' }), { status: 403, headers: corsHeaders });
+          }
+        } else if (profile.role === 'recruiter') {
+          // Recruiters can only update applications for their own jobs
+          if (jobRecruiterId !== actorId) {
+            return new Response(JSON.stringify({ error: 'Forbidden. You do not own the job for this application.' }), { status: 403, headers: corsHeaders });
+          }
+        } else {
+          return new Response(JSON.stringify({ error: 'Forbidden. Invalid role.' }), { status: 403, headers: corsHeaders });
+        }
+      }
     }
 
-    const { success, no_op, application } = rpcResult;
+    // Invoke update_application_status RPC for each target ID
+    const results = [];
+    for (const targetId of targetIds) {
+      const { data: rpcResult, error: rpcError } = await insforgeAdmin.database
+        .rpc('update_application_status', {
+          p_application_id: targetId,
+          p_status: status,
+          p_actor_id: actorId,
+          p_actor_type: actorType,
+          p_metadata: {}
+        });
+
+      if (rpcError) {
+        return new Response(JSON.stringify({ error: rpcError.message }), { status: 500, headers: corsHeaders });
+      }
+      results.push(rpcResult);
+    }
 
     // Fetch full application details to return to the UI (backward compatibility)
-    const { data: updatedApp } = await insforgeAdmin.database
+    const { data: updatedApps, error: fetchUpdatedError } = await insforgeAdmin.database
       .from('applications')
       .select('*, jobs!inner(title, recruiter_id), profiles!inner(name, id)')
-      .eq('id', id)
-      .single();
+      .in('id', targetIds);
 
-    // Send email notification (fire-and-forget) if not a no-op
-    if (success && !no_op && application && application.candidate_email) {
-      const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
-      const emailServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
-
-      fetch(`${siteUrl}/api/email/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-service-key': emailServiceKey,
-        },
-        body: JSON.stringify({
-          to: application.candidate_email,
-          template: 'application-status',
-          data: {
-            name: application.candidate_name || 'Candidate',
-            email: application.candidate_email,
-            jobTitle: application.job_title,
-            status,
-          },
-          role: 'hr',
-        }),
-      }).catch((e: any) => console.error('[update-application] Email failed:', e.message));
+    if (fetchUpdatedError) {
+      return new Response(JSON.stringify({ error: fetchUpdatedError.message }), { status: 500, headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ success: true, application: updatedApp }), { 
+    // Send email notification (fire-and-forget) if not a no-op
+    const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
+    const emailServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
+
+    for (const rpcResult of results) {
+      const { success, no_op, application } = rpcResult;
+      if (success && !no_op && application && application.candidate_email) {
+        fetch(`${siteUrl}/api/email/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-service-key': emailServiceKey,
+          },
+          body: JSON.stringify({
+            to: application.candidate_email,
+            template: 'application-status',
+            data: {
+              name: application.candidate_name || 'Candidate',
+              email: application.candidate_email,
+              jobTitle: application.job_title,
+              status,
+            },
+            role: 'hr',
+          }),
+        }).catch((e: any) => console.error('[update-application] Email failed:', e.message));
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      application: isBulk ? undefined : (updatedApps?.[0] || null),
+      applications: updatedApps
+    }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });

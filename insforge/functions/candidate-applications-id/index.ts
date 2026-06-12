@@ -6,7 +6,7 @@ const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PATCH, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
   'Access-Control-Allow-Credentials': 'true',
   'Content-Type': 'application/json',
@@ -17,7 +17,7 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response('ok', { status: 204, headers: corsHeaders });
   }
 
-  if (req.method !== 'GET' && req.method !== 'DELETE') {
+  if (req.method !== 'GET' && req.method !== 'PATCH') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
       { status: 405, headers: corsHeaders }
@@ -105,9 +105,17 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  // ── DELETE — Withdraw application ─────────────────────────────────────────
-  if (req.method === 'DELETE') {
+  // ── PATCH — Withdraw application ─────────────────────────────────────────
+  if (req.method === 'PATCH') {
     try {
+      const body = await req.json();
+      if (body.status !== 'withdrawn') {
+        return new Response(
+          JSON.stringify({ error: "Only 'withdrawn' status updates are allowed via this endpoint." }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
       const { data: existing, error: existingError } = await insforgeAdmin.database
         .from('applications')
         .select('id, status')
@@ -139,20 +147,21 @@ export default async function handler(req: Request): Promise<Response> {
         );
       }
 
-      const { data, error } = await insforgeAdmin.database
-        .from('applications')
-        .update({ status: 'withdrawn', updated_at: new Date().toISOString() })
-        .eq('id', applicationId)
-        .eq('candidate_id', candidateId)
-        .select('id, status')
-        .single();
+      const { data: rpcResult, error: rpcError } = await insforgeAdmin.database
+        .rpc('update_application_status', {
+          p_application_id: applicationId,
+          p_status: 'withdrawn',
+          p_actor_id: candidateId,
+          p_actor_type: 'candidate',
+          p_metadata: {}
+        });
 
-      if (error || !data) {
-        throw new Error(`Failed to withdraw application: ${error?.message || 'Unknown error'}`);
+      if (rpcError || !rpcResult?.success) {
+        throw new Error(`Failed to withdraw application: ${rpcError?.message || 'Unknown RPC error'}`);
       }
 
       return new Response(
-        JSON.stringify(data),
+        JSON.stringify({ id: applicationId, status: 'withdrawn' }),
         { status: 200, headers: corsHeaders }
       );
     } catch (err: any) {
@@ -165,7 +174,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   // Fallback — TypeScript requires all code paths to return a Response.
   // In practice this is unreachable: earlier guards already return for
-  // any method that is not GET or DELETE.
+  // any method that is not GET or PATCH.
   return new Response(
     JSON.stringify({ error: 'Method not allowed' }),
     { status: 405, headers: corsHeaders }

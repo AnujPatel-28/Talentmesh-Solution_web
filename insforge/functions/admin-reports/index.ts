@@ -45,8 +45,9 @@ export default async function handler(req: Request): Promise<Response> {
       { count: countApplied },
       { count: countReviewing },
       { count: countShortlisted },
-      { count: countInterview },
-      { count: countOffer },
+      { count: countInterviewing },
+      { count: countOffered },
+      { count: countHired },
       { count: countRejected },
     ] = await Promise.all([
       insforge.database.from('jobs').select('*', { count: 'exact', head: true }),
@@ -56,8 +57,9 @@ export default async function handler(req: Request): Promise<Response> {
       insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'applied'),
       insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'reviewing'),
       insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'shortlisted'),
-      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'interview'),
-      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'offer'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'interviewing'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'offered'),
+      insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'hired'),
       insforge.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
     ]);
 
@@ -66,15 +68,18 @@ export default async function handler(req: Request): Promise<Response> {
       applications: totalApplications || 0,
       reviewed: countReviewing || 0,
       shortlisted: countShortlisted || 0,
-      hired: countOffer || 0,
+      hired: countHired || 0,
     };
 
     const statusBreakdown = {
       applied: countApplied || 0,
       reviewing: countReviewing || 0,
       shortlisted: countShortlisted || 0,
-      interview: countInterview || 0,
-      offer: countOffer || 0,
+      interview: countInterviewing || 0,
+      interviewing: countInterviewing || 0,
+      offer: countOffered || 0,
+      offered: countOffered || 0,
+      hired: countHired || 0,
       rejected: countRejected || 0,
     };
 

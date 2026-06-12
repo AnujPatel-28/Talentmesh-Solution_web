@@ -1332,7 +1332,11 @@ export default function AdminRecruitersPage() {
     try {
       const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
       let targetUrl = url;
-      if (url.startsWith(insforgeUrl)) {
+      if (url.includes('/recruiter_documents/')) {
+        const parts = url.split('/recruiter_documents/');
+        const key = parts[parts.length - 1];
+        targetUrl = `${window.location.origin}/api/v1/remote/functions/recruiter-document-proxy?key=${encodeURIComponent(key)}`;
+      } else if (url.startsWith(insforgeUrl)) {
         targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
       }
 
@@ -1356,7 +1360,11 @@ export default function AdminRecruitersPage() {
     try {
       const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
       let targetUrl = url;
-      if (url.startsWith(insforgeUrl)) {
+      if (url.includes('/recruiter_documents/')) {
+        const parts = url.split('/recruiter_documents/');
+        const key = parts[parts.length - 1];
+        targetUrl = `${window.location.origin}/api/v1/remote/functions/recruiter-document-proxy?key=${encodeURIComponent(key)}`;
+      } else if (url.startsWith(insforgeUrl)) {
         targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
       }
 

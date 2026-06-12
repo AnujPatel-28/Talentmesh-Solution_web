@@ -1,5 +1,6 @@
 import { createClient } from '@insforge/sdk';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
 const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL;
 const INSFORGE_SERVICE_KEY = process.env.INSFORGE_SERVICE_KEY;

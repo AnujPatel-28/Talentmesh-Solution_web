@@ -33,11 +33,31 @@ export default async function handler(req: Request): Promise<Response> {
     const resolvedServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key') || '';
     const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey || serviceKey || anonKey, isServerMode: true });
 
-    // Parallel fetching
+    // Validate requester role
+    const { data: requesterProfile, error: requesterError } = await insforgeAdmin.database
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (requesterError || !requesterProfile) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    }
+
+    const isSystemAdmin = requesterProfile.role === 'admin' || requesterProfile.role === 'super_admin';
+    const isRecruiter = requesterProfile.role === 'recruiter';
+
+    if (!isSystemAdmin && !isRecruiter) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: corsHeaders });
+    }
+
+    // Parallel fetching: candidates are only fetched for system admins to preserve RLS on candidate launch
     const [jobsRes, appsRes, candidatesRes] = await Promise.all([
       insforgeAdmin.database.from('jobs').select('*, companies:companies(*)').eq('recruiter_id', userId).order('created_at', { ascending: false }),
       insforgeAdmin.database.from('applications').select('*, jobs!inner(*)').eq('jobs.recruiter_id', userId),
-      insforgeAdmin.database.from('profiles').select('*, candidate_profiles(*)').eq('role', 'candidate').limit(30)
+      isSystemAdmin
+        ? insforgeAdmin.database.from('profiles').select('*, candidate_profiles(*)').eq('role', 'candidate').limit(30)
+        : Promise.resolve({ data: [], error: null })
     ]);
 
     const jobs = jobsRes.data || [];
@@ -120,7 +140,8 @@ export default async function handler(req: Request): Promise<Response> {
         applicants: j.applications_count || 0,
         new_applicants: 0 // Would need timestamp comparison
       })),
-      topCandidates: candidateList.slice(0, 5)
+      topCandidates: candidateList.slice(0, 5),
+      recommendations_disabled: !isSystemAdmin
     };
 
     return new Response(JSON.stringify(dashboardData), { 

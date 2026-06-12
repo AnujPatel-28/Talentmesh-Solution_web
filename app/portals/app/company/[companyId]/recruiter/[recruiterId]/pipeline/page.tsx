@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './pipeline.module.css';
 import CandidateProfileDrawer from '@/components/recruiter/CandidateProfileDrawer';
 import CreateOfferModal from '@/components/recruiter/CreateOfferModal';
 import { CustomSelect } from '@/components/ui/CustomSelect';
-
-// Types
-type ApplicationStatus = 'applied' | 'screening' | 'interview' | 'offer' | 'hired';
+import { ApplicationStatus } from '@/lib/constants/application-status';
+import { VALID_APPLICATION_TRANSITIONS } from '@/lib/constants/application-transitions';
+import { toast } from 'react-hot-toast';
 
 interface Candidate {
     id: string;
@@ -41,9 +41,10 @@ interface Job {
 
 const STAGES: { id: ApplicationStatus; label: string }[] = [
     { id: 'applied', label: 'Applied' },
-    { id: 'screening', label: 'Screening' },
-    { id: 'interview', label: 'Interview' },
-    { id: 'offer', label: 'Offer' },
+    { id: 'reviewing', label: 'Reviewing' },
+    { id: 'shortlisted', label: 'Shortlisted' },
+    { id: 'interviewing', label: 'Interviewing' },
+    { id: 'offered', label: 'Offered' },
     { id: 'hired', label: 'Hired' },
 ];
 
@@ -133,7 +134,7 @@ export default function PipelinePage() {
     // Stats
     const stats = useMemo(() => {
         const total = applications.length;
-        const offer = applications.filter(a => a.status === 'offer').length;
+        const offer = applications.filter(a => a.status === 'offered').length;
 
         // Simple duration calc: avg days since applied for all non-hired
         let avgDays = 0;
@@ -170,6 +171,15 @@ export default function PipelinePage() {
             return;
         }
 
+        // Validate transition locally
+        const allowedTransitions = VALID_APPLICATION_TRANSITIONS[oldApp.status] || [];
+        if (!allowedTransitions.includes(status)) {
+            toast.error(`Invalid transition from ${oldApp.status} to ${status}`);
+            setDraggedId(null);
+            setDropTarget(null);
+            return;
+        }
+
         // Optimistic update
         const originalApps = [...applications];
         setApplications(apps => apps.map(a =>
@@ -179,14 +189,14 @@ export default function PipelinePage() {
         setDraggedId(null);
         setDropTarget(null);
 
-        // Update DB
-        const { error } = await insforge.database
-            .from('applications')
-            .update({ status, updated_at: new Date().toISOString() })
-            .eq('id', appId);
+        // Update DB via edge function
+        const { error } = await invokeFunction('update-application', {
+            body: { id: appId, status }
+        });
 
         if (error) {
             console.error('Failed to update status:', error);
+            toast.error(error.message || 'Failed to update status');
             setApplications(originalApps); // Rollback
         }
     };
@@ -325,7 +335,7 @@ export default function PipelinePage() {
                                             </button>
                                         </div>
 
-                                        {stage.id === 'offer' && (
+                                        {stage.id === 'offered' && (
                                             <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
                                                 <button
                                                     className={styles.offerBtn}

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './CreateOfferModal.module.css';
-import { insforge } from '@/lib/insforge';
+import { insforge, invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { format, addDays } from 'date-fns';
 import { toast } from 'react-hot-toast';
@@ -111,10 +111,10 @@ export default function CreateOfferModal({ applicationId, jobId, candidateId, on
 
             if (status === 'sent') {
                 // Update application status
-                await insforge.database
-                    .from('applications')
-                    .update({ status: 'offer', updated_at: new Date().toISOString() })
-                    .eq('id', applicationId);
+                const { error: updateErr } = await invokeFunction('update-application', {
+                    body: { id: applicationId, status: 'offered' }
+                });
+                if (updateErr) throw updateErr;
                 
                 toast.success('Offer letter sent to candidate!');
             } else {

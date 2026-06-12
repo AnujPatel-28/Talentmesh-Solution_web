@@ -34,7 +34,7 @@ export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [originalProfile, setOriginalProfile] = useState<UserProfile | null>(null);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -198,7 +198,7 @@ export default function ProfilePage() {
       setOriginalProfile(JSON.parse(JSON.stringify(savedProfile)));
       setIsEditing(false);
       setToast({ message: 'Profile updated successfully!', type: 'success' });
-      
+
       trackProfileEvent('Profile Saved', {
         completion: completion.score
       });
@@ -251,8 +251,8 @@ export default function ProfilePage() {
       let url = '';
       const bucketName = type === 'avatar' ? 'avatars' : 'resumes';
       const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const uuid = typeof window !== 'undefined' && window.crypto?.randomUUID 
-        ? window.crypto.randomUUID() 
+      const uuid = typeof window !== 'undefined' && window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
         : Math.random().toString(36).substring(2, 15);
       const path = `${user.id}/${uuid}_${safeName}`;
 
@@ -281,7 +281,7 @@ export default function ProfilePage() {
       const { data: uploadData, error: uploadError } = await (insforge.storage
         .from(bucketName) as any)
         .upload(path, file, { contentType: file.type });
-          
+
       if (uploadError) throw new Error(uploadError.message);
       url = (type === 'avatar' ? uploadData?.key : uploadData?.url) || '';
 
@@ -434,8 +434,8 @@ export default function ProfilePage() {
         <p className={styles.errorStateText}>
           We encountered an issue fetching your candidate profile. Please check your connection and try again.
         </p>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={fetchProfile}
           className={styles.emptyStateBtn}
         >
@@ -448,7 +448,7 @@ export default function ProfilePage() {
   return (
     <div className={`${styles.profileContainer} ${isEditing ? styles.hasStickyBar : ''}`}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      
+
       {/* Sticky Action controls */}
       <StickyActionBar
         isEditing={isEditing}
@@ -503,10 +503,10 @@ export default function ProfilePage() {
 
       {/* Main Grid detail details */}
       <div className={styles.profilePage} style={{ marginTop: '0.5rem' }}>
-        
+
         {/* Left Side elements: Discoverability and Insights */}
         <div className={styles.profileSidebar}>
-          
+
           <div className={styles.openToggleCard}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div>
@@ -544,7 +544,7 @@ export default function ProfilePage() {
 
         {/* Right Main Columns: Preferences, Skills, Work History, Education, Socials */}
         <div className={styles.profileMain}>
-          
+
           {/* Editable Display Summary bio */}
           {isEditing && (
             <div className={styles.profileSection}>
@@ -612,10 +612,10 @@ export default function ProfilePage() {
 
           {!isEditing && (
             <div className={styles.profileSection}>
-              <SectionStatus 
-                title="Professional Summary" 
-                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary-blue)' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>} 
-                isComplete={!!profile.about} 
+              <SectionStatus
+                title="Professional Summary"
+                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--primary-blue)' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>}
+                isComplete={!!profile.about}
                 required={true}
               />
               {profile.about ? (
@@ -655,6 +655,8 @@ export default function ProfilePage() {
             isEditing={isEditing}
             onUpdate={handleUpdateWorkHistory}
           />
+
+
 
           {/* Education list */}
           <EducationSection

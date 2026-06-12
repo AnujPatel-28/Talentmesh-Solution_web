@@ -1,3 +1,5 @@
+import { ApplicationStatus } from './application-status';
+
 export const APPLICATION_STATUSES = {
   APPLIED: 'applied',
   REVIEWING: 'reviewing',
@@ -9,7 +11,7 @@ export const APPLICATION_STATUSES = {
   WITHDRAWN: 'withdrawn',
 } as const;
 
-export type ApplicationStatus = typeof APPLICATION_STATUSES[keyof typeof APPLICATION_STATUSES];
+export type { ApplicationStatus };
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   applied: 'Applied',

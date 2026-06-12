@@ -30,6 +30,7 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
     const [interviews, setInterviews] = useState<any[]>([]);
     const [stats, setStats] = useState({ open: 0, applicants: 0, interviews: 0, hires: 15 });
     const [pipeline, setPipeline] = useState<any[]>([]);
+    const [recommendationsDisabled, setRecommendationsDisabled] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -59,6 +60,7 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                 if (dash) {
                     setJobs(dash.recentJobs || []);
                     setCandidates(dash.topCandidates || []);
+                    setRecommendationsDisabled(dash.recommendations_disabled || false);
                     setStats({
                         open: dash.stats.openJobs || 0,
                         applicants: dash.stats.totalApplicants || 0,
@@ -235,7 +237,11 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                     View all {IC.arrowRight}
                                 </Link>
                             </div>
-                            {candidates.length > 0 ? candidates.map((c, i) => (
+                            {recommendationsDisabled ? (
+                                <p className={styles.emptyText} style={{ opacity: 0.8 }}>
+                                    Candidate matching is temporarily disabled during Candidate & Admin launch.
+                                </p>
+                            ) : candidates.length > 0 ? candidates.map((c, i) => (
                                 <div key={i} className={styles.candCard}>
                                     <div className={styles.candAvatar}>{c.name.split(' ').map((n: string) => n[0]).join('')}</div>
                                     <div className={styles.candBody}>

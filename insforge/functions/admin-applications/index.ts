@@ -133,7 +133,8 @@ export default async function handler(req: Request): Promise<Response> {
             p_application_id: targetId,
             p_status: nextStatus,
             p_actor_id: user.id,
-            p_actor_type: 'admin'
+            p_actor_type: 'admin',
+            p_metadata: {}
           });
 
         if (rpcError) {

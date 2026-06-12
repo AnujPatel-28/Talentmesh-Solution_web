@@ -34,9 +34,9 @@ export default async function handler(req: Request): Promise<Response> {
       // Business logic moved to server
       const pipelineStages = [
         { id: 'applied', label: 'Applied', count: 284, color: 'var(--medium-grey)', bgColor: '#f1f5f9' },
-        { id: 'screening', label: 'Screening', count: 89, color: 'var(--dodger-blue)', bgColor: 'var(--alice-blue)' },
-        { id: 'interview', label: 'Interview', count: 31, color: 'var(--brilliant-azure)', bgColor: '#dbeafe' },
-        { id: 'offer', label: 'Offer', count: 8, color: 'var(--ocean-deep)', bgColor: 'var(--icy-blue)' },
+        { id: 'reviewing', label: 'Reviewing', count: 89, color: 'var(--dodger-blue)', bgColor: 'var(--alice-blue)' },
+        { id: 'interviewing', label: 'Interviewing', count: 31, color: 'var(--brilliant-azure)', bgColor: '#dbeafe' },
+        { id: 'offered', label: 'Offered', count: 8, color: 'var(--ocean-deep)', bgColor: 'var(--icy-blue)' },
         { id: 'hired', label: 'Hired', count: 4, color: '#10b981', bgColor: '#d1fae5' },
       ];
 

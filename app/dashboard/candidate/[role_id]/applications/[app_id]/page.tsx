@@ -9,25 +9,22 @@ import appStyles from '../applications.module.css';
 import ApplicationTimeline from '@/components/candidate/ApplicationTimeline';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
-import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants/applicationStatuses';
+import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/lib/constants/application-status-map';
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 const STATUS_STEPS = [
-    { key: 'applied',      label: STATUS_LABELS.applied,      desc: 'Your application has been successfully submitted.' },
-    { key: 'reviewing',    label: STATUS_LABELS.reviewing,    desc: 'The recruiter is reviewing your profile and resume.' },
-    { key: 'shortlisted',  label: STATUS_LABELS.shortlisted,  desc: 'Congratulations! You have been shortlisted for the next round.' },
-    { key: 'interviewing', label: STATUS_LABELS.interviewing, desc: 'An interview has been scheduled or is in progress.' },
-    { key: 'interview',    label: STATUS_LABELS.interviewing, desc: 'An interview has been scheduled or is in progress.' },
-    { key: 'offered',      label: STATUS_LABELS.offered,      desc: 'You have been selected! Check your email for offer details.' },
-    { key: 'offer',        label: STATUS_LABELS.offered,      desc: 'You have been selected! Check your email for offer details.' },
-    { key: 'hired',        label: STATUS_LABELS.hired,        desc: 'You have been hired! Congratulations on landing the role.' },
+    { key: 'applied',      label: APPLICATION_STATUS_LABELS.applied,      desc: 'Your application has been successfully submitted.' },
+    { key: 'reviewing',    label: APPLICATION_STATUS_LABELS.reviewing,    desc: 'The recruiter is reviewing your profile and resume.' },
+    { key: 'shortlisted',  label: APPLICATION_STATUS_LABELS.shortlisted,  desc: 'Congratulations! You have been shortlisted for the next round.' },
+    { key: 'interviewing', label: APPLICATION_STATUS_LABELS.interviewing, desc: 'An interview has been scheduled or is in progress.' },
+    { key: 'offered',      label: APPLICATION_STATUS_LABELS.offered,      desc: 'You have been selected! Check your email for offer details.' },
+    { key: 'hired',        label: APPLICATION_STATUS_LABELS.hired,        desc: 'You have been hired! Congratulations on landing the role.' },
 ];
 
 const TERMINAL_STATUS: Record<string, { label: string; color: string; desc: string }> = {
-    rejected:  { label: STATUS_LABELS.rejected,  color: STATUS_COLORS.rejected,  desc: 'The company has decided to move forward with other candidates.' },
-    withdrawn: { label: STATUS_LABELS.withdrawn, color: STATUS_COLORS.withdrawn, desc: 'You have withdrawn this application.' },
-    accepted:  { label: STATUS_LABELS.hired,      color: STATUS_COLORS.hired,      desc: 'You have accepted the offer. Congratulations!' },
-    hired:     { label: STATUS_LABELS.hired,      color: STATUS_COLORS.hired,      desc: 'You have been hired! Congratulations on landing the role.' },
+    rejected:  { label: APPLICATION_STATUS_LABELS.rejected,  color: APPLICATION_STATUS_COLORS.rejected,  desc: 'The company has decided to move forward with other candidates.' },
+    withdrawn: { label: APPLICATION_STATUS_LABELS.withdrawn, color: APPLICATION_STATUS_COLORS.withdrawn, desc: 'You have withdrawn this application.' },
+    hired:     { label: APPLICATION_STATUS_LABELS.hired,      color: APPLICATION_STATUS_COLORS.hired,      desc: 'You have been hired! Congratulations on landing the role.' },
 };
 
 // Map status key → progress step index (1-5)
@@ -36,9 +33,7 @@ const STATUS_STAGE: Record<string, number> = {
     reviewing:    2,
     shortlisted:  3,
     interviewing: 4,
-    interview:    4,
     offered:      5,
-    offer:        5,
     hired:        5,
 };
 

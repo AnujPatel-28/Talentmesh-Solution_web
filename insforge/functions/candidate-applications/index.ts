@@ -75,14 +75,15 @@ export default async function handler(req: Request): Promise<Response> {
       const url = new URL(req.url);
       const jobId = url.searchParams.get('jobId');
 
-      // If jobId is provided, check if the candidate has already applied to this specific job
+      // If jobId is provided, check if the candidate has already applied to this specific job (excluding withdrawn)
       if (jobId) {
         const { data: existing, error: existingError } = await insforgeAdmin.database
           .from('applications')
           .select('id, status')
           .eq('candidate_id', candidateId)
           .eq('job_id', jobId)
-          .single();
+          .neq('status', 'withdrawn')
+          .maybeSingle();
 
         if (existingError || !existing) {
           return new Response(JSON.stringify({ status: null }), { status: 200, headers: corsHeaders });

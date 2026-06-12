@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { insforge } from '@/lib/insforge';
-import { STATUS_LABELS } from '@/lib/constants/applicationStatuses';
+import { APPLICATION_STATUS_LABELS } from '@/lib/constants/application-status-map';
 import styles from './ApplicationTimeline.module.css';
 
 interface ApplicationTimelineProps {
@@ -19,28 +19,24 @@ interface StatusHistory {
 }
 
 const STAGES = [
-  { key: 'applied', label: STATUS_LABELS.applied, icon: '📝', aliases: ['applied'] },
-  { key: 'reviewing', label: STATUS_LABELS.reviewing, icon: '🔍', aliases: ['screening', 'reviewing'] },
-  { key: 'shortlisted', label: STATUS_LABELS.shortlisted, icon: '⭐', aliases: ['shortlisted'] },
-  { key: 'interviewing', label: STATUS_LABELS.interviewing, icon: '🎙️', aliases: ['interviewing', 'interview'] },
-  { key: 'offered', label: STATUS_LABELS.offered, icon: '📋', aliases: ['offer', 'offered'] },
-  { key: 'hired', label: STATUS_LABELS.hired.replace(' 🎉', ''), icon: '🎉', aliases: ['hired'] },
+  { key: 'applied', label: APPLICATION_STATUS_LABELS.applied, icon: '📝' },
+  { key: 'reviewing', label: APPLICATION_STATUS_LABELS.reviewing, icon: '🔍' },
+  { key: 'shortlisted', label: APPLICATION_STATUS_LABELS.shortlisted, icon: '⭐' },
+  { key: 'interviewing', label: APPLICATION_STATUS_LABELS.interviewing, icon: '🎙️' },
+  { key: 'offered', label: APPLICATION_STATUS_LABELS.offered, icon: '📋' },
+  { key: 'hired', label: APPLICATION_STATUS_LABELS.hired, icon: '🎉' },
 ];
 
 const TERMINAL_STAGES: Record<string, { label: string, icon: string, class: string }> = {
-  rejected: { label: STATUS_LABELS.rejected, icon: '✕', class: styles.terminal },
-  withdrawn: { label: STATUS_LABELS.withdrawn, icon: '↩', class: styles.withdrawn },
-  accepted: { label: STATUS_LABELS.hired, icon: '✅', class: styles.completed }, // Some use accepted as terminal
+  rejected: { label: APPLICATION_STATUS_LABELS.rejected, icon: '✕', class: styles.terminal },
+  withdrawn: { label: APPLICATION_STATUS_LABELS.withdrawn, icon: '↩', class: styles.withdrawn },
 };
 
 const FRIENDLY_MESSAGES: Record<string, string> = {
   'applied': 'Application submitted',
-  'screening': "Your application caught the recruiter's attention",
   'reviewing': "Your application caught the recruiter's attention",
   'shortlisted': "Great news — you've been shortlisted!",
   'interviewing': "An interview has been scheduled",
-  'interview': "An interview has been scheduled",
-  'offer': "An offer has been extended to you",
   'offered': "An offer has been extended to you",
   'hired': "Congratulations on your new role!",
   'rejected': "This application has concluded",
@@ -85,21 +81,19 @@ export default function ApplicationTimeline({ applicationId, currentStatus, appl
   }, [applicationId, currentStatus, appliedAt]);
 
   const getStageDate = (stageKey: string) => {
-    const stage = STAGES.find(s => s.key === stageKey);
-    const aliases = stage ? stage.aliases : [stageKey];
-    const entry = history.find(h => aliases.includes(h.to_status));
+    const entry = history.find(h => h.to_status === stageKey);
     return entry ? new Date(entry.changed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
   };
 
   const isStageCompleted = (stageKey: string) => {
     const stageIdx = STAGES.findIndex(s => s.key === stageKey);
-    const currentIdx = STAGES.findIndex(s => s.aliases.includes(currentStatus));
+    const currentIdx = STAGES.findIndex(s => s.key === currentStatus);
     
     if (TERMINAL_STAGES[currentStatus]) {
       // Find the last non-terminal stage reached
       const lastReached = [...history].reverse().find(h => !TERMINAL_STAGES[h.to_status]);
       if (!lastReached) return stageKey === 'applied';
-      const lastIdx = STAGES.findIndex(s => s.aliases.includes(lastReached.to_status));
+      const lastIdx = STAGES.findIndex(s => s.key === lastReached.to_status);
       return stageIdx <= lastIdx;
     }
     
@@ -107,8 +101,7 @@ export default function ApplicationTimeline({ applicationId, currentStatus, appl
   };
 
   const isStageCurrent = (stageKey: string) => {
-    const stage = STAGES.find(s => s.key === stageKey);
-    return stage?.aliases.includes(currentStatus) || false;
+    return stageKey === currentStatus;
   };
 
   const isTerminal = !!TERMINAL_STAGES[currentStatus];
@@ -119,10 +112,10 @@ export default function ApplicationTimeline({ applicationId, currentStatus, appl
     if (isTerminal) {
        const lastReached = [...history].reverse().find(h => !TERMINAL_STAGES[h.to_status]);
        if (!lastReached) return 0;
-       const idx = STAGES.findIndex(s => s.aliases.includes(lastReached.to_status));
+       const idx = STAGES.findIndex(s => s.key === lastReached.to_status);
        return (idx / (STAGES.length - 1)) * 100;
     }
-    const currentIdx = STAGES.findIndex(s => s.aliases.includes(currentStatus));
+    const currentIdx = STAGES.findIndex(s => s.key === currentStatus);
     if (currentIdx === -1) return 0;
     return (currentIdx / (STAGES.length - 1)) * 100;
   };

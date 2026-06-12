@@ -1,3 +1,5 @@
+import { ApplicationStatus } from '@/lib/constants/application-status';
+export type { ApplicationStatus };
 export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'super_admin';
 
 export interface WorkExperience {
@@ -65,8 +67,6 @@ export interface UserProfile {
 }
 
 export type JobType = 'full-time' | 'part-time' | 'contract' | 'remote' | 'hybrid';
-
-export type ApplicationStatus = 'applied' | 'reviewing' | 'shortlisted' | 'interview' | 'offer' | 'accepted' | 'rejected' | 'withdrawn' | 'active';
 
 export interface Application {
     id: string;
