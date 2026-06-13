@@ -139,8 +139,8 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                             <span className={styles.statLabel}>Profile Strength</span>
                             <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.target}</span>
                         </div>
-                        <span className={styles.statVal}>{profile?.profile_strength || 85}%</span>
-                        <span className={styles.statHint}>Add {Math.max(0, 90 - (profile?.profile_strength || 85))}% more to reach 90%</span>
+                        <span className={styles.statVal}>{profile?.profile_strength ?? 0}%</span>
+                        <span className={styles.statHint}>Add {Math.max(0, 90 - (profile?.profile_strength ?? 0))}% more to reach 90%</span>
                     </div>
                     <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/messages`)}>
                         <div className={styles.statTop}>
@@ -329,7 +329,9 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                         skills: profile?.skills,
                                         experience: profile?.work_history,
                                         education: profile?.education,
-                                        location: dbProfile?.location
+                                        location: dbProfile?.location,
+                                        linkedin_url: profile?.linkedin_url,
+                                        profile_strength: profile?.profile_strength
                                     }}
                                 />
                             </div>

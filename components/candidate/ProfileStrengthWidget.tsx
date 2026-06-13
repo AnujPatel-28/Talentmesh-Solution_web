@@ -12,6 +12,8 @@ interface ProfileStrengthWidgetProps {
     experience?: any[] | null;
     education?: string | any[] | null;
     location?: string | null;
+    linkedin_url?: string | null;
+    profile_strength?: number | null;
   };
   variant?: 'compact' | 'full';
   hideWhenComplete?: boolean;
@@ -30,17 +32,7 @@ export default function ProfileStrengthWidget({
     return () => clearTimeout(timer);
   }, []);
 
-  const totalScore = useMemo(() => {
-    let score = 0;
-    if (candidate.avatar_url) score += 15;
-    if (candidate.resume_url) score += 25;
-    if (candidate.bio && candidate.bio.trim().length >= 30) score += 15;
-    if (candidate.skills && candidate.skills.length >= 5) score += 15;
-    if (Array.isArray(candidate.experience) && candidate.experience.length >= 1) score += 15;
-    if (candidate.education && (Array.isArray(candidate.education) ? candidate.education.length >= 1 : typeof candidate.education === 'string' && candidate.education.trim().length > 0)) score += 10;
-    if (candidate.location) score += 5;
-    return score;
-  }, [candidate]);
+  const totalScore = candidate.profile_strength || 0;
 
   if (isDismissed) return null;
   if (hideWhenComplete && totalScore >= 100) return null;

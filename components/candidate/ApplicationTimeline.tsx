@@ -1,16 +1,9 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { insforge } from '@/lib/insforge';
+import React from 'react';
 import { APPLICATION_STATUS_LABELS } from '@/lib/constants/application-status-map';
 import styles from './ApplicationTimeline.module.css';
 
-interface ApplicationTimelineProps {
-  applicationId: string;
-  currentStatus: string;
-  appliedAt: string;
-}
-
-interface StatusHistory {
+export interface StatusHistory {
   id: string;
   from_status: string | null;
   to_status: string;
@@ -18,14 +11,69 @@ interface StatusHistory {
   note: string | null;
 }
 
+interface ApplicationTimelineProps {
+  currentStatus: string;
+  history: StatusHistory[];
+  appliedAt: string;
+}
+
 const STAGES = [
-  { key: 'applied', label: APPLICATION_STATUS_LABELS.applied, icon: '📝' },
-  { key: 'reviewing', label: APPLICATION_STATUS_LABELS.reviewing, icon: '🔍' },
-  { key: 'shortlisted', label: APPLICATION_STATUS_LABELS.shortlisted, icon: '⭐' },
-  { key: 'interviewing', label: APPLICATION_STATUS_LABELS.interviewing, icon: '🎙️' },
-  { key: 'offered', label: APPLICATION_STATUS_LABELS.offered, icon: '📋' },
-  { key: 'hired', label: APPLICATION_STATUS_LABELS.hired, icon: '🎉' },
+  { key: 'applied', label: APPLICATION_STATUS_LABELS.applied },
+  { key: 'reviewing', label: APPLICATION_STATUS_LABELS.reviewing },
+  { key: 'shortlisted', label: APPLICATION_STATUS_LABELS.shortlisted },
+  { key: 'interviewing', label: APPLICATION_STATUS_LABELS.interviewing },
+  { key: 'offered', label: APPLICATION_STATUS_LABELS.offered },
+  { key: 'hired', label: APPLICATION_STATUS_LABELS.hired },
 ];
+
+const STAGE_ICONS: Record<string, () => React.JSX.Element> = {
+  applied: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+      <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+      <path d="M10 9H8"/>
+      <path d="M16 13H8"/>
+      <path d="M16 17H8"/>
+    </svg>
+  ),
+  reviewing: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  ),
+  shortlisted: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  ),
+  interviewing: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+      <line x1="16" x2="16" y1="2" y2="6"/>
+      <line x1="8" x2="8" y1="2" y2="6"/>
+      <line x1="3" x2="21" y1="10" y2="10"/>
+      <path d="M8 14h.01"/>
+      <path d="M12 14h.01"/>
+      <path d="M16 14h.01"/>
+    </svg>
+  ),
+  offered: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+      <path d="m9 12 2 2 4-4"/>
+    </svg>
+  ),
+  hired: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+      <path d="M4 22h16"/>
+      <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/>
+      <path d="M12 2a6 6 0 0 1 6 6v5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/>
+    </svg>
+  )
+};
 
 const TERMINAL_STAGES: Record<string, { label: string, icon: string, class: string }> = {
   rejected: { label: APPLICATION_STATUS_LABELS.rejected, icon: '✕', class: styles.terminal },
@@ -33,162 +81,193 @@ const TERMINAL_STAGES: Record<string, { label: string, icon: string, class: stri
 };
 
 const FRIENDLY_MESSAGES: Record<string, string> = {
-  'applied': 'Application submitted',
-  'reviewing': "Your application caught the recruiter's attention",
-  'shortlisted': "Great news — you've been shortlisted!",
-  'interviewing': "An interview has been scheduled",
-  'offered': "An offer has been extended to you",
-  'hired': "Congratulations on your new role!",
-  'rejected': "This application has concluded",
-  'withdrawn': "You withdrew this application",
+  'applied': 'Application submitted successfully',
+  'reviewing': 'Recruiter is reviewing your profile',
+  'shortlisted': "You've been shortlisted for the next round!",
+  'interviewing': 'Interview scheduled or in progress',
+  'offered': 'Offer extended - congratulations!',
+  'hired': 'Hired! Welcome to the team!',
+  'rejected': 'Application closed',
+  'withdrawn': 'Application withdrawn',
 };
 
-export default function ApplicationTimeline({ applicationId, currentStatus, appliedAt }: ApplicationTimelineProps) {
-  const [history, setHistory] = useState<StatusHistory[]>([]);
-  const [loading, setLoading] = useState(true);
+const STAGE_INDEX: Record<string, number> = {
+  applied: 0,
+  reviewing: 1,
+  shortlisted: 2,
+  interviewing: 3,
+  offered: 4,
+  hired: 5,
+};
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const { data, error } = await insforge.database
-          .from('application_status_history')
-          .select('*')
-          .eq('application_id', applicationId)
-          .order('changed_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          setHistory(data);
-        } else {
-          // Fallback: Synthesize history
-          const synth: StatusHistory[] = [
-            { id: 'initial', from_status: null, to_status: 'applied', changed_at: appliedAt, note: null }
-          ];
-          if (currentStatus !== 'applied') {
-            synth.push({ id: 'current', from_status: 'applied', to_status: currentStatus, changed_at: new Date().toISOString(), note: null });
-          }
-          setHistory(synth);
-        }
-      } catch (err) {
-        console.error('Error fetching status history:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [applicationId, currentStatus, appliedAt]);
-
-  const getStageDate = (stageKey: string) => {
-    const entry = history.find(h => h.to_status === stageKey);
-    return entry ? new Date(entry.changed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-  };
+// Horizontal Compact Progress Timeline
+export default function ApplicationTimeline({ currentStatus, history, appliedAt }: ApplicationTimelineProps) {
+  const isTerminal = !!TERMINAL_STAGES[currentStatus];
+  const currentIdx = STAGE_INDEX[currentStatus] ?? 0;
 
   const isStageCompleted = (stageKey: string) => {
-    const stageIdx = STAGES.findIndex(s => s.key === stageKey);
-    const currentIdx = STAGES.findIndex(s => s.key === currentStatus);
-    
-    if (TERMINAL_STAGES[currentStatus]) {
-      // Find the last non-terminal stage reached
-      const lastReached = [...history].reverse().find(h => !TERMINAL_STAGES[h.to_status]);
-      if (!lastReached) return stageKey === 'applied';
-      const lastIdx = STAGES.findIndex(s => s.key === lastReached.to_status);
-      return stageIdx <= lastIdx;
+    if (isTerminal) {
+      const lastActiveEntry = [...history].reverse().find(h => STAGE_INDEX[h.to_status] !== undefined);
+      if (!lastActiveEntry) return stageKey === 'applied';
+      const lastActiveIdx = STAGE_INDEX[lastActiveEntry.to_status] ?? 0;
+      return STAGE_INDEX[stageKey] <= lastActiveIdx;
     }
-    
-    return stageIdx < currentIdx;
+    return STAGE_INDEX[stageKey] < currentIdx;
   };
 
   const isStageCurrent = (stageKey: string) => {
+    if (isTerminal) return false;
     return stageKey === currentStatus;
   };
 
-  const isTerminal = !!TERMINAL_STAGES[currentStatus];
-  const terminalInfo = TERMINAL_STAGES[currentStatus];
+  const getStageDate = (stageKey: string) => {
+    const completed = isStageCompleted(stageKey);
+    const current = isStageCurrent(stageKey);
+    if (!completed && !current) return null;
 
-  // Calculate progress bar width
-  const calculateProgress = () => {
-    if (isTerminal) {
-       const lastReached = [...history].reverse().find(h => !TERMINAL_STAGES[h.to_status]);
-       if (!lastReached) return 0;
-       const idx = STAGES.findIndex(s => s.key === lastReached.to_status);
-       return (idx / (STAGES.length - 1)) * 100;
+    const entry = history.find(h => h.to_status === stageKey);
+    if (!entry && stageKey === 'applied' && appliedAt) {
+      return new Date(appliedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
-    const currentIdx = STAGES.findIndex(s => s.key === currentStatus);
-    if (currentIdx === -1) return 0;
-    return (currentIdx / (STAGES.length - 1)) * 100;
+    return entry ? new Date(entry.changed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+  };
+
+  const isSegmentCompleted = (index: number) => {
+    if (isTerminal) {
+      const lastActiveEntry = [...history].reverse().find(h => STAGE_INDEX[h.to_status] !== undefined);
+      if (!lastActiveEntry) return false;
+      const lastActiveIdx = STAGE_INDEX[lastActiveEntry.to_status] ?? 0;
+      return index < lastActiveIdx;
+    }
+    return index < currentIdx;
   };
 
   return (
     <div className={styles.timelineContainer}>
       <div className={styles.timeline}>
-        <div className={styles.timelineTrack} />
-        <div className={styles.timelineProgress} style={{ width: `${calculateProgress()}%` }} />
-        
-        {STAGES.map((stage) => {
+        {STAGES.map((stage, idx) => {
           const completed = isStageCompleted(stage.key);
           const current = isStageCurrent(stage.key);
           const date = getStageDate(stage.key);
+          const RenderIcon = STAGE_ICONS[stage.key];
           
           return (
-            <div key={stage.key} className={styles.stageNode}>
-              <div className={`
-                ${styles.nodeCircle} 
-                ${completed ? styles.completed : ''} 
-                ${current ? styles.current : ''}
-                ${!completed && !current ? styles.pending : ''}
-              `}>
-                {stage.icon}
+            <React.Fragment key={stage.key}>
+              <div className={styles.stageNode}>
+                <div className={`
+                  ${styles.nodeCircle} 
+                  ${completed ? styles.completed : ''} 
+                  ${current ? styles.current : ''}
+                  ${!completed && !current ? styles.pending : ''}
+                `}>
+                  <RenderIcon />
+                </div>
+                <div className={styles.stageInfo}>
+                  <div className={styles.stageLabel}>{stage.label}</div>
+                  {date && <div className={styles.stageDate}>{date}</div>}
+                </div>
               </div>
-              <div className={styles.stageInfo}>
-                <div className={styles.stageLabel}>{stage.label}</div>
-                <div className={styles.stageDate}>{date || 'Pending'}</div>
+              
+              {idx < STAGES.length - 1 && (
+                <div className={`
+                  ${styles.connectorLine} 
+                  ${isSegmentCompleted(idx) ? styles.connectorCompleted : ''}
+                `} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Vertical Recent Activity Timeline
+export function RecentActivityTimeline({ currentStatus, history }: Omit<ApplicationTimelineProps, 'appliedAt'>) {
+  const isTerminal = !!TERMINAL_STAGES[currentStatus];
+  const currentIdx = STAGE_INDEX[currentStatus] ?? 0;
+
+  const getStageStatusInfo = (stageKey: string) => {
+    const isCompleted = isTerminal 
+      ? (STAGE_INDEX[stageKey] <= (STAGE_INDEX[[...history].reverse().find(h => STAGE_INDEX[h.to_status] !== undefined)?.to_status || ''] ?? 0))
+      : STAGE_INDEX[stageKey] <= currentIdx;
+    const isCurrent = !isTerminal && stageKey === currentStatus;
+
+    const entry = history.find(h => h.to_status === stageKey);
+    const dateStr = entry 
+      ? new Date(entry.changed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : null;
+
+    return {
+      isCompleted,
+      isCurrent,
+      date: isCompleted ? dateStr : null,
+      note: isCompleted ? (entry?.note || FRIENDLY_MESSAGES[stageKey]) : 'Pending'
+    };
+  };
+
+  return (
+    <div className={styles.verticalTimelineContainer}>
+      <div className={styles.verticalTimeline}>
+        {STAGES.map((stage, index) => {
+          const { isCompleted, isCurrent, date, note } = getStageStatusInfo(stage.key);
+          const RenderIcon = STAGE_ICONS[stage.key];
+          
+          return (
+            <div 
+              key={stage.key} 
+              className={`
+                ${styles.verticalNode} 
+                ${isCompleted ? styles.vCompleted : ''} 
+                ${isCurrent ? styles.vCurrent : ''}
+                ${!isCompleted ? styles.vPending : ''}
+              `}
+            >
+              {index < STAGES.length - 1 && <div className={styles.verticalLine} />}
+              
+              <div className={styles.verticalDot}>
+                {isCurrent && <span className={styles.pulseDot} />}
+              </div>
+              
+              <div className={styles.verticalContent}>
+                <div className={styles.verticalHeaderRow}>
+                  <div className={styles.verticalTitleGroup}>
+                    <div className={styles.verticalIconWrapper}>
+                      <RenderIcon />
+                    </div>
+                    <h4 className={styles.verticalStageTitle}>{stage.label}</h4>
+                  </div>
+                  {date && <span className={styles.verticalDate}>{date}</span>}
+                </div>
+                <p className={styles.verticalDesc}>{note}</p>
               </div>
             </div>
           );
         })}
 
         {isTerminal && (
-           <div className={styles.stageNode}>
-              <div className={`${styles.nodeCircle} ${terminalInfo.class}`}>
-                {terminalInfo.icon}
+          <div className={`${styles.verticalNode} ${styles.vTerminal}`}>
+            <div className={styles.verticalLine} style={{ display: 'none' }} />
+            <div className={styles.verticalContent} style={{ paddingLeft: '32px' }}>
+              <div className={styles.verticalHeaderRow}>
+                <div className={styles.verticalTitleGroup}>
+                  <div className={`${styles.verticalIconWrapper} ${styles.vTerminalIcon}`}>
+                    ✕
+                  </div>
+                  <h4 className={styles.verticalStageTitle} style={{ color: currentStatus === 'rejected' ? '#e11d48' : '#64748b' }}>
+                    {TERMINAL_STAGES[currentStatus].label}
+                  </h4>
+                </div>
+                <span className={styles.verticalDate}>
+                  {new Date(history.find(h => h.to_status === currentStatus)?.changed_at || '').toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
               </div>
-              <div className={styles.stageInfo}>
-                <div className={styles.stageLabel}>{terminalInfo.label}</div>
-                <div className={styles.stageDate}>{getStageDate(currentStatus)}</div>
-              </div>
-           </div>
-        )}
-      </div>
-
-      {isTerminal && (
-        <div style={{ 
-          marginTop: '20px', padding: '12px 16px', borderRadius: '12px', 
-          background: currentStatus === 'rejected' ? '#fff1f2' : '#f8fafc',
-          color: currentStatus === 'rejected' ? '#e11d48' : '#475569',
-          fontSize: '0.85rem', fontWeight: 500, border: '1px solid currentColor',
-          opacity: 0.8
-        }}>
-          {currentStatus === 'rejected' ? "Your application was not selected for this role." : `You withdrew this application on ${getStageDate(currentStatus)}.`}
-        </div>
-      )}
-
-      <div className={styles.logContainer}>
-        <h3 className={styles.logTitle}>Activity Log</h3>
-        <div className={styles.logList}>
-          {history.map((entry) => (
-            <div key={entry.id} className={styles.logItem}>
-              <span className={styles.logBullet}>•</span>
-              <span className={styles.logDate}>
-                {new Date(entry.changed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, {new Date(entry.changed_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              <span className={styles.logMessage}>
-                — {FRIENDLY_MESSAGES[entry.to_status] || `Status updated to ${entry.to_status}`}
-              </span>
+              <p className={styles.verticalDesc} style={{ paddingLeft: '28px' }}>
+                {currentStatus === 'rejected' ? 'This application has concluded.' : 'You withdrew this application.'}
+              </p>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

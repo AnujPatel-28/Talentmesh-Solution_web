@@ -46,7 +46,9 @@ const checks = {
   // 013_security_and_architectural_fixes.sql, 014_fix_applications_count_withdrawn.sql are idempotent (DROP + CREATE)
   '014_notification_queue.sql': { type: 'table', name: 'notification_templates' },
   '015_session_governance_cleanup.sql': { type: 'table', name: 'user_sessions' },
-  '016_resumes_storage_rls.sql': { type: 'policy', schema: 'storage', table: 'objects', name: 'resumes_select' }
+  '016_resumes_storage_rls.sql': { type: 'policy', schema: 'storage', table: 'objects', name: 'resumes_select' },
+  '026_profile_strength_calculation.sql': { type: 'function', name: 'calculate_profile_strength_score' },
+  '027_create_interviews_table.sql': { type: 'table', name: 'interviews' }
 };
 
 async function checkExists(check) {

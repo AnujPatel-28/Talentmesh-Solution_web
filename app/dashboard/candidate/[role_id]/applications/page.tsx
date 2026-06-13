@@ -105,36 +105,69 @@ export default function ApplicationsPage() {
                     <h1 className={styles.pageHeaderTitle}>My Applications</h1>
                     <p className={styles.pageHeaderSub}>Track your journey across {stats.total} roles.</p>
                 </div>
-                <div className={styles.headerStats}>
-                    <div className={styles.statCard} style={{ padding: '0.75rem 1.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{stats.total}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Applied</div>
+                <div className={styles.headerStats} style={{ display: 'flex', gap: '0.75rem' }}>
+                    <div className={styles.statCard} style={{ 
+                        padding: '0.6rem 1.25rem', 
+                        background: '#eff6ff', 
+                        border: '1px solid #bfdbfe', 
+                        borderRadius: '12px', 
+                        textAlign: 'center',
+                        boxShadow: '0 1px 2px rgba(59, 130, 246, 0.03)',
+                        minWidth: '90px'
+                    }}>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1e40af', lineHeight: 1.2 }}>{stats.total}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginTop: '2px' }}>Applied</div>
                     </div>
-                    <div className={styles.statCard} style={{ padding: '0.75rem 1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#166534' }}>{stats.active}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Active</div>
+                    <div className={styles.statCard} style={{ 
+                        padding: '0.6rem 1.25rem', 
+                        background: '#ecfdf5', 
+                        border: '1px solid #a7f3d0', 
+                        borderRadius: '12px', 
+                        textAlign: 'center',
+                        boxShadow: '0 1px 2px rgba(16, 185, 129, 0.03)',
+                        minWidth: '90px'
+                    }}>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{stats.active}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginTop: '2px' }}>Active</div>
                     </div>
-                    <div className={styles.statCard} style={{ padding: '0.75rem 1.5rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#92400e' }}>{stats.offers}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Offers</div>
+                    <div className={styles.statCard} style={{ 
+                        padding: '0.6rem 1.25rem', 
+                        background: '#fffbeb', 
+                        border: '1px solid #fde68a', 
+                        borderRadius: '12px', 
+                        textAlign: 'center',
+                        boxShadow: '0 1px 2px rgba(245, 158, 11, 0.03)',
+                        minWidth: '90px'
+                    }}>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#92400e', lineHeight: 1.2 }}>{stats.offers}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginTop: '2px' }}>Offers</div>
                     </div>
                 </div>
             </div>
 
-            <div className={styles.tabScroll}>
+            <div style={{
+                display: 'inline-flex',
+                background: '#f1f5f9',
+                padding: '4px',
+                borderRadius: '9999px',
+                gap: '4px',
+                alignSelf: 'flex-start',
+                marginBottom: '0.5rem'
+            }}>
                 {(['all', 'active', 'rejected', 'withdrawn'] as const).map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         style={{
-                            padding: '0.75rem 1.5rem',
+                            padding: '0.45rem 1.25rem',
                             border: 'none',
-                            background: 'transparent',
-                            color: activeTab === tab ? 'var(--primary-blue)' : '#64748b',
-                            fontSize: '0.9rem',
-                            fontWeight: 700,
+                            background: activeTab === tab ? 'white' : 'transparent',
+                            color: activeTab === tab ? '#0f172a' : '#64748b',
+                            fontSize: '0.825rem',
+                            fontWeight: 600,
                             cursor: 'pointer',
-                            borderBottom: activeTab === tab ? '2px solid var(--primary-blue)' : '2px solid transparent',
+                            borderRadius: '9999px',
+                            boxShadow: activeTab === tab ? '0 1px 3px rgba(0, 0, 0, 0.08)' : 'none',
                             transition: 'all 0.2s',
                             textTransform: 'capitalize'
                         }}
@@ -144,13 +177,13 @@ export default function ApplicationsPage() {
                 ))}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {filteredApps.length === 0 ? (
                     <div style={{ padding: '80px 0', textAlign: 'center', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}><span role="img" aria-hidden="true">📁</span></div>
-                        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a' }}>No applications yet</h3>
-                        <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Start your journey by browsing available roles.</p>
-                        <Link href={`/dashboard/candidate/${roleId}/jobs`} style={{ background: 'var(--primary-blue)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '10px', textDecoration: 'none', fontWeight: 600 }}>Browse Jobs</Link>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>No applications yet</h3>
+                        <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1.5rem' }}>Start your journey by browsing available roles.</p>
+                        <Link href={`/dashboard/candidate/${roleId}/jobs`} style={{ background: 'var(--primary-blue)', color: 'white', padding: '0.6rem 1.5rem', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>Browse Jobs</Link>
                     </div>
                 ) : (
                     filteredApps.map(app => {
@@ -166,106 +199,204 @@ export default function ApplicationsPage() {
                                     border: '1px solid #e2e8f0',
                                     borderRadius: '16px',
                                     padding: '1.5rem',
-                                    transition: 'transform 0.2s, box-shadow 0.2s',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: '1.25rem',
                                     textDecoration: 'none',
-                                    color: 'inherit'
+                                    color: 'inherit',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.01)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(15, 23, 42, 0.04)';
+                                    e.currentTarget.style.borderColor = '#cbd5e1';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.01)';
+                                    e.currentTarget.style.borderColor = '#e2e8f0';
                                 }}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                         <div style={{
                                             width: '56px', height: '56px', borderRadius: '12px',
-                                            background: '#f1f5f9', border: '1px solid #e2e8f0',
+                                            background: '#f8fafc', border: '1px solid #e2e8f0',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontWeight: 800, color: 'var(--primary-blue)', overflow: 'hidden'
+                                            fontWeight: 800, color: 'var(--primary-blue)', overflow: 'hidden',
+                                            flexShrink: 0
                                         }}>
                                             {app.jobs?.companies?.logo_url ? (
                                                 <img src={getPublicStorageUrl('company-logos', app.jobs.companies.logo_url)} alt={app.jobs?.companies?.name || 'Company Logo'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (app.jobs?.companies?.name?.[0] || '🏢')}
                                         </div>
                                         <div>
-                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{app.jobs?.title ?? 'Job Unavailable'}</h3>
-                                            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                                                <span>{app.jobs?.companies?.name ?? 'Company Unavailable'}</span>
-                                                <span>•</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><IC.Location /> {app.jobs?.location ?? 'N/A'}</span>
-                                                <span>•</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><IC.Briefcase /> {app.jobs?.type ?? 'N/A'}</span>
+                                            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>{app.jobs?.title ?? 'Job Unavailable'}</h3>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem' }}>
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.3rem',
+                                                    background: '#f8fafc',
+                                                    border: '1px solid #e2e8f0',
+                                                    color: '#475569',
+                                                    fontSize: '0.725rem',
+                                                    fontWeight: 600,
+                                                    padding: '0.2rem 0.5rem',
+                                                    borderRadius: '6px'
+                                                }}>
+                                                    🏢 {app.jobs?.companies?.name ?? 'Company'}
+                                                </span>
+                                                {app.jobs?.location && (
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.3rem',
+                                                        background: '#f8fafc',
+                                                        border: '1px solid #e2e8f0',
+                                                        color: '#475569',
+                                                        fontSize: '0.725rem',
+                                                        fontWeight: 600,
+                                                        padding: '0.2rem 0.5rem',
+                                                        borderRadius: '6px'
+                                                    }}>
+                                                        <IC.Location /> {app.jobs.location}
+                                                    </span>
+                                                )}
+                                                {app.jobs?.type && (
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.3rem',
+                                                        background: '#f8fafc',
+                                                        border: '1px solid #e2e8f0',
+                                                        color: '#475569',
+                                                        fontSize: '0.725rem',
+                                                        fontWeight: 600,
+                                                        padding: '0.2rem 0.5rem',
+                                                        borderRadius: '6px'
+                                                    }}>
+                                                        <IC.Briefcase /> {app.jobs.type}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right' }}>
+                                    <div style={{ textAlign: 'right', marginLeft: 'auto' }}>
                                         <span style={{
-                                            background: (statusInfo?.color || '#64748b') + '15',
+                                            background: (statusInfo?.color || '#64748b') + '12',
                                             color: statusInfo?.color || '#64748b',
-                                            padding: '0.4rem 0.8rem',
-                                            borderRadius: '8px',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
+                                            border: `1px solid ${statusInfo?.color || '#64748b'}25`,
+                                            padding: '0.35rem 0.75rem',
+                                            borderRadius: '6px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
                                             textTransform: 'uppercase',
-                                            letterSpacing: '0.02em',
+                                            letterSpacing: '0.04em',
                                             display: 'inline-block'
                                         }}>
                                             {statusInfo?.label || 'Unknown'}
                                         </span>
-                                        <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
+                                        <div style={{ marginTop: '0.5rem', fontSize: '0.725rem', color: '#94a3b8', fontWeight: 500 }}>
                                             Applied {formatDistanceToNow(new Date(app.applied_at))} ago
                                         </div>
                                     </div>
                                 </div>
 
                                 {!isTerminal ? (
-                                    <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                                            {['Applied', 'Review', 'Shortlist', 'Interview', 'Offer'].map((s, idx) => (
-                                                <span key={s} style={{
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 700,
-                                                    color: (statusInfo?.stage || 0) > idx ? 'var(--primary-blue)' : '#94a3b8',
-                                                    textTransform: 'uppercase'
-                                                }}>{s}</span>
-                                            ))}
+                                    <div style={{ 
+                                        background: '#f8fafc', 
+                                        padding: '1rem 1.25rem', 
+                                        borderRadius: '12px', 
+                                        border: '1px solid #f1f5f9',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.6rem'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusInfo?.color || 'var(--primary-blue)', display: 'inline-block' }} />
+                                                Pipeline Status: <strong style={{ color: '#0f172a' }}>{statusInfo?.label}</strong>
+                                            </span>
+                                            <span style={{ color: '#64748b' }}>Step {statusInfo?.stage || 1} of 5</span>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '4px', height: '6px' }}>
-                                            {[1, 2, 3, 4, 5].map(step => (
-                                                <div key={step} style={{
-                                                    flex: 1,
-                                                    background: (statusInfo?.stage || 0) >= step ? 'var(--primary-blue)' : '#e2e8f0',
-                                                    borderRadius: '4px'
-                                                }} />
-                                            ))}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '10px', marginTop: '0.15rem' }}>
+                                            {[1, 2, 3, 4, 5].map((step, idx) => {
+                                                const isFilled = (statusInfo?.stage || 0) >= step;
+                                                const isLastFilled = (statusInfo?.stage || 0) === step;
+                                                return (
+                                                    <React.Fragment key={step}>
+                                                        <div style={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            borderRadius: '50%',
+                                                            background: isFilled ? 'var(--primary-blue)' : '#cbd5e1',
+                                                            border: isLastFilled ? '3px solid #eff6ff' : 'none',
+                                                            boxShadow: isLastFilled ? '0 0 0 1.5px var(--primary-blue)' : 'none',
+                                                            transition: 'all 0.3s',
+                                                            zIndex: 2,
+                                                            flexShrink: 0
+                                                        }} />
+                                                        {idx < 4 && (
+                                                            <div style={{
+                                                                flex: 1,
+                                                                height: '2.5px',
+                                                                background: (statusInfo?.stage || 0) > step ? 'var(--primary-blue)' : '#e2e8f0',
+                                                                transition: 'all 0.3s',
+                                                                zIndex: 1
+                                                            }} />
+                                                        )}
+                                                    </React.Fragment>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ) : (
                                     app.status === 'rejected' && (
-                                        <div style={{ background: '#fef2f2', padding: '1rem', borderRadius: '12px', border: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.9rem' }}>
+                                        <div style={{ 
+                                            background: '#fef2f2', 
+                                            padding: '0.85rem 1.1rem', 
+                                            borderRadius: '12px', 
+                                            border: '1px solid #fee2e2', 
+                                            color: '#991b1b', 
+                                            fontSize: '0.825rem',
+                                            lineHeight: 1.5
+                                        }}>
                                             Thank you for your interest. The company has decided to move forward with other candidates at this time.
                                         </div>
                                     )
                                 )}
 
-                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
                                     {['applied', 'reviewing', 'shortlisted'].includes(app.status) && (
                                         <button
                                             onClick={(e) => handleWithdraw(app.id, e)}
                                             style={{
-                                                padding: '0.6rem 1rem', borderRadius: '10px',
+                                                padding: '0.45rem 1rem', borderRadius: '8px',
                                                 background: 'white', border: '1px solid #e2e8f0',
-                                                color: '#ef4444', fontWeight: 600, fontSize: '0.85rem',
-                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem'
+                                                color: '#ef4444', fontWeight: 600, fontSize: '0.8rem',
+                                                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = '#fee2e2';
+                                                e.currentTarget.style.borderColor = '#fca5a5';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = 'white';
+                                                e.currentTarget.style.borderColor = '#e2e8f0';
                                             }}
                                         >
                                             <IC.Withdraw /> Withdraw
                                         </button>
                                     )}
                                     <span style={{
-                                        padding: '0.6rem 1rem', borderRadius: '10px',
-                                        background: '#f1f5f9', color: '#475569',
-                                        textDecoration: 'none', fontWeight: 600, fontSize: '0.85rem',
-                                        display: 'flex', alignItems: 'center', gap: '0.4rem'
+                                        padding: '0.45rem 1rem', borderRadius: '8px',
+                                        background: 'var(--primary-blue)', color: '#ffffff',
+                                        textDecoration: 'none', fontWeight: 600, fontSize: '0.8rem',
+                                        display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                        boxShadow: '0 1px 2px rgba(59, 130, 246, 0.1)'
                                     }}>
                                         View Details <IC.ArrowRight />
                                     </span>

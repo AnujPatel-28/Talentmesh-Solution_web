@@ -2,7 +2,10 @@ import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
 const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
-const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY')!;
+const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || 
+                   Deno.env.get('API_KEY') || 
+                   Deno.env.get('INSFORGE_ADMIN_KEY') || 
+                   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +33,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     const userId = authData.user.id;
-    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey });
+    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey || anonKey });
 
     // Fetch Candidate Profile
     const { data: profile, error: profileError } = await insforgeAdmin.database
@@ -47,7 +50,10 @@ export default async function handler(req: Request): Promise<Response> {
         .eq('status', 'active')
         .limit(5);
       
-      return new Response(JSON.stringify({ data: jobs || [] }), { status: 200, headers: corsHeaders });
+      return new Response(JSON.stringify({ data: jobs || [] }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const candidateSkills = profile.skills || [];
@@ -66,7 +72,7 @@ export default async function handler(req: Request): Promise<Response> {
       const jobSkills = job.skills_required || [];
       const matchingSkills = jobSkills.filter((s: string) => candidateSkills.includes(s));
       const score = (matchingSkills.length / Math.max(1, jobSkills.length)) * 100;
-      return { ...job, matchScore: score };
+      return { ...job, matchScore: score, match_score: score };
     }).sort((a, b) => b.matchScore - a.matchScore).slice(0, 5);
 
     return new Response(JSON.stringify({ data: rankedJobs }), { 

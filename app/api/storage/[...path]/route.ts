@@ -139,7 +139,7 @@ async function handleProxy(
       method: request.method,
       headers,
       redirect: 'manual',
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : (request.body as any),
+      body: ['GET', 'HEAD'].includes(request.method) ? undefined : requestBody,
       // @ts-ignore
       duplex: 'half',
       cache: 'no-store',

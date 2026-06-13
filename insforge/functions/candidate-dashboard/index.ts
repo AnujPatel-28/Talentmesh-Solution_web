@@ -76,9 +76,12 @@ export default async function handler(req: Request): Promise<Response> {
       // 1. Profile
       dbClient.database.from('profiles').select('*').eq('id', targetUserId).single(),
       // 2. Candidate Profile
-      dbClient.database.from('candidate_profiles').select('*').eq('user_id', targetUserId).single(),
-      // 3. Applications Count
-      dbClient.database.from('applications').select('*', { count: 'exact', head: true }).eq('candidate_id', targetUserId),
+      dbClient.database.from('candidate_profiles').select('*').eq('id', targetUserId).single(),
+      // 3. Active Applications Count
+      dbClient.database.from('applications')
+        .select('*', { count: 'exact', head: true })
+        .eq('candidate_id', targetUserId)
+        .in('status', ['applied', 'reviewing', 'shortlisted', 'interviewing', 'offered', 'hired']),
       // 4. Interviews
       dbClient.database.from('interviews')
         .select('*, applications(jobs(title, companies(name)))')
@@ -114,7 +117,7 @@ export default async function handler(req: Request): Promise<Response> {
       const jobSkills = job.skills_required || [];
       const matchingSkills = jobSkills.filter((s: string) => candidateSkills.includes(s));
       const score = (matchingSkills.length / Math.max(1, jobSkills.length)) * 100;
-      return { ...job, matchScore: score };
+      return { ...job, matchScore: score, match_score: score };
     }).sort((a: any, b: any) => (b.matchScore || 0) - (a.matchScore || 0));
 
     const dashboardData = {

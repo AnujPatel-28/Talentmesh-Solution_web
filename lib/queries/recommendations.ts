@@ -11,8 +11,9 @@ export function useRecommendationsQuery(roleId: string, enabled: boolean) {
           body: { candidate_id: roleId, limit: 6 },
         });
 
-        if (!error && data && Array.isArray(data) && data.length > 0) {
-          return data;
+        const jobsList = data?.data || data;
+        if (!error && jobsList && Array.isArray(jobsList) && jobsList.length > 0) {
+          return jobsList;
         }
         
         // Fallback to active jobs
