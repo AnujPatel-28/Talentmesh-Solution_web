@@ -21,21 +21,25 @@ export default async function handler(request: Request): Promise<Response> {
   const rawToken = authHeader.replace(/^Bearer\s+/i, '');
 
   try {
+    // 1. Authenticate with verified signature check
+    const verifyClient = createClient({
+      baseUrl: INSFORGE_URL,
+      anonKey: INSFORGE_ANON_KEY,
+      edgeFunctionToken: rawToken,
+      isServerMode: true
+    });
+
+    const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: corsHeaders });
+    }
+
+    const userData = { id: authData.user.id };
     const db = createClient({
       baseUrl: INSFORGE_URL,
       anonKey: SERVICE_KEY,
       isServerMode: true
     });
-
-    let payload;
-    try {
-      const payloadBase64 = rawToken.split('.')[1];
-      payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401, headers: corsHeaders });
-    }
-
-    const userData = { id: payload.sub };
 
     const { data: profile, error: profileError } = await db.database
       .from('profiles')
@@ -113,7 +117,29 @@ export default async function handler(request: Request): Promise<Response> {
       }), { status: 200, headers: corsHeaders });
     }
 
-    // Default action: get-summary
+    // Default action: get-summary - Query real data counts and activities
+    const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const [pendingRecsRes, pendingJobsRes, reportedJobsRes, newUsersRes, activitiesRes] = await Promise.all([
+      db.database.from('recruiter_profiles').select('*', { count: 'exact', head: true }).eq('is_approved', false),
+      db.database.from('jobs').select('*', { count: 'exact', head: true }).eq('is_approved', false),
+      db.database.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'reported'),
+      db.database.from('profiles').select('*', { count: 'exact', head: true }).gt('created_at', past24h),
+      db.database.from('activity').select('id, type, description, created_at, profiles(name)').order('created_at', { ascending: false }).limit(10)
+    ]);
+
+    const pendingRecruiters = pendingRecsRes.count || 0;
+    const pendingJobsVal = pendingJobsRes.count || 0;
+    const reportedJobsVal = reportedJobsRes.count || 0;
+    const newUsers24h = newUsersRes.count || 0;
+
+    const activitiesList = (activitiesRes.data || []).map((act: any) => ({
+      id: act.id,
+      actor: act.profiles?.name || 'System',
+      type: act.type,
+      description: act.description,
+      created_at: act.created_at
+    }));
+
     return new Response(JSON.stringify({
       metrics: {
         totalJobs: totalJobs,
@@ -122,8 +148,13 @@ export default async function handler(request: Request): Promise<Response> {
         totalRecruiters: totalRecs,
         platformUptime: '99.98%'
       },
-      activities: [],
-      alerts: { pendingRecruiters: 0, pendingJobs: 0, reportedJobs: 0 }
+      activities: activitiesList,
+      alerts: {
+        pendingRecruiters,
+        pendingJobs: pendingJobsVal,
+        reportedJobs: reportedJobsVal,
+        newUsers24h
+      }
     }), { status: 200, headers: corsHeaders });
 
   } catch (error: any) {

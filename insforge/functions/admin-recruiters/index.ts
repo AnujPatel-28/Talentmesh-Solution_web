@@ -76,24 +76,32 @@ export default async function handler(req: Request): Promise<Response> {
       isServerMode: true 
     });
 
-    let payload;
-    try {
-      const payloadBase64 = token.split('.')[1];
-      payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const verifyClient = createClient({
+      baseUrl,
+      anonKey,
+      edgeFunctionToken: token,
+      isServerMode: true
+    });
+
+    const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const userData = { id: payload.sub };
+    const userData = { id: authData.user.id };
 
     const { data: profile } = await insforge.database
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', userData.id)
       .single();
 
     if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (profile?.is_active !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden, account is suspended' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
     const idempotencyKey = req.headers.get('x-idempotency-key');

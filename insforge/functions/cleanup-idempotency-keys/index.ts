@@ -15,7 +15,13 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const serviceKey = req.headers.get('x-insforge-service-key') || Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY') || '';
+    const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('INSFORGE_ADMIN_KEY') || Deno.env.get('API_KEY') || '';
+    const incomingKey = req.headers.get('x-insforge-service-key') || req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+
+    if (!incomingKey || incomingKey !== serviceKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid service key' }), { status: 401, headers: corsHeaders });
+    }
+
     const db = createClient({
       baseUrl: INSFORGE_URL,
       anonKey: serviceKey,

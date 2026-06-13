@@ -86,25 +86,18 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Unauthorized, no token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    let payload: any;
-    try {
-      const payloadBase64 = token.split('.')[1];
-      payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    const userId = payload.sub;
-    if (!userId || userId === 'project-admin-with-api-key') {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
     // Verify token signature with SDK
     const userDb = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
     const { data: authData, error: authError } = await userDb.auth.getCurrentUser();
 
     if (authError || !authData?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token signature' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const user = authData.user;
+    const userId = user.id;
+    if (!userId || userId === 'project-admin-with-api-key') {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const adminDb = createClient({ baseUrl, anonKey: serviceKey, isServerMode: true });
@@ -133,14 +126,14 @@ export default async function handler(req: Request): Promise<Response> {
         .eq('id', userId)
         .single();
 
-      const oauthName = (payload.user_metadata?.full_name || payload.user_metadata?.name || '') as string;
+      const oauthName = (user.metadata?.full_name || user.metadata?.name || '') as string;
       const displayName = profile?.name && profile.name !== profile.email?.split('@')[0]
         ? profile.name
         : oauthName.trim() || profile?.name || profile?.email?.split('@')[0] || 'User';
 
       const finalUser = {
         id: userId,
-        email: profile?.email || payload.email,
+        email: profile?.email || user.email,
         name: displayName,
         role: profile?.role || 'candidate',
         avatar_url: profile?.avatar_url || null,

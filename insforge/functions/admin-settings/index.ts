@@ -2,7 +2,7 @@
 import { createClient } from 'npm:@insforge/sdk';
 
 const baseUrl = Deno.env.get('NEXT_PUBLIC_INSFORGE_URL') || Deno.env.get('INSFORGE_URL')!;
-const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY')!;
+const anonKey = Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY') || Deno.env.get('INSFORGE_ANON_KEY')!;
 
 export default async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get('Authorization');
@@ -13,24 +13,26 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    let userData;
-    try {
-      const payloadBase64 = token.split('.')[1];
-      const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-      userData = { id: payload.sub, email: payload.email, role: payload.role };
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401 });
-    }
-
-    if (!userData || !userData.id) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-    }
-
     const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || 
                        Deno.env.get('INSFORGE_ADMIN_KEY') || 
                        req.headers.get('x-insforge-service-key') || 
                        Deno.env.get('INSFORGE_ANON_KEY') || 
                        Deno.env.get('NEXT_PUBLIC_INSFORGE_ANON_KEY');
+
+    const verifyClient = createClient({
+      baseUrl,
+      anonKey: anonKey || '',
+      edgeFunctionToken: token,
+      isServerMode: true
+    });
+
+    const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401 });
+    }
+
+    const userData = { id: authData.user.id };
+
     const insforge = createClient({ 
       baseUrl, 
       anonKey: serviceKey!,
@@ -46,12 +48,16 @@ export default async function handler(req: Request): Promise<Response> {
 
     const { data: profile } = await insforge.database
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', userData.id)
       .single();
 
     if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
+
+    if (profile?.is_active !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden, account is suspended' }), { status: 403 });
     }
     
     if (req.method === 'GET') {

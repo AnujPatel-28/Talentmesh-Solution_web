@@ -21,6 +21,44 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
+    const verifyClient = createClient({
+      baseUrl,
+      anonKey,
+      edgeFunctionToken: token,
+      isServerMode: true
+    });
+
+    const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: corsHeaders });
+    }
+
+    const userData = { id: authData.user.id };
+
+    const resolvedServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key') || anonKey;
+    const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey, isServerMode: true });
+
+    const { data: profile, error: profileError } = await verifyClient.database
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', userData.id)
+      .single();
+
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, profile not found' }), { status: 401, headers: corsHeaders });
+    }
+
+    if (profile.is_active !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden, account is suspended' }), { status: 403, headers: corsHeaders });
+    }
+
+    if (profile.role === 'recruiter') {
+      return new Response(JSON.stringify({ data: [], total: 0, hasMore: false }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
     const url = new URL(req.url);
     const search = url.searchParams.get('search')?.trim().toLowerCase() || '';
     const skills = url.searchParams.get('skills')?.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) || [];
@@ -28,25 +66,20 @@ export default async function handler(req: Request): Promise<Response> {
     const page = parseInt(url.searchParams.get('page') || '0');
     const limit = 20;
 
-    // Decode recruiter token to identify their email domain for prioritization
+    // Identify email domain from verified user for prioritization
     let recruiterDomain = '';
     try {
-      const payloadBase64 = token.split('.')[1];
-      const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-      const email = payload.email || '';
+      const email = authData.user.email || '';
       const domain = email.split('@')[1]?.toLowerCase();
       const freeProviders = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 'aol.com', 'icloud.com'];
       if (domain && !freeProviders.includes(domain)) {
         recruiterDomain = domain;
       }
     } catch (e) {
-      console.warn('Failed to decode recruiter token in Deno:', e);
+      console.warn('Failed to extract recruiter domain:', e);
     }
 
-    const resolvedServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key') || anonKey;
-    const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey, isServerMode: true });
-
-    let query = insforgeAdmin.database
+    let query = verifyClient.database
       .from('profiles')
       .select('*, candidate_profiles!inner(*)')
       .eq('role', 'candidate');

@@ -13,13 +13,37 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const { action, requestId } = await req.json();
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const verifyClient = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
 
-    // Verify admin role (simplified for now, ideally check user profile)
-    // const { data: profile } = await insforge.auth.getUser();
+    // Verify token signature
+    const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
+    const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || req.headers.get('x-insforge-service-key') || '';
+    const adminDb = createClient({ baseUrl, anonKey: serviceKey, isServerMode: true });
+
+    const { data: profile, error: profileError } = await adminDb.database
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, profile not found' }), { status: 401 });
+    }
+
+    if (profile.role !== 'admin' && profile.role !== 'super_admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+    }
+
+    if (profile.is_active !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden, account is suspended' }), { status: 403 });
+    }
 
     if (action === 'list') {
-      const { data, error } = await insforge.database
+      const { data, error } = await adminDb.database
         .from('access_requests')
         .select('*')
         .order('created_at', { ascending: false });
@@ -34,7 +58,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       // 1. Get request details
-      const { data: request, error: fetchError } = await insforge.database
+      const { data: request, error: fetchError } = await adminDb.database
         .from('access_requests')
         .select('*')
         .eq('id', requestId)
@@ -43,15 +67,12 @@ export default async function handler(req: Request): Promise<Response> {
       if (fetchError || !request) throw new Error('Request not found');
 
       // 2. Update request status
-      const { error: updateError } = await insforge.database
+      const { error: updateError } = await adminDb.database
         .from('access_requests')
         .update({ status: 'approved' })
         .eq('id', requestId);
 
       if (updateError) throw updateError;
-
-      // 3. Create recruiter profile or user if needed
-      // (This logic would be more complex in a real app, e.g. inviting the user)
 
       return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }

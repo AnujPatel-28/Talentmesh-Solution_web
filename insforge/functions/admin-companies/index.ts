@@ -23,27 +23,31 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'Missing authorization header' }), { status: 401, headers: corsHeaders });
   }
 
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+
   try {
+    const verifyClient = createClient({
+      baseUrl: INSFORGE_URL,
+      anonKey: INSFORGE_ANON_KEY,
+      edgeFunctionToken: token,
+      isServerMode: true
+    });
+
+    const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: corsHeaders });
+    }
+
+    const userData = { id: authData.user.id };
     const db = createClient({
       baseUrl: INSFORGE_URL,
       anonKey: INSFORGE_ADMIN_KEY || INSFORGE_ANON_KEY,
       isServerMode: true
     });
 
-    const rawToken = authHeader.replace(/^Bearer\s+/i, '');
-    let payload;
-    try {
-      const payloadBase64 = rawToken.split('.')[1];
-      payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Unauthorized, invalid token format' }), { status: 401, headers: corsHeaders });
-    }
-
-    const userData = { id: payload.sub };
-
     const { data: profile, error: profileError } = await db.database
       .from('profiles')
-      .select('role')
+      .select('role, is_active')
       .eq('id', userData.id)
       .single();
 
@@ -53,6 +57,10 @@ export default async function handler(request: Request): Promise<Response> {
 
     if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
       return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), { status: 403, headers: corsHeaders });
+    }
+
+    if (profile?.is_active !== true) {
+      return new Response(JSON.stringify({ error: 'Forbidden, account is suspended' }), { status: 403, headers: corsHeaders });
     }
 
     const url = new URL(request.url);
