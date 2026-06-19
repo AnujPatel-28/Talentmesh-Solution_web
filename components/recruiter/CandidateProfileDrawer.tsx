@@ -36,22 +36,43 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
 
     const handleDownload = async (url: string, filename: string) => {
         try {
-            const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+            const activeApp = candidate?.applications?.[0];
             let targetUrl = url;
-            if (url.startsWith(insforgeUrl)) {
-                targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+            
+            if (activeApp) {
+                const token = window.sessionStorage.getItem('tm_token');
+                targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?applicationId=${activeApp.id}&accessType=downloaded`;
+                const response = await fetch(targetUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch from proxy');
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
+            } else {
+                const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+                if (url.startsWith(insforgeUrl)) {
+                    targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+                }
+                const response = await fetch(targetUrl);
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
             }
-
-            const response = await fetch(targetUrl);
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(blobUrl);
         } catch (err) {
             console.error('Failed to download document:', err);
             window.open(url, '_blank');
@@ -60,14 +81,28 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
 
     const handleView = async (url: string) => {
         try {
-            const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+            const activeApp = candidate?.applications?.[0];
             let targetUrl = url;
-            if (url.startsWith(insforgeUrl)) {
-                targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+            let blob: Blob;
+            
+            if (activeApp) {
+                const token = window.sessionStorage.getItem('tm_token');
+                targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?applicationId=${activeApp.id}&accessType=viewed`;
+                const response = await fetch(targetUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch from proxy');
+                blob = await response.blob();
+            } else {
+                const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+                if (url.startsWith(insforgeUrl)) {
+                    targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+                }
+                const response = await fetch(targetUrl);
+                blob = await response.blob();
             }
-
-            const response = await fetch(targetUrl);
-            const blob = await response.blob();
 
             let mimeType = blob.type;
 
@@ -124,7 +159,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                         job:jobs(id, title, recruiter_id)
                     )
                 `)
-                .eq('user_id', id)
+                .eq('id', id)
                 .single();
 
             // Handle session expiry and retry
@@ -136,18 +171,18 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                 if (newToken) {
                     console.log('[fetchCandidate] Refresh successful, retrying query...');
                     res = await insforge.database
-                        .from('candidate_profiles')
-                        .select(`
-                            *,
-                            profile:profiles(id, full_name:name, email, avatar_url, created_at),
-                            applications:applications(
-                                id, status, applied_at, updated_at, job_id,
-                                apply_type, resume_url, screening_answers,
-                                job:jobs(id, title, recruiter_id)
-                            )
-                        `)
-                        .eq('user_id', id)
-                        .single();
+                         .from('candidate_profiles')
+                         .select(`
+                             *,
+                             profile:profiles(id, full_name:name, email, avatar_url, created_at),
+                             applications:applications(
+                                 id, status, applied_at, updated_at, job_id,
+                                 apply_type, resume_url, screening_answers,
+                                 job:jobs(id, title, recruiter_id)
+                             )
+                         `)
+                         .eq('id', id)
+                         .single();
                 }
             }
 

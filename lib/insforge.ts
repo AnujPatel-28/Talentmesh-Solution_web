@@ -15,6 +15,30 @@ if (!supabaseAnonKey) {
   throw new Error('CRITICAL ERROR: Missing environment variable NEXT_PUBLIC_INSFORGE_ANON_KEY');
 }
 
+// Extract and store any pending OAuth code in the browser before the SDK client instantiations run.
+// This prevents SDK clients from automatically detecting the query param and initiating a direct code exchange
+// that bypasses our custom Next.js secure cookie proxy endpoint (/api/auth/oauth/exchange).
+// We intercept both `insforge_code` (InsForge SDK's renamed callback param) and plain `code`
+// (standard OAuth) so the SDK never auto-consumes them. Without this, the SDK may exchange the
+// code via /api/v1/remote which skips setting the custom `tm_access_token` HttpOnly cookie.
+let oauthCode: string | null = null;
+if (typeof window !== 'undefined' && window.location.pathname === '/auth/callback') {
+  const params = new URLSearchParams(window.location.search);
+  const insforgeCode = params.get('insforge_code');
+  const plainCode = params.get('code');
+  const code = insforgeCode || plainCode;
+  if (code) {
+    oauthCode = code;
+    if (insforgeCode) params.delete('insforge_code');
+    if (plainCode) params.delete('code');
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+    window.history.replaceState(null, '', newUrl);
+  }
+}
+
+export const pendingOAuthCode = oauthCode;
+
 // Client containing the anon key, safe for both client and server pages
 export const insforge = createClient({
   baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : supabaseUrl,
@@ -24,10 +48,12 @@ export const insforge = createClient({
 /**
  * Direct client that bypasses the local proxy.
  * Use ONLY for public data fetching (like blogs) to avoid CORS/proxy header issues.
+ * Set `isServerMode: true` on the browser to completely prevent automatic callback detection and token persistence.
  */
 export const directInsforge = createClient({
   baseUrl: supabaseUrl,
   anonKey: supabaseAnonKey,
+  isServerMode: true,
 });
 
 if (typeof window !== 'undefined') {
@@ -325,6 +351,25 @@ let activeRefreshPromise: Promise<string | null> | null = null;
  * Returns the new accessToken, or null if refresh failed.
  */
 export async function refreshAccessToken(): Promise<string | null> {
+  // Proactively check if the existing token is still valid (has > 60s remaining)
+  let currentToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('tm_token') : null;
+  if (!currentToken && typeof document !== 'undefined') {
+    const match = document.cookie.split(';').find((c) => c.trim().startsWith('tm_access_token='));
+    if (match) {
+      const val = match.split('=').slice(1).join('=').trim();
+      if (val) {
+        currentToken = val.startsWith('Bearer%20') ? decodeURIComponent(val).substring(7) : val;
+      }
+    }
+  }
+
+  if (currentToken) {
+    const remaining = getTokenRemainingSeconds(currentToken);
+    if (remaining > 60) {
+      return currentToken;
+    }
+  }
+
   if (activeRefreshPromise) {
     return activeRefreshPromise;
   }

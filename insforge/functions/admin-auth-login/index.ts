@@ -66,7 +66,7 @@ export default async function handler(req: Request): Promise<Response> {
 
   const { data: profile } = await adminDb.database
     .from('profiles')
-    .select('role, mfa_enabled, status')
+    .select('role, mfa_enabled, is_active')
     .eq('id', data.user.id)
     .single();
 
@@ -80,7 +80,7 @@ export default async function handler(req: Request): Promise<Response> {
     );
   }
 
-  if (profile?.status === 'suspended') {
+  if (profile?.is_active === false) {
     return new Response(
       JSON.stringify({ error: 'This administrator account is suspended. Contact support.' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }

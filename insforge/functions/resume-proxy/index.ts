@@ -62,7 +62,9 @@ export default async function handler(req: Request): Promise<Response> {
       .single();
 
     const isSystemAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
-    const isJobRecruiter = profile?.role === 'recruiter' && appData.jobs && (appData.jobs as any).recruiter_id === user.id;
+    const jobsData = appData.jobs;
+    const jobRecruiterId = Array.isArray(jobsData) ? jobsData[0]?.recruiter_id : (jobsData as any)?.recruiter_id;
+    const isJobRecruiter = profile?.role === 'recruiter' && jobRecruiterId === user.id;
     const isCandidateOwner = appData.candidate_id === user.id;
 
     if (!isSystemAdmin && !isJobRecruiter && !isCandidateOwner) {

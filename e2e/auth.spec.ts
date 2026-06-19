@@ -42,6 +42,13 @@ test.describe('Authentication Flow', () => {
   });
 
   test('successful login and redirection (role: candidate)', async ({ page, baseURL }) => {
+    page.on('console', msg => {
+      console.log(`[AUTH TEST CONSOLE] [${msg.type()}] ${msg.text()}`);
+    });
+    page.on('pageerror', err => {
+      console.log(`[AUTH TEST PAGEERROR] ${err.message}`);
+    });
+
     const mockUserId = 'cand-uuid-123';
     
     // 1. Mock session as initially null
@@ -60,17 +67,49 @@ test.describe('Authentication Flow', () => {
     await page.route('**/api/auth/sessions', async route => {
       await route.fulfill({
         status: 200,
+        contentType: 'application/json',
         body: JSON.stringify({ 
           user: { id: mockUserId, email: 'candidate@test.com' },
-          access_token: 'fake-token'
+          access_token: 'fake-token',
+          accessToken: 'fake-token'
         })
       });
     });
 
+    // Mock auth-session Edge Function for client-side session refresh
+    await page.route('**/api/v1/remote/functions/auth-session*', async route => {
+      const method = route.request().method();
+      if (method === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: { 
+              id: mockUserId, 
+              email: 'candidate@test.com', 
+              name: 'Test User', 
+              role: 'candidate',
+              completed_onboarding: true,
+              onboarding_completed: true,
+              onboarding_complete: true
+            },
+            token: 'fake-token'
+          })
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true })
+        });
+      }
+    });
+
     // 3. Mock Profile API
-    await page.route('**/rest/v1/candidate_profiles*', async route => {
+    await page.route('**/*candidate_profiles*', async route => {
       await route.fulfill({
         status: 200,
+        contentType: 'application/json',
         body: JSON.stringify({
           id: mockUserId,
           email: 'candidate@test.com',
@@ -81,13 +120,29 @@ test.describe('Authentication Flow', () => {
       });
     });
 
+    await page.route('**/*profiles*', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: mockUserId,
+          email: 'candidate@test.com',
+          role: 'candidate',
+          name: 'Test User',
+          completed_onboarding: true,
+          onboarding_completed: true,
+          onboarding_complete: true
+        }),
+      });
+    });
+
     const loginUrl = baseURL ? baseURL.replace('://', '://jobs.') + '/login' : '/login';
     await page.goto(loginUrl);
     await page.fill('#email', 'candidate@test.com');
     await page.fill('#password', 'password123');
     await page.click('button[type="submit"]');
 
-    await page.waitForURL(/jobs\.localhost:3000\/dashboard|dashboard\/candidate/, { timeout: 15000 });
-    await expect(page).toHaveURL(/jobs\.localhost:3000\/dashboard|dashboard\/candidate/);
+    await page.waitForURL(/candidate\/dashboard|dashboard\/candidate/, { timeout: 15000 });
+    await expect(page).toHaveURL(/candidate\/dashboard|dashboard\/candidate/);
   });
 });

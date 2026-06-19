@@ -273,7 +273,7 @@ function LoginContent() {
             } else {
                 // Candidate
                 destination = isOnboarded 
-                    ? getSubdomainUrl('jobs', '/') 
+                    ? getSubdomainUrl('jobs', '/candidate/dashboard') 
                     : getSubdomainUrl('jobs', '/onboarding/candidate');
             }
 
@@ -290,21 +290,23 @@ function LoginContent() {
     const handleOAuthLogin = async (provider: 'google' | 'linkedin') => {
         try {
             setError('');
-            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+            const siteUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
             const { data, error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
                 redirectTo: `${siteUrl}/auth/callback`,
                 skipBrowserRedirect: true,
+                ...(provider === 'google' ? { additionalParams: { prompt: 'select_account' } } : {}),
             });
+            // The InsForge SDK returns the PKCE code_verifier in data.codeVerifier when
+            // skipBrowserRedirect:true is used. We MUST persist it to sessionStorage here
+            // so the callback page (Fallback C) can complete the PKCE exchange.
+            // directInsforge uses isServerMode:true which skips auto-save, so we save manually.
+            if (data?.codeVerifier && typeof window !== 'undefined') {
+                window.sessionStorage.setItem('insforge_pkce_verifier', data.codeVerifier);
+            }
             if (authError) throw authError;
             if (data?.url) {
-                let finalUrl = data.url;
-                if (provider === 'google') {
-                    const urlObj = new URL(finalUrl);
-                    urlObj.searchParams.set('prompt', 'select_account');
-                    finalUrl = urlObj.toString();
-                }
-                window.location.href = finalUrl;
+                window.location.href = data.url;
             }
         } catch (err: any) {
             setError(`Failed to initiate ${provider} login. Please try again.`);

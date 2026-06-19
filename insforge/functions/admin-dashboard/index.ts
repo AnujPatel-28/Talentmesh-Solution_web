@@ -80,39 +80,123 @@ export default async function handler(request: Request): Promise<Response> {
     const totalRecs = recruiters.count || 0;
 
     if (action === 'get-reports') {
+      // Fetch exact status breakdown counts
+      const [
+        appliedRes,
+        reviewingRes,
+        shortlistedRes,
+        interviewingRes,
+        offeredRes,
+        hiredRes,
+        rejectedRes,
+        withdrawnRes
+      ] = await Promise.all([
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'applied'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'reviewing'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'shortlisted'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'interviewing'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'offered'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'hired'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
+        db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'withdrawn')
+      ]);
+
+      const applied = appliedRes.count || 0;
+      const reviewing = reviewingRes.count || 0;
+      const shortlisted = shortlistedRes.count || 0;
+      const interviewing = interviewingRes.count || 0;
+      const offered = offeredRes.count || 0;
+      const hired = hiredRes.count || 0;
+      const rejected = rejectedRes.count || 0;
+      const withdrawn = withdrawnRes.count || 0;
+
+      // Query skills and creation date for growth and skills analytics
+      const { data: candidatesData } = await db.database
+        .from('candidate_profiles')
+        .select('skills, created_at');
+
+      const rawCandidates = candidatesData || [];
+
+      // Aggregate skills count
+      const skillCounts: Record<string, number> = {};
+      for (const cand of rawCandidates) {
+        if (Array.isArray(cand.skills)) {
+          for (const skill of cand.skills) {
+            if (skill) {
+              const normalized = skill.trim();
+              skillCounts[normalized] = (skillCounts[normalized] || 0) + 1;
+            }
+          }
+        }
+      }
+      // Sort skills by count and take top 4
+      const topSkills = Object.entries(skillCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 4);
+
+      // Pad with defaults if less than 4 skills exist
+      const defaultSkills = ['React', 'TypeScript', 'Node.js', 'Python'];
+      while (topSkills.length < 4 && defaultSkills.length > 0) {
+        const nextDefault = defaultSkills.shift()!;
+        if (!topSkills.some(s => s.name === nextDefault)) {
+          topSkills.push({ name: nextDefault, count: 0 });
+        }
+      }
+
+      // Aggregate growth by week
+      const nowMs = Date.now();
+      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+      let w1Count = 0;
+      let w2Count = 0;
+      let w3Count = 0;
+      let w4Count = 0;
+
+      for (const cand of rawCandidates) {
+        const createdTime = cand.created_at ? new Date(cand.created_at).getTime() : nowMs;
+        const ageMs = nowMs - createdTime;
+
+        if (ageMs > 3 * oneWeekMs) {
+          w1Count++;
+        } else if (ageMs > 2 * oneWeekMs) {
+          w2Count++;
+        } else if (ageMs > oneWeekMs) {
+          w3Count++;
+        } else {
+          w4Count++;
+        }
+      }
+
+      const growth = [
+        { date: 'Week 1', count: w1Count },
+        { date: 'Week 2', count: w1Count + w2Count },
+        { date: 'Week 3', count: w1Count + w2Count + w3Count },
+        { date: 'Week 4', count: w1Count + w2Count + w3Count + w4Count }
+      ];
+
       return new Response(JSON.stringify({
         metrics: {
           totalJobs: totalJobs,
-          totalApplications: totalApps,
+          totalApplications: totalApps - withdrawn,
           totalCandidates: totalCands,
           totalRecruiters: totalRecs,
           avgTimeToHire: '18 Days',
-          appsPerJob: totalJobs > 0 ? (totalApps / totalJobs) : 0
+          appsPerJob: totalJobs > 0 ? ((totalApps - withdrawn) / totalJobs) : 0
         },
         funnel: {
           jobsPosted: totalJobs,
-          applications: totalApps,
-          reviewed: Math.floor(totalApps * 0.45),
-          shortlisted: Math.floor(totalApps * 0.15),
-          hired: Math.floor(totalApps * 0.05)
+          applications: totalApps - withdrawn,
+          reviewed: reviewing + shortlisted + interviewing + offered + hired + rejected,
+          shortlisted: shortlisted + interviewing + offered + hired,
+          hired: hired
         },
-        growth: [
-          { date: 'Week 1', count: Math.floor(totalCands * 0.2) },
-          { date: 'Week 2', count: Math.floor(totalCands * 0.4) },
-          { date: 'Week 3', count: Math.floor(totalCands * 0.7) },
-          { date: 'Week 4', count: totalCands }
-        ],
-        topSkills: [
-          { name: 'React', count: Math.floor(totalCands * 0.6) },
-          { name: 'TypeScript', count: Math.floor(totalCands * 0.5) },
-          { name: 'Node.js', count: Math.floor(totalCands * 0.45) },
-          { name: 'Python', count: Math.floor(totalCands * 0.3) }
-        ],
+        growth,
+        topSkills,
         statusBreakdown: {
-          applied: Math.floor(totalApps * 0.5),
-          shortlisted: Math.floor(totalApps * 0.3),
-          interview: Math.floor(totalApps * 0.15),
-          rejected: Math.floor(totalApps * 0.05)
+          applied: applied + reviewing + offered,
+          shortlisted: shortlisted,
+          interview: interviewing,
+          rejected: rejected
         }
       }), { status: 200, headers: corsHeaders });
     }

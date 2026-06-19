@@ -39,7 +39,24 @@ export default async function handler(req: Request): Promise<Response> {
       safeRole = 'candidate';
     }
 
+    // Recruiter portal is not yet open — block self-signup
+    if (safeRole === 'recruiter') {
+      return new Response(JSON.stringify({ 
+        error: 'Recruiter registration is currently by invite only. Please check back soon or contact us at info@talentmeshsolutions.com.' 
+      }), { 
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || 
+                       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 
+                       Deno.env.get('SERVICE_ROLE_KEY') || 
+                       Deno.env.get('INSFORGE_ADMIN_KEY') || 
+                       Deno.env.get('API_KEY') || '';
+
     const insforge = createClient({ baseUrl, anonKey });
+    const insforgeAdmin = createClient({ baseUrl, anonKey: serviceKey || anonKey });
 
     // 1. Sign up the user
     const { data, error: signupError } = await insforge.auth.signUp({
@@ -60,7 +77,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     if (user) {
       // 2. Create the profile record
-      const { error: profileError } = await insforge.database
+      const { error: profileError } = await insforgeAdmin.database
         .from('profiles')
         .insert([{
           id: user.id,
@@ -78,7 +95,6 @@ export default async function handler(req: Request): Promise<Response> {
 
       // 3. Send welcome email (fire-and-forget — don't block signup)
       const siteUrl = Deno.env.get('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000';
-      const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || '';
       const template = safeRole === 'recruiter' ? 'recruiter-welcome' : 'candidate-welcome';
       try {
         fetch(`${siteUrl}/api/email/send`, {

@@ -84,7 +84,7 @@ describe('Dashboard Zod Validators', () => {
       location: 'SF',
       appliedAt: '2024-03-24T14:44:40Z', // Valid ISO
       urgent: false,
-      status: 'active',
+      status: 'applied',
       salary: '$150k'
     };
 

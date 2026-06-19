@@ -106,13 +106,33 @@ export default function CandidateOnboardingPage() {
                     const { data: fallbackData, error: fbError } = await invokeFunction('candidate-profile', { method: 'GET' });
                     if (fbError) throw new Error(fbError.message);
                     
-                    setForm(fallbackData as CandidateSettingsBundle);
-                    setStep(getFirstIncompleteStep(fallbackData as CandidateSettingsBundle));
+                    const normalizedFallback: CandidateSettingsBundle = {
+                        profile: {
+                            id: (fallbackData as any)?.profile?.id || '',
+                            email: (fallbackData as any)?.profile?.email || '',
+                            name: (fallbackData as any)?.profile?.name || '',
+                            phone: (fallbackData as any)?.profile?.phone || '',
+                            location: (fallbackData as any)?.profile?.location || '',
+                            role: (fallbackData as any)?.profile?.role || null,
+                            completed_onboarding: (fallbackData as any)?.profile?.completed_onboarding || false,
+                        },
+                        candidateProfile: normalizeCandidateProfile((fallbackData as any)?.candidateProfile || EMPTY_STATE.candidateProfile),
+                    };
+                    setForm(normalizedFallback);
+                    setStep(getFirstIncompleteStep(normalizedFallback));
                     return;
                 }
 
                 const combinedProfile: CandidateSettingsBundle = {
-                    profile: profileData || EMPTY_STATE.profile,
+                    profile: {
+                        id: profileData?.id || '',
+                        email: profileData?.email || '',
+                        name: profileData?.name || '',
+                        phone: profileData?.phone || '',
+                        location: profileData?.location || '',
+                        role: profileData?.role || null,
+                        completed_onboarding: profileData?.completed_onboarding || false,
+                    },
                     candidateProfile: normalizeCandidateProfile(candidateData || EMPTY_STATE.candidateProfile),
                 };
 

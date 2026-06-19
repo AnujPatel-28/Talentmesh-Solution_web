@@ -27,7 +27,7 @@ export default function ShareJobPage() {
     async function init() {
       try {
         // Fetch Job
-        const { data: jobData } = await invokeFunction('jobs-slug', {
+        const { data: jobData } = await invokeFunction('jobs-id', {
           method: 'GET',
           queries: { id: Array.isArray(params.id) ? params.id[0] : params.id }
         });

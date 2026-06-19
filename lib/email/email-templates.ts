@@ -11,6 +11,20 @@ const BRAND_COLOR = '#2563eb';
 const BRAND_GRADIENT = 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
+function escapeHtml(str: string): string {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, (m) => {
+    switch (m) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#x27;';
+      default: return m;
+    }
+  });
+}
+
 function layout(body: string, preheader?: string): string {
   return `
 <!DOCTYPE html>
@@ -107,8 +121,9 @@ function infoBox(content: string): string {
 // ─── Candidate Welcome ───────────────────────────────────────────────────────
 
 export function candidateWelcomeEmail(name: string): string {
+  const safeName = escapeHtml(name);
   return layout(`
-    <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a;">Welcome to TalentMesh, ${name}! 🎉</h2>
+    <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a;">Welcome to TalentMesh, ${safeName}! 🎉</h2>
     <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.7;">
       We're thrilled to have you on board. TalentMesh connects talented professionals
       like you with opportunities that truly match your skills and aspirations.
@@ -126,13 +141,15 @@ export function candidateWelcomeEmail(name: string): string {
     <p style="margin:0;font-size:14px;color:#64748b;text-align:center;">
       The more complete your profile, the better your job matches will be.
     </p>
-  `, `Welcome to TalentMesh, ${name}! Start exploring opportunities today.`);
+  `, `Welcome to TalentMesh, ${safeName}! Start exploring opportunities today.`);
 }
 
 // ─── Recruiter Welcome ───────────────────────────────────────────────────────
 
 export function recruiterWelcomeEmail(name: string, company?: string): string {
-  const greeting = company ? `${name} from ${company}` : name;
+  const safeName = escapeHtml(name);
+  const safeCompany = escapeHtml(company || '');
+  const greeting = safeCompany ? `${safeName} from ${safeCompany}` : safeName;
   return layout(`
     <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a;">Welcome to TalentMesh, ${greeting}! 🏢</h2>
     <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.7;">
@@ -155,14 +172,16 @@ export function recruiterWelcomeEmail(name: string, company?: string): string {
 // ─── Application Confirmation ────────────────────────────────────────────────
 
 export function applicationConfirmationEmail(name: string, jobTitle: string): string {
+  const safeName = escapeHtml(name);
+  const safeJobTitle = escapeHtml(jobTitle);
   return layout(`
     <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a;">Application Submitted! ✅</h2>
     <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.7;">
-      Hi ${name}, your application for <strong>${jobTitle}</strong> has been received successfully.
+      Hi ${safeName}, your application for <strong>${safeJobTitle}</strong> has been received successfully.
     </p>
     ${infoBox(`
       <p style="margin:0;font-size:14px;color:#334155;line-height:1.7;">
-        <strong>Position:</strong> ${jobTitle}<br/>
+        <strong>Position:</strong> ${safeJobTitle}<br/>
         <strong>Status:</strong> <span style="color:${BRAND_COLOR};font-weight:600;">Under Review</span><br/>
         <strong>Submitted:</strong> ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}
       </p>
@@ -172,7 +191,7 @@ export function applicationConfirmationEmail(name: string, jobTitle: string): st
       email notification when your application status changes.
     </p>
     ${ctaButton('Track Your Applications', `${SITE_URL}/dashboard/candidate`)}
-  `, `Your application for ${jobTitle} has been submitted successfully.`);
+  `, `Your application for ${safeJobTitle} has been submitted successfully.`);
 }
 
 // ─── Application Status Update ───────────────────────────────────────────────
@@ -211,21 +230,24 @@ const STATUS_CONFIG: Record<string, { emoji: string; color: string; label: strin
 };
 
 export function applicationStatusEmail(name: string, jobTitle: string, status: string): string {
+  const safeName = escapeHtml(name);
+  const safeJobTitle = escapeHtml(jobTitle);
+  const safeStatus = escapeHtml(status);
   const config = STATUS_CONFIG[status] || {
     emoji: '📋',
     color: BRAND_COLOR,
-    label: status.charAt(0).toUpperCase() + status.slice(1),
-    message: `Your application status has been updated to "${status}".`,
+    label: safeStatus.charAt(0).toUpperCase() + safeStatus.slice(1),
+    message: `Your application status has been updated to "${safeStatus}".`,
   };
 
   return layout(`
     <h2 style="margin:0 0 16px;font-size:22px;color:#0f172a;">Application Update ${config.emoji}</h2>
     <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.7;">
-      Hi ${name}, there's an update on your application:
+      Hi ${safeName}, there's an update on your application:
     </p>
     ${infoBox(`
       <p style="margin:0;font-size:14px;color:#334155;line-height:1.7;">
-        <strong>Position:</strong> ${jobTitle}<br/>
+        <strong>Position:</strong> ${safeJobTitle}<br/>
         <strong>New Status:</strong> <span style="color:${config.color};font-weight:700;">${config.label}</span>
       </p>
     `)}
@@ -233,7 +255,7 @@ export function applicationStatusEmail(name: string, jobTitle: string, status: s
       ${config.message}
     </p>
     ${ctaButton('View Application', `${SITE_URL}/dashboard/candidate`)}
-  `, `Application update: Your application for ${jobTitle} is now ${config.label}.`);
+  `, `Application update: Your application for ${safeJobTitle} is now ${config.label}.`);
 }
 
 // ─── Interview Scheduled ─────────────────────────────────────────────────────

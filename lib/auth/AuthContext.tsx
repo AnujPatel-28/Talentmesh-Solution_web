@@ -429,7 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await insforge.auth.signInWithPassword({ email, password });
+      const { data, error } = await insforge.auth.signInWithPassword({ email: email!, password: password! });
 
       if (error) {
         let message = error.message;
@@ -441,19 +441,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: message };
       }
 
-      if (!data?.accessToken || !data.user?.id || !data.user?.email) {
+      console.log('[AuthContext] signIn data:', typeof data === 'string' ? data : JSON.stringify(data));
+      let parsedData = data;
+      if (typeof data === 'string') {
+        try {
+          parsedData = JSON.parse(data);
+        } catch { }
+      }
+      const token = parsedData?.accessToken || (parsedData as any)?.access_token;
+      const userIdVal = parsedData?.user?.id;
+      const userEmail = parsedData?.user?.email;
+      console.log('[AuthContext] parsed values:', { token, userIdVal, userEmail });
+      if (!token || !userIdVal || !userEmail) {
         return { error: 'Sign in succeeded, but the session payload was incomplete.' };
       }
 
-      const fullUser = await fetchProfile(data.accessToken, data.user.id, data.user.email, data.user.metadata || undefined);
+      const fullUser = await fetchProfile(token, userIdVal, userEmail, data?.user?.metadata || undefined);
       if (!fullUser) {
         return { error: 'Signed in, but failed to load your profile.' };
       }
 
-      await syncAuthCookies(data.accessToken, fullUser);
+      await syncAuthCookies(token, fullUser);
       setUser(fullUser);
       cacheUser(fullUser);
-      return { user: fullUser, accessToken: data.accessToken };
+      return { user: fullUser, accessToken: token };
     } catch {
       return { error: 'An unexpected error occurred during sign in.' };
     }
@@ -472,11 +483,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // If we got an access token (email verification not required), set up the session
-      if (data?.accessToken && data?.user) {
+      const signupToken = data?.accessToken || (data as any)?.access_token;
+      const signupUser = data?.user;
+      if (signupToken && signupUser) {
         // Construct user object from response
         const fullUser: User = {
-          id: data.user.id,
-          email: data.user.email,
+          id: signupUser.id,
+          email: signupUser.email,
           role: role,
           name: name,
           avatar_url: null,
@@ -484,7 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           mfa_enabled: false
         };
 
-        await syncAuthCookies(data.accessToken, fullUser);
+        await syncAuthCookies(signupToken, fullUser);
         setUser(fullUser);
         cacheUser(fullUser);
       }

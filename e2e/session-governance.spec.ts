@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+const getAdminSettingsUrl = (baseURL: string | undefined) => {
+  const port = baseURL ? new URL(baseURL).port : '3000';
+  return `http://admin.localhost:${port}/dashboard/admin/settings`;
+};
+
 test.describe('Session Governance & Cleanup E2E Tests', () => {
   test.describe.configure({ mode: 'serial' });
   const mockUserId = 'adm-uuid-999';
@@ -150,9 +155,9 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
     });
   });
 
-  test('Session Warning displays modal on inactivity and extends on user action', async ({ page }) => {
+  test('Session Warning displays modal on inactivity and extends on user action', async ({ page, baseURL }) => {
     // Navigate to settings page
-    await page.goto('http://admin.localhost:3000/dashboard/admin/settings');
+    await page.goto(getAdminSettingsUrl(baseURL));
     await page.waitForLoadState('networkidle');
 
     // Simulate session about to expire by updating localStorage
@@ -180,9 +185,9 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
     expect(Date.now() - updatedActiveTime).toBeLessThan(5000);
   });
 
-  test('Multi-tab session warning propagates and extends across pages', async ({ context, page }) => {
+  test('Multi-tab session warning propagates and extends across pages', async ({ context, page, baseURL }) => {
     // Tab 1
-    await page.goto('http://admin.localhost:3000/dashboard/admin/settings');
+    await page.goto(getAdminSettingsUrl(baseURL));
     await page.waitForLoadState('networkidle');
 
     // Tab 2
@@ -191,7 +196,7 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
     page2.on('console', msg => {
       console.log(`[TAB 2 CONSOLE] [${msg.type()}] ${msg.text()}`);
     });
-    await page2.goto('http://admin.localhost:3000/dashboard/admin/settings');
+    await page2.goto(getAdminSettingsUrl(baseURL));
     await page2.waitForLoadState('networkidle');
 
     // Expire Tab 1 session
@@ -212,7 +217,7 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
     await expect(page2.locator('text=Inactivity Warning')).not.toBeVisible();
   });
 
-  test('Device Manager displays sessions and supports revocation', async ({ page }) => {
+  test('Device Manager displays sessions and supports revocation', async ({ page, baseURL }) => {
     // Mock user_sessions select query and update queries
     await page.route('**/api/database/records/user_sessions*', async route => {
       const method = route.request().method();
@@ -246,7 +251,7 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
       }
     });
 
-    await page.goto('http://admin.localhost:3000/dashboard/admin/settings');
+    await page.goto(getAdminSettingsUrl(baseURL));
     await page.waitForLoadState('networkidle');
 
     // Open Active Devices tab
@@ -267,7 +272,7 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
     await page.click('text=Revoke');
   });
 
-  test('Quarantine Manager displays quarantined items and handles restoration', async ({ page }) => {
+  test('Quarantine Manager displays quarantined items and handles restoration', async ({ page, baseURL }) => {
     let isRestoring = false;
 
     // Stateful mock for storage_quarantine table queries
@@ -301,7 +306,7 @@ test.describe('Session Governance & Cleanup E2E Tests', () => {
       }
     });
 
-    await page.goto('http://admin.localhost:3000/dashboard/admin/settings');
+    await page.goto(getAdminSettingsUrl(baseURL));
     await page.waitForLoadState('networkidle');
 
     // Open Quarantine Manager tab

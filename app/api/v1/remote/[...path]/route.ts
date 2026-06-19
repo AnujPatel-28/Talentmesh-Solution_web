@@ -60,11 +60,98 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
 
   const isStorageGet = request.method === 'GET' && url.pathname.includes('storage/buckets/');
 
-  try {
-    let requestBody: any = undefined;
-    if (!['GET', 'HEAD'].includes(request.method)) {
-      requestBody = await request.arrayBuffer();
+  // CSRF & Payload Size Guard for Mutating Requests
+  let requestBody: any = undefined;
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    // A. CSRF Verification
+    const origin = request.headers.get('origin');
+    const referer = request.headers.get('referer');
+    const host = request.headers.get('host');
+    
+    let isSameOrigin = false;
+    if (origin) {
+      try {
+        isSameOrigin = new URL(origin).host === host;
+      } catch {}
+    } else if (referer) {
+      try {
+        isSameOrigin = new URL(referer).host === host;
+      } catch {}
     }
+    
+    if ((origin || referer) && !isSameOrigin) {
+      return new NextResponse(JSON.stringify({ error: 'CSRF validation failed: Invalid Origin/Referer' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Require custom header to block simple cross-site requests
+    const clientInfo = request.headers.get('x-client-info');
+    const csrfTokenHeader = request.headers.get('x-csrf-token');
+    const reqWith = request.headers.get('x-requested-with');
+    const authHeader = request.headers.get('authorization');
+    
+    if (!clientInfo && !csrfTokenHeader && !reqWith && !authHeader) {
+      return new NextResponse(JSON.stringify({ error: 'CSRF validation failed: Missing secure request header' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // B. Payload Size Check (OOM Mitigation)
+    const contentLengthHeader = request.headers.get('content-length');
+    const contentLength = contentLengthHeader ? parseInt(contentLengthHeader, 10) : NaN;
+    const MAX_ALLOWED_SIZE = 10 * 1024 * 1024; // 10MB limit
+
+    if (!isNaN(contentLength) && contentLength > MAX_ALLOWED_SIZE) {
+      return new NextResponse(JSON.stringify({ error: 'Payload too large: Content-Length exceeds maximum limit.' }), {
+        status: 413,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Progressively read the stream to prevent OOM even if Content-Length is missing or spoofed
+    if (request.body) {
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+      const reader = request.body.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            totalLength += value.length;
+            if (totalLength > MAX_ALLOWED_SIZE) {
+              return new NextResponse(JSON.stringify({ error: 'Payload too large: Request body exceeds maximum limit.' }), {
+                status: 413,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            }
+            chunks.push(value);
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      // Re-assemble the chunks into a single ArrayBuffer for the fetch body
+      const assembled = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        assembled.set(chunk, offset);
+        offset += chunk.length;
+      }
+      requestBody = assembled.buffer;
+    } else {
+      try {
+        requestBody = await request.arrayBuffer();
+      } catch (err) {
+        // request has no body or reading failed
+      }
+    }
+  }
+
+  try {
 
     const fetchOptions: RequestInit = {
       method: request.method,

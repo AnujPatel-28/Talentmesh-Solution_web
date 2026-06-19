@@ -235,13 +235,13 @@ export default async function handler(req: Request): Promise<Response> {
     let body: unknown;
     try {
       body = await req.json();
-      console.log('[candidate-profile] PUT body received:', JSON.stringify(body));
+      console.log('[candidate-profile] PUT request received for user:', user.id);
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: corsHeaders });
     }
 
     const { errors, profile: profileUpdates, candidateProfile: candidateUpdates } = validateProfileBody(body);
-    console.log('[candidate-profile] Validation result — errors:', JSON.stringify(errors), '| profileUpdates:', JSON.stringify(profileUpdates), '| candidateUpdates:', JSON.stringify(candidateUpdates));
+    console.log('[candidate-profile] Validation result — errors count:', errors.length);
 
     if (errors.length > 0) {
       console.error('[candidate-profile] Validation FAILED:', JSON.stringify(errors));
@@ -249,7 +249,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     if (profileUpdates && Object.keys(profileUpdates).length > 0) {
-      console.log('[candidate-profile] Updating profiles table for user:', user.id, '| updates:', JSON.stringify(profileUpdates));
+      console.log('[candidate-profile] Updating profiles table for user:', user.id);
       const { error } = await insforgeAdmin.database.from('profiles').update({
         ...profileUpdates,
         completed_onboarding: true,

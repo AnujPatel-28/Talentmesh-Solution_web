@@ -20,25 +20,34 @@ function AuthCallbackContent() {
     const handleCallback = async () => {
       try {
         setLoadingState('authenticating');
-        // 1. Wait for OAuth callback processing to complete first using the main insforge client
-        await insforge.auth.getCurrentUser();
 
-        // 2. Get the session from the SDK's internal TokenManager
-        const authAny = insforge.auth as any;
-        let session = authAny.tokenManager?.getSession() || null;
+        // 1. Try to detect an existing SDK session (e.g., from a previous auth token in sessionStorage).
+        //    Wrapped in try-catch because calling getCurrentUser() before any session is established
+        //    may throw on some SDK versions.
+        let session: { user: any; accessToken: string } | null = null;
+        try {
+          await insforge.auth.getCurrentUser();
+          // 2. Get the session from the SDK's internal TokenManager
+          const authAny = insforge.auth as any;
+          session = authAny.tokenManager?.getSession() || null;
+        } catch {
+          // No existing session — will proceed to fallbacks below.
+        }
 
         // 3. Handle potential CSRF or initial failure with robust fallbacks
         if (!session) {
-          console.warn('Initial session fetch failed, attempting explicit refreshSession...');
+          console.warn('[auth-callback] No existing session found, attempting fallbacks...');
 
           // Fallback A: Try refreshing the session via our custom proxy refresh helper
           const { refreshAccessToken } = await import('@/lib/insforge');
           const newToken = await refreshAccessToken();
           if (newToken) {
-            const { data: userData } = await insforge.auth.getCurrentUser();
-            if (userData?.user) {
-              session = { user: userData.user, accessToken: newToken };
-            }
+            try {
+              const { data: userData } = await insforge.auth.getCurrentUser();
+              if (userData?.user) {
+                session = { user: userData.user, accessToken: newToken };
+              }
+            } catch { /* ignore */ }
           }
 
           // Fallback B: Extract from URL hash (Magic Link / Implicit flow)
@@ -46,40 +55,49 @@ function AuthCallbackContent() {
             const params = new URLSearchParams(window.location.hash.substring(1));
             const hashAccessToken = params.get('access_token');
             if (hashAccessToken) {
-              const { data: userData } = await insforge.auth.getCurrentUser();
-              if (userData?.user) {
-                session = { user: userData.user, accessToken: hashAccessToken };
-              }
+              try {
+                const { data: userData } = await insforge.auth.getCurrentUser();
+                if (userData?.user) {
+                  session = { user: userData.user, accessToken: hashAccessToken };
+                }
+              } catch { /* ignore */ }
             }
           }
 
-
-          // Fallback C: Explicitly exchange the OAuth code if it's in the URL
+          // Fallback C: Manually exchange the OAuth code via our secure Next.js proxy.
+          // The proxy (/api/auth/oauth/exchange) explicitly sets the tm_access_token HttpOnly cookie,
+          // which the /api/v1/remote route does NOT do. Always prefer this path for OAuth.
           if (!session && typeof window !== 'undefined') {
-            const url = new URL(window.location.href);
-            const code = url.searchParams.get('insforge_code') || url.searchParams.get('code');
-            if (code) {
-              console.warn('Manually exchanging OAuth code via Next.js proxy...');
+            const { pendingOAuthCode } = await import('@/lib/insforge');
+            // pendingOAuthCode is set by insforge.ts which strips insforge_code/code from the URL
+            // before any SDK client is created. This prevents the SDK from auto-consuming the code.
+            const code = pendingOAuthCode;
+            const verifier = window.sessionStorage.getItem('insforge_pkce_verifier');
 
-              // We MUST hit our Next.js proxy exactly at /api/auth/oauth/exchange
-              // Otherwise, the backend sets cookies that the browser blocks due to cross-origin policies.
+            console.warn(`[auth-callback] Fallback C: code present=${!!code}, pkce_verifier present=${!!verifier}`);
+
+            if (!code) {
+              console.error('[auth-callback] No OAuth code found. Did the OAuth flow complete correctly?');
+            } else {
               try {
                 const proxyRes = await fetch('/api/auth/oauth/exchange', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ code }),
+                  body: JSON.stringify({ 
+                    code,
+                    code_verifier: verifier
+                  }),
                 });
 
                 if (proxyRes.ok) {
                   const exchangeData = await proxyRes.json();
-                  console.log('Exchange data via proxy:', exchangeData);
-
                   const token = exchangeData.accessToken || exchangeData.access_token;
                   const user = exchangeData.user || exchangeData.data?.user;
 
                   if (token && user) {
+                    window.sessionStorage.removeItem('insforge_pkce_verifier');
                     session = { user, accessToken: token };
-                    // Save to the main SDK TokenManager
+                    // Sync the token into the main SDK TokenManager for any subsequent SDK calls
                     const mainAuth = insforge.auth as any;
                     if (mainAuth.tokenManager) {
                       mainAuth.tokenManager.saveSession(session);
@@ -88,13 +106,14 @@ function AuthCallbackContent() {
                       }
                     }
                   } else {
-                    console.error('Exchange succeeded but token/user is missing from response payload!');
+                    console.error('[auth-callback] Exchange succeeded but response missing token/user:', exchangeData);
                   }
                 } else {
-                  console.error('Exchange error:', await proxyRes.text());
+                  const errText = await proxyRes.text();
+                  console.error(`[auth-callback] Exchange returned ${proxyRes.status}:`, errText);
                 }
               } catch (err) {
-                console.error('Network error during exchange:', err);
+                console.error('[auth-callback] Network error during exchange:', err);
               }
             }
           }
@@ -274,7 +293,7 @@ function AuthCallbackContent() {
         return;
       }
 
-      window.location.replace(getSubdomainUrl('jobs', '/'));
+      window.location.replace(getSubdomainUrl('jobs', '/candidate/dashboard'));
     };
 
     handleCallback();

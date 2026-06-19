@@ -42,7 +42,7 @@ export default function JobDetailPage() {
     useEffect(() => {
         async function fetchJob() {
             try {
-                const { data, error } = await invokeFunction('jobs-slug', {
+                const { data, error } = await invokeFunction('jobs-id', {
                     method: 'GET',
                     queries: { id: jobId }
                 });

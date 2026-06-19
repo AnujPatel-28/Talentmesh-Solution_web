@@ -81,7 +81,7 @@ test.describe('Dashboard Accessibility & Role Protection', () => {
       await page.goto('/dashboard/admin');
       
       // Verify Title
-      const heading = page.locator('h1');
+      const heading = page.locator('h1').filter({ hasText: /Welcome back/i });
       await expect(heading).toContainText(/Welcome back/i);
 
       // Verify Stats metric values (totalUsers = totalCandidates + totalRecruiters = 15)
@@ -148,7 +148,7 @@ test.describe('Dashboard Accessibility & Role Protection', () => {
       await expect(page.locator('text=Review Queue Error')).toBeVisible();
 
       // Click "Retry Load" button and check if it switches to backoff countdown
-      const retryBtn = page.getByRole('button', { name: /Retry Load/i }).first();
+      const retryBtn = page.getByRole('button').filter({ hasText: /Retry Load|Wait/i }).first();
       await retryBtn.click();
       await expect(retryBtn).toHaveAttribute('disabled', '');
       await expect(retryBtn).toContainText(/Wait/i);

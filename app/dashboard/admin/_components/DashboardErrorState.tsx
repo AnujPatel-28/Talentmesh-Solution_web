@@ -29,12 +29,13 @@ export function WidgetErrorState({
 
   const handleRetry = () => {
     if (cooldown > 0 || !onRetry) return;
-    onRetry();
 
     // Backoff schedule: 0.5s -> 1.0s -> 2.0s -> 2.0s ...
     const backoffSec = retryCount === 0 ? 0.5 : retryCount === 1 ? 1.0 : 2.0;
     setCooldown(backoffSec);
     setRetryCount((prev) => prev + 1);
+
+    onRetry();
   };
 
   const isLocked = cooldown > 0;
@@ -127,12 +128,13 @@ export function StatsErrorState({ onRetry }: { onRetry?: () => void }) {
 
   const handleRetry = () => {
     if (cooldown > 0 || !onRetry) return;
-    onRetry();
 
     // Backoff schedule: 0.5s -> 1.0s -> 2.0s -> 2.0s ...
     const backoffSec = retryCount === 0 ? 0.5 : retryCount === 1 ? 1.0 : 2.0;
     setCooldown(backoffSec);
     setRetryCount((prev) => prev + 1);
+
+    onRetry();
   };
 
   const isLocked = cooldown > 0;

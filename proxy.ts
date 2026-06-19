@@ -27,10 +27,15 @@ export async function proxy(request: NextRequest) {
   if (queryToken && response) {
     const host = request.headers.get('host') || '';
     let domainStr = '';
-    if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
-      const domainParts = host.split('.');
-      const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
-      domainStr = `; domain=.${baseDomain}`;
+    if (host) {
+      const parts = host.split(':');
+      const domainParts = parts[0].split('.');
+      if (domainParts.includes('localhost')) {
+        domainStr = '; domain=.localhost';
+      } else if (!host.includes('127.0.0.1')) {
+        const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
+        domainStr = `; domain=.${baseDomain}`;
+      }
     }
     const isSecure = request.url.startsWith('https');
     const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
@@ -100,7 +105,8 @@ async function _proxy(request: NextRequest) {
 
         if (profile) {
           user.role_id = profile.role_id as string | null;
-          user.status = profile.status as string | null;
+          // Map is_active (boolean) to status string — live DB has is_active not status
+          user.status = profile.is_active === false ? 'suspended' : (profile.role === 'recruiter' ? 'active' : 'active');
           completedOnboarding =
             profile.onboarding_complete === true ||
             profile.completed_onboarding === true ||
@@ -179,6 +185,22 @@ async function _proxy(request: NextRequest) {
 
   const isStaticOrApi = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/static') || pathname.includes('.');
   const isMainDomain = !isJobsPortal && !isAppPortal && !isAdminPortal;
+
+  const authPages = ['/login', '/signup', '/forgot-password', '/admin/login', '/auth/forgot-password'];
+  const isAuthCallback = pathname === '/auth/callback';
+  const isAuthPage = authPages.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+  const isPublicJobsPath = pathname.startsWith('/browse-jobs') || 
+    pathname.startsWith('/jobs') || 
+    pathname.startsWith('/blog') || 
+    pathname.startsWith('/employers') ||
+    ['/privacy', '/terms', '/about', '/contact'].some(p => pathname.startsWith(p));
+
+  const isCandidatePortal = pathname.startsWith('/candidate/dashboard') || 
+    (isJobsPortal && !isPublicJobsPath && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+
+  const isRecruiterPortal = pathname.startsWith('/recruiter/') || pathname === '/recruiter' || 
+    (isAppPortal && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
 
   if (isMainDomain && !isStaticOrApi && !isRsc) {
     const isCandidatePath = pathname === '/candidate' || pathname.startsWith('/candidate/') || pathname === '/dashboard/candidate' || pathname.startsWith('/dashboard/candidate/') || pathname.startsWith('/onboarding/candidate');
@@ -284,16 +306,22 @@ async function _proxy(request: NextRequest) {
   }
 
 
-  const authPages = ['/login', '/signup', '/forgot-password', '/admin/login', '/auth/forgot-password'];
+  // authPages is now declared at the top of the function
 
   // If accessing a specific portal, we can restrict access or rewrite
   if (isAppPortal) {
-    if (!user && !authPages.includes(pathname)) {
+    // Recruiter portal is not yet open for public access — rewrite to coming-soon
+    const isApiOrStatic = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/static') || pathname.includes('.');
+    if (!isApiOrStatic && !isAuthPage && !isAuthCallback) {
+      return NextResponse.rewrite(new URL('/portals/coming-soon', request.url));
+    }
+
+    if (!user && !isAuthPage && !isAuthCallback) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    if (user && role !== 'recruiter' && !isAdmin && !authPages.includes(pathname)) {
+    if (user && role !== 'recruiter' && !isAdmin && !isAuthPage && !isAuthCallback) {
       // Candidates shouldn't access the app portal
       return NextResponse.redirect(new URL('http://jobs.' + host.replace('app.', '') + '/dashboard', request.url));
     }
@@ -305,7 +333,7 @@ async function _proxy(request: NextRequest) {
     pathname.startsWith('/recruiter/dashboard') ||
     pathname.startsWith('/candidate/dashboard');
 
-  if (user && authPages.includes(pathname)) {
+  if (user && isAuthPage) {
     const dest = (isAdmin || hasAdminAccessCookie)
       ? '/admin/dashboard'
       : role === 'recruiter'
@@ -373,7 +401,7 @@ async function _proxy(request: NextRequest) {
     }
   }
 
-  if (isDashboardPath || pathname.startsWith('/onboarding')) {
+  if (isDashboardPath || pathname.startsWith('/onboarding') || isCandidatePortal || isRecruiterPortal) {
     if (!user) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
@@ -406,7 +434,7 @@ async function _proxy(request: NextRequest) {
   }
 
   const isAdminPath = pathname.startsWith('/admin/dashboard') || 
-    (isAdminPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static'));
+    (isAdminPortal && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static'));
 
   if (isAdminPath) {
     if (!user) {
@@ -432,8 +460,7 @@ async function _proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL(targetPath, request.url));
   }
 
-  const isRecruiterPath = pathname.startsWith('/recruiter/') || pathname === '/recruiter' || 
-    (isAppPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+  const isRecruiterPath = isRecruiterPortal;
 
   if (isRecruiterPath) {
     if (!user) {
@@ -498,8 +525,7 @@ async function _proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL(targetPath, request.url));
   }
 
-  const isCandidatePath = pathname.startsWith('/candidate/dashboard') || 
-    (isJobsPortal && !authPages.includes(pathname) && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+  const isCandidatePath = isCandidatePortal;
 
   if (isCandidatePath) {
     if (!user) {

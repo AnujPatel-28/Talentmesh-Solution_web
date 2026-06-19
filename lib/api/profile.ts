@@ -142,10 +142,10 @@ export async function getMyProfile(token?: string, allowFallback: boolean = true
       email: userEmail || '',
       name: name,
       role: role,
-      is_onboarded: true,
-      onboarding_complete: true,
-      onboarding_completed: true,
-      completed_onboarding: true,
+      is_onboarded: false,
+      onboarding_complete: false,
+      onboarding_completed: false,
+      completed_onboarding: false,
     };
 
   } catch (err) {

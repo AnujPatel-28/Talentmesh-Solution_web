@@ -102,21 +102,21 @@ export default function CandidateSignupPage() {
     const handleSocialSignup = async (provider: 'google' | 'linkedin') => {
         try {
             setError('');
-            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+            const siteUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
             const { data, error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
                 redirectTo: `${siteUrl}/auth/callback?role=candidate`,
                 skipBrowserRedirect: true,
+                ...(provider === 'google' ? { additionalParams: { prompt: 'select_account' } } : {}),
             });
+            // Save the PKCE code_verifier returned by the SDK so the callback page can
+            // complete the PKCE exchange. directInsforge (isServerMode:true) skips auto-save.
+            if (data?.codeVerifier && typeof window !== 'undefined') {
+                window.sessionStorage.setItem('insforge_pkce_verifier', data.codeVerifier);
+            }
             if (authError) throw authError;
             if (data?.url) {
-                let finalUrl = data.url;
-                if (provider === 'google') {
-                    const urlObj = new URL(finalUrl);
-                    urlObj.searchParams.set('prompt', 'select_account');
-                    finalUrl = urlObj.toString();
-                }
-                window.location.href = finalUrl;
+                window.location.href = data.url;
             }
         } catch (err: any) {
             setError(`Failed to initiate ${provider} signup. Please try again.`);
@@ -217,6 +217,10 @@ export default function CandidateSignupPage() {
                                 {showPassword ? 'Hide' : 'Show'}
                             </button>
                         </div>
+                        {fieldErrors.password && <span className="text-[10px] text-red-500">{fieldErrors.password}</span>}
+                        {!fieldErrors.password && (
+                            <span className="text-[10px] text-slate-400">Must contain at least 8 characters, one uppercase letter, and one number.</span>
+                        )}
                         {formData.password && (
                             <div className={styles.strengthBar}>
                                 <div className={styles.strengthSegments}>
