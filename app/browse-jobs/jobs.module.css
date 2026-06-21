@@ -56,11 +56,11 @@
 }
 
 .heroSub {
-    font-size: 1.05rem;
+    font-size: 1rem;
     color: #64748b; /* slate-500 */
-    margin: 0 auto 36px;
+    margin: 0 auto 42px;
     max-width: 600px;
-    line-height: 1.5;
+    line-height: 1.618;
     text-align: center;
 }
 
@@ -150,10 +150,10 @@
 .popularTags {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 28px;
+    margin-top: 26px;
 }
 
 .popularLabel {
@@ -185,21 +185,21 @@
 /* ─── Body Layout ────────────────────────────────────────────────────────────── */
 .body {
     display: flex;
-    gap: clamp(16px, 3vw, 28px);
-    padding: 32px 0 80px;
+    gap: clamp(16px, 3vw, 26px);
+    padding: 42px 0 110px;
     align-items: flex-start;
 }
 
 /* ─── Sidebar ────────────────────────────────────────────────────────────────── */
 .sidebar {
-    width: 280px;
-    min-width: 280px;
+    width: 320px;
+    min-width: 320px;
     background: white;
     border-radius: 16px;
     border: 1px solid #e2e8f0;
     overflow: hidden;
     position: sticky;
-    top: 88px;
+    top: 110px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
@@ -207,7 +207,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 20px 14px;
+    padding: 26px 26px 16px;
     border-bottom: 1px solid #f1f5f9;
 }
 
@@ -215,7 +215,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #0f172a;
 }
@@ -235,7 +235,7 @@
 }
 
 .clearAllBtn {
-    font-size: 0.82rem;
+    font-size: 0.8125rem;
     color: #2563eb;
     background: none;
     border: none;
@@ -264,11 +264,11 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 16px 20px;
+    padding: 16px 26px;
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
     font-weight: 700;
     color: #475569;
     text-transform: uppercase;
@@ -281,7 +281,7 @@
 }
 
 .filterGroupBody {
-    padding: 0 20px 20px;
+    padding: 0 26px 26px;
 }
 
 .filterCheck {
@@ -291,7 +291,7 @@
     font-size: 0.875rem;
     color: #475569;
     cursor: pointer;
-    padding: 8px 0;
+    padding: 10px 0;
     transition: all 0.15s ease;
     width: 100%;
 }
@@ -316,7 +316,7 @@
 }
 
 .filterCountLabel {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #94a3b8;
     font-weight: 500;
 }
@@ -374,7 +374,7 @@
     gap: 8px;
     overflow-x: auto;
     scrollbar-width: none;
-    margin-bottom: 24px;
+    margin-bottom: 26px;
     padding-bottom: 4px;
 }
 
@@ -434,7 +434,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 26px;
     padding: 0 4px;
 }
 
@@ -445,7 +445,7 @@
 }
 
 .resultsCount {
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: #475569;
 }
 
@@ -508,11 +508,11 @@
     background: white;
     border-radius: 16px;
     border: 1px solid #e2e8f0;
-    padding: 24px;
+    padding: 26px 42px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 24px;
+    gap: 26px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.01);
@@ -528,15 +528,15 @@
 }
 
 .jobLogo {
-    width: 64px;
-    height: 64px;
+    width: 68px;
+    height: 68px;
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     font-weight: 700;
-    font-size: 1.3rem;
+    font-size: 1.625rem;
     flex-shrink: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
@@ -545,7 +545,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
 }
 
@@ -557,7 +557,7 @@
 }
 
 .jobTitleText {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: #0F172A;
 }
@@ -574,11 +574,11 @@
 .companyRow {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .companyNameText {
-    font-size: 0.925rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: #475569;
 }
@@ -592,14 +592,14 @@
     align-items: center;
     gap: 16px;
     flex-wrap: wrap;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 .metaItem {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.85rem;
+    font-size: 0.8125rem;
     color: #64748b;
 }
 
@@ -613,11 +613,11 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .techTag {
-    font-size: 0.775rem;
+    font-size: 0.75rem;
     font-weight: 500;
     padding: 4px 10px;
     border-radius: 6px;
@@ -662,7 +662,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 18px;
+    padding: 10px 20px;
     border-radius: 8px;
     border: 1.5px solid #2563eb;
     background: #ffffff;
