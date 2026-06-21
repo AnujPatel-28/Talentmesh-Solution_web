@@ -119,25 +119,27 @@ const Hero = () => {
                                 onChange={(e) => {
                                     setJobQuery(e.target.value);
                                     setIsJobDropdownOpen(true);
+                                    setIsLocationDropdownOpen(false);
                                 }}
-                                onFocus={() => setIsJobDropdownOpen(true)}
+                                onFocus={() => {
+                                    setIsJobDropdownOpen(true);
+                                    setIsLocationDropdownOpen(false);
+                                }}
                             />
-                            {isJobDropdownOpen && filteredJobs.length > 0 && (
-                                <ul className={styles.suggestionsList}>
-                                    {filteredJobs.map((job, index) => (
-                                        <li
-                                            key={index}
-                                            className={styles.suggestionItem}
-                                            onClick={() => {
-                                                setJobQuery(job);
-                                                setIsJobDropdownOpen(false);
-                                            }}
-                                        >
-                                            {job}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                            <ul className={`${styles.suggestionsList} ${isJobDropdownOpen && filteredJobs.length > 0 ? styles.suggestionsListOpen : ''}`}>
+                                {filteredJobs.map((job, index) => (
+                                    <li
+                                        key={index}
+                                        className={styles.suggestionItem}
+                                        onClick={() => {
+                                            setJobQuery(job);
+                                            setIsJobDropdownOpen(false);
+                                        }}
+                                    >
+                                        {job}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
 
                         {/* Location Input */}
@@ -154,8 +156,12 @@ const Hero = () => {
                                 onChange={(e) => {
                                     setLocationQuery(e.target.value);
                                     setIsLocationDropdownOpen(true);
+                                    setIsJobDropdownOpen(false);
                                 }}
-                                onFocus={() => setIsLocationDropdownOpen(true)}
+                                onFocus={() => {
+                                    setIsLocationDropdownOpen(true);
+                                    setIsJobDropdownOpen(false);
+                                }}
                                 style={{ paddingRight: '40px' }}
                             />
                             <button
@@ -183,22 +189,20 @@ const Hero = () => {
                                     <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
                                 </svg>
                             </button>
-                            {isLocationDropdownOpen && filteredCities.length > 0 && (
-                                <ul className={styles.suggestionsList}>
-                                    {filteredCities.map((city, index) => (
-                                        <li
-                                            key={index}
-                                            className={styles.suggestionItem}
-                                            onClick={() => {
-                                                setLocationQuery(city);
-                                                setIsLocationDropdownOpen(false);
-                                            }}
-                                        >
-                                            {city}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
+                            <ul className={`${styles.suggestionsList} ${isLocationDropdownOpen && filteredCities.length > 0 ? styles.suggestionsListOpen : ''}`}>
+                                {filteredCities.map((city, index) => (
+                                    <li
+                                        key={index}
+                                        className={styles.suggestionItem}
+                                        onClick={() => {
+                                            setLocationQuery(city);
+                                            setIsLocationDropdownOpen(false);
+                                        }}
+                                    >
+                                        {city}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
 
                         <button 

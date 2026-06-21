@@ -7,6 +7,7 @@ import styles from './Navbar.module.css';
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const [isScrolled, setIsScrolled] = React.useState(false);
     const pathname = usePathname();
 
     // ── Hide the Navbar entirely inside the dashboard (it has its own layout) ──
@@ -22,11 +23,21 @@ const Navbar = () => {
     // Close mobile menu on route change
     React.useEffect(() => { setIsMenuOpen(false); }, [pathname]);
 
+    // Track page scroll position for transparent vs glassmorphic header
+    React.useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 10);
+        };
+        handleScroll(); // Initial check
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
     // Helper – returns true when the pathname starts with the given base
     const isActive = (base: string) => pathname.startsWith(base);
 
     return (
-        <nav className={styles.navbar}>
+        <nav className={`${styles.navbar} ${isScrolled ? styles.scrolled : ''}`}>
             <div className={styles.container}>
                 {/* ── Logo ── */}
                 <Link href="/" className={styles.logo} onClick={scrollToTop}>

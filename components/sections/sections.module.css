@@ -63,10 +63,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--background);
+    background: #ffffff;
     text-align: center;
 }
 
+/*
 .hero::before {
     content: '';
     position: absolute;
@@ -79,6 +80,47 @@
         linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
     background-size: 60px 60px;
     z-index: 1;
+    pointer-events: none;
+}
+*/
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/Background.png');
+    background-size: cover;
+    background-position: center 30px;
+    background-repeat: no-repeat;
+    z-index: 1;
+    pointer-events: none;
+    animation: waveFlow 22s ease-in-out infinite;
+}
+
+@keyframes waveFlow {
+    0% {
+        background-position: 50% 30px;
+    }
+    50% {
+        background-position: 47% 55px;
+    }
+    100% {
+        background-position: 50% 30px;
+    }
+}
+
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(to bottom, rgba(242, 243, 244, 0) 0%, var(--background) 100%);
+    z-index: 2;
     pointer-events: none;
 }
 
@@ -115,11 +157,41 @@
     margin-bottom: 2rem;
 }
 
+/* Previous hero highlight style:
 .heroTitle .highlight {
     background: linear-gradient(135deg, var(--primary-blue), #60a5fa);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+}
+*/
+
+.heroTitle .highlight {
+    background: linear-gradient(
+        120deg,
+        var(--deep-navy) 0%,
+        var(--primary-blue) 35%,
+        #ffffff 50%,
+        var(--primary-blue) 65%,
+        var(--deep-navy) 100%
+    );
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: textShine 32.5s linear infinite;
+}
+
+@keyframes textShine {
+    0% {
+        background-position: 100% center;
+    }
+    8% {
+        background-position: 0% center;
+    }
+    100% {
+        background-position: 0% center;
+    }
 }
 
 .heroDescription {
@@ -132,7 +204,7 @@
 
 .searchContainer {
     display: flex;
-    background: var(--background);
+    background: #ffffff;
     padding: 8px;
     border-radius: 14px;
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05), 0px 1px 3px rgba(0, 0, 0, 0.04);
@@ -254,17 +326,29 @@
     top: 100%;
     left: 0;
     width: 100%;
-    background: var(--background);
+    background: #ffffff;
     border: 1px solid #E2E8F0;
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
     z-index: 50;
     max-height: 200px;
     overflow-y: auto;
-    margin-top: 4px;
+    overscroll-behavior-y: contain;
+    margin-top: 8px;
     list-style: none;
     padding: 0;
     text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.18s;
+}
+
+.suggestionsListOpen {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0s;
 }
 
 .suggestionItem {
@@ -302,7 +386,7 @@
 /* Dashboard Peek — grounded visual anchor */
 .dashboardPeek {
     margin-top: 2.5rem;
-    background: var(--background);
+    background: #ffffff;
     border: 1px solid #E2E8F0;
     border-radius: 12px;
     width: 100%;
@@ -317,7 +401,7 @@
     align-items: center;
     gap: 6px;
     padding: 10px 16px;
-    background: var(--background);
+    background: #ffffff;
     border-bottom: 1px solid #E2E8F0;
 }
 
@@ -354,7 +438,7 @@
 }
 
 .dashboardRow:hover {
-    background: var(--background);
+    background: #f8fafc;
 }
 
 .dashboardAvatar {
@@ -1050,7 +1134,7 @@
     padding: 6rem 2rem;
     position: relative;
     overflow: hidden;
-    background: var(--background);
+    background: #ffffff;
     position: relative;
     overflow: hidden;
 }
@@ -1364,7 +1448,7 @@
 /* INDUSTRIES SECTION */
 .industries {
     padding: 6rem 0;
-    background: var(--background);
+    background: #ffffff;
     position: relative;
     overflow: hidden;
 }
@@ -1437,12 +1521,33 @@
 }
 
 /* USER SEGMENTS SECTION */
+/* Option 1 */
 .userSegments {
-    padding: 6rem 2rem;
+    padding: 8rem 2rem;
     position: relative;
     overflow: hidden;
-    background: var(--background);
+    background: radial-gradient(circle at 50% 50%, rgba(0, 123, 255, 0.04) 0%, var(--background) 100%);
 }
+
+/* Option 2
+.userSegments {
+    padding: 8rem 2rem;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--background);
+    background-image: radial-gradient(rgba(0, 123, 255, 0.12) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+}
+*/
+
+/* Option 3
+.userSegments {
+    padding: 8rem 2rem;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(to bottom, var(--background) 0%, #ffffff 100%);
+}
+*/
 
 .segmentsGrid {
     display: grid;
@@ -1680,13 +1785,50 @@
 }
 
 /* SUPERHUMAN POWERS SECTION */
+/* Option A - Wave Divider
+.waveDivider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    line-height: 0;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.waveDivider svg {
+    position: relative;
+    display: block;
+    width: calc(100% + 1.3px);
+    height: 80px;
+}
+
+.waveDivider path {
+    fill: var(--background);
+}
+*/
+
+/* Option B - Diagonal Split */
+/* Option B - Diagonal Split
 .superhumanPowers {
-    padding: 6rem 2rem;
+    padding: 10rem 2rem 8rem;
     position: relative;
     overflow: hidden;
     background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
     color: var(--white);
-    padding: 8rem 2rem;
+    clip-path: polygon(0 50px, 100% 0, 100% 100%, 0 100%);
+}
+*/
+
+/* Option C - Scroll-Driven Morphing Arch */
+.superhumanPowers {
+    padding: 10rem 2rem 8rem;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+    color: var(--white);
+    /* clip-path is dynamically handled inline in React state */
 }
 
 .superhumanPowers .sectionTitle {

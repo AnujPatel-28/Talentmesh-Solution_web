@@ -393,6 +393,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(resolvedUser);
       cacheUser(resolvedUser);
+      if (typeof window !== 'undefined') {
+        const lastActive = parseInt(localStorage.getItem('tm_last_active_time') || '0');
+        const now = Date.now();
+        const twoHoursMs = 2 * 60 * 60 * 1000;
+        if (!lastActive || isNaN(lastActive) || (now - lastActive > twoHoursMs)) {
+          localStorage.setItem('tm_last_active_time', now.toString());
+        }
+      }
 
       return resolvedUser;
     } catch (err) {
@@ -464,6 +472,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await syncAuthCookies(token, fullUser);
       setUser(fullUser);
       cacheUser(fullUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tm_last_active_time', Date.now().toString());
+      }
       return { user: fullUser, accessToken: token };
     } catch {
       return { error: 'An unexpected error occurred during sign in.' };
@@ -500,6 +511,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await syncAuthCookies(signupToken, fullUser);
         setUser(fullUser);
         cacheUser(fullUser);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tm_last_active_time', Date.now().toString());
+        }
       }
 
       return { requireEmailVerification: data?.requireEmailVerification };
@@ -714,8 +728,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    if (!localStorage.getItem('tm_last_active_time')) {
-      localStorage.setItem('tm_last_active_time', Date.now().toString());
+    // Initialize or reset tm_last_active_time if missing, invalid, or stale (older than 2 hours)
+    const initialLastActive = parseInt(localStorage.getItem('tm_last_active_time') || '0');
+    const now = Date.now();
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+    if (!initialLastActive || isNaN(initialLastActive) || (now - initialLastActive > twoHoursMs)) {
+      localStorage.setItem('tm_last_active_time', now.toString());
     }
 
     const intervalId = setInterval(checkTimeout, 5000);
@@ -810,6 +828,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await syncAuthCookies(token, authUser);
     setUser(authUser);
     cacheUser(authUser);
+    if (typeof window !== 'undefined') {
+      const lastActive = parseInt(localStorage.getItem('tm_last_active_time') || '0');
+      const now = Date.now();
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      if (!lastActive || isNaN(lastActive) || (now - lastActive > twoHoursMs)) {
+        localStorage.setItem('tm_last_active_time', now.toString());
+      }
+    }
   }, [cacheUser, syncAuthCookies]);
 
   return (

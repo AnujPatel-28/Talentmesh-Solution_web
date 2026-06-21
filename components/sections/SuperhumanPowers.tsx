@@ -1,15 +1,73 @@
+"use client";
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './sections.module.css';
 
 const SuperhumanPowers = () => {
+    const sectionRef = useRef<HTMLDivElement>(null);
+    const [curvePercent, setCurvePercent] = useState(0.12);
+    const [titleRevealProgress, setTitleRevealProgress] = useState(0);
+    const [descRevealProgress, setDescRevealProgress] = useState(0);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!sectionRef.current) return;
+            const rect = sectionRef.current.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+
+            const startTrigger = viewportHeight;
+            const endTrigger = 150;
+            const totalDistance = startTrigger - endTrigger;
+
+            const currentDistance = viewportHeight - rect.top;
+            const progress = Math.min(Math.max(currentDistance / totalDistance, 0), 1);
+            
+            const maxCurve = 0.12;
+            setCurvePercent(maxCurve * (1 - progress));
+            
+            // Staggered reveal calculations (Title reveals first, Description follows)
+            const titleProg = Math.min(Math.max((progress - 0.0) / 0.8, 0), 1);
+            const descProg = Math.min(Math.max((progress - 0.15) / 0.85, 0), 1);
+            
+            setTitleRevealProgress(prev => Math.max(prev, titleProg));
+            setDescRevealProgress(prev => Math.max(prev, descProg));
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        handleScroll();
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
     return (
-        <section className={styles.superhumanPowers}>
+        <section ref={sectionRef} className={styles.superhumanPowers} style={{ clipPath: 'url(#arch-clip)', WebkitClipPath: 'url(#arch-clip)' }}>
             <div className={styles.container}>
                 <div className={styles.sectionHeader}>
-                    <h2 className={styles.sectionTitle}>
+                    <h2 
+                        className={styles.sectionTitle}
+                        style={{ 
+                            clipPath: `inset(${(1 - titleRevealProgress) * 100}% 0 0 0)`,
+                            WebkitClipPath: `inset(${(1 - titleRevealProgress) * 100}% 0 0 0)`,
+                            transform: `translateY(${(1 - titleRevealProgress) * 35}px)`,
+                            opacity: titleRevealProgress,
+                            transformOrigin: 'center center',
+                            willChange: 'transform, clip-path, opacity',
+                            transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), clip-path 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}
+                    >
                         <span className={styles.highlightText}>Superhuman</span>{' '}
-                        <span>recruiting powers.</span>
+                        <span>Recruiting Powers.</span>
                     </h2>
-                    <p className={styles.sectionDesc}>
+                    <p 
+                        className={styles.sectionDesc}
+                        style={{ 
+                            clipPath: `inset(${(1 - descRevealProgress) * 100}% 0 0 0)`,
+                            WebkitClipPath: `inset(${(1 - descRevealProgress) * 100}% 0 0 0)`,
+                            transform: `translateY(${(1 - descRevealProgress) * 35}px)`,
+                            opacity: descRevealProgress,
+                            transformOrigin: 'center center',
+                            willChange: 'transform, clip-path, opacity',
+                            transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), clip-path 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}
+                    >
                         Replace manual screening and coordination with an intelligent agent that works 24/7.
                     </p>
                 </div>
@@ -114,9 +172,17 @@ const SuperhumanPowers = () => {
                     </div>
                 </div>
             </div>
+
+            {/* SVG ClipPath Definition */}
+            <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
+                <defs>
+                    <clipPath id="arch-clip" clipPathUnits="objectBoundingBox">
+                        <path d={`M0,1 L1,1 L1,${curvePercent} Q0.5,${-curvePercent} 0,${curvePercent} Z`} />
+                    </clipPath>
+                </defs>
+            </svg>
         </section>
     );
 };
 
 export default SuperhumanPowers;
-
