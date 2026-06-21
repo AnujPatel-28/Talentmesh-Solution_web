@@ -4,10 +4,7 @@
   top: 0;
   left: 0;
   width: 100%;
-  background-image: url('/nav strrip.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: transparent;
   border-bottom: 1px solid transparent;
   z-index: 1000;
   transition: all 0.3s ease;
