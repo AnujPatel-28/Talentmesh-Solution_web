@@ -293,7 +293,7 @@ export default function BrowseJobsPage() {
     return (
         <main className={styles.page}>
             <section className={styles.hero}>
-                <div className="premium-container">
+                <div className={styles.customContainer}>
                     <div className={styles.heroContent}>
                         <h1 className={styles.heroTitle}>Find your next role</h1>
                         <p className={styles.heroSub}>
@@ -334,7 +334,7 @@ export default function BrowseJobsPage() {
                 </div>
             </section>
 
-            <div className="premium-container">
+            <div className={styles.customContainer}>
                 <div className={styles.body}>
                     <>
                         {filterOpen && <div className={styles.overlay} onClick={() => setFilterOpen(false)} />}

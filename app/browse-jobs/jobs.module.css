@@ -11,8 +11,21 @@
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
 .hero {
     background: transparent;
-    padding: 48px 16px 24px;
+    padding: 48px 0 24px;
     border-bottom: none;
+}
+
+.customContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 16px;
+}
+
+@media (min-width: 1200px) {
+    .customContainer {
+        padding: 0;
+    }
 }
 
 .heroContent {
@@ -169,7 +182,7 @@
 .body {
     display: flex;
     gap: clamp(16px, 3vw, 28px);
-    padding: 32px 16px 80px;
+    padding: 32px 0 80px;
     align-items: flex-start;
 }
 
