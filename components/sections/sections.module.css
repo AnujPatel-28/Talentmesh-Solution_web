@@ -93,7 +93,7 @@
     height: 100%;
     background-image: url('/Background.png');
     background-size: cover;
-    background-position: center top;
+    background-position: center 0px;
     background-repeat: no-repeat;
     z-index: 1;
     pointer-events: none;
@@ -102,13 +102,13 @@
 
 @keyframes waveFlow {
     0% {
-        background-position: 50% top;
+        background-position: 50% 0px;
     }
     50% {
-        background-position: 47% top;
+        background-position: 47% -15px;
     }
     100% {
-        background-position: 50% top;
+        background-position: 50% 0px;
     }
 }
 
@@ -2124,6 +2124,15 @@
         font-size: 3.5rem;
     }
 
+    .hero::before {
+        background-size: 100% 100%;
+        background-position: center top;
+    }
+
+    .hero::after {
+        height: 100px;
+    }
+
     .sectionTitle {
         font-size: 2.25rem;
     }
@@ -2146,6 +2155,15 @@
         padding-left: 1.25rem;
         padding-right: 1.25rem;
         min-height: auto;
+    }
+
+    .hero::before {
+        background-size: 100% 100%;
+        background-position: center top;
+    }
+
+    .hero::after {
+        height: 60px;
     }
 
     .heroGrid {

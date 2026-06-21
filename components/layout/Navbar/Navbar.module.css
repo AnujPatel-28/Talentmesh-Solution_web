@@ -50,7 +50,7 @@
   text-decoration: none;
   flex-shrink: 0;
   position: relative;
-  z-index: 1003;
+  z-index: 1010;
 }
 
 .logoImg {
@@ -240,7 +240,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  z-index: 1002;
+  z-index: 1010;
   padding: 0;
   flex-shrink: 0;
 }
@@ -367,11 +367,7 @@
 
 @media (max-width: 1024px) {
   .navbar {
-    background: var(--background);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid transparent;
   }
 
   .links {

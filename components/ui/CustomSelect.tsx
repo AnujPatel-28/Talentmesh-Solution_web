@@ -55,14 +55,14 @@ export function CustomSelect({ name, value, onChange, options, placeholder, clas
           position: 'absolute', 
           ...(dropUp ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
           left: 0, right: 0, 
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', 
+          background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', 
           zIndex: 100, maxHeight: '240px', overflowY: 'auto',
           boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
           display: 'flex', flexDirection: 'column'
         }}>
           {placeholder && !required && (
             <div 
-              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14.5px', color: '#94a3b8', fontStyle: 'italic' }}
+              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px', color: '#94a3b8', fontStyle: 'italic' }}
               onClick={() => {
                  onChange({ target: { name: name || '', value: '' } });
                  setIsOpen(false);
@@ -76,7 +76,7 @@ export function CustomSelect({ name, value, onChange, options, placeholder, clas
           {normalizedOptions.map((opt, idx) => (
             <div 
               key={`${opt.value}-${idx}`}
-              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14.5px', color: '#334155' }}
+              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '14px', color: '#334155' }}
               onClick={() => {
                  const event = {
                    target: { name: name || '', value: opt.value },
@@ -86,7 +86,7 @@ export function CustomSelect({ name, value, onChange, options, placeholder, clas
                  onChange(event);
                  setIsOpen(false);
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#1e88e5'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#2563eb'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#334155'; }}
             >
               {opt.label}
