@@ -44,16 +44,15 @@
 .heroTitle {
     font-size: clamp(2.75rem, 6vw, 3.5rem);
     font-weight: 800;
-    background: linear-gradient(135deg, var(--deep-navy) 0%, var(--primary-blue) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    color: transparent;
-    width: fit-content;
+    color: var(--ink-black);
     margin: 0 auto 12px;
     letter-spacing: -0.025em;
     line-height: 1.2;
     text-align: center;
+}
+
+.highlightText {
+    color: var(--dodger-blue);
 }
 
 .heroSub {

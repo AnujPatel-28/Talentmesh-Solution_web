@@ -295,7 +295,9 @@ export default function BrowseJobsPage() {
             <section className={styles.hero}>
                 <div className={styles.customContainer}>
                     <div className={styles.heroContent}>
-                        <h1 className={styles.heroTitle}>Find Your Next Role</h1>
+                        <h1 className={styles.heroTitle}>
+                            Find Your <span className={styles.highlightText}>Next Role</span>
+                        </h1>
                         <p className={styles.heroSub}>
                             Search thousands of jobs in tech, design, and engineering across top companies.
                         </p>
