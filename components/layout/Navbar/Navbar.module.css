@@ -4,7 +4,10 @@
   top: 0;
   left: 0;
   width: 100%;
-  background: transparent;
+  background-image: url('/nav strrip.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border-bottom: 1px solid transparent;
   z-index: 1000;
   transition: all 0.3s ease;
@@ -16,6 +19,15 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.navbar.transparentNav {
+  background-image: none !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .navbar.scrolled:has(+ *) {

@@ -1,7 +1,9 @@
 "use client";
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import createGlobe from 'cobe';
 import { SectionHeader } from '@/components/ui';
+import { DottedGlowBackground } from '@/components/ui/dotted-glow-background';
 import styles from './job-seekers.module.css';
 
 // SVG Icons
@@ -17,19 +19,116 @@ const IconArrowRight = () => (
     </svg>
 );
 
-const IconNode = () => (
-    <svg width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <circle cx="5" cy="5" r="3" />
-        <circle cx="19" cy="5" r="3" />
-        <circle cx="5" cy="19" r="3" />
-        <circle cx="19" cy="19" r="3" />
-        <line x1="7.1" y1="7.1" x2="9.9" y2="9.9" />
-        <line x1="16.9" y1="7.1" x2="14.1" y2="9.9" />
-        <line x1="7.1" y1="16.9" x2="9.9" y2="14.1" />
-        <line x1="16.9" y1="16.9" x2="14.1" y2="14.1" />
-    </svg>
-);
+const InteractiveGlobe = () => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const pointerInteracting = useRef<number | null>(null);
+
+    useEffect(() => {
+        let phi = 0;
+        let theta = 0.25;
+        let width = 320; // default initial width
+
+        if (!canvasRef.current) return;
+
+        // Measure container size
+        const canvas = canvasRef.current;
+        const container = canvas.parentElement;
+        if (container) {
+            width = container.offsetWidth || 320;
+        }
+
+        const globe = createGlobe(canvas, {
+            devicePixelRatio: 2,
+            width: width * 2,
+            height: width * 2,
+            phi: 0,
+            theta: 0.25,
+            dark: 0,
+            diffuse: 1.2,
+            mapSamples: 12000,
+            mapBrightness: 6,
+            baseColor: [0.95, 0.96, 0.98],
+            markerColor: [0.23, 0.51, 0.96], // #3b82f6
+            glowColor: [0.93, 0.96, 1.0],
+            markers: [
+                { location: [37.7749, -122.4194], size: 0.04, id: "sf" }, // San Francisco
+                { location: [51.5074, -0.1278], size: 0.04, id: "london" },   // London
+                { location: [35.6762, 139.6503], size: 0.04, id: "tokyo" },   // Tokyo
+                { location: [12.9716, 77.5946], size: 0.05, id: "bangalore" },    // Bangalore
+                { location: [-33.8688, 151.2093], size: 0.04, id: "sydney" }  // Sydney
+            ]
+        });
+
+        // Set up manual animation loop
+        let animationFrameId: number;
+        const renderLoop = () => {
+            if (pointerInteracting.current === null) {
+                phi += 0.005;
+            }
+            globe.update({ phi, theta });
+            animationFrameId = requestAnimationFrame(renderLoop);
+        };
+        renderLoop();
+
+        // Resize handler to update WebGL canvas internal width/height
+        const handleResize = () => {
+            if (canvas && container) {
+                const newWidth = container.offsetWidth;
+                if (newWidth && newWidth !== width) {
+                    width = newWidth;
+                    globe.update({
+                        width: width * 2,
+                        height: width * 2
+                    });
+                }
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        const handlePointerDown = (e: PointerEvent) => {
+            pointerInteracting.current = e.clientX;
+            if (canvas) canvas.style.cursor = 'grabbing';
+        };
+
+        const handlePointerUp = () => {
+            pointerInteracting.current = null;
+            if (canvas) canvas.style.cursor = 'grab';
+        };
+
+        const handlePointerMove = (e: PointerEvent) => {
+            if (pointerInteracting.current !== null) {
+                const delta = e.clientX - pointerInteracting.current;
+                pointerInteracting.current = e.clientX;
+                phi += delta / 150;
+            }
+        };
+
+        canvas.addEventListener('pointerdown', handlePointerDown);
+        canvas.addEventListener('pointerup', handlePointerUp);
+        canvas.addEventListener('pointermove', handlePointerMove);
+        canvas.addEventListener('pointerout', handlePointerUp);
+
+        return () => {
+            globe.destroy();
+            cancelAnimationFrame(animationFrameId);
+            window.removeEventListener('resize', handleResize);
+            canvas.removeEventListener('pointerdown', handlePointerDown);
+            canvas.removeEventListener('pointerup', handlePointerUp);
+            canvas.removeEventListener('pointermove', handlePointerMove);
+            canvas.removeEventListener('pointerout', handlePointerUp);
+        };
+    }, []);
+
+    return (
+        <div className={styles.globeContainer}>
+            <canvas
+                ref={canvasRef}
+                className={styles.globeCanvas}
+            />
+        </div>
+    );
+};
 
 const IconCheckCircle = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -87,22 +186,23 @@ export default function JobSeekersPage() {
                 <div className={styles.heroLayout}>
                     <div className={styles.heroContent}>
                         <div className={styles.aiBadge}>
-                            <IconSparkle /> AI-Powered Career Growth
+                            <IconSparkle /> Jobs • Careers • Hiring
                         </div>
-                        <h1 className={styles.heroTitle}>Unlock Your Career Potential with AI</h1>
+                        <h1 className={styles.heroTitle}>Find Work That <span className={styles.heroHighlight}>Moves You Forward</span></h1>
                         <p className={styles.heroDesc}>
-                            Navigate the modern job market with precision. TalentMesh leverages advanced artificial intelligence to match your unique skills with ideal roles, optimize your presentation, and prepare you for success.
+                            Discover verified jobs, connect with leading employers, and build a career that grows with your skills, ambitions, and potential.
                         </p>
                         <Link href="/signup" className={styles.primaryCta}>
                             Create Your Profile <IconArrowRight />
                         </Link>
                     </div>
-                    
+
                     <div className={styles.heroGraphic}>
                         <div className={styles.graphicCenter}>
-                            <IconNode />
+                            <InteractiveGlobe />
                         </div>
-                        
+
+                        {/* 
                         <div className={`${styles.floatBadge} ${styles.floatBadgeTop}`}>
                             <div className={`${styles.badgeIcon} ${styles.badgeIconGreen}`}>
                                 <IconCheckCircle />
@@ -122,6 +222,7 @@ export default function JobSeekersPage() {
                                 <span className={styles.badgeValue}>$120k - $140k</span>
                             </div>
                         </div>
+                        */}
                     </div>
                 </div>
             </section>
@@ -129,71 +230,110 @@ export default function JobSeekersPage() {
             {/* 2. Intelligent Tools Grid */}
             <section className={styles.featuresSection}>
                 <div className={styles.featuresHeader}>
-                    <SectionHeader 
-                        centered 
-                        title="Intelligent Tools for Your Journey" 
-                        description="Our suite of AI-driven tools provides actionable insights at every stage of your job search, giving you a competitive edge." 
+                    <SectionHeader
+                        centered
+                        light
+                        title={
+                            <>
+                                Everything You Need{" "}
+                                <span className={styles.highlightText}>To Grow Your Career</span>
+                            </>
+                        }
+                        description="Discover jobs, optimize your profile, prepare for interviews, and access salary insights to grow your career with confidence."
                     />
                 </div>
 
                 <div className={styles.featuresGrid}>
-                    {/* Card 1 */}
+                    {/* Card 1 — Job Discovery */}
                     <div className={styles.featureCard}>
+                        <DottedGlowBackground 
+                            color="rgba(255, 255, 255, 0.05)"
+                            glowColor="rgba(59, 130, 246, 0.3)"
+                            gap={16}
+                            radius={1.5}
+                            opacity={0.8}
+                        />
                         <div className={styles.featureIcon}><IconSearch /></div>
-                        <h3 className={styles.featureTitle}>Smart Matching</h3>
+                        <h3 className={styles.featureTitle}>Job Discovery</h3>
                         <p className={styles.featureDesc}>
-                            Move beyond keyword matching. Our AI analyzes your actual skills, project history, and career trajectory to connect you with roles where you&apos;ll thrive, often uncovering opportunities you might not have considered.
+                            Explore relevant job opportunities based on your skills, experience, and career goals. Discover roles across industries and connect with employers actively hiring talent.
                         </p>
                         <div className={styles.cardFooter}>
                             <div className={styles.pillGroup}>
-                                <span className={styles.featurePill}>Skill Mapping</span>
-                                <span className={styles.featurePill}>Culture Fit Analysis</span>
-                                <span className={styles.featurePill}>Hidden Role Discovery</span>
+                                <span className={styles.featurePill}>Verified Jobs</span>
+                                <span className={styles.featurePill}>Career Opportunities</span>
+                                <span className={styles.featurePill}>Hiring Companies</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Card 2 */}
+                    {/* Card 2 — Salary Insights */}
                     <div className={styles.featureCard}>
+                        <DottedGlowBackground 
+                            color="rgba(255, 255, 255, 0.05)"
+                            glowColor="rgba(59, 130, 246, 0.3)"
+                            gap={16}
+                            radius={1.5}
+                            opacity={0.8}
+                        />
                         <div className={styles.featureIcon}><IconMoney /></div>
                         <h3 className={styles.featureTitle}>Salary Insights</h3>
                         <p className={styles.featureDesc}>
-                            Negotiate with confidence using real-time market data tailored to your specific experience level and location.
-                        </p>
-                        <div className={styles.cardFooter}>
-                            <div className={styles.sliderGraphic}>
-                                <div className={styles.sliderHeader}>
-                                    <span>Your Expected Range</span>
-                                    <span className={styles.sliderTop}>Top 15%</span>
-                                </div>
-                                <div className={styles.sliderBar}>
-                                    <div className={styles.sliderFill}></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Card 3 */}
-                    <div className={styles.featureCard}>
-                        <div className={styles.featureIcon}><IconFile /></div>
-                        <h3 className={styles.featureTitle}>Resume Optimization</h3>
-                        <p className={styles.featureDesc}>
-                            Upload your current CV and receive instant, actionable feedback. Our AI identifies missing keywords, suggests stronger action verbs, and ensures your profile aligns with ATS standards.
+                            Research salary benchmarks, compensation trends, and market expectations to make informed career decisions and negotiate confidently.
                         </p>
                         <div className={styles.cardFooter}>
                             <div className={styles.pillGroup}>
-                                <span className={`${styles.featurePill} ${styles.featurePillBlue}`}>REAL-TIME FEEDBACK</span>
+                                <span className={styles.featurePill}>Salary Benchmarks</span>
+                                <span className={styles.featurePill}>Market Trends</span>
+                                <span className={styles.featurePill}>Compensation Data</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Card 4 */}
+                    {/* Card 3 — Professional Profile */}
                     <div className={styles.featureCard}>
-                        <div className={styles.featureIcon}><IconMic /></div>
-                        <h3 className={styles.featureTitle}>AI Interview Prep</h3>
+                        <DottedGlowBackground 
+                            color="rgba(255, 255, 255, 0.05)"
+                            glowColor="rgba(59, 130, 246, 0.3)"
+                            gap={16}
+                            radius={1.5}
+                            opacity={0.8}
+                        />
+                        <div className={styles.featureIcon}><IconFile /></div>
+                        <h3 className={styles.featureTitle}>Professional Profile</h3>
                         <p className={styles.featureDesc}>
-                            Practice with our AI-driven screening tool. Experience simulated interviews tailored to your target role, complete with behavioral questions and immediate feedback on your responses.
+                            Build a complete professional profile that showcases your skills, experience, achievements, and career aspirations to potential employers.
                         </p>
+                        <div className={styles.cardFooter}>
+                            <div className={styles.pillGroup}>
+                                <span className={styles.featurePill}>Skills Showcase</span>
+                                <span className={styles.featurePill}>Work Experience</span>
+                                <span className={styles.featurePill}>Professional Branding</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Card 4 — Interview Preparation */}
+                    <div className={styles.featureCard}>
+                        <DottedGlowBackground 
+                            color="rgba(255, 255, 255, 0.05)"
+                            glowColor="rgba(59, 130, 246, 0.3)"
+                            gap={16}
+                            radius={1.5}
+                            opacity={0.8}
+                        />
+                        <div className={styles.featureIcon}><IconMic /></div>
+                        <h3 className={styles.featureTitle}>Interview Preparation</h3>
+                        <p className={styles.featureDesc}>
+                            Access interview resources, career guidance, and practical preparation materials to improve confidence and performance during hiring processes.
+                        </p>
+                        <div className={styles.cardFooter}>
+                            <div className={styles.pillGroup}>
+                                <span className={styles.featurePill}>Interview Tips</span>
+                                <span className={styles.featurePill}>Career Resources</span>
+                                <span className={styles.featurePill}>Hiring Preparation</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
