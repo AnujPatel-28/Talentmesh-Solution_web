@@ -567,7 +567,7 @@ export default function BrowseJobsPage() {
 }
 
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
-    const [open, setOpen] = useState(true);
+    const [open, setOpen] = useState(false);
     return (
         <div className={styles.filterGroup}>
             <button className={styles.filterGroupHdr} onClick={() => setOpen(o => !o)}>

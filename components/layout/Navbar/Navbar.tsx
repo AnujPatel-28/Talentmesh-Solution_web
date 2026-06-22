@@ -36,8 +36,10 @@ const Navbar = () => {
     // Helper – returns true when the pathname starts with the given base
     const isActive = (base: string) => pathname.startsWith(base);
 
+    const isTransparentPage = pathname === '/browse-jobs';
+
     return (
-        <nav className={`${styles.navbar} ${isScrolled ? styles.scrolled : ''}`}>
+        <nav className={`${styles.navbar} ${isTransparentPage && !isScrolled ? styles.transparentNav : ''} ${isScrolled ? styles.scrolled : ''}`}>
             <div className={styles.container}>
                 {/* ── Logo ── */}
                 <Link href="/" className={styles.logo} onClick={scrollToTop}>

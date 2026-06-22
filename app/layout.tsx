@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Geist } from "next/font/google";
 import { Navbar, Footer, NavbarWrapper } from "@/components/layout";
 import "./globals.css";
 
@@ -58,6 +58,10 @@ export const metadata: Metadata = {
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { headers } from "next/headers";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
 
 export default async function RootLayout({
   children,
@@ -69,7 +73,7 @@ export default async function RootLayout({
   const isPortal = host.startsWith("jobs.") || host.startsWith("app.") || host.startsWith("admin.");
 
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", geist.variable)}>
       <body
         className={`${inter.variable} ${jakarta.variable} antialiased`}
         suppressHydrationWarning

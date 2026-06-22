@@ -56,25 +56,24 @@ export default function CareerAdvicePage() {
 
     return (
         <main className={styles.page}>
-            {/* ── BLOG HERO ── */}
-            <section className={styles.blogHero}>
+            {/* <section className={styles.blogHero}>
                 <h1 className={styles.blogTitle}>Level up your career with <span className="text-gradient">expert insights</span></h1>
                 <p className={styles.blogSub}>Discover actionable advice, industry trends, and the tools you need to stand out in today&apos;s competitive job market.</p>
                 <div className={styles.searchBox}>
                     <SearchIcon className={styles.searchIcon} />
                     <input type="text" placeholder="Search articles..." className={styles.searchInput} />
                 </div>
-            </section>
+            </section> */}
 
             {/* ── CATEGORY FILTERS ── */}
-            <div className={styles.categoryFilters}>
+            {/* <div className={styles.categoryFilters}>
                 {['All', 'Resume Tips', 'Interview Prep', 'Salary Negotiation', 'AI in Recruiting'].map(c => (
                     <button key={c} className={`${styles.filterPill} ${c === 'All' ? styles.filterPillActive : ''}`}>{c}</button>
                 ))}
-            </div>
+            </div> */}
 
             {/* ── BLOG GRID ── */}
-            <div className={styles.blogGrid}>
+            {/* <div className={styles.blogGrid}>
                 <div className={`${styles.articleCard} ${styles.featuredCard}`} style={{ backgroundImage: 'url(/images/tech-office.jpg)' }}>
                     <div className={styles.cardContent}>
                         <span className={styles.articleTag}>AI in Recruiting</span>
@@ -110,10 +109,10 @@ export default function CareerAdvicePage() {
                         <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             {/* ── NEWSLETTER ── */}
-            <section className={styles.newsletterSection}>
+            {/* <section className={styles.newsletterSection}>
                 <div className={styles.newsletterBox}>
                     <div className={styles.newsletterContent}>
                         <h2 className={styles.newsletterTitle}>Stay ahead of the <span className="text-gradient">curve</span></h2>
@@ -124,7 +123,7 @@ export default function CareerAdvicePage() {
                         <button type="submit" className={styles.newsletterBtn}>Subscribe</button>
                     </form>
                 </div>
-            </section>
+            </section> */}
 
             {/* ── HERO ── */}
             <section className={styles.hero}>
@@ -132,14 +131,11 @@ export default function CareerAdvicePage() {
                     <div className={styles.heroInner}>
                         <SectionHeader
                             centered
+                            className={styles.heroHeader}
                             tag="Career Services"
-                            title={<>Expert Guidance for Your <span className="text-gradient">Career Path</span></>}
+                            title={<>Expert Guidance for Your <span className={styles.highlight}>Career Path</span></>}
                             description="From resume reviews to interview preparation, our experts are here to help you navigate your next big move."
                         />
-                        <div className={styles.trustNote}>
-                            <ClockIco />
-                            <span>Our team typically responds within <strong>24–48 hours.</strong></span>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -163,6 +159,18 @@ export default function CareerAdvicePage() {
                                     <h2 className={styles.formTitle}>Request My Career Consultation</h2>
                                     <p className={styles.formNote}>All fields required unless marked <em>(optional)</em></p>
 
+                                    <div className={styles.formTrustNote}>
+                                        <ClockIco />
+                                        <span>Our team typically responds within <strong>24–48 hours.</strong></span>
+                                    </div>
+
+                                    {/* SECTION 1: CONTACT INFO */}
+                                    <div className={styles.formSectionHeader}>
+                                        <span className={styles.formSectionNumber}>01</span>
+                                        <h3 className={styles.formSectionTitle}>Contact Information</h3>
+                                    </div>
+                                    <div className={styles.formSectionDivider} />
+
                                     <div className={styles.fieldRow}>
                                         <div className={styles.field}>
                                             <label className={styles.label}>Full Name</label>
@@ -174,11 +182,19 @@ export default function CareerAdvicePage() {
                                         </div>
                                     </div>
 
+                                    <div className={styles.field}>
+                                        <label className={styles.label}>Phone Number <em className={styles.optional}>(optional)</em></label>
+                                        <input className={styles.input} type="tel" placeholder="+1 555 000 0000" value={form.phone} onChange={e => set('phone', e.target.value)} />
+                                    </div>
+
+                                    {/* SECTION 2: CAREER PROFILE */}
+                                    <div className={styles.formSectionHeader}>
+                                        <span className={styles.formSectionNumber}>02</span>
+                                        <h3 className={styles.formSectionTitle}>Career Profile</h3>
+                                    </div>
+                                    <div className={styles.formSectionDivider} />
+
                                     <div className={styles.fieldRow}>
-                                        <div className={styles.field}>
-                                            <label className={styles.label}>Phone Number <em className={styles.optional}>(optional)</em></label>
-                                            <input className={styles.input} type="tel" placeholder="+1 555 000 0000" value={form.phone} onChange={e => set('phone', e.target.value)} />
-                                        </div>
                                         <div className={styles.field}>
                                             <label className={styles.label}>Current Status</label>
                                             <CustomSelect
@@ -187,6 +203,17 @@ export default function CareerAdvicePage() {
                                                 onChange={e => set('status', (e as any).target.value)}
                                                 placeholder="Select your status"
                                                 options={CURRENT_STATUS.map(s => ({ label: s, value: s }))}
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.field}>
+                                            <label className={styles.label}>Years of Experience</label>
+                                            <CustomSelect
+                                                className={styles.select}
+                                                value={form.expYears}
+                                                onChange={e => set('expYears', (e as any).target.value)}
+                                                placeholder="Select range"
+                                                options={EXP_YEARS.map(e => ({ label: e, value: e }))}
                                                 required
                                             />
                                         </div>
@@ -203,17 +230,12 @@ export default function CareerAdvicePage() {
                                         </div>
                                     </div>
 
-                                    <div className={styles.field}>
-                                        <label className={styles.label}>Years of Experience</label>
-                                        <CustomSelect
-                                            className={styles.select}
-                                            value={form.expYears}
-                                            onChange={e => set('expYears', (e as any).target.value)}
-                                            placeholder="Select range"
-                                            options={EXP_YEARS.map(e => ({ label: e, value: e }))}
-                                            required
-                                        />
+                                    {/* SECTION 3: CONSULTATION DETAILS */}
+                                    <div className={styles.formSectionHeader}>
+                                        <span className={styles.formSectionNumber}>03</span>
+                                        <h3 className={styles.formSectionTitle}>Consultation Details</h3>
                                     </div>
+                                    <div className={styles.formSectionDivider} />
 
                                     {/* Multi-select help needs */}
                                     <div className={styles.field}>
@@ -241,7 +263,15 @@ export default function CareerAdvicePage() {
                                             <div className={styles.radioGroup}>
                                                 {CONTACT_TIMES.map(t => (
                                                     <label key={t} className={styles.radioLabel}>
-                                                        <input type="radio" name="contactTime" value={t} checked={form.contactTime === t} onChange={e => set('contactTime', e.target.value)} />
+                                                        <input
+                                                            type="radio"
+                                                            name="contactTime"
+                                                            value={t}
+                                                            checked={form.contactTime === t}
+                                                            onChange={e => set('contactTime', e.target.value)}
+                                                            className={styles.radioInput}
+                                                        />
+                                                        <span className={styles.radioCustom} />
                                                         {t}
                                                     </label>
                                                 ))}
@@ -252,7 +282,15 @@ export default function CareerAdvicePage() {
                                             <div className={styles.radioGroup}>
                                                 {CONTACT_METHODS.map(m => (
                                                     <label key={m} className={styles.radioLabel}>
-                                                        <input type="radio" name="contactMethod" value={m} checked={form.contactMethod === m} onChange={e => set('contactMethod', e.target.value)} />
+                                                        <input
+                                                            type="radio"
+                                                            name="contactMethod"
+                                                            value={m}
+                                                            checked={form.contactMethod === m}
+                                                            onChange={e => set('contactMethod', e.target.value)}
+                                                            className={styles.radioInput}
+                                                        />
+                                                        <span className={styles.radioCustom} />
                                                         {m}
                                                     </label>
                                                 ))}
@@ -289,68 +327,60 @@ export default function CareerAdvicePage() {
                 </div>
             </section>
 
-            {/* ── HOW IT WORKS ── */}
-            <section className={styles.howSection}>
-                <div className="premium-container">
-                    <SectionHeader
-                        centered
-                        tag="Process"
-                        title="How it works"
-                    />
-                    <div className={styles.stepsRow}>
-                        {STEPS.map((step, idx) => (
-                            <React.Fragment key={step.n}>
-                                <div className={styles.stepCard}>
-                                    <div className={styles.stepCircle}>{step.n}</div>
-                                    <h3 className={styles.stepTitle}>{step.title}</h3>
-                                    <p className={styles.stepDesc}>{step.desc}</p>
-                                </div>
-                                {idx < STEPS.length - 1 && <div className={styles.stepConnector} />}
-                            </React.Fragment>
-                        ))}
+            {/* ── VELVET WRAPPER ── */}
+            <div className={styles.velvetContainer}>
+                {/* ── HOW IT WORKS ── */}
+                <section className={styles.howSection}>
+                    <div className="premium-container">
+                        <SectionHeader
+                            centered
+                            light
+                            tag="Process"
+                            title="How it works"
+                        />
+                        <div className={styles.stepsRow}>
+                            {STEPS.map((step, idx) => (
+                                <React.Fragment key={step.n}>
+                                    <div className={styles.stepCard}>
+                                        <div className={styles.stepCircle}>{step.n}</div>
+                                        <h3 className={styles.stepTitle}>{step.title}</h3>
+                                        <p className={styles.stepDesc}>{step.desc}</p>
+                                    </div>
+                                    {idx < STEPS.length - 1 && <div className={styles.stepConnector} />}
+                                </React.Fragment>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            {/* ── TESTIMONIALS ── */}
-            <section className={styles.trustSection}>
-                <div className="premium-container">
-                    <SectionHeader
-                        centered
-                        tag="Testimonials"
-                        title="What Candidates Say"
-                        description="Trusted by hundreds of professionals seeking their next career milestone."
-                    />
-                    <div className={styles.testiGrid}>
-                        {TESTIMONIALS.map((t, i) => (
-                            <div key={i} className={`${styles.testiCard} glass-card`}>
-                                <div className={styles.stars}>{[...Array(5)].map((_, si) => <StarIco key={si} />)}</div>
-                                <p className={styles.quote}>&ldquo;{t.quote}&rdquo;</p>
-                                <div className={styles.author}>
-                                    <div className={styles.authorAvatar}>{t.name.split(' ').map(w => w[0]).join('')}</div>
-                                    <div>
-                                        <div className={styles.authorName}>{t.name}</div>
-                                        <div className={styles.authorRole}>{t.role}</div>
+                {/* ── TESTIMONIALS ── */}
+                <section className={styles.trustSection}>
+                    <div className="premium-container">
+                        <SectionHeader
+                            centered
+                            light
+                            tag="Testimonials"
+                            title="What Candidates Say"
+                            description="Trusted by hundreds of professionals seeking their next career milestone."
+                        />
+                        <div className={styles.testiGrid}>
+                            {TESTIMONIALS.map((t, i) => (
+                                <div key={i} className={`${styles.testiCard} glass-card`}>
+                                    <div className={styles.stars}>{[...Array(5)].map((_, si) => <StarIco key={si} />)}</div>
+                                    <p className={styles.quote}>&ldquo;{t.quote}&rdquo;</p>
+                                    <div className={styles.author}>
+                                        <div className={styles.authorAvatar}>{t.name.split(' ').map(w => w[0]).join('')}</div>
+                                        <div>
+                                            <div className={styles.authorName}>{t.name}</div>
+                                            <div className={styles.authorRole}>{t.role}</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-
-                    {/* Stats bar */}
-                    <div className={styles.statsBar}>
-                        {STATS.map((s, i) => (
-                            <React.Fragment key={s.val}>
-                                {i > 0 && <div className={styles.statsDivider} />}
-                                <div className={styles.statItem}>
-                                    <div className={styles.statVal}>{s.val}</div>
-                                    <div className={styles.statLabel}>{s.label}</div>
-                                </div>
-                            </React.Fragment>
-                        ))}
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </main>
     );
 }

@@ -2,10 +2,11 @@
     padding-top: 68px;
     /* navbar height */
     min-height: 100vh;
-    background-image: url('/jobs-bg.png');
+    background-image: url('/bg2job.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────────── */
@@ -57,7 +58,8 @@
 
 .heroSub {
     font-size: 1rem;
-    color: #64748b; /* slate-500 */
+    color: #64748b;
+    /* slate-500 */
     margin: 0 auto 42px;
     max-width: 600px;
     line-height: 1.618;
@@ -86,10 +88,21 @@
     border-radius: 10px;
     padding: 0 16px;
     height: 52px;
-    flex: 1;
     transition: all 0.2s ease;
     color: #64748b;
     min-width: 0;
+}
+
+.searchField:nth-child(1) {
+    flex: 1.618;
+}
+
+.searchField:nth-child(2) {
+    flex: 1;
+}
+
+.searchField:nth-child(3) {
+    flex: 0.618;
 }
 
 .searchField:hover {
@@ -97,7 +110,8 @@
 }
 
 .searchField:focus-within {
-    border-color: #2563EB; /* Premium blue */
+    border-color: #2563EB;
+    /* Premium blue */
     background: #ffffff;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
@@ -116,7 +130,8 @@
 }
 
 .searchInput::placeholder {
-    color: #94a3b8; /* slate-400 */
+    color: #94a3b8;
+    /* slate-400 */
 }
 
 .searchSelect {
@@ -127,7 +142,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #2563EB; /* Premium Blue */
+    background: #2563EB;
+    /* Premium Blue */
     color: white;
     border: none;
     padding: 0 26px;
@@ -721,7 +737,8 @@
     width: 100%;
 }
 
-.pageBtn, .pageArrowBtn {
+.pageBtn,
+.pageArrowBtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -737,7 +754,8 @@
     transition: all 0.2s ease;
 }
 
-.pageBtn:hover, .pageArrowBtn:hover:not(:disabled) {
+.pageBtn:hover,
+.pageArrowBtn:hover:not(:disabled) {
     background: #f8fafc;
     border-color: #cbd5e1;
     color: #0f172a;
@@ -822,19 +840,20 @@
 
 @media (max-width: 768px) {
     .heroTitle {
-        font-size: 2rem;
+        font-size: 2.125rem;
     }
 
     .searchCard {
         flex-direction: column;
         align-items: stretch;
-        gap: 12px;
-        margin-top: 24px;
+        gap: 10px;
+        margin-top: 26px;
         width: 100%;
     }
 
     .searchField {
         width: 100%;
+        flex: none;
     }
 
     .searchBtn {
