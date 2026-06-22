@@ -9,11 +9,38 @@ const CheckIco = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="non
 const JOB_TYPES = ['Full-Time', 'Part-Time', 'Remote', 'Hybrid', 'Contract'];
 const INDUSTRIES = ['Technology', 'Product', 'Design', 'Finance', 'Sales & Marketing', 'HR & People', 'Operations', 'Customer Success'];
 const EXP_LEVELS = ['Entry Level', 'Mid Level', 'Senior', 'Lead / Manager', 'Director+'];
+const TagIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+);
+const TargetIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+    </svg>
+);
+const BoardIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="12" width="7" height="9" rx="1" />
+        <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+);
+const LightningIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+);
+
 const VALUE_PROPS = [
-    { icon: '🎯', stat: '10,000+', label: 'Active Candidates', desc: 'Reach pre-qualified talent instantly' },
-    { icon: '🤖', stat: 'AI', label: 'Smart Matching', desc: 'AI matches jobs to the most relevant talent' },
-    { icon: '✅', stat: 'Free', label: 'Free to Post', desc: 'Premium boosting available when needed' },
-    { icon: '📋', stat: 'All-in-1', label: 'Application Dashboard', desc: 'Manage all applicants in one place' },
+    { icon: <TagIcon />, label: 'Post Jobs for Free', desc: 'Create and publish job listings at no cost.' },
+    { icon: <TargetIcon />, label: 'Reach Qualified Candidates', desc: 'Connect with professionals actively searching for jobs.' },
+    { icon: <BoardIcon />, label: 'Applicant Tracking', desc: 'Manage candidate applications from a single dashboard.' },
+    { icon: <LightningIcon />, label: 'Faster Recruitment', desc: 'Simplify hiring workflows and fill positions more efficiently.' },
 ];
 
 const PREVIEW_DEFAULTS = {
@@ -72,8 +99,11 @@ export default function PostJobPage() {
                     <div className={styles.heroLayout}>
                         <div className={styles.heroLeft}>
                             <div className={styles.heroBadge}><SparkleIco /> AI-Powered</div>
-                            <h1 className={styles.heroTitle}>Post a Job.<br />Let AI Find Your Perfect Hire.</h1>
-                            <p className={styles.heroSub}>Create a high-quality job listing in under 2 minutes. Our AI generates the description — you just fill in the basics.</p>
+                            <h1 className={styles.heroTitle}>
+                                Post Jobs and<br />
+                                <span className={styles.highlight}>Hire Top Talent Faster</span>
+                            </h1>
+                            <p className={styles.heroSub}>Create job listings, attract qualified candidates, manage applications, and streamline your hiring process with TalentMesh.</p>
                             <button className={styles.heroCta} onClick={() => document.getElementById('post-form')?.scrollIntoView({ behavior: 'smooth' })}>
                                 Post a Job for Free <span className={styles.freeBadge}>FREE</span>
                             </button>
@@ -103,7 +133,22 @@ export default function PostJobPage() {
 
             {/* ── FORM ── */}
             <section className={styles.formSection} id="post-form">
-                <div className="premium-container">
+                {/* Wave animation backdrop */}
+                <div className={styles.wavesWrap}>
+                    <svg className={styles.waves} xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 24 150 28" preserveAspectRatio="none" shapeRendering="auto">
+                        <defs>
+                            <path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
+                        </defs>
+                        <g className={styles.parallax}>
+                            <use xlinkHref="#gentle-wave" x="48" y="0" fill="rgba(56, 189, 248, 0.08)" />
+                            <use xlinkHref="#gentle-wave" x="48" y="3" fill="rgba(165, 243, 252, 0.05)" />
+                            <use xlinkHref="#gentle-wave" x="48" y="5" fill="rgba(37, 99, 235, 0.08)" />
+                            <use xlinkHref="#gentle-wave" x="48" y="7" fill="rgba(255, 255, 255, 0.04)" />
+                        </g>
+                    </svg>
+                </div>
+
+                <div className="premium-container" style={{ position: 'relative', zIndex: 2 }}>
                     <div className={styles.formWrap}>
 
                         {/* Progress */}
@@ -259,14 +304,21 @@ export default function PostJobPage() {
             {/* ── VALUE PROPS ── */}
             <section className={styles.valueSection}>
                 <div className="premium-container">
-                    <h2 className={styles.valueSectionTitle}>Why Post on TalentMesh?</h2>
+                    <div className={styles.valueSectionHeader}>
+                        <span className={styles.valueBadge}>Benefits</span>
+                        <h2 className={styles.valueSectionTitle}>Why Employers Choose TalentMesh</h2>
+                        <p className={styles.valueSectionSub}>
+                            Post jobs online, attract qualified candidates, manage applications, and streamline your hiring process with TalentMesh.
+                        </p>
+                    </div>
                     <div className={styles.valueGrid}>
                         {VALUE_PROPS.map(vp => (
                             <div key={vp.label} className={styles.valueProp}>
-                                <div className={styles.valuePropIcoBg}><span className={styles.valuePropIco}>{vp.icon}</span></div>
-                                <div className={styles.valueStat}>{vp.stat}</div>
-                                <div className={styles.valueLabel}>{vp.label}</div>
-                                <div className={styles.valueDesc}>{vp.desc}</div>
+                                <div className={styles.valuePropIcoBg}>
+                                    {vp.icon}
+                                </div>
+                                <h3 className={styles.valueLabel}>{vp.label}</h3>
+                                <p className={styles.valueDesc}>{vp.desc}</p>
                             </div>
                         ))}
                     </div>
