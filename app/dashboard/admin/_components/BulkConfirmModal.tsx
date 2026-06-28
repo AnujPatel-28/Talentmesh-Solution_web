@@ -132,12 +132,6 @@ export const BulkConfirmModal: React.FC<BulkConfirmModalProps> = ({
           </AdminButton>
         </div>
       </div>
-      <style>{`
-        @keyframes modalScale {
-          from { transform: scale(0.95); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 };

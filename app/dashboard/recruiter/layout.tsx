@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { getServerUser } from '@/lib/server-auth';
-import DashboardLayoutClient from './DashboardLayoutClient';
+import { createClient } from '@insforge/sdk';
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function RecruiterDashboardLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const depthStr = headersList.get('x-redirect-depth') || '0';
   const depth = parseInt(depthStr, 10);
@@ -52,5 +52,34 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect(`/login?rd=${depth + 1}`);
   }
 
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  // Guard recruiter subpages from non-recruiters
+  if (user.role !== 'recruiter' && user.role !== 'admin' && user.role !== 'super_admin') {
+    redirect(`/dashboard/candidate/${user.id}?rd=${depth + 1}`);
+  }
+
+  const urlStr = headersList.get('x-url');
+  const pathname = urlStr ? new URL(urlStr).pathname : '';
+
+  // Guard unapproved recruiters from accessing recruiter subpages
+  if (user.role === 'recruiter' && !pathname.includes('/pending-approval')) {
+    const token = (await cookies()).get('tm_access_token')?.value;
+    const insforge = createClient({
+      baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
+      anonKey: process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
+      edgeFunctionToken: token,
+      isServerMode: true
+    });
+
+    const { data } = await insforge.database
+      .from('recruiter_profiles')
+      .select('is_approved')
+      .eq('id', user.id)
+      .single();
+
+    if (data && !data.is_approved) {
+      redirect(`/dashboard/recruiter/${user.id}/pending-approval?rd=${depth + 1}`);
+    }
+  }
+
+  return <>{children}</>;
 }

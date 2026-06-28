@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getServerUser } from '@/lib/server-auth';
-import DashboardLayoutClient from './DashboardLayoutClient';
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const depthStr = headersList.get('x-redirect-depth') || '0';
   const depth = parseInt(depthStr, 10);
@@ -52,5 +51,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect(`/login?rd=${depth + 1}`);
   }
 
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  if (user.role !== 'admin' && user.role !== 'super_admin') {
+    if (user.role === 'recruiter') {
+      redirect(`/dashboard/recruiter/${user.id}?rd=${depth + 1}`);
+    } else {
+      redirect(`/dashboard/candidate/${user.id}?rd=${depth + 1}`);
+    }
+  }
+
+  return <>{children}</>;
 }

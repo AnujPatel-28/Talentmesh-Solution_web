@@ -346,6 +346,53 @@ export default function ApplicationDetailPage() {
     }
   };
 
+  const handleSecureView = async () => {
+    try {
+      const token = window.sessionStorage.getItem('tm_token');
+      const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?applicationId=${application.id}&accessType=viewed`;
+      
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch from proxy');
+      const blob = await response.blob();
+      const fileBlob = new Blob([blob], { type: 'application/pdf' });
+      const blobUrl = window.URL.createObjectURL(fileBlob);
+      window.open(blobUrl, '_blank');
+    } catch (err: any) {
+      console.error('Failed to view resume:', err);
+      alert('Failed to view resume: ' + err.message);
+    }
+  };
+
+  const handleSecureDownload = async () => {
+    try {
+      const token = window.sessionStorage.getItem('tm_token');
+      const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?applicationId=${application.id}&accessType=downloaded`;
+      
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to download resume');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = resume.file_name || 'resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      console.error('Failed to download resume:', err);
+      alert('Failed to download resume: ' + err.message);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -595,18 +642,18 @@ export default function ApplicationDetailPage() {
                 <div className={appStyles.resumeActions}>
                   <button 
                     type="button" 
-                    onClick={() => window.open(getPublicStorageUrl('resumes', resume.file_url), '_blank')} 
+                    onClick={handleSecureView} 
                     className={appStyles.resumeViewBtn}
                   >
                     <IC.External /> View
                   </button>
-                  <a 
-                    href={getPublicStorageUrl('resumes', resume.file_url)} 
-                    download={resume.file_name} 
+                  <button 
+                    type="button" 
+                    onClick={handleSecureDownload} 
                     className={appStyles.resumeDownloadBtn}
                   >
                     <IC.Download /> Download
-                  </a>
+                  </button>
                 </div>
               </div>
             </section>

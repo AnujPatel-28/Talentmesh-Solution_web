@@ -198,11 +198,6 @@ export default function MessagesPage() {
                     </div>
                 )}
             </div>
-            <style jsx>{`
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }

@@ -22,6 +22,9 @@ interface Interview {
 interface ScheduleFormData {
     application_id: string; type: Interview['type']; date: string; time: string;
     duration_minutes: number; meeting_link: string; location: string; notes: string;
+    title: string;
+    prospect_name: string;
+    prospect_email: string;
 }
 
 type StatusFilter = 'all' | 'scheduled' | 'completed' | 'cancelled';
@@ -78,6 +81,8 @@ const IC = {
     cal: <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
     x: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>,
     check: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
+    calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    clock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
 };
 
 function TypeIcon({ t }: { t: Interview['type'] }) {
@@ -105,18 +110,48 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState<ScheduleFormData>({
         application_id: '', type: 'video', date: '', time: '',
-        duration_minutes: 60, meeting_link: '', location: '', notes: ''
+        duration_minutes: 30, meeting_link: '', location: '', notes: '',
+        title: '', prospect_name: '', prospect_email: ''
     });
+    const [selectedApp, setSelectedApp] = useState<any>(null);
 
     useEffect(() => {
         insforge.database
             .from('applications')
-            .select('id, status, job:jobs(id, title), candidate:profiles!candidate_id(id, full_name:name)')
+            .select(`
+                id,
+                status,
+                job:jobs(
+                    id,
+                    title,
+                    company_name,
+                    logo_url,
+                    skills_required,
+                    type
+                ),
+                candidate:profiles!candidate_id(
+                    id,
+                    full_name:name,
+                    email
+                )
+            `)
             .in('status', ['shortlisted', 'interviewing'])
             .then(({ data }) => setApplications(data || []));
     }, []);
 
     const set = (k: keyof ScheduleFormData, v: any) => setForm(f => ({ ...f, [k]: v }));
+
+    const handleApplicationChange = (appId: string) => {
+        const app = applications.find(a => a.id === appId);
+        setSelectedApp(app || null);
+        setForm(f => ({
+            ...f,
+            application_id: appId,
+            title: app ? `${app.job?.title || 'Job'} Interview - ${app.candidate?.full_name || 'Candidate'} and Team` : '',
+            prospect_name: app?.candidate?.full_name || '',
+            prospect_email: app?.candidate?.email || '',
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -126,6 +161,10 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
             const app = applications.find(a => a.id === form.application_id);
             if (!app) throw new Error('Application not found');
             const scheduled_at = new Date(`${form.date}T${form.time}`).toISOString();
+            
+            // Format title into notes
+            const combinedNotes = `Title: ${form.title || ''}\n\nNotes: ${form.notes || ''}`;
+
             const { error } = await insforge.database.from('interviews').insert([{
                 job_id: app.job?.id,
                 candidate_id: app.candidate?.id,
@@ -136,7 +175,7 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                 status: 'scheduled',
                 meeting_link: form.type === 'video' ? form.meeting_link || null : null,
                 location: form.type === 'in_person' ? form.location || null : null,
-                notes: form.notes || null,
+                notes: combinedNotes,
             }]);
             if (error) throw error;
             const { error: updateErr } = await invokeFunction('update-application', {
@@ -162,16 +201,21 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
         <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
             <div className={styles.modal}>
                 <div className={styles.modalHeader}>
-                    <h2 className={styles.modalTitle}>Schedule Interview</h2>
-                    <button className={styles.modalClose} onClick={onClose}>{IC.x}</button>
+                    <div>
+                        <h2 className={styles.modalTitle}>Schedule new interview</h2>
+                        <p className={styles.modalSubtitle}>Fill in the correct information for this interview.</p>
+                    </div>
+                    <button className={styles.modalCloseCircle} onClick={onClose}>{IC.x}</button>
                 </div>
+                
                 <form onSubmit={handleSubmit}>
+                    {/* Selection */}
                     <div className={styles.formRow}>
-                        <label className={styles.label}>Application</label>
+                        <label className={styles.label}>Select Candidate & Job</label>
                         <CustomSelect 
                             className={styles.select} 
                             value={form.application_id}
-                            onChange={e => set('application_id', e.target.value)} 
+                            onChange={e => handleApplicationChange(e.target.value)} 
                             required
                             placeholder="Select candidate & position…"
                             options={applications.map(a => ({
@@ -180,6 +224,64 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                             }))}
                         />
                     </div>
+
+                    {/* Job / Candidate Card Details */}
+                    {selectedApp && (
+                        <div className={styles.formRow}>
+                            <label className={styles.label}>Interview Details</label>
+                            <div className={styles.detailsCard}>
+                                <div className={styles.detailsCardHeader}>
+                                    <div className={styles.companyAvatar}>
+                                        {selectedApp.job?.logo_url ? (
+                                            <img src={getPublicStorageUrl('company-logos', selectedApp.job.logo_url)} alt="" className={styles.companyLogoImg} />
+                                        ) : (
+                                            <span className={styles.companyLogoText}>
+                                                {(selectedApp.job?.company_name || 'TM')[0].toUpperCase()}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className={styles.detailsCardText}>
+                                        <h4 className={styles.jobCardTitle}>{selectedApp.job?.title}</h4>
+                                        <span className={styles.companyCardName}>{selectedApp.job?.company_name || 'TalentMesh Company'}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className={styles.detailsCardDivider} />
+                                
+                                <div className={styles.detailsCardSubGrid}>
+                                    <div className={styles.detailsTagGroup}>
+                                        <span className={styles.detailsTagLabel}>Skills</span>
+                                        <div className={styles.detailsTags}>
+                                            {(selectedApp.job?.skills_required || ['General']).slice(0, 3).map((sk: string) => (
+                                                <span key={sk} className={styles.skillsTag}>{sk}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className={styles.detailsTagGroup}>
+                                        <span className={styles.detailsTagLabel}>Position type</span>
+                                        <div className={styles.detailsTags}>
+                                            <span className={styles.typeTag}>{selectedApp.job?.type || 'Full-time'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Interview Title */}
+                    <div className={styles.formRow}>
+                        <label className={styles.label}>Interview Title</label>
+                        <input 
+                            type="text" 
+                            className={styles.input}
+                            value={form.title} 
+                            onChange={e => set('title', e.target.value)} 
+                            placeholder="e.g. UX Designer Interview - Jake and Aspect Team"
+                            required 
+                        />
+                    </div>
+
+                    {/* Meeting URL */}
                     <div className={styles.formRow}>
                         <label className={styles.label}>Interview Type</label>
                         <div className={styles.typeGrid}>
@@ -192,35 +294,16 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                             ))}
                         </div>
                     </div>
-                    <div className={styles.rowTwo}>
-                        <div className={styles.formRow}>
-                            <label className={styles.label}>Date</label>
-                            <input type="date" className={styles.input}
-                                value={form.date} onChange={e => set('date', e.target.value)} required />
-                        </div>
-                        <div className={styles.formRow}>
-                            <label className={styles.label}>Time</label>
-                            <input type="time" className={styles.input}
-                                value={form.time} onChange={e => set('time', e.target.value)} required />
-                        </div>
-                    </div>
-                    <div className={styles.formRow}>
-                        <label className={styles.label}>Duration</label>
-                        <CustomSelect 
-                            className={styles.select} 
-                            value={String(form.duration_minutes)}
-                            onChange={e => set('duration_minutes', Number(e.target.value))}
-                            options={[30, 45, 60, 90, 120].map(d => ({ value: String(d), label: `${d} min` }))}
-                        />
-                    </div>
+
                     {form.type === 'video' && (
                         <div className={styles.formRow}>
-                            <label className={styles.label}>Meeting Link</label>
+                            <label className={styles.label}>Meeting URL</label>
                             <input type="url" className={styles.input} value={form.meeting_link}
                                 onChange={e => set('meeting_link', e.target.value)}
-                                placeholder="https://meet.google.com/…" />
+                                placeholder="https://zoom.us/j/1234567..." />
                         </div>
                     )}
+
                     {form.type === 'in_person' && (
                         <div className={styles.formRow}>
                             <label className={styles.label}>Location</label>
@@ -229,12 +312,83 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                                 placeholder="Office address or room" />
                         </div>
                     )}
+
+                    {/* Date, Time & Duration */}
+                    <div className={styles.rowTwo}>
+                        <div className={styles.formRow}>
+                            <label className={styles.label}>Interview date & time</label>
+                            <div className={styles.inputWithIcon}>
+                                <input type="date" className={styles.input}
+                                    value={form.date} onChange={e => set('date', e.target.value)} required />
+                                <span className={styles.inputIcon}>{IC.calendar}</span>
+                            </div>
+                        </div>
+                        <div className={styles.formRow}>
+                            <label className={styles.label}>Duration</label>
+                            <div className={styles.durationSelector}>
+                                {[30, 60, 90].map(d => (
+                                    <button 
+                                        key={d} 
+                                        type="button"
+                                        className={`${styles.durationBtn} ${form.duration_minutes === d ? styles.durationBtnActive : ''}`}
+                                        onClick={() => set('duration_minutes', d)}
+                                    >
+                                        {d} min
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className={styles.rowTwo}>
+                        <div className={styles.formRow}>
+                            <label className={styles.label}>Time slot</label>
+                            <div className={styles.inputWithIcon}>
+                                <input type="time" className={styles.input}
+                                    value={form.time} onChange={e => set('time', e.target.value)} required />
+                                <span className={styles.inputIcon}>{IC.clock}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Prospect Details */}
+                    <div className={styles.prospectSection}>
+                        <h3 className={styles.prospectHeader}>Prospect Details</h3>
+                        <div className={styles.rowTwo}>
+                            <div className={styles.formRow}>
+                                <label className={styles.label}>Name</label>
+                                <input 
+                                    type="text" 
+                                    className={styles.input}
+                                    value={form.prospect_name} 
+                                    onChange={e => set('prospect_name', e.target.value)} 
+                                    placeholder="Name" 
+                                />
+                            </div>
+                            <div className={styles.formRow}>
+                                <label className={styles.label}>Email Address</label>
+                                <input 
+                                    type="email" 
+                                    className={styles.input}
+                                    value={form.prospect_email} 
+                                    onChange={e => set('prospect_email', e.target.value)} 
+                                    placeholder="Email Address" 
+                                />
+                            </div>
+                        </div>
+                        <button type="button" className={styles.addProspectBtn}>
+                            <span className={styles.plusIcon}>+</span> Add Prospect
+                        </button>
+                    </div>
+
                     <div className={styles.formRow}>
                         <label className={styles.label}>Notes <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
                         <textarea className={styles.textarea} rows={3} value={form.notes}
                             onChange={e => set('notes', e.target.value)}
                             placeholder="Topics to cover, preparation notes…" />
                     </div>
+
+                    {/* Footer Actions */}
                     <div className={styles.modalFooter}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancel</button>
                         <button type="submit" className={styles.submitBtn} disabled={loading}>
