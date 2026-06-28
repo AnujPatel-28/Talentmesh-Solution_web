@@ -1,5 +1,5 @@
-import { PublicPageSkeleton } from "@/components/ui/LoadingSkeletons";
+import { LoadingScreen } from "@/components/ui";
 
-export default function Loading() {
-  return <PublicPageSkeleton />;
+export default function RootLoading() {
+    return <LoadingScreen />;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Geist } from "next/font/google";
 import { Navbar, Footer, NavbarWrapper } from "@/components/layout";
 import "./globals.css";
+import layoutStyles from "./layout.module.css";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -59,6 +60,7 @@ import { AuthProvider } from "@/lib/auth/AuthContext";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { headers } from "next/headers";
 import { cn } from "@/lib/utils";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -80,16 +82,19 @@ export default async function RootLayout({
       >
         <AuthProvider>
           <QueryProvider>
+            <ScrollToTop />
             {!isPortal ? (
-              <>
+              <div className={layoutStyles.rootFlexContainer}>
                 <NavbarWrapper>
                   <Navbar />
                 </NavbarWrapper>
-                {children}
+                <div className={layoutStyles.mainContentGrow}>
+                  {children}
+                </div>
                 <NavbarWrapper showFooter>
                   <Footer />
                 </NavbarWrapper>
-              </>
+              </div>
             ) : (
               children
             )}

@@ -48,7 +48,9 @@ const checks = {
   '015_session_governance_cleanup.sql': { type: 'table', name: 'user_sessions' },
   '016_resumes_storage_rls.sql': { type: 'policy', schema: 'storage', table: 'objects', name: 'resumes_select' },
   '026_profile_strength_calculation.sql': { type: 'function', name: 'calculate_profile_strength_score' },
-  '027_create_interviews_table.sql': { type: 'table', name: 'interviews' }
+  '027_create_interviews_table.sql': { type: 'table', name: 'interviews' },
+  '028_recruiter_team_rbac.sql': { type: 'table', name: 'authorization_events' },
+  '029_user_rate_limits.sql': { type: 'table', name: 'user_rate_limits' }
 };
 
 async function checkExists(check) {

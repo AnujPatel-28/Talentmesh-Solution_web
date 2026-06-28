@@ -10,16 +10,6 @@ const Navbar = () => {
     const [isScrolled, setIsScrolled] = React.useState(false);
     const pathname = usePathname();
 
-    // ── Hide the Navbar entirely inside the dashboard (it has its own layout) ──
-    if (pathname.startsWith('/dashboard')) return null;
-
-    const scrollToTop = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setIsMenuOpen(false);
-    };
-
-    const toggleMenu = () => setIsMenuOpen(prev => !prev);
-
     // Close mobile menu on route change
     React.useEffect(() => { setIsMenuOpen(false); }, [pathname]);
 
@@ -33,13 +23,21 @@ const Navbar = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    // ── Hide the Navbar entirely inside the dashboard (it has its own layout) ──
+    if (pathname.startsWith('/dashboard')) return null;
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setIsMenuOpen(false);
+    };
+
+    const toggleMenu = () => setIsMenuOpen(prev => !prev);
+
     // Helper – returns true when the pathname starts with the given base
     const isActive = (base: string) => pathname.startsWith(base);
 
-    const isTransparentPage = pathname === '/browse-jobs';
-
     return (
-        <nav className={`${styles.navbar} ${isTransparentPage && !isScrolled ? styles.transparentNav : ''} ${isScrolled ? styles.scrolled : ''}`}>
+        <nav className={`${styles.navbar} ${isScrolled ? styles.scrolled : ''}`}>
             <div className={styles.container}>
                 {/* ── Logo ── */}
                 <Link href="/" className={styles.logo} onClick={scrollToTop}>
@@ -89,7 +87,7 @@ const Navbar = () => {
                         </div>
                         <div className={styles.dropdown}>
                             <Link href="/portals/jobs/about" className={`${styles.dropdownLink} ${pathname === '/about' ? styles.dropdownLinkActive : ''}`}>About</Link>
-                            <Link href="/portals/jobs/contact" className={`${styles.dropdownLink} ${pathname === '/contact' ? styles.dropdownLinkActive : ''}`}>Contact</Link>
+                            <Link href="/portals/jobs/contact" className={`${styles.dropdownLink} ${pathname === '/portals/jobs/contact' ? styles.dropdownLinkActive : ''}`}>Contact</Link>
                             <Link href="/portals/jobs/careers" className={`${styles.dropdownLink} ${pathname === '/careers' ? styles.dropdownLinkActive : ''}`}>Careers</Link>
                             <Link href="/blog" className={`${styles.dropdownLink} ${pathname === '/blog' ? styles.dropdownLinkActive : ''}`}>Blog</Link>
                             <Link href="/portals/jobs/podcast" className={`${styles.dropdownLink} ${pathname === '/podcast' ? styles.dropdownLinkActive : ''}`}>Podcast</Link>

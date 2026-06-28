@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import styles from './PageHeader.module.css';
+import HeroBg from '../HeroBg/HeroBg';
 
 interface PageHeaderProps {
     title: string;
@@ -8,11 +9,14 @@ interface PageHeaderProps {
     breadcrumb?: string;
     highlight?: string;
     light?: boolean;
+    bgImage?: string;
+    animDelay?: number;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, description, breadcrumb, highlight, light }) => {
+const PageHeader: React.FC<PageHeaderProps> = ({ title, description, breadcrumb, highlight, light, bgImage, animDelay }) => {
     return (
-        <section className={`${styles.header} ${light ? styles.light : ''}`}>
+        <section className={`${styles.header} ${light ? styles.light : ''} ${bgImage ? styles.withBg : ''}`}>
+            {bgImage && <HeroBg src={bgImage} animDelay={animDelay} />}
             <div className={styles.container}>
                 {breadcrumb && <span className={styles.breadcrumb}>{breadcrumb}</span>}
                 <h1 className={styles.title}>
