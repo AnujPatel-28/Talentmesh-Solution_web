@@ -295,18 +295,38 @@ export default function VerifyRecruiterPage() {
             disabled={loading || !email || otp.length < 6 || timeLeft <= 0}
             style={{
               width: '100%',
-              padding: '0.875rem',
+              padding: '0.8rem 1.5rem',
               background: loading || !email || otp.length < 6 || timeLeft <= 0
-                ? '#d1d5db'
-                : 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                ? '#cbd5e1'
+                : 'linear-gradient(135deg, #007BFF 0%, #0056d6 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '1rem',
+              borderRadius: '14px',
+              fontWeight: 700,
+              fontSize: '0.92rem',
               cursor: loading || !email || otp.length < 6 || timeLeft <= 0 ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
+              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              boxShadow: loading || !email || otp.length < 6 || timeLeft <= 0
+                ? 'none'
+                : '0 4px 12px rgba(0, 123, 255, 0.25)',
               marginTop: '0.25rem'
+            }}
+            onMouseOver={(e) => {
+              if (!(loading || !email || otp.length < 6 || timeLeft <= 0)) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 123, 255, 0.35)';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!(loading || !email || otp.length < 6 || timeLeft <= 0)) {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 123, 255, 0.25)';
+              }
+            }}
+            onMouseDown={(e) => {
+              if (!(loading || !email || otp.length < 6 || timeLeft <= 0)) {
+                e.currentTarget.style.transform = 'none';
+              }
             }}
           >
             {loading ? 'Verifying...' : 'Activate Account'}

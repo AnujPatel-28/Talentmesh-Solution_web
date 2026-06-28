@@ -24,7 +24,7 @@ export default function SignupPage() {
             <div className={styles.gridOverlay} />
 
             <RoleSelection onSelect={handleRoleSelect} />
-            
+
             {/* Bottom terms */}
             <p className={styles.terms}>
                 Protected by TalentMesh ·{' '}
