@@ -23,6 +23,13 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
+    const { data: { user }, error: authError } = await insforge.auth.getCurrentUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
 
@@ -47,8 +54,6 @@ export default async function handler(req: Request): Promise<Response> {
     const textLimit = extractedText.slice(0, 8000);
     // Sanitize user text by stripping XML closing tags that could be used for prompt injection
     const sanitizedText = textLimit.replace(/<\/resume_text>/gi, '[stripped]');
-
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
 
     const prompt = `
       You are a specialized ATS resume parser.

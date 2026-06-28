@@ -192,7 +192,8 @@ export default async function handler(req: Request): Promise<Response> {
                              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 
                              req.headers.get('x-insforge-service-key') || '';
 
-  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+  const insforge = createClient({ baseUrl, anonKey });
+  insforge.setAccessToken(token);
   const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey || anonKey, isServerMode: true });
 
   console.log('[candidate-profile] DEBUG env:', {

@@ -66,13 +66,20 @@ export default async function handler(request: Request): Promise<Response> {
       }
     }
 
+    const getValue = (res: any) => res.status === 'fulfilled' ? res.value : { count: 0, data: null, error: res.reason };
+
     // Common counts
-    const [jobs, apps, candidates, recruiters] = await Promise.all([
+    const commonResults = await Promise.allSettled([
       db.database.from('jobs').select('*', { count: 'exact', head: true }),
       db.database.from('applications').select('*', { count: 'exact', head: true }),
       db.database.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'candidate'),
       db.database.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'recruiter')
     ]);
+
+    const jobs = getValue(commonResults[0]);
+    const apps = getValue(commonResults[1]);
+    const candidates = getValue(commonResults[2]);
+    const recruiters = getValue(commonResults[3]);
 
     const totalJobs = jobs.count || 0;
     const totalApps = apps.count || 0;
@@ -81,16 +88,7 @@ export default async function handler(request: Request): Promise<Response> {
 
     if (action === 'get-reports') {
       // Fetch exact status breakdown counts
-      const [
-        appliedRes,
-        reviewingRes,
-        shortlistedRes,
-        interviewingRes,
-        offeredRes,
-        hiredRes,
-        rejectedRes,
-        withdrawnRes
-      ] = await Promise.all([
+      const reportResults = await Promise.allSettled([
         db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'applied'),
         db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'reviewing'),
         db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'shortlisted'),
@@ -100,6 +98,15 @@ export default async function handler(request: Request): Promise<Response> {
         db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
         db.database.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'withdrawn')
       ]);
+
+      const appliedRes = getValue(reportResults[0]);
+      const reviewingRes = getValue(reportResults[1]);
+      const shortlistedRes = getValue(reportResults[2]);
+      const interviewingRes = getValue(reportResults[3]);
+      const offeredRes = getValue(reportResults[4]);
+      const hiredRes = getValue(reportResults[5]);
+      const rejectedRes = getValue(reportResults[6]);
+      const withdrawnRes = getValue(reportResults[7]);
 
       const applied = appliedRes.count || 0;
       const reviewing = reviewingRes.count || 0;
@@ -203,13 +210,19 @@ export default async function handler(request: Request): Promise<Response> {
 
     // Default action: get-summary - Query real data counts and activities
     const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const [pendingRecsRes, pendingJobsRes, reportedJobsRes, newUsersRes, activitiesRes] = await Promise.all([
+    const summaryResults = await Promise.allSettled([
       db.database.from('recruiter_profiles').select('*', { count: 'exact', head: true }).eq('is_approved', false),
       db.database.from('jobs').select('*', { count: 'exact', head: true }).eq('is_approved', false),
       db.database.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'reported'),
       db.database.from('profiles').select('*', { count: 'exact', head: true }).gt('created_at', past24h),
       db.database.from('activity').select('id, type, description, created_at, profiles(name)').order('created_at', { ascending: false }).limit(10)
     ]);
+
+    const pendingRecsRes = getValue(summaryResults[0]);
+    const pendingJobsRes = getValue(summaryResults[1]);
+    const reportedJobsRes = getValue(summaryResults[2]);
+    const newUsersRes = getValue(summaryResults[3]);
+    const activitiesRes = getValue(summaryResults[4]);
 
     const pendingRecruiters = pendingRecsRes.count || 0;
     const pendingJobsVal = pendingJobsRes.count || 0;

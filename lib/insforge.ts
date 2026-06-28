@@ -47,12 +47,22 @@ export const insforge = createClient({
 
 /**
  * Direct client that bypasses the local proxy.
- * Use ONLY for public data fetching (like blogs) to avoid CORS/proxy header issues.
+ * Use for direct queries (like WebSockets or fallback requests) where the proxy is bypassed.
  * Set `isServerMode: true` on the browser to completely prevent automatic callback detection and token persistence.
  */
 export const directInsforge = createClient({
   baseUrl: supabaseUrl,
   anonKey: supabaseAnonKey,
+  isServerMode: true,
+});
+
+/**
+ * Public-only client that never holds a user session token.
+ * Use this for anonymous public fetches (like blogs) to ensure they never fail due to expired session tokens.
+ */
+export const publicInsforge = createClient({
+  baseUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : supabaseUrl,
+  anonKey: typeof window !== 'undefined' ? supabaseAnonKey : (process.env.INSFORGE_SERVICE_KEY || supabaseAnonKey),
   isServerMode: true,
 });
 
@@ -66,7 +76,7 @@ if (typeof window !== 'undefined') {
     }
 
     const token = window.sessionStorage.getItem('tm_token');
-    if (token) {
+    if (token && getTokenRemainingSeconds(token) > 0) {
       insforge.setAccessToken(token);
       directInsforge.setAccessToken(token);
       if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
@@ -406,7 +416,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         let domainStr = '';
         if (host) {
           if (host.includes('localhost')) {
-            domainStr = '; domain=.localhost';
+            domainStr = '';
           } else if (!host.includes('127.0.0.1')) {
             const domainParts = host.split('.');
             const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');

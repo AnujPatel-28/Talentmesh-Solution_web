@@ -87,7 +87,8 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // Verify token signature with SDK
-    const userDb = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const userDb = createClient({ baseUrl, anonKey });
+    userDb.setAccessToken(token);
     const { data: authData, error: authError } = await userDb.auth.getCurrentUser();
 
     if (authError || !authData?.user) {
@@ -100,7 +101,7 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const adminDb = createClient({ baseUrl, anonKey: serviceKey, isServerMode: true });
+    const adminDb = createClient({ baseUrl, anonKey: serviceKey });
     const refreshToken = cookies['tm_refresh_token'] || cookies['insforge_refresh_token'] || token;
     const fingerprint = await cSign(refreshToken, serviceKey);
 
@@ -180,7 +181,8 @@ export default async function handler(req: Request): Promise<Response> {
       const sessionLabel = parseSessionName(ua);
 
       const adminId = cookies['admin_user_id'];
-      const isImpersonating = !!adminId && !!cookies['impersonating_user_id'];
+      const impersonatingId = cookies['impersonating_user_id'];
+      const isImpersonating = !!adminId && !!impersonatingId && userId === impersonatingId;
 
       // Perform admin token signature verification if impersonating for security
       if (isImpersonating) {
@@ -221,6 +223,15 @@ export default async function handler(req: Request): Promise<Response> {
       if (adminAccess) {
         responseHeaders.append('Set-Cookie', `tm_admin_access=true; ${cookieOptions}`);
       }
+
+      // If we had stale impersonation cookies but are logging in normally, clear them
+      if ((!!adminId || !!impersonatingId) && !isImpersonating) {
+        const clearOptions = `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        responseHeaders.append('Set-Cookie', `impersonating_user_id=; ${clearOptions}`);
+        responseHeaders.append('Set-Cookie', `impersonating_user_role=; ${clearOptions}`);
+        responseHeaders.append('Set-Cookie', `admin_user_id=; ${clearOptions}`);
+      }
+
       responseHeaders.append('Content-Type', 'application/json');
       Object.entries(corsHeaders).forEach(([k, v]) => responseHeaders.set(k, v));
 

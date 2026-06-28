@@ -30,7 +30,8 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
     const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
     if (authError || !authData?.user || authData.user.id === 'project-admin-with-api-key') {

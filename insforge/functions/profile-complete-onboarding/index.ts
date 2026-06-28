@@ -29,7 +29,8 @@ export default async function handler(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
       }
 
-      const client = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+      const client = createClient({ baseUrl, anonKey });
+      client.setAccessToken(token);
       const { data, error } = await client.auth.getCurrentUser();
 
       if (error || !data?.user) {
