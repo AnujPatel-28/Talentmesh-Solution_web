@@ -1,94 +1,1001 @@
-/* ============================
-   ABOUT PAGE — TalentMesh
-   ============================ */
+/* =====================================================
+   ABOUT PAGE — TalentMesh Redesign
+   Aesthetic · Minimalist · Transparent & Glassmorphic
+   Palette: theme blues and slate grays
+   ===================================================== */
 
 .page {
-    min-height: 100vh;
-    background: #fafcff; /* Light bluish white */
-    font-family: var(--font-inter, 'Inter', sans-serif);
-    color: #0f172a;
-    padding-bottom: 4rem;
+    padding-top: 80px;
+    background: transparent;
+    color: var(--deep-navy, #0d2137);
+    overflow-x: hidden;
 }
 
-/* ── Mission Section ── */
-.missionSection {
-    padding: clamp(4rem, 10vh, 6rem) 16px;
-    max-width: 1200px;
-    margin: 0 auto;
-    background: #ffffff;
-    border-radius: 40px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03);
-    margin-top: 4rem;
-    margin-bottom: 4rem;
+/* ── Typography & Accents ── */
+.highlight {
+    background: linear-gradient(135deg, var(--sky-blue, #90CAF9), var(--primary-blue, #007BFF));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: inline-block;
 }
 
-.missionGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
-    align-items: center;
-    padding: 2rem;
-}
-
-.missionContent {
-    padding-right: 2rem;
-}
-
-.missionTitle {
-    font-size: 2.2rem;
+.sectionBadge {
+    display: inline-block;
+    background: rgba(0, 123, 255, 0.08);
+    border: 1px solid rgba(0, 123, 255, 0.15);
+    color: var(--primary-blue, #007BFF);
+    font-size: 0.75rem;
     font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 1rem;
-    position: relative;
-    padding-bottom: 1rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 5px 16px;
+    border-radius: 999px;
+    margin-bottom: 16px;
 }
 
-.missionTitle::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 60px;
-    height: 4px;
-    background: #1e40af;
-    border-radius: 2px;
+.sectionTitle {
+    font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+    font-weight: 800;
+    color: var(--deep-navy, #0d2137);
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    margin-bottom: 24px;
 }
 
-.missionText {
+/* ── HERO SECTION ── */
+.hero {
+    padding: 80px 0 64px;
+    background: transparent;
+}
+
+.heroInner {
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 56px;
+}
+
+.heroTitle {
+    font-size: clamp(2.5rem, 5vw, 3.75rem);
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--deep-navy, #0d2137);
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+}
+
+.heroSub {
     font-size: 1.1rem;
     line-height: 1.7;
-    color: #334155;
-    font-weight: 500;
+    color: var(--medium-grey, #475569);
+    max-width: 540px;
+    margin: 0 auto;
 }
 
-.missionImageWrapper {
+/* ── 3-Image Grid Layout ── */
+.heroImageGrid {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto 64px;
+}
+
+.imgLeft {
+    position: relative;
+    aspect-ratio: 16/11;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.05);
+}
+
+.imgRightCol {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
+}
+
+.imgRightTop,
+.imgRightBottom {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.05);
+}
+
+.gridImg {
+    object-fit: cover;
+    object-position: center;
+    filter: grayscale(100%);
+    transition: filter 0.6s ease, transform 0.6s ease;
+}
+
+.imgLeft:hover .gridImg,
+.imgRightTop:hover .gridImg,
+.imgRightBottom:hover .gridImg {
+    filter: grayscale(0%);
+    transform: scale(1.03);
+}
+
+/* ── Trusted Companies Logos ── */
+.trustedCompanies {
+    text-align: center;
+    max-width: 900px;
+    margin: 0 auto;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding-top: 36px;
+}
+
+.trustedLabel {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #94a3b8;
+    margin-bottom: 24px;
+}
+
+.logoRow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 48px;
+    flex-wrap: wrap;
+}
+
+.companyLogo {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: -0.01em;
+    opacity: 0.7;
+    transition: opacity 0.3s, color 0.3s;
+    user-select: none;
+}
+
+.companyLogo:hover {
+    opacity: 1;
+    color: var(--primary-blue, #007BFF);
+}
+
+/* ── FOUNDER QUOTE ── */
+.quoteSection {
+    padding: 96px 0;
+    background: transparent;
+    text-align: center;
+}
+
+.quoteContent {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.quoteMark {
+    font-size: 7.5rem;
+    line-height: 1;
+    color: var(--primary-blue, #007BFF);
+    font-family: Georgia, serif;
+    height: 48px;
+    display: block;
+    user-select: none;
+    margin-bottom: 12px;
+}
+
+.mainQuote {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--deep-navy, #0d2137);
+    letter-spacing: -0.02em;
+    margin: 0 0 32px;
+}
+
+.quoteAuthor {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+}
+
+.authorAvatar {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.avatarImg {
+    object-fit: cover;
+}
+
+.authorMeta {
+    display: flex;
+    flex-direction: column;
+}
+
+.authorName {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+    font-style: normal;
+}
+
+.authorRole {
+    font-size: 0.75rem;
+    color: var(--medium-grey, #475569);
+}
+
+/* ── MEET THE TEAM ── */
+.teamSection {
+    padding: 80px 0;
+    background: transparent;
+}
+
+.teamHeaderRow {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 40px;
+    margin-bottom: 48px;
+    align-items: end;
+}
+
+.teamDescription {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--medium-grey, #475569);
+    margin: 0;
+}
+
+.teamRowGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.teamCard {
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(0, 123, 255, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 123, 255, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    transition: transform 0.4s ease, border-color 0.4s, box-shadow 0.4s;
+}
+
+.teamCard:hover {
+    transform: translateY(-6px);
+    border-color: var(--primary-blue, #007BFF);
+    box-shadow: 0 16px 36px rgba(0, 123, 255, 0.08);
+}
+
+.teamImgWrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 16/10;
+    aspect-ratio: 4/5;
+    overflow: hidden;
+    background: #f1f5f9;
+}
+
+.teamCardImg {
+    object-fit: cover;
+    filter: grayscale(100%);
+    transition: filter 0.5s ease, transform 0.5s ease;
+}
+
+.teamCard:hover .teamCardImg {
+    filter: grayscale(0%);
+    transform: scale(1.02);
+}
+
+.teamCardInfo {
+    padding: 16px 18px 20px;
+}
+
+.teamCardName {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+    margin: 0 0 4px;
+}
+
+.teamCardRole {
+    font-size: 0.78rem;
+    color: var(--medium-grey, #475569);
+}
+
+/* ── MILESTONES (Awards Table Layout) ── */
+.journeySection {
+    padding: 80px 0;
+    background: transparent;
+}
+
+.journeyHeader {
+    text-align: left;
+    margin-bottom: 48px;
+}
+
+.milestonesTable {
+    display: flex;
+    flex-direction: column;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.tableHeaderRow {
+    display: grid;
+    grid-template-columns: 240px 1fr 100px;
+    gap: 32px;
+    padding: 16px 0;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+}
+
+.colHeader {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+}
+
+.colHeaderRight {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    text-align: right;
+}
+
+.tableRow {
+    display: grid;
+    grid-template-columns: 240px 1fr 100px;
+    gap: 32px;
+    padding: 28px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    transition: background-color 0.2s;
+    align-items: start;
+}
+
+.tableRow:last-child {
+    border-bottom: none;
+}
+
+.milestoneTitle {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+}
+
+.milestoneDesc {
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--medium-grey, #475569);
+}
+
+.milestoneYear {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--primary-blue, #007BFF);
+    text-align: right;
+}
+
+/* ── STATS & TESTIMONIALS (3 Premium Cards) ── */
+.statsSection {
+    padding: 56px 0 80px;
+    background: transparent;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.testimonialStatCard {
+    padding: 36px 30px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: rgba(0, 123, 255, 0.06) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(0, 123, 255, 0.2) !important;
+    border-radius: 20px;
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.testimonialStatCard:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary-blue, #007BFF) !important;
+    box-shadow: 0 16px 40px rgba(0, 123, 255, 0.08) !important;
+}
+
+.cardStatHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 24px;
+}
+
+.statMetric {
+    font-size: 2.75rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #007BFF 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.statLabel {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+    letter-spacing: -0.01em;
+}
+
+.cardQuoteMark {
+    font-size: 3rem;
+    line-height: 0.5;
+    color: var(--primary-blue, #007BFF);
+    font-family: Georgia, serif;
+    margin-bottom: 8px;
+    display: block;
+    user-select: none;
+}
+
+.cardTestimonialText {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: var(--medium-grey, #475569);
+    margin: 0 0 28px;
+    flex-grow: 1;
+}
+
+.cardAuthorRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cardAvatar {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #e2e8f0;
+}
+
+.cardAuthorMeta {
+    display: flex;
+    flex-direction: column;
+}
+
+.cardAuthorName {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+    font-style: normal;
+}
+
+.cardAuthorRole {
+    font-size: 0.72rem;
+    color: var(--medium-grey, #475569);
+}
+
+/* ── WHY WORK WITH US? (Comparative checklist) ── */
+.whyUsSection {
+    padding: 80px 0;
+    background: transparent;
+}
+
+.whyUsHeader {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 56px;
+}
+
+.whyUsSub {
+    font-size: 1rem;
+    color: var(--medium-grey, #475569);
+    margin: 4px 0 0;
+}
+
+.comparisonGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.comparisonCard {
+    padding: 40px 36px !important;
+    display: flex;
+    flex-direction: column;
+    background: rgba(0, 123, 255, 0.06) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(0, 123, 255, 0.18) !important;
+    border-radius: 24px;
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+
+.comparisonCard:hover {
+    transform: translateY(-4px);
+}
+
+.compCardActive {
+    border-color: rgba(0, 123, 255, 0.3) !important;
+    box-shadow: 0 16px 40px rgba(0, 123, 255, 0.06) !important;
+}
+
+.compCardTitle {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+    margin: 0 0 28px;
+    letter-spacing: -0.01em;
+}
+
+.compList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.compItemMinus,
+.compItemPlus {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--medium-grey, #475569);
+}
+
+.compIconMinus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.compIconPlus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: rgba(0, 123, 255, 0.1);
+    color: var(--primary-blue, #007BFF);
+    border-radius: 50%;
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* ── OUR VISION (Typography Only) ── */
+.visionSection {
+    padding: 96px 0;
+    background: transparent;
+    text-align: center;
+}
+
+.visionContent {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.visionTitle {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 800;
+    color: var(--deep-navy, #0d2137);
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    margin: 16px 0 24px;
+}
+
+.visionText {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: var(--medium-grey, #475569);
+    margin: 0 0 36px;
+}
+
+.visionQuoteText {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-blue, #007BFF);
+    letter-spacing: -0.01em;
+}
+
+/* ── OFFICES & WORLD MAP ── */
+.officeSection {
+    padding: 80px 0;
+    background: transparent;
+}
+
+.officeHeader {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.worldMap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1.71;
+    max-height: 520px;
     border-radius: 24px;
     overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+    margin-bottom: 36px;
+    border: 1px solid rgba(0, 123, 255, 0.25);
+    background: rgba(0, 123, 255, 0.04);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.02);
 }
 
-.missionImageBg {
+.worldMapImg {
+    object-fit: contain;
+    padding: 10px;
+    opacity: 0.85;
+}
+
+.worldMapOverlay {
     position: absolute;
-    inset: -20px -20px 20px 20px;
-    background: #e0e7ff;
-    border-radius: 30px;
-    z-index: 0;
-}
-
-.missionImg {
-    position: relative;
+    inset: 0;
+    background: radial-gradient(circle at center, transparent 30%, rgba(255, 255, 255, 0.1) 100%);
+    pointer-events: none;
     z-index: 1;
-    object-fit: cover;
-    border-radius: 24px;
 }
 
-/* ── Responsive ── */
+/* Location Pins on SVG Map */
+.mapPin {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    cursor: default;
+}
+
+.mapPinDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary-blue, #007BFF);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+    position: relative;
+    z-index: 2;
+    transition: transform 0.25s ease;
+}
+
+.mapPin:hover .mapPinDot {
+    transform: scale(1.4);
+    background: #ff4a5a;
+}
+
+.mapPinRipple {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0, 123, 255, 0.4);
+    animation: pinRipple 3s ease-out infinite;
+    z-index: 1;
+}
+
+@keyframes pinRipple {
+    0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+.mapPinLabel {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 6px;
+    padding: 4px 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease, bottom 0.25s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+}
+
+.mapPinLabel strong {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+}
+
+.mapPinLabel span {
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--primary-blue, #007BFF);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mapPin:hover .mapPinLabel {
+    opacity: 1;
+    bottom: 20px;
+}
+
+/* Office Cards Grid */
+.officeCards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.officeCard {
+    padding: 20px 22px !important;
+    background: rgba(0, 123, 255, 0.06) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(0, 123, 255, 0.2) !important;
+    border-radius: 20px;
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.officeCard:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary-blue, #007BFF) !important;
+    box-shadow: 0 12px 28px rgba(0, 123, 255, 0.08) !important;
+}
+
+.officeTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.officeCity {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--deep-navy, #0d2137);
+    margin: 0;
+}
+
+.officeCountry {
+    font-size: 0.72rem;
+    color: #94a3b8;
+}
+
+.officeRole {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--primary-blue, #007BFF);
+    background: rgba(0, 123, 255, 0.06);
+    border: 1px solid rgba(0, 123, 255, 0.12);
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.officeAddr {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--medium-grey, #475569);
+    margin: 0 0 16px;
+}
+
+.mapLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--primary-blue, #007BFF);
+    text-decoration: none;
+    transition: gap 0.2s;
+}
+
+.mapLink:hover {
+    gap: 7px;
+}
+
+/* ── Highlighted tag in dashboard (if applicable in module scope) ── */
+.highlightedTag {
+    background: var(--primary-blue) !important;
+    color: white !important;
+    border-color: var(--primary-blue) !important;
+}
+
+/* ── CTA Section ── */
+.ctaSection {
+    background: transparent;
+    padding: 48px 0;
+}
+
+.ctaCard {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 64px 48px;
+    text-align: center;
+    background: rgba(0, 123, 255, 0.06) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(0, 123, 255, 0.2) !important;
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.02);
+    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ctaCard:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary-blue, #007BFF) !important;
+    box-shadow: 0 20px 40px rgba(0, 123, 255, 0.08) !important;
+}
+
+.ctaContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.ctaTitle {
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 800;
+    color: var(--deep-navy, #0d2137);
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.ctaDesc {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: var(--medium-grey, #475569);
+    max-width: 580px;
+    margin: 0 auto 32px;
+}
+
+.ctaBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-blue, #007BFF);
+    color: white;
+    text-decoration: none;
+    padding: 14px 32px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0, 123, 255, 0.2);
+}
+
+.ctaBtn:hover {
+    background: #0069d9;
+    box-shadow: 0 8px 24px rgba(0, 123, 255, 0.35);
+    transform: translateY(-2px);
+}
+
+/* ── RESPONSIVE MEDIA QUERIES ── */
 @media (max-width: 1024px) {
-    .missionGrid {
+    .teamHeaderRow {
         grid-template-columns: 1fr;
-        padding: 1rem;
+        gap: 16px;
+    }
+    
+    .teamRowGrid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .tableHeaderRow {
+        grid-template-columns: 180px 1fr 80px;
+    }
+
+    .tableRow {
+        grid-template-columns: 180px 1fr 80px;
+    }
+
+    .statsGrid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .comparisonGrid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .officeCards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 56px 0;
+    }
+
+    .heroImageGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .imgLeft {
+        aspect-ratio: 4/3;
+    }
+
+    .imgRightCol {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: none;
+        aspect-ratio: 16/7;
+    }
+
+    .tableHeaderRow {
+        display: none;
+    }
+
+    .tableRow {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 20px 0;
+    }
+
+    .milestoneYear {
+        text-align: left;
+        order: -1;
+    }
+
+    .officeCards {
+        grid-template-columns: 1fr;
+    }
+
+    .logoRow {
+        gap: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .teamRowGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .imgRightCol {
+        grid-template-columns: 1fr;
+        aspect-ratio: auto;
+        height: 240px;
     }
 }

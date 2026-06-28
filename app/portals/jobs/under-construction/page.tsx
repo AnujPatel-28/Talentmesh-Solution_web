@@ -74,7 +74,7 @@ export default function UnderConstructionPage() {
                         <div style={{ display: 'flex', gap: '1.5rem', opacity: 0.6 }}>
                             <Link href="/" style={{ color: 'var(--deep-navy)', fontWeight: 700, textDecoration: 'none' }}>Return Home</Link>
                             <span style={{ color: '#cbd5e1' }}>|</span>
-                            <Link href="/contact" style={{ color: 'var(--deep-navy)', fontWeight: 700, textDecoration: 'none' }}>Contact Support</Link>
+                            <Link href="/portals/jobs/contact" style={{ color: 'var(--deep-navy)', fontWeight: 700, textDecoration: 'none' }}>Contact Support</Link>
                         </div>
                     </div>
                 </div>
