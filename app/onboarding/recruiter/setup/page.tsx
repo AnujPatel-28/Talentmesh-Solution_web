@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { invokeFunction } from '@/lib/insforge';
+import { motion } from 'framer-motion';
 import { CustomSelect } from '@/components/ui';
 import styles from '../../onboarding.module.css';
 
@@ -73,7 +74,13 @@ export default function RecruiterSetup() {
     };
 
     return (
-        <div className={styles.card}>
+        <motion.div 
+            className={styles.card}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
             <div className={styles.stepper}>
                 <span className={`${styles.stepDot} ${styles.stepDotActive}`}>0</span>
                 <span className={styles.stepLine} />
@@ -166,6 +173,6 @@ export default function RecruiterSetup() {
                     </button>
                 </div>
             </form>
-        </div>
+        </motion.div>
     );
 }

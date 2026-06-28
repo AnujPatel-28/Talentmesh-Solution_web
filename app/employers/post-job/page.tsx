@@ -2,18 +2,47 @@
 import React, { useState } from 'react';
 import styles from './post-job.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import HeroBg from '@/components/ui/HeroBg/HeroBg';
 
 const SparkleIco = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915Z" /></svg>;
 const CheckIco = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
+const SendIco = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>;
 
 const JOB_TYPES = ['Full-Time', 'Part-Time', 'Remote', 'Hybrid', 'Contract'];
 const INDUSTRIES = ['Technology', 'Product', 'Design', 'Finance', 'Sales & Marketing', 'HR & People', 'Operations', 'Customer Success'];
 const EXP_LEVELS = ['Entry Level', 'Mid Level', 'Senior', 'Lead / Manager', 'Director+'];
+const TagIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+);
+const TargetIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="6" />
+        <circle cx="12" cy="12" r="2" />
+    </svg>
+);
+const BoardIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="12" width="7" height="9" rx="1" />
+        <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+);
+const LightningIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+);
+
 const VALUE_PROPS = [
-    { icon: '🎯', stat: '10,000+', label: 'Active Candidates', desc: 'Reach pre-qualified talent instantly' },
-    { icon: '🤖', stat: 'AI', label: 'Smart Matching', desc: 'AI matches jobs to the most relevant talent' },
-    { icon: '✅', stat: 'Free', label: 'Free to Post', desc: 'Premium boosting available when needed' },
-    { icon: '📋', stat: 'All-in-1', label: 'Application Dashboard', desc: 'Manage all applicants in one place' },
+    { icon: <TagIcon />, label: 'Post Jobs for Free', desc: 'Create and publish job listings at no cost.' },
+    { icon: <TargetIcon />, label: 'Reach Qualified Candidates', desc: 'Connect with professionals actively searching for jobs.' },
+    { icon: <BoardIcon />, label: 'Applicant Tracking', desc: 'Manage candidate applications from a single dashboard.' },
+    { icon: <LightningIcon />, label: 'Faster Recruitment', desc: 'Simplify hiring workflows and fill positions more efficiently.' },
 ];
 
 const PREVIEW_DEFAULTS = {
@@ -66,44 +95,27 @@ export default function PostJobPage() {
 
     return (
         <main className={styles.page}>
+            <HeroBg src="/bg2job.png" fixed />
             {/* ── HERO ── */}
             <section className={styles.hero}>
                 <div className="premium-container">
-                    <div className={styles.heroLayout}>
-                        <div className={styles.heroLeft}>
-                            <div className={styles.heroBadge}><SparkleIco /> AI-Powered</div>
-                            <h1 className={styles.heroTitle}>Post a Job.<br />Let AI Find Your Perfect Hire.</h1>
-                            <p className={styles.heroSub}>Create a high-quality job listing in under 2 minutes. Our AI generates the description — you just fill in the basics.</p>
-                            <button className={styles.heroCta} onClick={() => document.getElementById('post-form')?.scrollIntoView({ behavior: 'smooth' })}>
-                                Post a Job for Free <span className={styles.freeBadge}>FREE</span>
-                            </button>
-                        </div>
-                        {/* Live preview card */}
-                        <div className={`${styles.previewCard} glass-card`}>
-                            <div className={styles.previewHead}>
-                                <div className={styles.previewLogo}>{preview.company.slice(0, 2).toUpperCase()}</div>
-                                <div>
-                                    <div className={styles.previewTitle}>{preview.title}</div>
-                                    <div className={styles.previewCompany}>{preview.company}</div>
-                                </div>
-                            </div>
-                            <div className={styles.previewMeta}>
-                                <span>📍 {preview.location}</span>
-                                <span>💼 {preview.exp}</span>
-                            </div>
-                            <div className={styles.previewTags}>
-                                <span className={styles.previewTag}>{preview.salary}</span>
-                                {skills.slice(0, 3).map(s => <span key={s} className={styles.previewSkill}>{s}</span>)}
-                            </div>
-                            <div className={styles.previewLabel}>Live Preview</div>
-                        </div>
+                    <div className={styles.heroContent}>
+                        <div className={styles.heroBadge}><SparkleIco /> AI-Powered</div>
+                        <h1 className={styles.heroTitle}>
+                            Post Jobs and<br />
+                            <span className={styles.highlight}>Hire Top Talent Faster</span>
+                        </h1>
+                        <p className={styles.heroSub}>Create job listings, attract qualified candidates, manage applications, and streamline your hiring process with TalentMesh.</p>
+                        <button className={styles.heroCta} onClick={() => document.getElementById('post-form')?.scrollIntoView({ behavior: 'smooth' })}>
+                            Post a Job for Free
+                        </button>
                     </div>
                 </div>
             </section>
 
             {/* ── FORM ── */}
             <section className={styles.formSection} id="post-form">
-                <div className="premium-container">
+                <div className="premium-container" style={{ position: 'relative', zIndex: 2 }}>
                     <div className={styles.formWrap}>
 
                         {/* Progress */}
@@ -131,7 +143,7 @@ export default function PostJobPage() {
                                 {/* STEP 0 — Details */}
                                 {step === 0 && (
                                     <div className={styles.formStep}>
-                                        <h2 className={styles.stepHdr}>Job Details</h2>
+                                        <h2 className={styles.stepHdr}>Job <span className={styles.highlight}>Details</span></h2>
                                         <div className={styles.fieldRow}>
                                             <div className={styles.field}>
                                                 <label className={styles.lbl}>Job Title *</label>
@@ -206,7 +218,7 @@ export default function PostJobPage() {
                                 {/* STEP 1 — Description */}
                                 {step === 1 && (
                                     <div className={styles.formStep}>
-                                        <h2 className={styles.stepHdr}>Job Description</h2>
+                                        <h2 className={styles.stepHdr}>Job <span className={styles.highlight}>Description</span></h2>
                                         <div className={styles.aiRow}>
                                             <p className={styles.aiHint}>Let AI write your job description based on the details you filled in.</p>
                                             <button className={styles.aiBtn} onClick={handleAiGenerate} disabled={aiLoading}>
@@ -228,7 +240,7 @@ export default function PostJobPage() {
                                 {/* STEP 2 — Preview */}
                                 {step === 2 && (
                                     <div className={styles.formStep}>
-                                        <h2 className={styles.stepHdr}>Preview Your Listing</h2>
+                                        <h2 className={styles.stepHdr}>Preview Your <span className={styles.highlight}>Listing</span></h2>
                                         <div className={styles.finalPreview}>
                                             <div className={styles.fpHead}>
                                                 <div className={styles.fpLogo}>{preview.company.slice(0, 2).toUpperCase()}</div>
@@ -246,7 +258,7 @@ export default function PostJobPage() {
                                         </div>
                                         <div className={styles.stepBtns}>
                                             <button className={styles.backBtn} onClick={() => setStep(1)}>← Edit</button>
-                                            <button className={styles.postBtn} onClick={() => setSubmitted(true)}>🚀 Post This Job</button>
+                                            <button className={styles.postBtn} onClick={() => setSubmitted(true)}><SendIco /> Post This Job</button>
                                         </div>
                                     </div>
                                 )}
@@ -259,14 +271,21 @@ export default function PostJobPage() {
             {/* ── VALUE PROPS ── */}
             <section className={styles.valueSection}>
                 <div className="premium-container">
-                    <h2 className={styles.valueSectionTitle}>Why Post on TalentMesh?</h2>
+                    <div className={styles.valueSectionHeader}>
+                        <span className={styles.valueBadge}>Benefits</span>
+                        <h2 className={styles.valueSectionTitle}>Why Employers Choose <span className={styles.highlight}>TalentMesh</span></h2>
+                        <p className={styles.valueSectionSub}>
+                            Post jobs online, attract qualified candidates, manage applications, and streamline your hiring process with TalentMesh.
+                        </p>
+                    </div>
                     <div className={styles.valueGrid}>
                         {VALUE_PROPS.map(vp => (
                             <div key={vp.label} className={styles.valueProp}>
-                                <div className={styles.valuePropIcoBg}><span className={styles.valuePropIco}>{vp.icon}</span></div>
-                                <div className={styles.valueStat}>{vp.stat}</div>
-                                <div className={styles.valueLabel}>{vp.label}</div>
-                                <div className={styles.valueDesc}>{vp.desc}</div>
+                                <div className={styles.valuePropIcoBg}>
+                                    {vp.icon}
+                                </div>
+                                <h3 className={styles.valueLabel}>{vp.label}</h3>
+                                <p className={styles.valueDesc}>{vp.desc}</p>
                             </div>
                         ))}
                     </div>

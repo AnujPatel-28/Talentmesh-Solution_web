@@ -19,7 +19,8 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Missing file' }), { status: 400 });
     }
 
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
 
     const path = `blog/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const { data: uploadData, error } = await insforge.storage

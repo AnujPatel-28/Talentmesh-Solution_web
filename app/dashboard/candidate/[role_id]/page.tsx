@@ -14,6 +14,44 @@ import { useCandidateDashboardQuery } from '@/lib/queries/dashboard';
 import { useRecommendationsQuery } from '@/lib/queries/recommendations';
 import * as Icons from '@/components/ui/icons';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import Toast from '@/components/ui/Toast';
+
+function ProgressRing({ value, size = 42, strokeWidth = 4.5, color = '#10b981' }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (value / 100) * circumference;
+
+    return (
+        <div className={styles.progressRingContainer} style={{ width: size, height: size, flexShrink: 0 }}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="transparent"
+                    stroke="rgba(15, 23, 42, 0.06)"
+                    strokeWidth={strokeWidth}
+                />
+                <motion.circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="transparent"
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: offset }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
+                    strokeLinecap="round"
+                />
+            </svg>
+            <span className={styles.progressRingText} style={{ color, fontSize: '0.68rem' }}>{value}%</span>
+        </div>
+    );
+}
 
 /* ─── Inline SVG icons ─── */
 const IC = {
@@ -30,7 +68,7 @@ const IC = {
     file: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>,
     sliders: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /></svg>,
     award: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7" /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" /></svg>,
-    chevron: <Icons.ChevronDown />,
+    chevron: <Icons.ChevronRight className="chevronRight" />,
     arrowRight: <Icons.ArrowRight />,
     trending: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
     moreH: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>,
@@ -47,7 +85,7 @@ export default function CandidateHome({ params }: { params: Promise<{ role_id: s
 
 function CandidateHomeInner({ role_id }: { role_id: string }) {
     const router = useRouter();
-    const { user: authUser, isLoading: authLoading } = useAuth();
+    const { user: authUser, isLoading: authLoading, refreshUser } = useAuth();
     const [onboardingVerified, setOnboardingVerified] = useState(false);
 
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -58,7 +96,7 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
 
         // 1. Auth Guard
         if (!authUser) {
-            window.location.replace('/login');
+            router.replace('/login');
             return;
         }
 
@@ -70,7 +108,7 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
         // 2. Self-Correction: If URL has an invalid ID or doesn't match the logged-in user, redirect to actual user UUID
         if ((!isUUID(role_id) || role_id !== userId) && isUUID(userId)) {
             console.log('Redirecting to valid UUID dashboard path...');
-            window.location.replace(`/dashboard/candidate/${userId}`);
+            router.replace(`/dashboard/candidate/${userId}`);
             return;
         }
 
@@ -83,17 +121,36 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
             const accessState = await getCandidateAccessState(userId);
 
             if (!accessState.completedOnboarding) {
-                window.location.replace('/onboarding/candidate');
+                router.replace('/onboarding/candidate');
                 return;
             }
             setOnboardingVerified(true);
         }
 
         verifyOnboarding();
-    }, [authLoading, authUser, role_id]);
+    }, [authLoading, authUser, role_id, router]);
 
-    const { data: dash, isLoading: dashLoading } = useCandidateDashboardQuery(role_id, onboardingVerified);
-    const { data: recommendedJobs = [], isLoading: recsLoading } = useRecommendationsQuery(role_id, onboardingVerified);
+    useEffect(() => {
+        if (onboardingVerified) {
+            refreshUser().catch(console.error);
+        }
+    }, [onboardingVerified, refreshUser]);
+
+    const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const searchParams = new URLSearchParams(window.location.search);
+            if (searchParams.get('onboarding_success') === 'true') {
+                setToastMsg({ message: 'Onboarding completed successfully! Welcome to your dashboard.', type: 'success' });
+                const cleanUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        }
+    }, []);
+
+    const { data: dash, isLoading: dashLoading, isFetching: dashFetching } = useCandidateDashboardQuery(role_id, onboardingVerified);
+    const { data: recommendedJobs = [], isLoading: recsLoading, isFetching: recsFetching } = useRecommendationsQuery(role_id, onboardingVerified);
 
     const profile = dash?.candidateProfile;
     const dbProfile = dash?.profile;
@@ -106,8 +163,8 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
         scheduledAt: dash.interviews[0].scheduled_at
     } : null;
 
-    const loading = authLoading || !onboardingVerified || dashLoading;
-    const recommendationsLoading = authLoading || !onboardingVerified || recsLoading;
+    const loading = authLoading || !onboardingVerified || (dashLoading && !dash);
+    const recommendationsLoading = authLoading || !onboardingVerified || (recsLoading && recommendedJobs.length === 0);
 
     if (loading) {
         return <HomeSkeleton />;
@@ -116,7 +173,12 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
     const userName = dbProfile?.name || authUser?.name || 'User';
 
     return (
-        <div className={styles.dash}>
+        <motion.div 
+            className={cn(styles.dash, styles.dashPremium)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
             {/* Greeting */}
             <div className={styles.greet}>
                 <h1 className={styles.greetTitle}>Welcome back, {userName}!</h1>
@@ -124,48 +186,87 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
             </div>
 
             {/* Stat Cards */}
-            <AnimateOnScroll animation="fadeUp" delay={100}>
+            <AnimateOnScroll animation="fadeIn">
                 <div className={styles.stats}>
-                    <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/applications`)}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Active Applications</span>
-                            <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.send}</span>
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowBluePremium} ${styles.clickable}`} 
+                        onClick={() => router.push(`/dashboard/candidate/${role_id}/applications`)}
+                        whileHover={{ y: -6 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Active Applications</span>
+                            <span className={styles.statIconBoxPremium} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--primary-blue)' }}>{IC.send}</span>
                         </div>
-                        <span className={styles.statVal}>{appCount}</span>
-                        <span className={styles.statChange}>{IC.trending} Real-time status</span>
-                    </div>
-                    <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/profile`)}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Profile Strength</span>
-                            <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.target}</span>
+                        <div>
+                            <div className={styles.statValPremium}>{appCount}</div>
+                            <span className={styles.statHintPremium}>{IC.trending} Real-time status</span>
                         </div>
-                        <span className={styles.statVal}>{profile?.profile_strength ?? 0}%</span>
-                        <span className={styles.statHint}>Add {Math.max(0, 90 - (profile?.profile_strength ?? 0))}% more to reach 90%</span>
-                    </div>
-                    <div className={`${styles.stat} ${styles.clickable}`} onClick={() => router.push(`/dashboard/candidate/${role_id}/messages`)}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Upcoming Interviews</span>
-                            <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.cal}</span>
+                    </motion.div>
+
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowGreenPremium} ${styles.clickable}`} 
+                        onClick={() => router.push(`/dashboard/candidate/${role_id}/profile`)}
+                        whileHover={{ y: -6 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.08 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Profile Strength</span>
+                            <ProgressRing value={profile?.profile_strength ?? 0} size={42} strokeWidth={4.5} color="#10b981" />
                         </div>
-                        <span className={styles.statVal}>{interviewCount}</span>
-                        <span className={styles.statHint}>
-                            {nextInterview ? `Next: ${formatShortDate(nextInterview.scheduledAt)}, ${formatTime(nextInterview.scheduledAt)}` : 'No upcoming interviews'}
-                        </span>
-                    </div>
+                        <div>
+                            <div className={styles.statValPremium}>{profile?.profile_strength ?? 0}%</div>
+                            <span className={styles.statHintPremium}>Add {Math.max(0, 90 - (profile?.profile_strength ?? 0))}% to reach 90%</span>
+                        </div>
+                    </motion.div>
+
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowOrangePremium} ${styles.clickable}`} 
+                        onClick={() => router.push(`/dashboard/candidate/${role_id}/messages`)}
+                        whileHover={{ y: -6 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.16 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Upcoming Interviews</span>
+                            <span className={styles.statIconBoxPremium} style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>{IC.cal}</span>
+                        </div>
+                        <div>
+                            <div className={styles.statValPremium}>{interviewCount}</div>
+                            <span className={styles.statHintPremium} style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'block' }}>
+                                {nextInterview ? `Next: ${formatShortDate(nextInterview.scheduledAt)}, ${formatTime(nextInterview.scheduledAt)}` : 'No upcoming interviews'}
+                            </span>
+                        </div>
+                    </motion.div>
                 </div>
             </AnimateOnScroll>
 
             {/* Recommended for You Section */}
-            <AnimateOnScroll animation="fadeUp" delay={150}>
+            <AnimateOnScroll animation="fadeIn">
                 <ErrorBoundary fallbackText="Unable to load recommendations. Please refresh.">
-                    <div className={styles.recommendedSection}>
+                    <motion.div 
+                        className={styles.recommendedSectionPremium}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.24 }}
+                    >
                         <div className={styles.recommendedHeader}>
                             <div className={styles.recommendedTitleRow}>
-                                <h3 className={styles.cardTitle}>Recommended for You</h3>
-                                <div className={styles.auraBadge}>
-                                    <span>✦</span>
-                                    <span>Aura AI</span>
-                                </div>
+                                <h3 className={styles.cardTitlePremium}>{IC.star} Recommended for You</h3>
+                                {recsFetching && (
+                                    <span className={styles.subtleLoader} title="Syncing fresh recommendations...">
+                                        <span className={styles.spinnerDot} />
+                                        Syncing
+                                    </span>
+                                )}
                             </div>
                             <button 
                                 className={styles.viewAll} 
@@ -181,8 +282,15 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                     <div key={i} className={styles.skeletonCard} />
                                 ))
                             ) : recommendedJobs.length > 0 ? (
-                                recommendedJobs.map((job) => (
-                                    <div key={job.id} className={styles.recommendedCard}>
+                                recommendedJobs.map((job, idx) => (
+                                    <motion.div 
+                                        key={job.id} 
+                                        className={styles.recommendedCardPremium}
+                                        whileHover={{ y: -6 }}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.4, delay: 0.3 + idx * 0.05 }}
+                                    >
                                         <div className={styles.recCardTop}>
                                             <div className={styles.recLogo}>
                                                 {job.companies?.logo_url ? (
@@ -197,23 +305,23 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                             </div>
                                         </div>
                                         
-                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                            {job.salary_max ? `₹${(job.salary_max/1000).toFixed(0)}k` : 'Salary Undisclosed'}
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, margin: '6px 0' }}>
+                                            {job.salary_max ? `₹${(job.salary_max/100000).toFixed(1)}L PA` : 'Salary Undisclosed'}
                                         </div>
 
                                         <div className={styles.recFooter}>
-                                            <div className={styles.recMatch}>
+                                            <div className={styles.recMatch} style={{ color: '#10b981', background: '#f0fdf4', padding: '2px 8px', borderRadius: '100px', fontSize: '0.68rem', fontWeight: 700 }}>
                                                 {job.match_score ? `${job.match_score}% Match` : 'New Match'}
                                             </div>
                                             <button 
                                                 className={styles.recView}
                                                 onClick={() => router.push(`/dashboard/candidate/${role_id}/jobs/${job.id}`)}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--primary-blue)' }}
                                             >
                                                 View Job
                                             </button>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 ))
                             ) : (
                                 <div className={styles.recommendedEmpty} style={{ width: '100%' }}>
@@ -227,24 +335,42 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </motion.div>
                 </ErrorBoundary>
             </AnimateOnScroll>
 
             {/* Main Grid */}
-            <AnimateOnScroll animation="fadeUp" delay={200}>
+            <AnimateOnScroll animation="fadeIn">
                 <div className={styles.mainGrid}>
                     <div className={styles.leftCol}>
                         {/* Top AI Matches */}
                         <ErrorBoundary fallbackText="Unable to load top matches. Please refresh.">
-                            <div className={styles.card}>
+                            <motion.div 
+                                className={styles.cardPremium}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.4 }}
+                            >
                                 <div className={styles.cardHead}>
-                                    <h2 className={styles.cardTitle}>{IC.star} Top AI Matches</h2>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <h2 className={styles.cardTitlePremium}>{IC.star} Top AI Matches</h2>
+                                        {dashFetching && (
+                                            <span className={styles.subtleLoader} title="Syncing fresh dashboard data...">
+                                                <span className={styles.spinnerDot} />
+                                                Syncing
+                                            </span>
+                                        )}
+                                    </div>
                                     <button className={styles.viewAll} onClick={() => router.push(`/dashboard/candidate/${role_id}/search`)}>View all matches</button>
                                 </div>
                                 {jobs.map((job: any, i: number) => (
-                                    <div key={i} className={styles.jobCard}>
-                                        <div className={styles.jobIcon}>{job.companies?.name?.[0] || 'J'}</div>
+                                    <motion.div 
+                                        key={i} 
+                                        className={styles.jobCard}
+                                        whileHover={{ x: 6, backgroundColor: 'rgba(59,130,246,0.02)', borderColor: 'rgba(59,130,246,0.15)' }}
+                                        transition={{ duration: 0.2 }}
+                                    >
+                                        <div className={styles.jobIcon} style={{ background: '#f8fafc', color: 'var(--primary-blue)', border: '1px solid #f1f5f9' }}>{job.companies?.name?.[0] || 'J'}</div>
                                         <div className={styles.jobBody}>
                                             <div className={styles.jobRow}>
                                                 <span className={styles.jobTitle}>{job.title}</span>
@@ -252,23 +378,28 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                             </div>
                                             <span className={styles.jobMeta}>{job.companies?.name} · {job.location}</span>
                                             <div className={styles.jobTags}>
-                                                <span className={styles.tag}>{job.type}</span>
-                                                {job.salary_max && <span className={styles.tag}>₹{(job.salary_max/1000).toFixed(0)}k</span>}
+                                                <span className={cn(styles.tag, styles.tagNeutral, styles.tagSmall)}>{job.type}</span>
+                                                {job.salary_max && <span className={cn(styles.tag, styles.tagSuccess, styles.tagSmall)}>₹{(job.salary_max/100000).toFixed(1)}L PA</span>}
                                             </div>
                                             <div className={styles.jobFoot}>
                                                 <span className={styles.jobTime}>Featured matching</span>
                                                 <button className={styles.viewJobBtn} onClick={() => router.push(`/dashboard/candidate/${role_id}/jobs/${job.id}`)}>View Job</button>
                                             </div>
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 ))}
-                            </div>
+                            </motion.div>
                         </ErrorBoundary>
  
                         {/* Recent Activity */}
                         <ErrorBoundary fallbackText="Unable to load recent activity. Please refresh.">
-                            <div className={styles.card}>
-                                <h2 className={styles.cardTitle}>Recent Activity</h2>
+                            <motion.div 
+                                className={styles.cardPremium}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.45 }}
+                            >
+                                <h2 className={styles.cardTitlePremium}>Recent Activity</h2>
                                 {activity.map((act: any, i: number) => (
                                     <div key={i} className={styles.actItem}>
                                         <span className={styles.actIcon}>{IC.eye}</span>
@@ -280,20 +411,25 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                     </div>
                                 ))}
                                 <button className={styles.viewAllFooter}>View All Activity</button>
-                            </div>
+                            </motion.div>
                         </ErrorBoundary>
                     </div>
 
                     <div className={styles.rightCol}>
                         {/* Schedule */}
                         <ErrorBoundary fallbackText="Unable to load schedule. Please refresh.">
-                            <div className={styles.card}>
+                            <motion.div 
+                                className={styles.cardPremium}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.42 }}
+                            >
                                 <div className={styles.cardHead}>
-                                    <h2 className={styles.cardTitle}>Schedule</h2>
+                                    <h2 className={styles.cardTitlePremium}>Schedule</h2>
                                     <button className={styles.moreBtn}>{IC.moreH}</button>
                                 </div>
                                 {nextInterview ? (
-                                    <div className={styles.scheduleItem}>
+                                    <div className={styles.scheduleItem} style={{ borderLeft: '4px solid var(--primary-blue)' }}>
                                         <div className={styles.schedBadge}>{new Date(nextInterview.scheduledAt) > new Date() ? 'UPCOMING' : 'TODAY'}</div>
                                         <span className={styles.schedTitle}>{nextInterview.type.toUpperCase()} INTERVIEW</span>
                                         <span className={styles.schedMeta}>
@@ -314,12 +450,17 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                         <p>No interviews scheduled</p>
                                     </div>
                                 )}
-                            </div>
+                            </motion.div>
                         </ErrorBoundary>
 
                         {/* Profile Strength Widget */}
                         <ErrorBoundary fallbackText="Unable to load profile card. Please refresh.">
-                            <div style={{ marginBottom: '1.5rem' }}>
+                            <motion.div 
+                                style={{ marginBottom: '1.5rem' }}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.46 }}
+                            >
                                 <ProfileStrengthWidget 
                                     variant="compact"
                                     candidate={{
@@ -334,34 +475,53 @@ function CandidateHomeInner({ role_id }: { role_id: string }) {
                                         profile_strength: profile?.profile_strength
                                     }}
                                 />
-                            </div>
+                            </motion.div>
                         </ErrorBoundary>
 
                         {/* Quick Actions */}
-                        <div className={styles.card}>
-                            <h2 className={styles.cardTitle}>Quick Actions</h2>
-                            {[
-                                { icon: IC.file, label: 'Update Resume', route: `/dashboard/candidate/${role_id}/profile` },
-                                { icon: IC.sliders, label: 'Edit Preferences', route: `/dashboard/candidate/${role_id}/settings` },
-                                { icon: IC.award, label: 'Add Certifications', route: `/dashboard/candidate/${role_id}/profile` },
-                            ].map((qa, i) => (
-                                <button key={i} className={styles.quickAction} onClick={() => router.push(qa.route)}>
-                                    <span className={styles.qaIcon}>{qa.icon}</span>
-                                    <span className={styles.qaLabel}>{qa.label}</span>
-                                    {IC.chevron}
-                                </button>
-                            ))}
-                        </div>
+                        <motion.div 
+                            className={styles.cardPremium}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.5 }}
+                        >
+                            <h2 className={styles.cardTitlePremium}>Quick Actions</h2>
+                            <div className={styles.quickActionsContainer}>
+                                {[
+                                    { icon: IC.file, label: 'Update Resume', route: `/dashboard/candidate/${role_id}/profile` },
+                                    { icon: IC.sliders, label: 'Edit Preferences', route: `/dashboard/candidate/${role_id}/settings` },
+                                    { icon: IC.award, label: 'Add Certifications', route: `/dashboard/candidate/${role_id}/profile` },
+                                ].map((qa, i) => (
+                                    <button 
+                                        key={i} 
+                                        className={styles.quickAction} 
+                                        onClick={() => router.push(qa.route)}
+                                    >
+                                        <span className={styles.qaIcon}>{qa.icon}</span>
+                                        <span className={styles.qaLabel}>{qa.label}</span>
+                                        {IC.chevron}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
 
                         {/* Featured Company */}
-                        <div className={styles.featuredCard}>
+                        <motion.div 
+                            className={styles.featuredCard}
+                            style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', borderRadius: '16px' }}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.54 }}
+                            whileHover={{ y: -4 }}
+                        >
                             <span className={styles.featuredLabel}>FEATURED COMPANY</span>
                             <span className={styles.featuredName}>Join the team at Airbnb</span>
                             <button className={styles.featuredLink}>View 15 open roles {IC.arrowRight}</button>
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
             </AnimateOnScroll>
-        </div>
+            {toastMsg && <Toast message={toastMsg.message} type={toastMsg.type} onClose={() => setToastMsg(null)} />}
+        </motion.div>
     );
 }

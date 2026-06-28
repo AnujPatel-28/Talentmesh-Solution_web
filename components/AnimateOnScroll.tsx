@@ -19,7 +19,7 @@ export default function AnimateOnScroll({
     delay = 0,
     duration = 400,
     threshold = 0.1,
-    once = true,
+    once = false,
     className = '',
     style = {},
     as: Tag = 'div',

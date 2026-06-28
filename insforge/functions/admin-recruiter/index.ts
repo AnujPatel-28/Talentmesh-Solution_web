@@ -13,7 +13,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const { action, requestId } = await req.json();
-    const verifyClient = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const verifyClient = createClient({ baseUrl, anonKey });
+    verifyClient.setAccessToken(token);
 
     // Verify token signature
     const { data: authData, error: authError } = await verifyClient.auth.getCurrentUser();

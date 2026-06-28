@@ -16,10 +16,28 @@ export default function DashboardRedirect() {
         }
 
         const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('tm_token') : null;
-        const getSubdomainUrl = (subdomain: string, path: string) => {
+
+        const isLocalhost = typeof window !== 'undefined' &&
+            (window.location.hostname === 'localhost' ||
+                window.location.hostname === '127.0.0.1' ||
+                window.location.hostname.endsWith('.localhost'));
+
+        const getDestinationUrl = (subdomain: string, path: string) => {
             if (typeof window === 'undefined') return path;
             const host = window.location.host;
             const proto = window.location.protocol;
+
+            if (isLocalhost) {
+                // Same-origin path-based routing for local dev — subdomains don't resolve
+                let url = `${proto}//${host}${path}`;
+                if (token) {
+                    const separator = url.includes('?') ? '&' : '?';
+                    url = `${url}${separator}token=${token}`;
+                }
+                return url;
+            }
+
+            // Production: use subdomains
             const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
             let url = `${proto}//${subdomain}.${cleanHost}${path}`;
             if (token) {
@@ -31,11 +49,11 @@ export default function DashboardRedirect() {
 
         // Redirect based on role
         if (user.role === 'admin' || user.role === 'super_admin') {
-            window.location.replace(getSubdomainUrl('admin', '/admin/dashboard'));
+            window.location.replace(getDestinationUrl('admin', '/admin/dashboard'));
         } else if (user.role === 'recruiter') {
-            window.location.replace(getSubdomainUrl('app', '/recruiter/dashboard'));
+            window.location.replace(getDestinationUrl('app', '/recruiter/dashboard'));
         } else {
-            window.location.replace(getSubdomainUrl('jobs', '/'));
+            window.location.replace(getDestinationUrl('jobs', '/candidate/dashboard'));
         }
     }, [user, isLoading, router]);
 

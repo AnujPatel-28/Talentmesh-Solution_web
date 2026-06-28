@@ -36,6 +36,7 @@ export default function RecruiterSettingsPage() {
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
     const [provider, setProvider] = useState<string>('email');
+    const [recruiterRole, setRecruiterRole] = useState<'admin' | 'recruiter' | 'coordinator'>('recruiter');
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const logoInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +68,7 @@ export default function RecruiterSettingsPage() {
                 if (profRes.data) {
                     const p = profRes.data.profile;
                     const rp = profRes.data.recruiterProfile;
+                    setRecruiterRole(rp?.recruiter_role || 'recruiter');
                     setProfile(prev => ({
                         ...prev,
                         name: p?.name || '',
@@ -288,6 +290,26 @@ export default function RecruiterSettingsPage() {
                             <span className={styles.fieldHint}>Email cannot be changed here.</span>
                         </div>
                         <div className={styles.field}>
+                            <label>Role / Permissions</label>
+                            <div style={{ marginTop: '0.35rem' }}>
+                                <span style={{
+                                    background: '#f1f5f9',
+                                    color: '#475569',
+                                    border: '1px solid #cbd5e1',
+                                    padding: '0.4rem 0.8rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                    textTransform: 'capitalize'
+                                }}>
+                                    👤 {recruiterRole}
+                                </span>
+                            </div>
+                        </div>
+                        <div className={styles.field}>
                             <label>Registration Platform</label>
                             <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center' }}>
                                 {provider === 'google' && (
@@ -408,6 +430,61 @@ export default function RecruiterSettingsPage() {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Billing & Subscription Section */}
+                <div className={styles.settingsCard}>
+                    <div className={styles.cardHeader}>
+                        <div className={styles.cardIcon}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <rect width="20" height="14" x="2" y="5" rx="2" />
+                                <line x1="2" x2="22" y1="10" y2="10" />
+                            </svg>
+                        </div>
+                        <h3 className={styles.cardTitle}>Billing & Subscription</h3>
+                    </div>
+
+                    {recruiterRole === 'admin' ? (
+                        <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+                            <div className={styles.field}>
+                                <label>Subscription Plan</label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: '#0f172a' }}>Enterprise Plan</div>
+                                        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Renews on July 15, 2026</div>
+                                    </div>
+                                    <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 600 }}>Active</span>
+                                </div>
+                            </div>
+                            <div className={styles.field} style={{ marginTop: '1rem' }}>
+                                <label>Billing Email</label>
+                                <input placeholder="billing@company.com" defaultValue="billing@company.com" />
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ 
+                            marginTop: '1.5rem', 
+                            padding: '1rem', 
+                            backgroundColor: '#fef2f2', 
+                            border: '1px solid #fecaca', 
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            color: '#991b1b'
+                        }}>
+                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                Access Restricted
+                            </div>
+                            <p style={{ fontSize: '0.85rem', margin: 0, color: '#7f1d1d', lineHeight: '1.4' }}>
+                                Billing and subscription configurations are restricted. You are currently logged in as a <strong>{recruiterRole}</strong>. Only Company Admins can manage billing settings.
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

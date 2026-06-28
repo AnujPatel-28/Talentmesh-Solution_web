@@ -1,8 +1,10 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styles from './employers.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import HeroBg from '@/components/ui/HeroBg/HeroBg';
+import CTA from '@/components/sections/CTA';
 
 // --- Premium Custom Icons ---
 const IconTarget = () => (
@@ -40,9 +42,51 @@ const PARTNERS = [
     "Cyber Defense"
 ];
 
+const CANDIDATES = [
+    {
+        name: "Sophia Vance",
+        role: "Principal AI Engineer",
+        match: 99,
+        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
+        skills: ["PyTorch", "CUDA", "LLMs", "Rust"]
+    },
+    {
+        name: "Marcus Chen",
+        role: "Staff Infrastructure Lead",
+        match: 97,
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80",
+        skills: ["Go", "Kubernetes", "gRPC", "AWS"]
+    },
+    {
+        name: "Elena Rostova",
+        role: "Senior WebAssembly Architect",
+        match: 96,
+        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80",
+        skills: ["React", "TypeScript", "WebAssembly", "Rust"]
+    }
+];
+
 export default function EmployersPage() {
+    const [candidateIndex, setCandidateIndex] = useState(0);
+    const [scanning, setScanning] = useState(true);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setScanning(false);
+            setTimeout(() => {
+                setCandidateIndex((prev) => (prev + 1) % CANDIDATES.length);
+                setScanning(true);
+            }, 600);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const activeCandidate = CANDIDATES[candidateIndex];
+
     return (
-        <main style={{ background: 'var(--background)' }}>
+        <main style={{ background: 'transparent' }}>
+            <HeroBg src="/bg5.png" fixed />
+            
             {/* 1. Command Hero */}
             <section className={styles.hero}>
                 <div className="premium-container">
@@ -128,12 +172,52 @@ export default function EmployersPage() {
                             </div>
 
                             <div className={styles.visualPanel}>
+                                <div className={styles.sonarCircle}></div>
                                 <div className={styles.scanLine}></div>
-                                <div style={{ padding: '4rem', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                                    <div style={{ background: 'rgba(255,255,255,0.05)', height: '100%', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <div style={{ textAlign: 'center' }}>
-                                            <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--primary-blue)', marginBottom: '1rem' }}>Sourcing Active...</div>
-                                            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Analyzing 4.2 Million Developer Profiles</div>
+                                <div className={styles.sandboxContainer}>
+                                    <div className={styles.sandboxHeader}>
+                                        <span className={styles.statusIndicator}>
+                                            <span className={styles.statusDot}></span>
+                                            {scanning ? "AURA ACTIVE SCANNER" : "LOCKING MATCH..."}
+                                        </span>
+                                        <span className={styles.databaseCount}>4.2M DB</span>
+                                    </div>
+
+                                    <div className={`${styles.profileCard} ${scanning ? styles.profileScanning : ''}`}>
+                                        <div className={styles.profileHeader}>
+                                            <div className={styles.avatarWrapper}>
+                                                <img 
+                                                    src={activeCandidate.avatar} 
+                                                    alt={activeCandidate.name} 
+                                                    className={styles.avatar} 
+                                                />
+                                            </div>
+                                            <div className={styles.profileMeta}>
+                                                <h4 className={styles.candidateName}>{activeCandidate.name}</h4>
+                                                <p className={styles.candidateRole}>{activeCandidate.role}</p>
+                                            </div>
+                                            <div className={styles.matchScore}>
+                                                <span className={styles.matchPercent}>{activeCandidate.match}%</span>
+                                                <span className={styles.matchLabel}>Match</span>
+                                            </div>
+                                        </div>
+
+                                        <div className={styles.skillsGrid}>
+                                            {activeCandidate.skills.map((skill, index) => (
+                                                <span key={index} className={styles.skillTag}>
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                        </div>
+
+                                        <div className={styles.analysisBox}>
+                                            <div className={styles.analysisLine}></div>
+                                            <div className={styles.analysisLabel}>VETTING STATUS</div>
+                                            <div className={styles.vettingBadges}>
+                                                <span className={styles.vettingBadge}>✓ Bio Vetted</span>
+                                                <span className={styles.vettingBadge}>✓ System Design</span>
+                                                <span className={styles.vettingBadge}>✓ Live Coding</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -176,7 +260,7 @@ export default function EmployersPage() {
                                 <p className={styles.solutionDesc}>
                                     Discrete talent acquisition for confidential projects or competitive market moves.
                                 </p>
-                                <Link href="/contact" className={styles.actionLink}>
+                                <Link href="/portals/jobs/contact" className={styles.actionLink}>
                                     Speak to Expert <IconZap />
                                 </Link>
                             </div>
@@ -187,17 +271,13 @@ export default function EmployersPage() {
 
             {/* 5. Enterprise CTA */}
             <AnimateOnScroll animation="scaleUp">
-                <section className={styles.ctaSection}>
-                    <div className="premium-container">
-                        <div className={styles.ctaBox}>
-                            <h2 className={styles.ctaTitle}>Scale with certainty.</h2>
-                            <p style={{ fontSize: '1.25rem', opacity: 0.7, marginBottom: '5rem', maxWidth: '700px', margin: '0 auto 5rem' }}>
-                                Join 200+ world-class Enterprise Ecosystems using TalentMesh to build their technical core.
-                            </p>
-                            <Link href="/contact" className={styles.ctaBtn}>Schedule a Consult</Link>
-                        </div>
-                    </div>
-                </section>
+                <CTA
+                    glass
+                    title={<>Scale with <span className="text-gradient">certainty.</span></>}
+                    description="Join 200+ world-class Enterprise Ecosystems using TalentMesh to build their technical core."
+                    buttonText="Schedule a Consult"
+                    buttonLink="/portals/jobs/contact"
+                />
             </AnimateOnScroll>
         </main>
     );

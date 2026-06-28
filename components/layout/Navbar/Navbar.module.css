@@ -4,45 +4,35 @@
   top: 0;
   left: 0;
   width: 100%;
-  background-image: url('/nav strrip.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: transparent;
   border-bottom: 1px solid transparent;
   z-index: 1000;
   transition: all 0.3s ease;
+  box-shadow: none;
 }
 
 .navbar.scrolled {
   background: rgba(255, 255, 255, 0.75);
-  background-image: none;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-.navbar.transparentNav {
-  background-image: none !important;
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-bottom-color: transparent !important;
-  box-shadow: none !important;
-}
-
-.navbar.scrolled:has(+ *) {
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
 }
 
 .container {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 2rem;
-  height: 88px;
+  height: 90px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 1.618rem; /* Golden Ratio */
+  transition: height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navbar.scrolled .container {
+  height: 64px; /* Dynamic Shrink */
 }
 
 @media (max-width: 768px) {
@@ -95,26 +85,25 @@
   align-items: center;
   gap: 5px;
   padding: 0 1rem;
-  height: 68px;
+  height: 100%;
   color: var(--deep-navy);
   font-weight: 500;
-  font-size: 0.93rem;
+  font-size: 0.95rem;
   letter-spacing: 0.01em;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
   white-space: nowrap;
-  border-bottom: 2px solid transparent;
+  position: relative;
 }
 
-.link:hover {
+.navItem:hover .link {
   color: var(--primary-blue);
 }
 
 /* Active state – when any child route is current */
 .linkActive {
   color: var(--primary-blue) !important;
-  border-bottom-color: var(--primary-blue) !important;
 }
 
 .chevron {
@@ -129,26 +118,28 @@
 /* ─── Dropdown Panel ────────────────────────────────────────────────────────── */
 .dropdown {
   position: absolute;
-  top: calc(100% + 1px);
+  top: 100%;
   left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  background: #ffffff;
-  min-width: 220px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 6px;
+  transform: translateX(-50%) translateY(12px) scale(0.96);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  min-width: 240px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0,0,0,0.05);
+  padding: 0.618rem; /* Golden Ratio */
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.18s;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.25s;
   z-index: 1100;
 }
 
 .navItem:hover .dropdown {
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(0);
-  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0s;
+  transform: translateX(-50%) translateY(0) scale(1);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0s;
 }
 
 .dropdownLink {
@@ -199,7 +190,7 @@
 /* ─── Auth Buttons ─────────────────────────────────────────────────────────── */
 .auth {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   align-items: center;
   flex-shrink: 0;
 }
@@ -208,9 +199,9 @@
   text-decoration: none;
   color: var(--deep-navy);
   font-weight: 600;
-  font-size: 0.93rem;
+  font-size: 0.95rem;
   letter-spacing: 0.01em;
-  transition: color 0.2s ease;
+  transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
@@ -224,19 +215,20 @@
   align-items: center;
   background: var(--primary-blue);
   color: white;
-  padding: 0.5rem 1.25rem;
-  border-radius: 8px;
+  padding: 0.618rem 1.618rem; /* Golden Ratio */
+  border-radius: 10px;
   font-weight: 600;
-  font-size: 0.93rem;
+  font-size: 0.95rem;
   letter-spacing: 0.01em;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 102, 255, 0.25);
 }
 
 .signupBtn:hover {
-  background: #0069d9;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.35);
+  background: #0056e0;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 102, 255, 0.35);
 }
 
 /* ─── Mobile Hamburger ──────────────────────────────────────────────────────── */
@@ -376,7 +368,11 @@
 
 @media (max-width: 1024px) {
   .navbar {
-    border-bottom: 1px solid transparent;
+    background: var(--background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
   }
 
   .links {

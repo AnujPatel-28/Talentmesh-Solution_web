@@ -1,19 +1,13 @@
 .hero {
     position: relative;
     padding: clamp(6rem, 15vh, 12rem) 16px clamp(6rem, 12vh, 10rem);
-    background: var(--deep-navy);
-    color: white;
+    background: transparent;
+    color: #0f172a;
     overflow: hidden;
 }
 
 .hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-        radial-gradient(circle at 20% 30%, rgba(0, 123, 255, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(0, 123, 255, 0.1) 0%, transparent 50%);
-    pointer-events: none;
+    display: none;
 }
 
 .heroContent {
@@ -29,14 +23,17 @@
     align-items: center;
     gap: 8px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(59, 130, 246, 0.25);
     padding: 10px 20px;
     border-radius: 100px;
     font-size: 0.8rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--primary-blue);
+    color: #1e40af;
     margin-bottom: 3rem;
 }
 
@@ -55,7 +52,7 @@
 
 .heroDesc {
     font-size: 1.35rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: #334155;
     max-width: 800px;
     margin: 0 auto 5rem;
     line-height: 1.6;
@@ -63,12 +60,13 @@
 
 .dashboardMockup {
     position: relative;
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(40px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(59, 130, 246, 0.2);
     border-radius: 32px;
     padding: clamp(2rem, 5vw, 4rem);
-    box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2.5rem;
@@ -89,12 +87,12 @@
     font-size: 0.85rem;
     font-weight: 800;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.4);
+    color: #64748b;
 }
 
 /* Command Center Section */
 .commandSection {
-    background: #ffffff;
+    background: transparent;
     padding: clamp(4rem, 12vh, 10rem) 16px;
 }
 
@@ -171,37 +169,255 @@
 /* Visual Panel */
 .visualPanel {
     position: relative;
-    height: 600px;
-    background: var(--deep-navy);
+    height: 520px;
+    background: rgba(15, 23, 42, 0.85); /* Deep slate-blue frosted glass */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 40px;
     overflow: hidden;
-    box-shadow: var(--shadow-2xl);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sonarCircle {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 123, 255, 0.08);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: sonarPulse 6s infinite ease-out;
+    z-index: 1;
+    pointer-events: none;
+}
+
+@keyframes sonarPulse {
+    0% {
+        width: 50px;
+        height: 50px;
+        opacity: 0.8;
+    }
+    100% {
+        width: 500px;
+        height: 500px;
+        opacity: 0;
+    }
 }
 
 .scanLine {
     position: absolute;
     width: 100%;
-    height: 2px;
-    background: var(--primary-blue);
-    box-shadow: 0 0 20px var(--primary-blue);
-    top: 50%;
+    height: 4px;
+    background: linear-gradient(to bottom, transparent, var(--primary-blue), transparent);
+    box-shadow: 0 0 15px var(--primary-blue);
+    top: 0;
     animation: scan 4s infinite linear;
     z-index: 10;
+    pointer-events: none;
 }
 
 @keyframes scan {
     0% {
         top: 0;
     }
-
     100% {
         top: 100%;
     }
 }
 
+.sandboxContainer {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    height: 100%;
+    justify-content: space-between;
+}
+
+.sandboxHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 1rem;
+}
+
+.statusIndicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: #60a5fa;
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #3b82f6;
+    animation: statusGlow 1.5s infinite alternate;
+}
+
+@keyframes statusGlow {
+    0% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.databaseCount {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.profileCard {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 1.75rem;
+    transition: all 0.5s ease;
+}
+
+.profileScanning {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.02);
+}
+
+.profileHeader {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.avatarWrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    flex-shrink: 0;
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profileMeta {
+    flex-grow: 1;
+    text-align: left;
+}
+
+.candidateName {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 0.25rem;
+}
+
+.candidateRole {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.matchScore {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.matchPercent {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: #10b981;
+    text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    line-height: 1;
+}
+
+.matchLabel {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.skillsGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.skillTag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    padding: 0.3rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+.analysisBox {
+    position: relative;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 1.25rem;
+    text-align: left;
+}
+
+.analysisLine {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 40%;
+    height: 1px;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.analysisLabel {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #64748b;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+}
+
+.vettingBadges {
+    display: flex;
+    gap: 1rem;
+}
+
+.vettingBadge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 /* Solutions Section */
 .solutionsSection {
-    background: #fafafa;
+    background: transparent;
     padding: clamp(4rem, 12vh, 10rem) 16px;
 }
 
@@ -218,16 +434,19 @@
 }
 
 .solutionCard {
-    background: white;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     padding: clamp(2rem, 5vw, 3.5rem);
     border-radius: 32px;
-    border: 1px solid #f1f5f9;
     transition: var(--transition-smooth);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
 }
 
 .solutionCard:hover {
     transform: translateY(-10px);
-    box-shadow: var(--shadow-xl);
+    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
     border-color: var(--primary-blue);
 }
 

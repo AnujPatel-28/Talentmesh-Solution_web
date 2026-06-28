@@ -22,6 +22,7 @@ type CandidateProfile = {
   linkedin_url?: string;
   github_url?: string;
   portfolio_url?: string;
+  primary_resume_id?: string;
 };
 
 type AdminCandidate = {
@@ -740,15 +741,41 @@ export default function AdminCandidatesPage() {
     }
   };
 
-  const handleDownload = async (url: string, filename: string) => {
+  const handleDownload = async (url: string, filename: string, resumeId?: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      const token = window.sessionStorage.getItem('tm_token');
       let targetUrl = url;
-      if (url.startsWith(insforgeUrl)) {
-        targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+      let resolvedResumeId = resumeId;
+      if (!resolvedResumeId && url) {
+        try {
+          const decoded = decodeURIComponent(url);
+          const parts = decoded.split('/');
+          const lastPart = parts[parts.length - 1].split('?')[0];
+          const potentialId = lastPart.split('_')[0];
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(potentialId)) {
+            resolvedResumeId = potentialId;
+          }
+        } catch (err) {
+          console.error('Failed to parse resumeId from URL:', err);
+        }
       }
 
-      const response = await fetch(targetUrl);
+      if (resolvedResumeId) {
+        targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${resolvedResumeId}&accessType=downloaded`;
+      } else {
+        const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+        if (url.startsWith(insforgeUrl)) {
+          targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+        }
+      }
+
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to download document');
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -764,15 +791,41 @@ export default function AdminCandidatesPage() {
     }
   };
 
-  const handleView = async (url: string) => {
+  const handleView = async (url: string, resumeId?: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      const token = window.sessionStorage.getItem('tm_token');
       let targetUrl = url;
-      if (url.startsWith(insforgeUrl)) {
-        targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+      let resolvedResumeId = resumeId;
+      if (!resolvedResumeId && url) {
+        try {
+          const decoded = decodeURIComponent(url);
+          const parts = decoded.split('/');
+          const lastPart = parts[parts.length - 1].split('?')[0];
+          const potentialId = lastPart.split('_')[0];
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(potentialId)) {
+            resolvedResumeId = potentialId;
+          }
+        } catch (err) {
+          console.error('Failed to parse resumeId from URL:', err);
+        }
       }
 
-      const response = await fetch(targetUrl);
+      if (resolvedResumeId) {
+        targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${resolvedResumeId}&accessType=viewed`;
+      } else {
+        const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+        if (url.startsWith(insforgeUrl)) {
+          targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
+        }
+      }
+
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to view document');
       const blob = await response.blob();
 
       let mimeType = blob.type;
@@ -1086,7 +1139,7 @@ export default function AdminCandidatesPage() {
                         type="button"
                         className={styles.primaryButton}
                         style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
-                        onClick={() => handleView(currentProfile.resume_url!)}
+                        onClick={() => handleView(currentProfile.resume_url!, currentProfile.primary_resume_id)}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
                           <FileText size={15} /> View Resume
@@ -1096,7 +1149,7 @@ export default function AdminCandidatesPage() {
                         type="button"
                         className={styles.pageButton}
                         style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
-                        onClick={() => handleDownload(currentProfile.resume_url!, 'candidate_resume.pdf')}
+                        onClick={() => handleDownload(currentProfile.resume_url!, 'candidate_resume.pdf', currentProfile.primary_resume_id)}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
                           <Download size={15} /> Download

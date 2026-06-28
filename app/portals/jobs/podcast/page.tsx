@@ -1,262 +1,336 @@
 "use client";
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './podcast.module.css';
+import { SectionHeader, CTA } from '@/components/ui';
+import HeroBg from '@/components/ui/HeroBg/HeroBg';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { 
+    Mic, 
+    Play, 
+    Pause, 
+    ArrowRight,
+    Twitter,
+    Linkedin,
+    Instagram
+} from 'lucide-react';
 
-import { SectionHeader } from '@/components/ui';
+const PlayIcon = () => <Play size={18} fill="currentColor" />;
+const PauseIcon = () => <Pause size={18} fill="currentColor" />;
+const ArrowRightIcon = () => <ArrowRight size={16} />;
 
-const IconSparkle = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-        <path d="m12 3 1.912 5.885L20 10.8l-5.088 1.912L13 18.6l-1.912-5.888L6 10.8l5.088-1.915L12 3Z" />
-    </svg>
-);
-const IconPlay = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
-);
-const IconPause = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-        <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
-    </svg>
-);
-const IconArrowRight = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 12h14m-7-7 7 7-7 7" />
-    </svg>
-);
-
-const PLATFORMS = [
-    { name: 'Spotify', emoji: '🎵', color: '#1DB954', href: '#' },
-    { name: 'Apple Podcasts', emoji: '🎙️', color: '#9B59B6', href: '#' },
-    { name: 'Google Podcasts', emoji: '🎧', color: '#EA4335', href: '#' },
-    { name: 'YouTube', emoji: '▶️', color: '#FF0000', href: '#' },
+const FEATURED_SHOWS = [
+    {
+        title: "The Creative Talk",
+        host: "Sarah Mitchell",
+        category: "Creative",
+        image: "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=400&h=250&q=80",
+        tagColor: "var(--primary-blue, #007BFF)"
+    },
+    {
+        title: "Startup Series",
+        host: "James Okafor",
+        category: "Business",
+        image: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=400&h=250&q=80",
+        tagColor: "var(--primary-blue, #007BFF)"
+    },
+    {
+        title: "Mindset Mastery",
+        host: "Dr. Amara Cole",
+        category: "Self-Growth",
+        image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=400&h=250&q=80",
+        tagColor: "var(--primary-blue, #007BFF)"
+    },
+    {
+        title: "Tech Weekly",
+        host: "Ryan Torres",
+        category: "Technology",
+        image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=400&h=250&q=80",
+        tagColor: "var(--primary-blue, #007BFF)"
+    }
 ];
 
-const FEATURED_EPISODE = {
-    number: 'EP. 48',
-    title: 'The End of the Job Description — With Sarah Chen, CPO at Figma',
-    desc: "How leading companies are replacing rigid job descriptions with dynamic skill matrices — and why it's closing the gap on hiring speed by over 60%.",
-    duration: '52:14',
-    date: 'Feb 22, 2026',
-    gradient: 'linear-gradient(135deg, #0f172a 0%, #1e40af 100%)',
-    emoji: '🎙️',
-};
-
-const EPISODES = [
+const TRENDING_EPISODES = [
     {
-        num: 'EP. 47',
-        title: 'Why 85% of Elite Engineers are Passive Candidates',
-        desc: 'The hidden talent pool no recruiter talks about — and how to reach them.',
-        duration: '44:30',
-        date: 'Feb 15, 2026',
-        gradient: 'linear-gradient(135deg, #1e3a5f, #007BFF)',
-        emoji: '🔍',
-        guest: 'Marcus Webb, Head of Talent @ Stripe',
+        title: "The Power of Creative Freedom",
+        image: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?auto=format&fit=crop&w=500&h=300&q=80"
     },
     {
-        num: 'EP. 46',
-        title: 'Building Bias-Free Hiring at Scale',
-        desc: 'Structural changes to the interview process that measurably reduce unconscious bias.',
-        duration: '38:55',
-        date: 'Feb 08, 2026',
-        gradient: 'linear-gradient(135deg, #064e3b, #10b981)',
-        emoji: '⚖️',
-        guest: 'Dr. Amara Osei, Head of DEI @ Google',
+        title: "Pitching Your First Venture Capital",
+        image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=500&h=300&q=80"
     },
     {
-        num: 'EP. 45',
-        title: 'Salary Transparency: The Next Competitive Weapon',
-        desc: 'How open comp bands are becoming a recruiting superpower for high-growth startups.',
-        duration: '41:18',
-        date: 'Feb 01, 2026',
-        gradient: 'linear-gradient(135deg, #4c1d95, #8b5cf6)',
-        emoji: '💰',
-        guest: 'Priya Sharma, Compensation Lead @ Airbnb',
+        title: "Overcoming Imposter Syndrome",
+        image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=500&h=300&q=80"
     },
     {
-        num: 'EP. 44',
-        title: 'The Rise of Fractional Engineering Teams',
-        desc: 'A deep dive into the new model of on-demand senior talent for pre-Series A startups.',
-        duration: '35:42',
-        date: 'Jan 25, 2026',
-        gradient: 'linear-gradient(135deg, #7f1d1d, #ef4444)',
-        emoji: '🔧',
-        guest: 'James Okafor, CTO @ ScaleUp',
-    },
-    {
-        num: 'EP. 43',
-        title: "AI Won't Replace Recruiters — Here's Why",
-        desc: 'The evolving role of human judgment in an AI-first hiring workflow.',
-        duration: '49:02',
-        date: 'Jan 18, 2026',
-        gradient: 'linear-gradient(135deg, #0c4a6e, #06b6d4)',
-        emoji: '🤝',
-        guest: 'Sofia Chen, CTO @ TalentMesh',
-    },
-    {
-        num: 'EP. 42',
-        title: 'Global Hiring in a Post-Remote World',
-        desc: 'The legal, cultural, and operational realities of building distributed world-class teams.',
-        duration: '46:30',
-        date: 'Jan 11, 2026',
-        gradient: 'linear-gradient(135deg, #78350f, #f59e0b)',
-        emoji: '🌍',
-        guest: 'Kenji Watanabe, VP People @ Notion',
-    },
+        title: "The Future of Generative DevTools",
+        image: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=500&h=300&q=80"
+    }
 ];
 
-const CATEGORIES = ["All Episodes", "Hiring Strategy", "AI & Tech", "Compensation", "Culture & DEI"];
+const HOSTS = [
+    {
+        name: "Sarah Mitchell",
+        role: "Creative Director",
+        bio: "Host of The Creative Talk, sharing design philosophies, creative struggles, and strategies of top global artists.",
+        image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&h=200&q=80"
+    },
+    {
+        name: "James Chen",
+        role: "Serial Entrepreneur",
+        bio: "Host of Startup Series, demystifying seed funding, product-market fit, and scale challenges for startup founders.",
+        image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&h=200&q=80"
+    },
+    {
+        name: "Dr. Amara Cole",
+        role: "Psychologist & Coach",
+        bio: "Host of Mindset Mastery, helping listeners unlock hidden potential through cognitive habit reconfiguration.",
+        image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&h=200&q=80"
+    },
+    {
+        name: "Ryan Torres",
+        role: "Tech Journalist",
+        bio: "Host of Tech Weekly, covering the fast-paced intersection of AI, SaaS architectures, and engineering growth.",
+        image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&h=200&q=80"
+    }
+];
+
+const GALLERY_THEMES = [
+    {
+        title: "AI & Future Recruiting",
+        category: "AI & Tech",
+        image: "https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&w=400&h=250&q=80"
+    },
+    {
+        title: "Creative Design Studios",
+        category: "Design & Art",
+        image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&h=250&q=80"
+    },
+    {
+        title: "Pitching & Raising Funds",
+        category: "Startups",
+        image: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=400&h=250&q=80"
+    },
+    {
+        title: "Work Culture & Scaling",
+        category: "People Strategy",
+        image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=400&h=250&q=80"
+    }
+];
 
 export default function PodcastPage() {
-    const [activeCategory, setActiveCategory] = useState("All Episodes");
-    const [playing, setPlaying] = useState<number | null>(null);
+    const [playingEpisode, setPlayingEpisode] = useState<string | null>(null);
+
+    const togglePlay = (title: string) => {
+        if (playingEpisode === title) {
+            setPlayingEpisode(null);
+        } else {
+            setPlayingEpisode(title);
+        }
+    };
 
     return (
         <main className={styles.page}>
-            {/* 1. Hero */}
-            <section className={styles.hero}>
+            <HeroBg src="/bg4.png" fixed />
+
+            {/* 1. HERO SECTION */}
+            <section className={styles.heroSection}>
                 <div className="premium-container">
-                    <div className={styles.heroContent}>
+                    <div className={styles.heroInner}>
                         <SectionHeader
-                            light
                             centered
-                            tag="New Episode Every Week • 28K Listeners"
-                            title={<>The TalentMesh <span className={styles.heroHighlight}>Podcast.</span></>}
-                            description="Unfiltered conversations with the world's top hiring leaders, founders, and engineers on the future of talent, tech, and work."
+                            tag="TalentMesh Podcasts"
+                            title={<>Discover Stories That Inspire <span className={styles.highlightText}>Your Mind.</span></>}
+                            description="Listen to world-class podcasts from creators, entrepreneurs, and storytellers — anytime, anywhere."
                         />
-                        <div className={styles.platforms}>
-                            {PLATFORMS.map((p, i) => (
-                                <a key={i} href={p.href} className={styles.platformPill} target="_blank" rel="noopener noreferrer">
-                                    <span>{p.emoji}</span>
-                                    <span>{p.name}</span>
-                                </a>
-                            ))}
+                        <div className={styles.heroBtnGroup}>
+                            <button className={styles.primaryBtn} onClick={() => togglePlay("Main Hero Episode")}>
+                                <span className={styles.btnIconWrapper}>
+                                    {playingEpisode === "Main Hero Episode" ? <PauseIcon /> : <PlayIcon />}
+                                </span>
+                                <span>{playingEpisode === "Main Hero Episode" ? "Pause Listening" : "Listen Now"}</span>
+                            </button>
+                            <Link href="#episodes" className={styles.secondaryBtn}>
+                                <span>Browse Episodes</span>
+                                <ArrowRightIcon />
+                            </Link>
                         </div>
-                    </div>
-                </div>
-            </section>
 
-            {/* 2. Featured Episode */}
-            <section className={styles.featuredSection}>
-                <div className="premium-container">
-                    <span className={styles.sectionTagLight}>Latest Episode</span>
-                    <div className={styles.featuredCard}>
-                        <div className={styles.featuredVisual}>
-                            <Image
-                                src="/images/podcast-studio.jpg"
-                                alt="Featured Episode"
-                                fill
-                                className={styles.podcastImg}
-                            />
-                            <div className={styles.featuredEmoji}>{FEATURED_EPISODE.emoji}</div>
-                            <div className={styles.featuredWave}>
-                                {Array.from({ length: 14 }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className={styles.waveBar}
-                                        style={{
-                                            height: `${18 + Math.abs(Math.sin(i * 0.85)) * 30}px`,
-                                            animationDelay: `${i * 0.1}s`,
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                        <div className={styles.featuredBody}>
-                            <span className={styles.epNum}>{FEATURED_EPISODE.number}</span>
-                            <div className={styles.epMeta}>
-                                <span>{FEATURED_EPISODE.date}</span>
-                                <span className={styles.dot}>·</span>
-                                <span>⏱ {FEATURED_EPISODE.duration}</span>
-                            </div>
-                            <h2 className={styles.featuredTitle}>{FEATURED_EPISODE.title}</h2>
-                            <p className={styles.featuredDesc}>{FEATURED_EPISODE.desc}</p>
-                            <div className={styles.featuredActions}>
-                                <button className={styles.playBtnLarge}>
-                                    <IconPlay /> Play Episode
-                                </button>
-                                <Link href="#" className={styles.showNotesLink}>
-                                    Show Notes <IconArrowRight />
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* 3. Episodes Grid */}
-            <section className={styles.episodesSection}>
-                <div className="premium-container">
-                    <div className={styles.episodesHeader}>
-                        <h2 className={styles.episodesTitle}>All Episodes</h2>
-                        <div className={styles.categoryRow}>
-                            {CATEGORIES.map(cat => (
-                                <button
-                                    key={cat}
-                                    className={`${styles.chip} ${activeCategory === cat ? styles.chipActive : ''}`}
-                                    onClick={() => setActiveCategory(cat)}
-                                >
-                                    {cat}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className={styles.episodesGrid}>
-                        {EPISODES.map((ep, i) => (
-                            <div key={i} className={styles.episodeCard}>
-                                <div className={styles.epCardVisual}>
-                                    <Image
-                                        src="/images/podcast-studio.jpg"
-                                        alt={ep.title}
-                                        fill
-                                        className={styles.podcastImg}
-                                    />
-                                    <span className={styles.epCardEmoji}>{ep.emoji}</span>
-                                    <button
-                                        className={`${styles.playBtn} ${playing === i ? styles.playing : ''}`}
-                                        onClick={() => setPlaying(playing === i ? null : i)}
-                                        aria-label={`Play ${ep.title}`}
-                                    >
-                                        {playing === i ? <IconPause /> : <IconPlay />}
-                                    </button>
-                                </div>
-                                <div className={styles.epCardBody}>
-                                    <div className={styles.epCardMeta}>
-                                        <span className={styles.epNumSmall}>{ep.num}</span>
-                                        <span className={styles.epDuration}>⏱ {ep.duration}</span>
+                        {/* Central Landscape Featured Video Card */}
+                        <div className={`${styles.featuredLandscapeCard} glass-card`}>
+                            <div className={styles.landscapeImageWrapper}>
+                                <Image
+                                    src="https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1200&h=600&q=80"
+                                    alt="TalentMesh Studio"
+                                    fill
+                                    className={styles.landscapeImg}
+                                    unoptimized
+                                />
+                                <div className={styles.playOverlay} onClick={() => togglePlay("Main Hero Episode")}>
+                                    <div className={`${styles.outerPlayCircle} ${playingEpisode === "Main Hero Episode" ? styles.pulseGlow : ''}`}>
+                                        {playingEpisode === "Main Hero Episode" ? <PauseIcon /> : <PlayIcon />}
                                     </div>
-                                    <h3 className={styles.epCardTitle}>{ep.title}</h3>
-                                    <p className={styles.epCardDesc}>{ep.desc}</p>
-                                    <div className={styles.guestBadge}>🎙 {ep.guest}</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* 2. FEATURED SHOWS SECTION */}
+            <section className={styles.showsSection}>
+                <div className="premium-container">
+                    <div className={styles.sectionHeadingRow}>
+                        <span className={styles.sectionLabelTheme}>Curated For You</span>
+                        <h2 className={styles.sectionTitle}>Featured <span className={styles.highlightText}>Shows.</span></h2>
+                    </div>
+                    
+                    <div className={styles.showsGrid}>
+                        {FEATURED_SHOWS.map((show, idx) => (
+                            <AnimateOnScroll key={idx} animation="fadeUp" delay={idx * 100}>
+                                <div className={`${styles.showCard} glass-card`}>
+                                    <div className={styles.showImageWrapper}>
+                                        <Image
+                                            src={show.image}
+                                            alt={show.title}
+                                            fill
+                                            className={styles.showImg}
+                                            unoptimized
+                                        />
+                                    </div>
+                                    <div className={styles.showContent}>
+                                        <span className={styles.showCategory}>
+                                            {show.category}
+                                        </span>
+                                        <h3 className={styles.showTitle}>{show.title}</h3>
+                                        <p className={styles.showHost}>By {show.host}</p>
+                                    </div>
+                                </div>
+                            </AnimateOnScroll>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* 4. Subscribe CTA */}
-            <section className={styles.ctaSection}>
+            {/* 3. TRENDING EPISODES SECTION */}
+            <section id="episodes" className={styles.trendingSection}>
                 <div className="premium-container">
-                    <div className={styles.ctaCard}>
-                        <div className={styles.ctaIcon}>🎧</div>
-                        <h2 className={styles.ctaTitle}>Never miss an episode.</h2>
-                        <p className={styles.ctaDesc}>
-                            Subscribe on your favourite platform and get new episodes delivered every Tuesday.
-                        </p>
-                        <div className={styles.ctaPlatforms}>
-                            {PLATFORMS.map((p, i) => (
-                                <a key={i} href={p.href} className={styles.ctaPlatformBtn}
-                                    style={{ background: p.color }} target="_blank" rel="noopener noreferrer">
-                                    {p.emoji} {p.name}
-                                </a>
-                            ))}
-                        </div>
+                    <div className={styles.sectionHeadingRow}>
+                        <span className={styles.sectionLabelTheme}>Don't Miss Out</span>
+                        <h2 className={styles.sectionTitle}>Trending <span className={styles.highlightText}>Episodes.</span></h2>
+                    </div>
+
+                    <div className={styles.trendingGrid}>
+                        {TRENDING_EPISODES.map((ep, idx) => (
+                            <AnimateOnScroll key={idx} animation="fadeUp" delay={idx * 120}>
+                                <div className={`${styles.trendingCard} glass-card`}>
+                                    <div className={styles.trendingImageWrapper}>
+                                        <Image
+                                            src={ep.image}
+                                            alt={ep.title}
+                                            fill
+                                            className={styles.trendingImg}
+                                            unoptimized
+                                        />
+                                        <div className={styles.trendingPlayOverlay} onClick={() => togglePlay(ep.title)}>
+                                            <div className={`${styles.trendingPlayCircle} ${playingEpisode === ep.title ? styles.pulseGlow : ''}`}>
+                                                {playingEpisode === ep.title ? <PauseIcon /> : <PlayIcon />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </AnimateOnScroll>
+                        ))}
                     </div>
                 </div>
             </section>
+
+            {/* 4. VOICES BEHIND THE MIC SECTION */}
+            <section className={styles.hostsSection}>
+                <div className="premium-container">
+                    <div className={styles.sectionHeadingRow}>
+                        <span className={styles.sectionLabelTheme}>The Talent</span>
+                        <h2 className={styles.sectionTitle}>Voices Behind <span className={styles.highlightText}>The Mic.</span></h2>
+                    </div>
+
+                    <div className={styles.hostsGrid}>
+                        {HOSTS.map((host, idx) => (
+                            <AnimateOnScroll key={idx} animation="fadeUp" delay={idx * 150}>
+                                <div className={styles.hostCard}>
+                                    <div className={styles.hostImageWrapper}>
+                                        <Image
+                                            src={host.image}
+                                            alt={host.name}
+                                            fill
+                                            className={styles.hostImg}
+                                            unoptimized
+                                        />
+                                    </div>
+                                    <div className={styles.hostContent}>
+                                        <h3 className={styles.hostName}>{host.name}</h3>
+                                        <p className={styles.hostRole}>{host.role}</p>
+                                        <p className={styles.hostBio}>{host.bio}</p>
+                                        <div className={styles.hostSocials}>
+                                            <a href="#" className={styles.socialLink} aria-label="Twitter">
+                                                <Twitter size={14} />
+                                            </a>
+                                            <a href="#" className={styles.socialLink} aria-label="Linkedin">
+                                                <Linkedin size={14} />
+                                            </a>
+                                            <a href="#" className={styles.socialLink} aria-label="Instagram">
+                                                <Instagram size={14} />
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </AnimateOnScroll>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* 5. PODCAST GALLERY SECTION */}
+            <section className={styles.gallerySection}>
+                <div className="premium-container">
+                    <div className={styles.sectionHeadingRow}>
+                        <span className={styles.sectionLabelTheme}>Podcast Gallery</span>
+                        <h2 className={styles.sectionTitle}>Explore Podcast <span className={styles.highlightText}>Themes.</span></h2>
+                    </div>
+
+                    <div className={styles.galleryGrid}>
+                        {GALLERY_THEMES.map((theme, idx) => (
+                            <AnimateOnScroll key={idx} animation="fadeUp" delay={idx * 100}>
+                                <div className={`${styles.galleryCard} glass-card`}>
+                                    <div className={styles.galleryImageWrapper}>
+                                        <Image
+                                            src={theme.image}
+                                            alt={theme.title}
+                                            fill
+                                            className={styles.galleryImg}
+                                            unoptimized
+                                        />
+                                        <div className={styles.galleryCardOverlay}>
+                                            <span className={styles.galleryCategory}>{theme.category}</span>
+                                            <h3 className={styles.galleryCardTitle}>{theme.title}</h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </AnimateOnScroll>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* 6. GLOBAL CTA SECTION */}
+            <CTA
+                title={<>Ready to Listen to <span className={styles.highlightText}>Our Stories?</span></>}
+                description="Join thousands of listeners tuning in weekly to learn from elite engineering leaders, founders, and creators."
+                buttonText="Explore All Episodes"
+                buttonLink="#episodes"
+            />
         </main>
     );
 }

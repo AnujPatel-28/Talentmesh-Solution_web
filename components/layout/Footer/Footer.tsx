@@ -13,7 +13,7 @@ const Footer = () => {
         e.preventDefault();
         if (!email) return;
         setStatus('loading');
-        
+
         try {
             const response = await fetch('https://api.web3forms.com/submit', {
                 method: 'POST',
@@ -59,17 +59,17 @@ const Footer = () => {
                                 <p style={{ color: '#22c55e', marginTop: '0.5rem' }}>Thanks for subscribing!</p>
                             ) : (
                                 <form onSubmit={handleSubscribe} className={styles.newsletterInputWrapper}>
-                                    <input 
-                                        type="email" 
-                                        placeholder="Enter your email" 
+                                    <input
+                                        type="email"
+                                        placeholder="Enter your email"
                                         className={styles.newsletterInput}
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
                                         disabled={status === 'loading'}
                                     />
-                                    <button 
-                                        type="submit" 
+                                    <button
+                                        type="submit"
                                         className={styles.newsletterBtn}
                                         disabled={status === 'loading'}
                                     >

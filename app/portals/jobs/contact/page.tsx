@@ -8,6 +8,7 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import { PageHeader } from '@/components/ui';
 import { CTA } from '@/components/sections';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import HeroBg from '@/components/ui/HeroBg/HeroBg';
 import styles from './contact.module.css';
 
 const FAQ = [
@@ -78,6 +79,7 @@ export default function ContactPage() {
 
     return (
         <main className={styles.page}>
+            <HeroBg src="/bg4.png" fixed />
             <SectionHeader
                 centered
                 tag="Get in Touch"
@@ -87,7 +89,7 @@ export default function ContactPage() {
 
             {/* ── Content ── */}
             <AnimateOnScroll animation="fadeUp">
-                <div className={styles.mainLayout}>
+                <div id="contact-form" className={styles.mainLayout}>
                     {/* Left side */}
                     <div className={styles.contactInfo}>
                         <div className={styles.contactImageWrapper}>
@@ -244,7 +246,7 @@ export default function ContactPage() {
                         <SectionHeader
                             centered
                             tag="Support"
-                            title="Common Questions"
+                            title={<>Common <span className="text-gradient">Questions</span></>}
                         />
                         <div className={styles.faqList}>
                             {FAQ.map((f, i) => (
@@ -261,7 +263,13 @@ export default function ContactPage() {
                 </section>
             </AnimateOnScroll>
             <AnimateOnScroll animation="scaleUp">
-                <CTA />
+                <CTA 
+                    glass
+                    title={<>Have Custom Integration <span className="text-gradient">Needs?</span></>}
+                    description="Our solutions architects are ready to design a custom hiring environment for you."
+                    buttonText="Schedule a Consultation"
+                    buttonLink="#contact-form"
+                />
             </AnimateOnScroll>
         </main>
     );

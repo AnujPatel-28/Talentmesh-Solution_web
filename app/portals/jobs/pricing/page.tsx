@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { createClient } from '@insforge/sdk';
 import styles from './pricing.module.css';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import HeroBg from '@/components/ui/HeroBg/HeroBg';
+import CTA from '@/components/sections/CTA';
 
 const insforge = createClient({
     baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || '',
@@ -79,7 +81,8 @@ export default function PricingPage() {
     }, []);
 
     return (
-        <main style={{ background: 'var(--background)' }}>
+        <main style={{ background: 'transparent', position: 'relative' }}>
+            <HeroBg src="/bg2.png" fixed />
             {/* 1. Hero Section */}
             <section className={styles.hero}>
                 <div className="premium-container">
@@ -118,7 +121,7 @@ export default function PricingPage() {
                                     Optimizing pricing models...
                                 </div>
                             ) : plans.map((plan, i) => (
-                                <div key={plan.id} className={styles.pricingCard}>
+                                <div key={plan.id} className={`${styles.pricingCard} ${plan.is_popular ? styles.popularCard : ''}`}>
                                     {plan.is_popular && <div className={styles.popularBadge}>Most Precision</div>}
                                     <h3 className={styles.planName}>{plan.name}</h3>
                                     <div className={styles.planPrice}>
@@ -210,20 +213,13 @@ export default function PricingPage() {
 
             {/* 6. Custom CTA */}
             <AnimateOnScroll animation="scaleUp">
-                <section style={{ padding: '10rem 0' }}>
-                    <div className="premium-container">
-                        <div style={{ background: 'var(--gradient-primary)', borderRadius: '48px', padding: '10rem 4rem', textAlign: 'center', color: 'white' }}>
-                            <h2 style={{ fontSize: '3.5rem', fontWeight: 900, marginBottom: '2rem' }}>Ready to deploy?</h2>
-                            <p style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '4rem', maxWidth: '600px', margin: '0 auto 4rem' }}>
-                                Join the world's leading Enterprise Ecosystems and start sourcing elite technical talent today.
-                            </p>
-                            <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <Link href="/register" style={{ background: 'white', color: 'var(--primary-blue)', padding: '1.5rem 4rem', borderRadius: '18px', fontWeight: 900, fontSize: '1.1rem' }}>Start Now</Link>
-                                <Link href="/contact" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '1.5rem 4rem', borderRadius: '18px', fontWeight: 900, fontSize: '1.1rem', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>Talk to Sales</Link>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                <CTA
+                    glass
+                    title={<>Ready to <span className="text-gradient">Deploy?</span></>}
+                    description="Join the world's leading Enterprise Ecosystems and start sourcing elite technical talent today."
+                    buttonText="Talk to Sales"
+                    buttonLink="/portals/jobs/contact"
+                />
             </AnimateOnScroll>
         </main>
     );

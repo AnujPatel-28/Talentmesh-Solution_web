@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import styles from './postJob.module.css';
 import { invokeFunction, insforge } from '@/lib/insforge';
@@ -13,6 +13,111 @@ const JOB_CATEGORIES = [
 ];
 
 const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Remote'];
+
+const INDIAN_CITIES = [
+  'Agra, Uttar Pradesh',
+  'Ahmedabad, Gujarat',
+  'Ajmer, Rajasthan',
+  'Allahabad (Prayagraj), Uttar Pradesh',
+  'Amritsar, Punjab',
+  'Anantnag, Jammu & Kashmir',
+  'Asansol, West Bengal',
+  'Aurangabad (Chhatrapati Sambhajinagar), Maharashtra',
+  'Belagavi, Karnataka',
+  'Bengaluru, Karnataka',
+  'Bhagalpur, Bihar',
+  'Bhilai, Chhattisgarh',
+  'Bhopal, Madhya Pradesh',
+  'Bhubaneswar, Odisha',
+  'Bilaspur, Chhattisgarh',
+  'Bokaro Steel City, Jharkhand',
+  'Chandigarh',
+  'Chennai, Tamil Nadu',
+  'Coimbatore, Tamil Nadu',
+  'Cuttack, Odisha',
+  'Dehradun, Uttarakhand',
+  'Delhi, NCT',
+  'Dhanbad, Jharkhand',
+  'Dharamshala, Himachal Pradesh',
+  'Dibrugarh, Assam',
+  'Durg, Chhattisgarh',
+  'Durgapur, West Bengal',
+  'Faridabad, Haryana',
+  'Gandhinagar, Gujarat',
+  'Gaya, Bihar',
+  'Ghaziabad, Uttar Pradesh',
+  'Guntur, Andhra Pradesh',
+  'Gurgaon, Haryana',
+  'Guwahati, Assam',
+  'Gwalior, Madhya Pradesh',
+  'Haldwani, Uttarakhand',
+  'Haridwar, Uttarakhand',
+  'Hubballi-Dharwad, Karnataka',
+  'Hyderabad, Telangana',
+  'Indore, Madhya Pradesh',
+  'Jabalpur, Madhya Pradesh',
+  'Jaipur, Rajasthan',
+  'Jalandhar, Punjab',
+  'Jammu, Jammu & Kashmir',
+  'Jamnagar, Gujarat',
+  'Jamshedpur, Jharkhand',
+  'Jodhpur, Rajasthan',
+  'Kanpur, Uttar Pradesh',
+  'Karimnagar, Telangana',
+  'Karnal, Haryana',
+  'Kochi, Kerala',
+  'Kolkata, West Bengal',
+  'Kota, Rajasthan',
+  'Kozhikode, Kerala',
+  'Kurnool, Andhra Pradesh',
+  'Lucknow, Uttar Pradesh',
+  'Ludhiana, Punjab',
+  'Madgaon, Goa',
+  'Madurai, Tamil Nadu',
+  'Mandi, Himachal Pradesh',
+  'Mangaluru, Karnataka',
+  'Meerut, Uttar Pradesh',
+  'Mormugao, Goa',
+  'Mumbai, Maharashtra',
+  'Muzaffarpur, Bihar',
+  'Mysore, Karnataka',
+  'Nagpur, Maharashtra',
+  'Nashik, Maharashtra',
+  'New Delhi, NCT',
+  'Noida, Uttar Pradesh',
+  'Panaji, Goa',
+  'Panipat, Haryana',
+  'Patiala, Punjab',
+  'Patna, Bihar',
+  'Pune, Maharashtra',
+  'Puri, Odisha',
+  'Raipur, Chhattisgarh',
+  'Rajkot, Gujarat',
+  'Rajnandgaon, Chhattisgarh',
+  'Ranchi, Jharkhand',
+  'Rourkela, Odisha',
+  'Salem, Tamil Nadu',
+  'Shimla, Himachal Pradesh',
+  'Siliguri, West Bengal',
+  'Sonipat, Haryana',
+  'Srinagar, Jammu & Kashmir',
+  'Surat, Gujarat',
+  'Thane, Maharashtra',
+  'Thiruvananthapuram, Kerala',
+  'Thrissur, Kerala',
+  'Tinsukia, Assam',
+  'Tirupati, Andhra Pradesh',
+  'Tiruppur, Tamil Nadu',
+  'Tiruchirappalli, Tamil Nadu',
+  'Udhampur, Jammu & Kashmir',
+  'Ujjain, Madhya Pradesh',
+  'Udaipur, Rajasthan',
+  'Vadodara, Gujarat',
+  'Varanasi, Uttar Pradesh',
+  'Vijayawada, Andhra Pradesh',
+  'Visakhapatnam, Andhra Pradesh',
+  'Warangal, Telangana'
+];
 
 export default function PostJobPage() {
   const router = useRouter();
@@ -36,6 +141,20 @@ export default function PostJobPage() {
     openings: '1',
     deadline: '',
   });
+
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -236,7 +355,66 @@ export default function PostJobPage() {
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Location</label>
-              <input name="location" className={styles.input} value={formData.location} onChange={handleChange} placeholder="e.g. Remote or Bengaluru" />
+              <div ref={locationDropdownRef} className="relative w-full">
+                <input
+                  name="location"
+                  className={styles.input}
+                  value={formData.location}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, location: val }));
+                    setLocationSearchQuery(val);
+                    setIsLocationDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    setLocationSearchQuery(formData.location);
+                    setIsLocationDropdownOpen(true);
+                  }}
+                  placeholder="Search city in India (e.g. Bengaluru, Mumbai)..."
+                  autoComplete="off"
+                />
+                {isLocationDropdownOpen && (
+                  <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto p-2 space-y-0.5 no-scrollbar">
+                    {locationSearchQuery.trim() && !INDIAN_CITIES.some(c => c.toLowerCase() === locationSearchQuery.toLowerCase().trim()) && (
+                      <div
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, location: locationSearchQuery.trim() }));
+                          setIsLocationDropdownOpen(false);
+                        }}
+                        className="flex items-center justify-between p-2 hover:bg-blue-50 rounded-lg cursor-pointer text-xs text-blue-600 font-bold border border-dashed border-blue-200 transition-colors"
+                      >
+                        <span>Use custom: &ldquo;{locationSearchQuery}&rdquo;</span>
+                        <span>+</span>
+                      </div>
+                    )}
+                    {INDIAN_CITIES.filter(city =>
+                      city.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                    ).map(city => (
+                      <div
+                        key={city}
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, location: city }));
+                          setIsLocationDropdownOpen(false);
+                        }}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-xs hover:bg-slate-50 transition-colors ${formData.location === city ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-700'}`}
+                      >
+                        <span>{city}</span>
+                        {formData.location === city && <span className="text-blue-600">✓</span>}
+                      </div>
+                    ))}
+                    {INDIAN_CITIES.filter(city =>
+                      city.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                    ).length === 0 && !locationSearchQuery.trim() && (
+                      <div className="text-center py-3 text-xs text-slate-400">Type to search Indian cities...</div>
+                    )}
+                    {INDIAN_CITIES.filter(city =>
+                      city.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                    ).length === 0 && locationSearchQuery.trim() && (
+                      <div className="text-center py-3 text-xs text-slate-400">No matching Indian cities found.</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Openings</label>

@@ -5,6 +5,7 @@
   padding: 5rem 0 0;
   /* Changed from 2rem to 0 to remove bottom gap */
   font-family: var(--font-inter);
+  overflow: hidden;
 }
 
 .container {

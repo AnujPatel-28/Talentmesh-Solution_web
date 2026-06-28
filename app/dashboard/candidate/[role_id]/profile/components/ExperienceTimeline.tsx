@@ -170,7 +170,7 @@ export default React.memo(function ExperienceTimeline({
             className={styles.formTextarea}
             value={formState.description || ''} 
             onChange={e => setFormState(p => ({ ...p, description: e.target.value }))} 
-            placeholder="Describe your role, key achievements, technologies used..." 
+            placeholder="Describe your role, key achievements, technologies used... (Tip: Use bullet points '•' or '-' to list responsibilities)" 
             rows={3} 
           />
         </div>
@@ -276,7 +276,7 @@ export default React.memo(function ExperienceTimeline({
                           )}
                         </div>
                         {exp.description && (
-                          <p className={styles.timelineDescText}>
+                          <p className={styles.timelineDescText} style={{ whiteSpace: 'pre-wrap' }}>
                             {exp.description}
                           </p>
                         )}

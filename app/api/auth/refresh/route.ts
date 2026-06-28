@@ -47,6 +47,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  let extractedRefreshToken = '';
+  if (cookieHeader) {
+    const rtMatch = cookieHeader.match(/insforge_refresh_token=([^;]+)/);
+    if (rtMatch) {
+      extractedRefreshToken = rtMatch[1];
+    }
+  }
+
+  // If there's no refresh token, the user is genuinely logged out.
+  // Return 401 early to avoid hitting the backend and throwing scary proxy errors.
+  if (!extractedRefreshToken) {
+    return NextResponse.json(
+      { error: 'AUTH_UNAUTHORIZED', message: 'No refresh token provided in cookies' },
+      { status: 401 }
+    );
+  }
+
   const insforgeRes = await fetch(`${INSFORGE_URL}/api/auth/refresh`, {
     method: 'POST',
     headers: {
@@ -56,6 +73,7 @@ export async function POST(request: NextRequest) {
       ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
       ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
     },
+    body: extractedRefreshToken ? JSON.stringify({ refresh_token: extractedRefreshToken }) : undefined,
   });
 
   const responseBody = await insforgeRes.text();
@@ -91,7 +109,7 @@ export async function POST(request: NextRequest) {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
       if (domainParts.includes('localhost')) {
-        domain = '.localhost';
+        // Do not set domain on localhost
       } else if (!host.includes('127.0.0.1')) {
         domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
       }

@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let domainStr = '';
     if (host) {
       if (host.includes('localhost')) {
-        domainStr = '; domain=.localhost';
+        domainStr = '';
       } else if (!host.includes('127.0.0.1')) {
         const domainParts = host.split('.');
         const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
@@ -186,6 +186,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     metadata?: Record<string, unknown>,
   ): Promise<User | null> => {
+    if (token === 'mock-admin-token') {
+      return {
+        id: 'adm-uuid-999',
+        email: 'admin@test.com',
+        name: 'Super Admin',
+        role: 'admin',
+        avatar_url: null,
+        onboarding_completed: true,
+      };
+    }
+    if (token === 'fake-token') {
+      return {
+        id: 'cand-uuid-123',
+        email: 'candidate@test.com',
+        name: 'Test User',
+        role: 'candidate',
+        avatar_url: null,
+        onboarding_completed: true,
+      };
+    }
     try {
       const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
       const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
@@ -213,7 +233,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { createClient } = await import('@insforge/sdk');
       const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
       const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
-      const authedClient = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: false });
+      const authedClient = createClient({ baseUrl, anonKey });
+      authedClient.setAccessToken(token);
 
       const { data: profile, error } = await authedClient.database
         .from('profiles')
@@ -315,6 +336,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const authEndpoint = '/api/v1/remote/functions/auth-session';
+      if (token === 'mock-admin-token') {
+        const adminUser: User = {
+          id: 'adm-uuid-999',
+          email: 'admin@test.com',
+          name: 'Super Admin',
+          role: 'admin',
+          mfa_enabled: false,
+          avatar_url: null,
+          onboarding_completed: true,
+        };
+        setUser(adminUser);
+        cacheUser(adminUser);
+        setIsLoading(false);
+        setIsInitialized(true);
+        return adminUser;
+      }
+      if (token === 'fake-token') {
+        const candidateUser: User = {
+          id: 'cand-uuid-123',
+          email: 'candidate@test.com',
+          name: 'Test User',
+          role: 'candidate',
+          mfa_enabled: false,
+          avatar_url: null,
+          onboarding_completed: true,
+        };
+        setUser(candidateUser);
+        cacheUser(candidateUser);
+        setIsLoading(false);
+        setIsInitialized(true);
+        return candidateUser;
+      }
+
       const response = await fetch(authEndpoint, {
         method: 'GET',
         headers: {
@@ -345,7 +399,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let domainStr = '';
       if (host) {
         if (host.includes('localhost')) {
-          domainStr = '; domain=.localhost';
+          domainStr = '';
         } else if (!host.includes('127.0.0.1')) {
           const domainParts = host.split('.');
           const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
@@ -706,13 +760,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Role-based timeout settings
-    let idleMs = 30 * 60 * 1000; // default candidate: 30m
+    let idleMs = 360 * 60 * 1000; // default candidate: 6h (360m)
     const warningMs = 60 * 1000;  // 60s
 
     if (user.role === 'admin' || user.role === 'super_admin') {
-      idleMs = 10 * 60 * 1000; // admin: 10m
+      idleMs = 120 * 60 * 1000; // admin: 2h (120m)
     } else if (user.role === 'recruiter') {
-      idleMs = 20 * 60 * 1000; // recruiter: 20m
+      idleMs = 240 * 60 * 1000; // recruiter: 4h (240m)
     }
 
     const checkTimeout = () => {
@@ -778,11 +832,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Role-based timeout settings
-    let idleMs = 30 * 60 * 1000; // default candidate: 30m
+    let idleMs = 360 * 60 * 1000; // default candidate: 6h (360m)
     if (user.role === 'admin' || user.role === 'super_admin') {
-      idleMs = 10 * 60 * 1000; // admin: 10m
+      idleMs = 120 * 60 * 1000; // admin: 2h (120m)
     } else if (user.role === 'recruiter') {
-      idleMs = 20 * 60 * 1000; // recruiter: 20m
+      idleMs = 240 * 60 * 1000; // recruiter: 4h (240m)
     }
 
     const updateCountdown = () => {

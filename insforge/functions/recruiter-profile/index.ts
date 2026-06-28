@@ -40,8 +40,9 @@ export default async function handler(req: Request): Promise<Response> {
                              Deno.env.get('API_KEY') || 
                              anonKey;
 
-  const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
-  const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey, isServerMode: true });
+  const insforge = createClient({ baseUrl, anonKey });
+  insforge.setAccessToken(token);
+  const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey });
 
   const { data: { user }, error: authError } = await insforge.auth.getCurrentUser();
   if (authError || !user) {

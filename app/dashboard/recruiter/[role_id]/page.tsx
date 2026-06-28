@@ -7,6 +7,43 @@ import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import { invokeFunction, insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatTime, formatShortDate } from '@/lib/utils/date-utils';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+function ProgressRing({ value, size = 42, strokeWidth = 4.5, color = '#7c3aed' }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    const offset = circumference - (value / 100) * circumference;
+
+    return (
+        <div className={styles.progressRingContainer} style={{ width: size, height: size, flexShrink: 0 }}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="transparent"
+                    stroke="rgba(15, 23, 42, 0.06)"
+                    strokeWidth={strokeWidth}
+                />
+                <motion.circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="transparent"
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={circumference}
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: offset }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
+                    strokeLinecap="round"
+                />
+            </svg>
+            <span className={styles.progressRingText} style={{ color, fontSize: '0.68rem' }}>{value}%</span>
+        </div>
+    );
+}
 
 /* ─── Icons ─── */
 const IC = {
@@ -120,8 +157,10 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
 
     const maxPipeCount = Math.max(...pipelineData.map((s: any) => s.count), 1);
 
+    const hiresPercent = Math.min(Math.round((stats.hires / 20) * 100), 100);
+
     return (
-        <div className={styles.dash}>
+        <div className={cn(styles.dash, styles.dashPremium)}>
             {/* ── Welcome Banner ── */}
             <div className={styles.greet}>
                 <h1 className={styles.greetTitle}>Welcome back, {authUser?.name || 'Recruiter'}!</h1>
@@ -129,62 +168,107 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
             </div>
 
             {/* ── Stat Cards ── */}
-            <AnimateOnScroll animation="fadeUp" delay={100}>
+            <AnimateOnScroll animation="fadeIn">
                 <div className={styles.stats}>
-                    <div className={styles.stat}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Open Positions</span>
-                            <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.clipboard}</span>
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowBluePremium}`}
+                        whileHover={{ y: -6 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Open Positions</span>
+                            <span className={styles.statIconBoxPremium} style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--primary-blue)' }}>{IC.clipboard}</span>
                         </div>
-                        <span className={styles.statVal}>{stats.open}</span>
-                        <span className={styles.statHint}>
-                            {stats.open > 3 ? `${Math.min(stats.open, 3)} urgent roles` : 'All roles on track'}
-                        </span>
-                    </div>
-                    <div className={styles.stat}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Total Applicants</span>
-                            <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.users}</span>
+                        <div>
+                            <div className={styles.statValPremium}>{stats.open}</div>
+                            <span className={styles.statHintPremium}>
+                                {stats.open > 3 ? `${Math.min(stats.open, 3)} urgent roles` : 'All roles on track'}
+                            </span>
                         </div>
-                        <span className={styles.statVal}>{stats.applicants}</span>
-                        <span className={styles.statChange}>{IC.trending} +18 this week</span>
-                    </div>
-                    <div className={styles.stat}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Interviews This Week</span>
-                            <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.calendar}</span>
+                    </motion.div>
+
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowGreenPremium}`}
+                        whileHover={{ y: -6 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.08 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Total Applicants</span>
+                            <span className={styles.statIconBoxPremium} style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>{IC.users}</span>
                         </div>
-                        <span className={styles.statVal}>{stats.interviews}</span>
-                        <span className={styles.statHint}>
-                            {interviews[0] ? `Next: ${formatShortDate(interviews[0].scheduledAt)}, ${formatTime(interviews[0].scheduledAt)}` : 'No upcoming interviews'}
-                        </span>
-                    </div>
-                    <div className={styles.stat}>
-                        <div className={styles.statTop}>
-                            <span className={styles.statLabel}>Hires This Quarter</span>
-                            <span className={styles.statIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+                        <div>
+                            <div className={styles.statValPremium}>{stats.applicants}</div>
+                            <span className={styles.statHintPremium}>{IC.trending} +18 this week</span>
                         </div>
-                        <span className={styles.statVal}>{stats.hires}</span>
-                        <span className={styles.statHint}>Target: 20</span>
-                    </div>
+                    </motion.div>
+
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowOrangePremium}`}
+                        whileHover={{ y: -6 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.16 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Interviews This Week</span>
+                            <span className={styles.statIconBoxPremium} style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }}>{IC.calendar}</span>
+                        </div>
+                        <div>
+                            <div className={styles.statValPremium}>{stats.interviews}</div>
+                            <span className={styles.statHintPremium} style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'block' }}>
+                                {interviews[0] ? `Next: ${formatShortDate(interviews[0].scheduledAt)}` : 'No upcoming interviews'}
+                            </span>
+                        </div>
+                    </motion.div>
+
+                    <motion.div 
+                        className={`${styles.statPremium} ${styles.glowPurplePremium}`}
+                        whileHover={{ y: -6 }}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.24 }}
+                    >
+                        <div className={styles.statTopPremium}>
+                            <span className={styles.statLabelPremium}>Hires This Quarter</span>
+                            <ProgressRing value={hiresPercent} size={42} strokeWidth={4.5} color="#7c3aed" />
+                        </div>
+                        <div>
+                            <div className={styles.statValPremium}>{stats.hires}</div>
+                            <span className={styles.statHintPremium}>Target: 20 hires</span>
+                        </div>
+                    </motion.div>
                 </div>
             </AnimateOnScroll>
 
             {/* ── Main Content Grid (Golden Ratio: 61.8% / 38.2%) ── */}
-            <AnimateOnScroll animation="fadeUp" delay={200}>
+            <AnimateOnScroll animation="fadeIn">
                 <div className={styles.mainGrid}>
                     {/* Left Column — 61.8% */}
                     <div className={styles.leftCol}>
                         {/* Active Positions */}
-                        <div className={styles.card}>
+                        <motion.div 
+                            className={styles.cardPremium}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3 }}
+                        >
                             <div className={styles.cardHead}>
-                                <h2 className={styles.cardTitle}>Active Positions</h2>
+                                <h2 className={styles.cardTitlePremium}>Active Positions</h2>
                                 <Link href={`/dashboard/recruiter/${role_id}/jobs`} className={styles.viewAll}>
                                     View all {IC.arrowRight}
                                 </Link>
                             </div>
                             {jobs.length > 0 ? jobs.map((j, i) => (
-                                <div key={i} className={styles.posCard}>
+                                <motion.div 
+                                    key={i} 
+                                    className={styles.posCard}
+                                    whileHover={{ x: 6, backgroundColor: 'rgba(59,130,246,0.02)' }}
+                                    transition={{ duration: 0.2 }}
+                                >
                                     <div className={styles.posBody}>
                                         <div className={styles.posRow}>
                                             <span className={styles.posTitle}>{j.title}</span>
@@ -192,17 +276,22 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                         </div>
                                         <span className={styles.posMeta}>{j.applicants} applicants · {j.new_applicants} new this week</span>
                                     </div>
-                                    <span className={styles.posStatus}>{j.status}</span>
-                                </div>
+                                    <span className={styles.posStatus} style={{ textTransform: 'capitalize', fontWeight: 700, color: j.status === 'active' ? '#10b981' : '#64748b' }}>{j.status}</span>
+                                </motion.div>
                             )) : (
                                 <p className={styles.emptyText}>No active positions yet. Post your first job to get started!</p>
                             )}
-                        </div>
+                        </motion.div>
 
                         {/* Hiring Pipeline */}
-                        <div className={styles.card}>
+                        <motion.div 
+                            className={styles.cardPremium}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.36 }}
+                        >
                             <div className={styles.cardHead}>
-                                <h2 className={styles.cardTitle}>Hiring Pipeline</h2>
+                                <h2 className={styles.cardTitlePremium}>Hiring Pipeline</h2>
                                 <Link href={`/dashboard/recruiter/${role_id}/pipeline`} className={styles.viewAll}>
                                     Full view {IC.arrowRight}
                                 </Link>
@@ -214,7 +303,8 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                             className={styles.pipeBar}
                                             style={{
                                                 width: s.count > 0 ? `${Math.max((s.count / maxPipeCount) * 100, 8)}%` : '5%',
-                                                background: s.color
+                                                background: s.color,
+                                                borderRadius: '100px'
                                             }}
                                         />
                                         <div className={styles.pipeMeta}>
@@ -224,15 +314,20 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
 
                     {/* Right Column — 38.2% */}
                     <div className={styles.rightCol}>
                         {/* Top Candidates */}
-                        <div className={styles.card}>
+                        <motion.div 
+                            className={styles.cardPremium}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.33 }}
+                        >
                             <div className={styles.cardHead}>
-                                <h2 className={styles.cardTitle}>Top Candidates</h2>
+                                <h2 className={styles.cardTitlePremium}>Top Candidates</h2>
                                 <Link href={`/dashboard/recruiter/${role_id}/candidates`} className={styles.viewAll}>
                                     View all {IC.arrowRight}
                                 </Link>
@@ -242,8 +337,13 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                     Candidate matching is temporarily disabled during Candidate & Admin launch.
                                 </p>
                             ) : candidates.length > 0 ? candidates.map((c, i) => (
-                                <div key={i} className={styles.candCard}>
-                                    <div className={styles.candAvatar}>{c.name.split(' ').map((n: string) => n[0]).join('')}</div>
+                                <motion.div 
+                                    key={i} 
+                                    className={styles.candCard}
+                                    whileHover={{ x: 4, backgroundColor: 'rgba(124,58,237,0.02)' }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <div className={styles.candAvatar} style={{ background: '#f5f3ff', color: '#7c3aed', fontWeight: 800 }}>{c.name.split(' ').map((n: string) => n[0]).join('')}</div>
                                     <div className={styles.candBody}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <span className={styles.candName}>{c.name}</span>
@@ -255,17 +355,22 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                         </div>
                                         <span className={styles.candMeta}>{c.role} · {c.skills?.slice(0, 2).join(', ')}</span>
                                     </div>
-                                    <span className={styles.candMatch}>{c.match}%</span>
-                                </div>
+                                    <span className={styles.candMatch} style={{ color: '#7c3aed', fontWeight: 800 }}>{c.match}%</span>
+                                </motion.div>
                             )) : (
                                 <p className={styles.emptyText}>No candidate matches yet.</p>
                             )}
-                        </div>
+                        </motion.div>
 
                         {/* Today's Interviews */}
-                        <div className={styles.card}>
+                        <motion.div 
+                            className={styles.cardPremium}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.39 }}
+                        >
                             <div className={styles.cardHead}>
-                                <h2 className={styles.cardTitle}>Today&apos;s Interviews</h2>
+                                <h2 className={styles.cardTitlePremium}>Today&apos;s Interviews</h2>
                                 <Link href={`/dashboard/recruiter/${role_id}/interviews`} className={styles.viewAll}>
                                     Schedule {IC.arrowRight}
                                 </Link>
@@ -274,7 +379,12 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                 const todayStr = new Date().toDateString();
                                 const todayInterviews = interviews.filter(intr => new Date(intr.scheduledAt).toDateString() === todayStr);
                                 return todayInterviews.length > 0 ? todayInterviews.map((intr, i) => (
-                                    <div key={i} className={styles.intCard}>
+                                    <motion.div 
+                                        key={i} 
+                                        className={styles.intCard}
+                                        whileHover={{ x: 4 }}
+                                        transition={{ duration: 0.2 }}
+                                    >
                                         <div className={styles.intTime}>{formatTime(intr.scheduledAt)}</div>
                                         <div className={styles.intBody}>
                                             <span className={styles.intName}>{intr.role}</span>
@@ -289,26 +399,49 @@ export default function RecruiterHome({ params }: { params: Promise<{ role_id: s
                                                 Details
                                             </Link>
                                         )}
-                                    </div>
+                                    </motion.div>
                                 )) : (
                                     <p className={styles.emptyText}>No interviews scheduled for today.</p>
                                 );
                             })()}
-                        </div>
+                        </motion.div>
 
                         {/* Quick Actions */}
-                        <div className={styles.card}>
-                            <h2 className={styles.cardTitle}>Quick Actions</h2>
-                            <Link href={`/dashboard/recruiter/${role_id}/jobs/post-job`}>
-                                <button className={styles.primaryAction}>{IC.plus} Post a New Job</button>
+                        <motion.div 
+                            className={styles.cardPremium}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.42 }}
+                        >
+                            <h2 className={styles.cardTitlePremium}>Quick Actions</h2>
+                            <Link href={`/dashboard/recruiter/${role_id}/jobs/post-job`} style={{ textDecoration: 'none' }}>
+                                <motion.button 
+                                    className={styles.primaryAction}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    {IC.plus} Post a New Job
+                                </motion.button>
                             </Link>
-                            <Link href={`/dashboard/recruiter/${role_id}/reports`}>
-                                <button className={styles.secondaryAction}>{IC.barChart} View Reports</button>
+                            <Link href={`/dashboard/recruiter/${role_id}/reports`} style={{ textDecoration: 'none' }}>
+                                <motion.button 
+                                    className={styles.secondaryAction}
+                                    style={{ marginTop: '8px' }}
+                                    whileHover={{ x: 4 }}
+                                >
+                                    {IC.barChart} View Reports
+                                </motion.button>
                             </Link>
-                            <Link href={`/dashboard/recruiter/${role_id}/candidates`}>
-                                <button className={styles.secondaryAction}>{IC.users} Browse Candidates</button>
+                            <Link href={`/dashboard/recruiter/${role_id}/candidates`} style={{ textDecoration: 'none' }}>
+                                <motion.button 
+                                    className={styles.secondaryAction}
+                                    style={{ marginTop: '8px' }}
+                                    whileHover={{ x: 4 }}
+                                >
+                                    {IC.users} Browse Candidates
+                                </motion.button>
                             </Link>
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
             </AnimateOnScroll>

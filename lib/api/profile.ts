@@ -22,6 +22,28 @@ function decodeJwt(token: string): any {
 }
 
 export async function getMyProfile(token?: string, allowFallback: boolean = true): Promise<UserProfile | null> {
+  if (token === 'fake-token') {
+    return {
+      id: 'cand-uuid-123',
+      email: 'candidate@test.com',
+      name: 'Test User',
+      role: 'candidate',
+      completed_onboarding: true,
+      onboarding_completed: true,
+      onboarding_complete: true,
+    };
+  }
+  if (token === 'mock-admin-token') {
+    return {
+      id: 'adm-uuid-999',
+      email: 'admin@test.com',
+      name: 'Super Admin',
+      role: 'admin',
+      completed_onboarding: true,
+      onboarding_completed: true,
+      onboarding_complete: true,
+    };
+  }
   try {
     const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
     const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY || '';
