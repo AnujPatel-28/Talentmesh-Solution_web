@@ -76,7 +76,8 @@ if (typeof window !== 'undefined') {
     }
 
     const token = window.sessionStorage.getItem('tm_token');
-    if (token && getTokenRemainingSeconds(token) > 0) {
+    const isJwt = token && token.split('.').length === 3;
+    if (isJwt && getTokenRemainingSeconds(token) > 0) {
       insforge.setAccessToken(token);
       directInsforge.setAccessToken(token);
       if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
@@ -96,7 +97,7 @@ function getBrowserRole(): string | undefined {
       const parsed = JSON.parse(cached);
       if (parsed?.role) return parsed.role;
     }
-  } catch (e) {}
+  } catch (e) { }
   const match = document.cookie.match(/tm_role=([^;]+)/);
   if (match) return match[1];
   return undefined;
@@ -122,11 +123,11 @@ export async function invokeFunction(slug: string, options: {
   // Determine request-specific timeout
   const timeoutMs = options.timeoutMs || (
     slug.includes('dashboard') ? TIMEOUTS.DASHBOARD :
-    slug.includes('candidate') ? TIMEOUTS.CANDIDATES :
-    slug.includes('reports') ? TIMEOUTS.REPORTS :
-    slug.includes('settings') ? TIMEOUTS.SETTINGS :
-    (slug.includes('approve') || slug.includes('job')) ? TIMEOUTS.APPROVE :
-    30000
+      slug.includes('candidate') ? TIMEOUTS.CANDIDATES :
+        slug.includes('reports') ? TIMEOUTS.REPORTS :
+          slug.includes('settings') ? TIMEOUTS.SETTINGS :
+            (slug.includes('approve') || slug.includes('job')) ? TIMEOUTS.APPROVE :
+              30000
   );
 
   const role = getBrowserRole();
@@ -218,7 +219,7 @@ export async function invokeFunction(slug: string, options: {
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   let abortHandler: (() => void) | null = null;
   if (options.signal) {
     const parentSignal = options.signal;
@@ -243,9 +244,9 @@ export async function invokeFunction(slug: string, options: {
     if (response.status === 401) {
       const newToken = await refreshAccessToken();
       if (newToken) {
-        const retryHeaders = { 
-          ...finalHeaders, 
-          'Authorization': `Bearer ${newToken}` 
+        const retryHeaders = {
+          ...finalHeaders,
+          'Authorization': `Bearer ${newToken}`
         };
         const retryOptions = { ...fetchOptions, headers: retryHeaders };
         const retryResponse = await fetch(url, retryOptions);
@@ -253,7 +254,7 @@ export async function invokeFunction(slug: string, options: {
         response = retryResponse;
       } else {
         // Refresh failed — session is truly dead
-        console.error('[invokeFunction] Token refresh failed. Dispatching session-expiry.');
+        console.warn('[invokeFunction] Token refresh failed (session expired). Dispatching session-expiry.');
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
         endTrace(trace, 'error', 'Session expired');
         return { data: null, error: { message: 'Session expired', status: 401 } };
@@ -355,6 +356,24 @@ function getCsrfToken(): string {
 
 let activeRefreshPromise: Promise<string | null> | null = null;
 
+function getActiveRefreshPromise(): Promise<string | null> | null {
+  if (typeof window !== 'undefined') {
+    const globalAny = window as any;
+    if (globalAny.__activeRefreshPromise) {
+      return globalAny.__activeRefreshPromise;
+    }
+  }
+  return activeRefreshPromise;
+}
+
+function setActiveRefreshPromise(promise: Promise<string | null> | null): void {
+  activeRefreshPromise = promise;
+  if (typeof window !== 'undefined') {
+    const globalAny = window as any;
+    globalAny.__activeRefreshPromise = promise;
+  }
+}
+
 /**
  * Refresh the access token using the InsForge httpOnly refresh cookie
  * (set by the Next.js proxy when the login response forwarded InsForge's Set-Cookie).
@@ -380,11 +399,12 @@ export async function refreshAccessToken(): Promise<string | null> {
     }
   }
 
-  if (activeRefreshPromise) {
-    return activeRefreshPromise;
+  const currentPromise = getActiveRefreshPromise();
+  if (currentPromise) {
+    return currentPromise;
   }
 
-  activeRefreshPromise = (async () => {
+  const newPromise = (async () => {
     try {
       // Use the custom Next.js proxy at /api/auth/refresh.
       // The insforge_refresh_token cookie has Path=/api/auth, so the browser sends it
@@ -411,7 +431,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         window.sessionStorage.setItem('tm_token', newToken);
         const isSecure = window.location.protocol === 'https:';
         const sameSite = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-        
+
         const host = typeof window !== 'undefined' ? window.location.hostname : '';
         let domainStr = '';
         if (host) {
@@ -426,10 +446,13 @@ export async function refreshAccessToken(): Promise<string | null> {
         document.cookie = `tm_access_token=${newToken}; path=/; ${sameSite} max-age=${60 * 60 * 24 * 7}${domainStr}`;
 
         // Synchronize refreshed token with active browser SDK client for direct queries
-        insforge.setAccessToken(newToken);
-        directInsforge.setAccessToken(newToken);
-        if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
-          (directInsforge.realtime as any).setAuth(newToken);
+        const isJwt = newToken && newToken.split('.').length === 3;
+        if (isJwt) {
+          insforge.setAccessToken(newToken);
+          directInsforge.setAccessToken(newToken);
+          if (directInsforge.realtime && typeof (directInsforge.realtime as any).setAuth === 'function') {
+            (directInsforge.realtime as any).setAuth(newToken);
+          }
         }
 
         // Broadcast session refresh to other open tabs to prevent duplicate refresh requests
@@ -448,11 +471,12 @@ export async function refreshAccessToken(): Promise<string | null> {
     } catch {
       return null;
     } finally {
-      activeRefreshPromise = null;
+      setActiveRefreshPromise(null);
     }
   })();
 
-  return activeRefreshPromise;
+  setActiveRefreshPromise(newPromise);
+  return newPromise;
 }
 
 /**
