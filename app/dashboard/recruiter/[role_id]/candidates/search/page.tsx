@@ -114,13 +114,17 @@ export default function CandidateSearchPage() {
         if (keyword.trim()) {
             const kws = keyword.toLowerCase().split(/[\s,]+/).filter(Boolean);
             list = list.filter(c => {
-                const experienceDesc = (c.work_history || []).map((exp: any) => `${exp.company || ''} ${exp.role || ''} ${exp.description || ''}`).join(' ');
-                const educationDesc = (c.education || []).map((edu: any) => `${edu.institution || ''} ${edu.degree || ''} ${edu.field || ''}`).join(' ');
+                const eduList = c.education ? (Array.isArray(c.education) ? c.education : (c.education as any).history || []) : [];
+                const certList = c.education && !Array.isArray(c.education) ? (c.education as any).certificates || [] : [];
+                const experienceDesc = (c.work_history || []).map((exp: any) => `${exp.company || ''} ${exp.title || exp.role || ''} ${exp.description || ''}`).join(' ');
+                const educationDesc = eduList.map((edu: any) => `${edu.institution || ''} ${edu.degree || ''} ${edu.field_of_study || edu.field || ''}`).join(' ');
+                const certificateDesc = certList.map((cert: any) => `${cert.name || ''} ${cert.issuer || ''}`).join(' ');
                 const haystack = [
                     c.name, c.role, c.location, c.summary || '',
                     ...(c.skills || []),
                     experienceDesc,
-                    educationDesc
+                    educationDesc,
+                    certificateDesc
                 ].join(' ').toLowerCase();
                 return kws.every(kw => haystack.includes(kw));
             });

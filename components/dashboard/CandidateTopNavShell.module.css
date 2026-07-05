@@ -1,0 +1,378 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--tm-text-primary);
+}
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #E2E5EA;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  z-index: 100;
+  box-shadow: none;
+  /* No shadow */
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  /* Gap between logo and first nav item (24-28px spec) */
+  height: 100%;
+  flex: 1;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.brandName {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--tm-text-primary);
+  letter-spacing: -0.03em;
+}
+
+.desktopNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  /* Gap between nav items (28px spec) */
+  height: 100%;
+}
+
+.navTab {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  font-size: 15px;
+  /* Font size spec */
+  font-weight: 400;
+  /* Regular for inactive */
+  color: var(--tm-text-secondary);
+  text-decoration: none;
+  position: relative;
+  transition: color 0.15s ease-out;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.navTab:hover {
+  color: var(--tm-text-primary);
+  /* Hover color shift */
+}
+
+.navTabActive {
+  color: var(--tm-text-primary);
+  font-weight: 500;
+  /* Medium weight for active */
+}
+
+.navTabActive::after {
+  content: '';
+  position: absolute;
+  bottom: 14px;
+  /* Sits closer to the text bottom (14px from bottom of 64px header) */
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background-color: var(--tm-accent);
+  border-radius: 99px;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  flex: 1;
+}
+
+.iconCluster {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  /* Gap between icons (20-24px spec) */
+}
+
+.iconBtn {
+  background: none;
+  border: none;
+  color: var(--tm-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: color 0.15s ease-out;
+  width: 20px;
+  height: 20px;
+}
+
+.iconBtn:hover {
+  color: var(--tm-text-primary);
+}
+
+.notifDot {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  width: 6px;
+  height: 6px;
+  background-color: var(--tm-status-error-text, #ef4444);
+  /* Red dot */
+  border-radius: 50%;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--tm-status-info-bg);
+  color: var(--tm-status-info-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid var(--tm-border);
+  transition: transform 0.15s ease-out;
+  user-select: none;
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarDropdown {
+  position: absolute;
+  top: 56px;
+  right: 2rem;
+  background-color: #ffffff;
+  border: 1px solid var(--tm-border);
+  border-radius: 8px;
+  /* 8px radius spec */
+  width: 220px;
+  box-shadow: none;
+  /* No drop shadow spec */
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+}
+
+.dropdownEmail {
+  padding: 16px;
+  /* Padding spec */
+  font-size: 13px;
+  /* Small font spec */
+  color: var(--tm-text-secondary);
+  user-select: none;
+  word-break: break-all;
+}
+
+.dropdownItem {
+  padding: 16px;
+  /* Vertical padding spec */
+  font-size: 15px;
+  /* Font size spec */
+  font-weight: 400;
+  color: var(--tm-text-primary);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background-color 0.15s ease-out;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdownItem:hover {
+  background-color: var(--tm-surface-muted, #f8fafc);
+}
+
+.dropdownIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tm-text-secondary);
+  width: 18px;
+  /* Icon width spec */
+}
+
+.dropdownDivider {
+  height: 1px;
+  background-color: var(--tm-border);
+  margin: 0;
+}
+
+.logoutBtn {
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  /* Slightly bolder weight spec */
+  color: var(--tm-accent);
+  /* Accent color spec */
+  cursor: pointer;
+  transition: background-color 0.15s ease-out;
+}
+
+.logoutBtn:hover {
+  background-color: var(--tm-surface-muted, #f8fafc);
+}
+
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--tm-text-secondary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobileMenu {
+  display: none;
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--tm-border);
+  padding: 1rem;
+  z-index: 90;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobileMenuOpen {
+  display: flex;
+}
+
+.mobileNavTab {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--tm-text-secondary);
+  text-decoration: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobileNavTabActive {
+  background-color: var(--tm-status-info-bg);
+  color: var(--tm-status-info-text);
+}
+
+.mainContent {
+  margin-top: 64px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  /* Let pages handle padding for full height layouts */
+  overflow-y: auto;
+  position: relative;
+  /* Added relative positioning for absolute child elements */
+}
+
+@media (max-width: 768px) {
+  .desktopNav {
+    display: none;
+  }
+
+  .hamburger {
+    display: flex;
+  }
+}
+
+/* ─── Floating Back Button ─── */
+.backButtonContainer {
+  position: absolute;
+  top: 1.25rem;
+  left: 2rem;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.backButton {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.45rem 0.95rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tm-text-secondary, #475569);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease-in-out;
+}
+
+.backButton:hover {
+  color: var(--primary-blue, #007BFF);
+  border-color: var(--primary-blue, #007BFF);
+  background-color: var(--light-ice-blue, #F0F7FF);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 768px) {
+  .backButtonContainer {
+    padding: 1rem 1rem 0.25rem;
+  }
+}
+
+.headerBackButton {
+  background: none;
+  border: none;
+  color: var(--tm-text-secondary, #475569);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  margin-right: -4px;
+}
+
+.headerBackButton:hover {
+  background-color: #f1f5f9;
+  color: #007BFF;
+}

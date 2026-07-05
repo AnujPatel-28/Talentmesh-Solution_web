@@ -64,34 +64,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Build a clean cookie header with ONLY insforge-relevant cookies.
-  // Forwarding app-specific cookies (tm_access_token, tm_role, etc.) can cause
-  // the InsForge backend to reject the request with 403 if the access token is expired.
-  const cleanCookieParts: string[] = [];
-  if (cookieHeader) {
-    cookieHeader.split(';').forEach(part => {
-      const trimmed = part.trim();
-      if (
-        trimmed.startsWith('insforge_refresh_token=') ||
-        trimmed.startsWith('insforge_csrf_token=') ||
-        trimmed.startsWith('tm_refresh_token=')
-      ) {
-        cleanCookieParts.push(trimmed);
-      }
-    });
-  }
-  const cleanCookie = cleanCookieParts.join('; ');
-
   const insforgeRes = await fetch(`${INSFORGE_URL}/api/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'apikey': ANON_KEY,
       'Authorization': `Bearer ${ANON_KEY}`,
-      ...(cleanCookie ? { 'Cookie': cleanCookie } : {}),
+      ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
       ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
     },
-    body: JSON.stringify({ refresh_token: extractedRefreshToken }),
   });
 
   const responseBody = await insforgeRes.text();

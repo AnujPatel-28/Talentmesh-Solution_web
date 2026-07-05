@@ -1,51 +1,71 @@
 "use client";
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useSavedJobs } from '@/hooks/useSavedJobs';
-import styles from './saved-jobs.module.css';
-import { CustomSelect } from '@/components/ui/CustomSelect';
-
-// ─── Icons ──────────────────────────────────────────────────────────────────────
-const IC = {
-    search: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>,
-    bookmark: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg>,
-    clock: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
-    location: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>,
-};
+import Toast from '@/components/ui/Toast';
+import { ListSkeleton } from '@/components/ui/LoadingSkeletons';
 
 export default function SavedJobsPage() {
     const router = useRouter();
     const params = useParams();
-    const role_id = params.role_id as string;
+    const roleId = params.role_id as string;
     const { user, isLoading: authLoading } = useAuth();
-    const { toggleSave, loading: hookLoading } = useSavedJobs(user?.id || null);
+    const { toggleSave } = useSavedJobs(user?.id || null);
 
     const [savedJobs, setSavedJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState("");
-    const [sortBy, setSortBy] = useState("newest");
-    const [removingId, setRemovingId] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
     const fetchSavedJobs = async () => {
         if (!user?.id) return;
         setLoading(true);
         try {
-            const { data, error } = await insforge.database
+            const { data: savedData, error: savedError } = await insforge.database
                 .from('saved_jobs')
-                .select(`
-                    id, job_id, created_at,
-                    job:jobs(id, title, company_name, location, type, salary_min, salary_max, logo_url, status)
-                `)
+                .select('id, job_id')
                 .eq('candidate_id', user.id);
 
-            if (error) throw error;
-            setSavedJobs(data || []);
-        } catch (err) {
-            console.error("Error fetching saved jobs:", err);
+            if (savedError) throw savedError;
+
+            if (!savedData || savedData.length === 0) {
+                setSavedJobs([]);
+                return;
+            }
+
+            const jobIds = savedData.map(item => item.job_id);
+
+            const { data: jobsData, error: jobsError } = await insforge.database
+                .from('jobs')
+                .select('id, title, location, type, salary_min, salary_max, status, companies(name, logo_url)')
+                .in('id', jobIds);
+
+            if (jobsError) throw jobsError;
+
+            const jobsMap = new Map(
+                jobsData?.map((j: any) => {
+                    const company = Array.isArray(j.companies) ? j.companies[0] : j.companies;
+                    return [
+                        j.id,
+                        {
+                            ...j,
+                            company_name: company?.name || 'Company',
+                            logo_url: company?.logo_url || null
+                        }
+                    ];
+                }) ?? []
+            );
+            
+            const merged = savedData.map(item => ({
+                ...item,
+                job: jobsMap.get(item.job_id) || null
+            })).filter(item => item.job !== null);
+
+            setSavedJobs(merged);
+        } catch (err: any) {
+            console.error("Error fetching saved jobs:", err.message || err);
         } finally {
             setLoading(false);
         }
@@ -55,157 +75,152 @@ export default function SavedJobsPage() {
         if (user?.id) fetchSavedJobs();
     }, [user?.id]);
 
-    const filteredJobs = useMemo(() => {
-        let result = savedJobs.filter(item => {
-            const job = item.job;
-            if (!job) return false;
-            const searchLower = search.toLowerCase();
-            return job.title.toLowerCase().includes(searchLower) || 
-                   job.company_name.toLowerCase().includes(searchLower);
-        });
-
-        if (sortBy === "newest") {
-            result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        } else if (sortBy === "oldest") {
-            result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        } else if (sortBy === "alpha") {
-            result.sort((a, b) => a.job.title.localeCompare(b.job.title));
-        }
-
-        return result;
-    }, [savedJobs, search, sortBy]);
-
-    const handleRemove = async (jobId: string, savedItemId: string) => {
-        setRemovingId(savedItemId);
-        // Wait for animation
-        setTimeout(async () => {
+    const handleRemove = async (jobId: string, savedItemId: string, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
             await toggleSave(jobId);
             setSavedJobs(prev => prev.filter(item => item.id !== savedItemId));
-            setRemovingId(null);
-        }, 300);
+            setToast({ message: 'Job removed from saved list.', type: 'info' });
+        } catch (err) {
+            console.error("Failed to remove saved job:", err);
+        }
     };
 
     if (authLoading || (loading && savedJobs.length === 0)) {
-        return <div className={styles.container}>Loading saved jobs...</div>;
+        return <ListSkeleton title={true} action={false} count={3} />;
     }
 
     return (
-        <div className={styles.container}>
-            <header className={styles.header}>
-                <div className={styles.titleRow}>
-                    <h1 className={styles.title}>Saved Jobs</h1>
-                    <span className={styles.badge}>{savedJobs.length} saved</span>
-                </div>
-            </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '960px', margin: '2rem auto', padding: '0 2rem', fontFamily: 'Inter, system-ui, sans-serif' }}>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-            <div className={styles.controls}>
-                <div className={styles.search}>
-                    <span className={styles.searchIcon}>{IC.search}</span>
-                    <input 
-                        type="text" 
-                        placeholder="Search by title or company..." 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <div className={styles.sort}>
-                    <CustomSelect 
-                        value={sortBy} 
-                        onChange={(e) => setSortBy(e.target.value)}
-                        options={[
-                            { label: 'Newest First', value: 'newest' },
-                            { label: 'Oldest First', value: 'oldest' },
-                            { label: 'Alphabetical', value: 'alpha' }
-                        ]}
-                    />
-                </div>
+            <div style={{ marginBottom: '0.5rem' }}>
+                <h1 style={{ fontSize: '28px', fontWeight: 800, color: 'var(--tm-text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Saved Jobs</h1>
             </div>
 
-            {filteredJobs.length === 0 ? (
-                <div className={styles.empty}>
-                    <div className={styles.emptyIcon}>{IC.bookmark}</div>
-                    <h2 className={styles.emptyTitle}>No saved jobs found</h2>
-                    <p className={styles.emptyText}>
-                        {search ? "Try adjusting your search filters." : "You haven't saved any jobs yet. Start browsing to find your next role!"}
-                    </p>
-                    <Link href={`/dashboard/candidate/${role_id}/jobs`} className={styles.cta}>
-                        Browse Jobs
-                    </Link>
-                </div>
-            ) : (
-                <div className={styles.grid}>
-                    {filteredJobs.map((item) => {
+            {/* Tab strip - matches TAB STRIP + LIST layout */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #E2E5EA', gap: '32px' }}>
+                <button
+                    style={{
+                        padding: '0 0 12px 0',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'default',
+                        borderBottom: '2px solid var(--tm-accent)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px',
+                        outline: 'none'
+                    }}
+                >
+                    <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tm-text-primary)' }}>
+                        {savedJobs.length}
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--tm-text-secondary)' }}>
+                        Saved
+                    </span>
+                </button>
+            </div>
+
+            {/* List with 1px dividers */}
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '1rem' }}>
+                {savedJobs.length === 0 ? (
+                    <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--tm-text-secondary)' }}>
+                        <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '1rem' }}>🔖</span>
+                        <h3 style={{ margin: '0 0 0.25rem', color: 'var(--tm-text-primary)' }}>No saved jobs yet</h3>
+                        <p style={{ fontSize: '14px', margin: '0 0 1.5rem' }}>Start exploring jobs to bookmark roles that interest you.</p>
+                        <Link 
+                            href={`/dashboard/candidate/${roleId}`}
+                            style={{ background: 'var(--tm-accent)', color: 'var(--white)', border: 'none', padding: '0.625rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}
+                        >
+                            Browse Jobs
+                        </Link>
+                    </div>
+                ) : (
+                    savedJobs.map((item: any) => {
                         const job = item.job;
+                        if (!job) return null;
                         const isExpired = job.status !== 'active';
-                        const timeAgo = Math.floor((new Date().getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
-                        
                         return (
                             <div 
                                 key={item.id} 
-                                className={`${styles.jobCard} ${removingId === item.id ? styles.removing : ''}`}
+                                style={{ 
+                                    display: 'flex', 
+                                    flexDirection: 'column',
+                                    padding: '1.5rem 0', 
+                                    borderBottom: '1px solid var(--tm-border)',
+                                    cursor: 'pointer'
+                                }}
+                                onClick={() => router.push(`/dashboard/candidate/${roleId}?search=${encodeURIComponent(job.title)}`)}
                             >
-                                {isExpired && <div className={styles.expired}>No longer active</div>}
-                                
-                                <div className={styles.cardTop} onClick={() => router.push(`/browse-jobs/${job.id}`)}>
-                                    <div 
-                                        className={styles.logo} 
-                                        style={{ background: '#2563eb' }}
-                                    >
-                                        {job.company_name[0]}
-                                    </div>
-                                    <div className={styles.info}>
-                                        <h3 className={styles.jobTitle}>{job.title}</h3>
-                                        <div className={styles.companyRow}>
-                                            <span>{job.company_name}</span>
-                                            <span className={styles.dot} />
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                                {IC.location} {job.location}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                                        {/* Small square company icon placeholder */}
+                                        <div style={{ width: 48, height: 48, borderRadius: '4px', background: 'var(--tm-surface-muted)', border: '1px solid var(--tm-border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', fontWeight: 800, color: 'var(--tm-accent)', flexShrink: 0 }}>
+                                            {job.company_name?.[0] || 'J'}
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--tm-text-primary)' }}>
+                                                {job.title}
+                                            </h4>
+                                            <span style={{ fontSize: '14px', color: 'var(--tm-text-secondary)' }}>
+                                                {job.company_name}
+                                            </span>
+                                            <span style={{ fontSize: '14px', color: 'var(--tm-text-secondary)' }}>
+                                                {job.location}
+                                            </span>
+                                            <span style={{ fontSize: '14px', color: 'var(--tm-text-secondary)' }}>
+                                                {job.type}
                                             </span>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className={styles.metaRow}>
-                                    <span className={`${styles.typeBadge} ${styles[job.type?.toLowerCase().replace(/[\s-]/g, '')] || styles.other}`}>
-                                        {job.type}
-                                    </span>
-                                    {job.salary_min && (
-                                        <span className={styles.salary}>
-                                            ${(job.salary_min/1000).toFixed(0)}k - ${(job.salary_max/1000).toFixed(0)}k
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className={styles.cardFoot}>
-                                    <span className={styles.savedDate}>
-                                        {IC.clock} Saved {timeAgo === 0 ? 'today' : `${timeAgo}d ago`}
-                                    </span>
-                                    <div className={styles.actions}>
-                                        <button 
-                                            className={styles.removeBtn}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemove(job.id, item.id);
+                                    
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                            onClick={(e) => handleRemove(job.id, item.id, e)}
+                                            style={{
+                                                background: 'none',
+                                                border: '1px solid var(--tm-border-strong)',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '8px',
+                                                fontSize: '14px',
+                                                fontWeight: 600,
+                                                color: 'var(--tm-status-error-text)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s'
                                             }}
                                         >
                                             Remove
                                         </button>
-                                        {!isExpired && (
-                                            <Link 
-                                                href={`/browse-jobs/${job.id}`} 
-                                                className={styles.applyBtn}
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                Apply Now
-                                            </Link>
-                                        )}
+                                        <button
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: '4px',
+                                                color: 'var(--tm-text-secondary)'
+                                            }}
+                                            title="More options"
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                                        </button>
                                     </div>
                                 </div>
+
+                                {/* Inline gray info banner below the row content if expired */}
+                                {isExpired && (
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--tm-surface-muted)', padding: '12px 16px', borderRadius: '8px', marginTop: '12px', fontSize: '13px', color: 'var(--tm-text-secondary)' }}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                                        <span>Job closed or expired</span>
+                                    </div>
+                                )}
                             </div>
                         );
-                    })}
-                </div>
-            )}
+                    })
+                )}
+            </div>
         </div>
     );
 }

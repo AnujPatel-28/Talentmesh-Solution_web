@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import styles from './CandidateProfileDrawer.module.css';
 import { insforge, invokeFunction } from '@/lib/insforge';
@@ -30,7 +30,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
     const { user } = useAuth();
     const [candidate, setCandidate] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState<string>('overview');
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -144,6 +144,21 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
     };
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const saveTimer = useRef<NodeJS.Timeout | null>(null);
+
+    const educationHistory = useMemo(() => {
+        if (!candidate) return [];
+        const eduRaw = candidate.education;
+        if (!eduRaw) return [];
+        if (Array.isArray(eduRaw)) return eduRaw;
+        return (eduRaw as any).history || [];
+    }, [candidate]);
+
+    const certificatesList = useMemo(() => {
+        if (!candidate) return [];
+        const eduRaw = candidate.education;
+        if (!eduRaw || Array.isArray(eduRaw)) return [];
+        return (eduRaw as any).certificates || [];
+    }, [candidate]);
 
     const fetchCandidate = useCallback(async (id: string) => {
         setLoading(true);
@@ -440,7 +455,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                             <span className={styles.statLab}>Experience</span>
                                         </div>
                                         <div className={styles.statItem}>
-                                            <span className={styles.statVal}>{(candidate?.education && candidate.education[0]?.degree) || 'B.Tech'}</span>
+                                            <span className={styles.statVal}>{(educationHistory && educationHistory[0]?.degree) || 'B.Tech'}</span>
                                             <span className={styles.statLab}>Education</span>
                                         </div>
                                         <div className={styles.statItem}>
@@ -488,28 +503,69 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                                 <div className={styles.tabContent}>
                                     <span className={styles.sectionTitle}>{IC.briefcase} Experience</span>
                                     <div className={styles.timeline}>
-                                        {(candidate?.work_history || []).map((exp: any, i: number) => (
-                                            <div key={i} className={styles.timelineItem}>
-                                                <div className={styles.timelineMarker} />
-                                                <span className={styles.companyName}>{exp.company}</span>
-                                                <div className={styles.roleTitle}>{exp.role}</div>
-                                                <div className={styles.dateRange}>{formatDateRange(exp.startDate, exp.endDate)}</div>
-                                                <p className={styles.desc}>{exp.description}</p>
-                                            </div>
-                                        ))}
+                                        {(candidate?.work_history || []).map((exp: any, i: number) => {
+                                            const roleTitle = exp.title || exp.role;
+                                            const startDate = exp.start_date || exp.startDate;
+                                            const endDate = exp.end_date || exp.endDate;
+                                            return (
+                                                <div key={i} className={styles.timelineItem}>
+                                                    <div className={styles.timelineMarker} />
+                                                    <span className={styles.companyName}>{exp.company}</span>
+                                                    <div className={styles.roleTitle}>{roleTitle}</div>
+                                                    <div className={styles.dateRange}>
+                                                        {startDate ? formatDateRange(startDate, endDate) : 'N/A'}
+                                                    </div>
+                                                    {exp.description && <p className={styles.desc} style={{ whiteSpace: 'pre-wrap' }}>{exp.description}</p>}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
 
                                     <span className={styles.sectionTitle} style={{ marginTop: '32px' }}>{IC.graduation} Education</span>
                                     <div className={styles.timeline}>
-                                        {(candidate?.education || []).map((edu: any, i: number) => (
-                                            <div key={i} className={styles.timelineItem}>
-                                                <div className={styles.timelineMarker} />
-                                                <span className={styles.companyName}>{edu.institution}</span>
-                                                <div className={styles.roleTitle}>{edu.degree} in {edu.field}</div>
-                                                <div className={styles.dateRange}>{edu.year}</div>
-                                            </div>
-                                        ))}
+                                        {(educationHistory || []).map((edu: any, i: number) => {
+                                            const field = edu.field_of_study || edu.field;
+                                            const dateText = edu.start_year 
+                                                ? `${edu.start_year} – ${edu.is_current ? 'Present' : edu.end_year || 'N/A'}`
+                                                : edu.year || 'N/A';
+                                            return (
+                                                <div key={i} className={styles.timelineItem}>
+                                                    <div className={styles.timelineMarker} />
+                                                    <span className={styles.companyName}>{edu.institution || 'Unknown Institution'}</span>
+                                                    <div className={styles.roleTitle}>{edu.degree}{field ? ` in ${field}` : ''}</div>
+                                                    <div className={styles.dateRange}>{dateText}</div>
+                                                    {edu.description && <p className={styles.desc} style={{ whiteSpace: 'pre-wrap' }}>{edu.description}</p>}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
+
+                                    {certificatesList && certificatesList.length > 0 && (
+                                        <>
+                                            <span className={styles.sectionTitle} style={{ marginTop: '32px' }}>📜 Certificates & Licenses</span>
+                                            <div className={styles.timeline} style={{ marginTop: '16px' }}>
+                                                {certificatesList.map((cert: any, i: number) => (
+                                                    <div key={i} className={styles.timelineItem}>
+                                                        <div className={styles.timelineMarker} style={{ backgroundColor: '#007BFF' }} />
+                                                        <span className={styles.companyName}>{cert.name}</span>
+                                                        <div className={styles.roleTitle}>{cert.issuer}</div>
+                                                        {cert.issueDate && <div className={styles.dateRange}>Issued {cert.issueDate}</div>}
+                                                        {cert.credentialId && <p className={styles.desc} style={{ fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0' }}>Credential ID: {cert.credentialId}</p>}
+                                                        {cert.credentialUrl && (
+                                                            <a 
+                                                                href={cert.credentialUrl} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                style={{ fontSize: '0.75rem', color: '#007BFF', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontWeight: 500 }}
+                                                            >
+                                                                View Credential ↗
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             )}
 

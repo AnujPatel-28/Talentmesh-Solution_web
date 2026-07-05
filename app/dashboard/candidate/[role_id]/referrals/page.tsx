@@ -1,126 +1,114 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+"use client";
+import React, { useState } from 'react';
 import Link from 'next/link';
-import styles from './referrals.module.css';
-import { insforge } from '@/lib/insforge';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useParams } from 'next/navigation';
 
-const Ico = {
-  TrendingUp: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
-  External: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>,
-};
+type TabKey = 'reviews' | 'questions' | 'answers';
 
-export default function CandidateReferralsPage() {
-  const { role_id } = useParams();
-  const { user } = useAuth();
-  const [referrals, setReferrals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function MyReviewsPage() {
+    const params = useParams();
+    const roleId = params.role_id as string;
+    const [activeTab, setActiveTab] = useState<TabKey>('reviews');
 
-  useEffect(() => {
-    async function fetchReferrals() {
-      if (!user) return;
-      try {
-        const { data, error } = await insforge.database
-          .from('referrals')
-          .select('*, jobs(title, company_profiles(company_name))')
-          .eq('referrer_id', user.id);
+    const TABS: { key: TabKey; label: string; count: number }[] = [
+        { key: 'reviews', label: 'Reviews', count: 0 },
+        { key: 'questions', label: 'Questions', count: 0 },
+        { key: 'answers', label: 'Answers', count: 0 },
+    ];
 
-        if (!error) setReferrals(data || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchReferrals();
-  }, [user]);
+    return (
+        <div style={{ width: '100%', minHeight: '100vh', backgroundColor: '#ffffff', fontFamily: 'Inter, system-ui, sans-serif' }}>
+            <div style={{ maxWidth: '760px', margin: '0 auto', padding: '2.5rem 2rem 4rem' }}>
 
-  const totalClicks = referrals.reduce((sum, r) => sum + (r.clicks || 0), 0);
-  const totalApps = referrals.reduce((sum, r) => sum + (r.applications || 0), 0);
-  const totalEarnings = referrals.reduce((sum, r) => sum + (r.earnings || 0), 0);
+                {/* Page title */}
+                <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#12263A', margin: '0 0 0.5rem', letterSpacing: '-0.02em' }}>
+                    My contributions
+                </h1>
+                <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 2rem', maxWidth: '560px', lineHeight: 1.5 }}>
+                    Your reviews, questions and answers will appear on the employer's Company Page. They are not associated with your name, CV or job applications.
+                </p>
 
-  if (loading) return <div className={styles.page}><p>Loading referrals...</p></div>;
+                {/* ─── Tab Strip ─── */}
+                <div style={{ display: 'flex', borderBottom: '2px solid #e2e5ea', gap: '0', marginBottom: '0' }}>
+                    {TABS.map(tab => {
+                        const isActive = activeTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                style={{
+                                    padding: '0 24px 14px',
+                                    border: 'none',
+                                    background: 'none',
+                                    cursor: 'pointer',
+                                    borderBottom: `2px solid ${isActive ? '#12263A' : 'transparent'}`,
+                                    marginBottom: '-2px',
+                                    fontSize: '14px',
+                                    fontWeight: isActive ? 700 : 400,
+                                    color: isActive ? '#12263A' : '#6B7280',
+                                    outline: 'none',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                {tab.label} ({tab.count})
+                            </button>
+                        );
+                    })}
+                </div>
 
-  return (
-    <div className={styles.page}>
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Total Clicks</span>
-          <span className={styles.statValue}>{totalClicks}</span>
-          <div className={`${styles.statTrend} ${styles.trendUp}`}>
-            <Ico.TrendingUp /> 12% increase
-          </div>
+                {/* ─── Empty state ─── */}
+                <div style={{ padding: '5rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    {/* Lock illustration (matching Indeed's lock-with-stars icon) */}
+                    <div style={{ position: 'relative', width: 110, height: 110, marginBottom: '1.5rem' }}>
+                        {/* Pink background blob */}
+                        <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 90, height: 55, background: '#FBBCBB', borderRadius: '50% 50% 0 0' }} />
+                        {/* Lock body */}
+                        <div style={{ position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)', width: 64, height: 52, background: '#C8942C', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <span style={{ color: '#ffffff', fontSize: '18px' }}>★</span>
+                            <span style={{ color: '#ffffff', fontSize: '18px' }}>★</span>
+                            <span style={{ color: '#ffffff', fontSize: '18px' }}>★</span>
+                        </div>
+                        {/* Lock shackle (arch) */}
+                        <div style={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', width: 42, height: 34, borderTop: '10px solid #1e5a87', borderLeft: '10px solid #1e5a87', borderRight: '10px solid #1e5a87', borderRadius: '999px 999px 0 0', background: 'transparent' }} />
+                    </div>
+
+                    <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#12263A', margin: '0 0 0.5rem' }}>
+                        {activeTab === 'reviews' ? 'Unlock all reviews' : activeTab === 'questions' ? 'No questions yet' : 'No answers yet'}
+                    </h2>
+                    <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 2rem' }}>
+                        {activeTab === 'reviews'
+                            ? 'Access all reviews by writing yours'
+                            : activeTab === 'questions'
+                                ? 'Ask a question about a company to help others'
+                                : 'Answer a question to help fellow jobseekers'}
+                    </p>
+
+                    <Link
+                        href="/candidate/dashboard/company-reviews"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            background: '#007BFF',
+                            color: '#ffffff',
+                            textDecoration: 'none',
+                            padding: '0.75rem 2rem',
+                            borderRadius: '8px',
+                            fontWeight: 700,
+                            fontSize: '15px',
+                            transition: 'background 0.15s'
+                        }}
+                    >
+                        {activeTab === 'reviews' ? 'Write a review' : activeTab === 'questions' ? 'Ask a question' : 'Answer a question'}
+                        &nbsp;→
+                    </Link>
+                </div>
+
+                {/* Footer note */}
+                <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '2rem' }}>
+                    Reviews are anonymous and not linked to your profile or job applications.
+                </p>
+            </div>
         </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Applications</span>
-          <span className={styles.statValue}>{totalApps}</span>
-          <div className={`${styles.statTrend} ${styles.trendUp}`}>
-            <Ico.TrendingUp /> 5% conversion
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Earnings</span>
-          <span className={styles.statValue}>₹{totalEarnings}</span>
-          <div className={`${styles.statTrend} ${styles.trendUp}`}>
-            <Ico.TrendingUp /> ₹2,400 pending
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.tableCard}>
-        <div className={styles.tableHeader}>
-          <h2 className={styles.tableTitle}>Active Referrals</h2>
-          <Link href="/jobs" className={styles.actionBtn}>Browse Jobs to Refer</Link>
-        </div>
-
-        {referrals.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>You haven't referred any jobs yet. Start sharing to earn!</p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.th}>Job Role</th>
-                  <th className={styles.th}>Code</th>
-                  <th className={styles.th}>Clicks</th>
-                  <th className={styles.th}>Apps</th>
-                  <th className={styles.th}>Earnings</th>
-                  <th className={styles.th}>Status</th>
-                  <th className={styles.th}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {referrals.map((ref, idx) => (
-                  <tr key={idx}>
-                    <td className={styles.td}>
-                      <div className={styles.jobCell}>
-                        <span className={styles.jobTitle}>{ref.jobs?.title}</span>
-                        <span className={styles.jobCompany}>{ref.jobs?.company_profiles?.company_name}</span>
-                      </div>
-                    </td>
-                    <td className={styles.td}><code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{ref.referral_code}</code></td>
-                    <td className={styles.td}>{ref.clicks || 0}</td>
-                    <td className={styles.td}>{ref.applications || 0}</td>
-                    <td className={styles.td}>₹{ref.earnings || 0}</td>
-                    <td className={styles.td}>
-                      <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
-                    </td>
-                    <td className={styles.td}>
-                      <Link href={`/jobs/${ref.job_id}/share`} style={{ color: '#1e88e5' }}>
-                        <Ico.External />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
 }

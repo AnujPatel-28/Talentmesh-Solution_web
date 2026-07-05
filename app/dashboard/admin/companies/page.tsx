@@ -8,6 +8,7 @@ import { AdminStatCard } from '../_components/AdminStatCard';
 import { AdminInput, AdminButton } from '../_components/AdminForm';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 import { CheckCircle2, XCircle, AlertTriangle, Zap, FileText, Download, Folder } from 'lucide-react';
+import DetailDrawer from '@/components/dashboard/DetailDrawer';
 
 type AdminCompany = {
   id: string;
@@ -440,238 +441,234 @@ export default function AdminCompaniesPage() {
         </div>
       </div>
 
-      {/* ── Company Detail Drawer ────────────────────────────────────────── */}
-      {previewCompany && (
-        <div className={styles.drawerOverlay} onClick={() => setPreviewCompany(null)}>
-          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-            <header className={styles.drawerHeader}>
-              <h2>Company Details</h2>
-              <button className={styles.drawerClose} onClick={() => setPreviewCompany(null)}>×</button>
-            </header>
+      <DetailDrawer
+        isOpen={!!previewCompany}
+        onClose={() => setPreviewCompany(null)}
+        title="Company Details"
+      >
+        {previewCompany && (
+          <div className={styles.drawerContent} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: 0 }}>
+            
+            {/* Status Section */}
+            <div style={{ display: 'grid', gap: '0.75rem', padding: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#f8fafc' }}>
+              <div>
+                <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>Platform Authorization</strong>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                  {previewCompany.is_active 
+                    ? 'This company is active. Associated recruiters can access features.' 
+                    : 'This company is suspended. Associated recruiters cannot log in or post jobs.'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => toggleVerification(previewCompany)}
+                  disabled={verifying}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: previewCompany.is_verified ? '#fee2e2' : '#dcfce7',
+                    color: previewCompany.is_verified ? '#991b1b' : '#166534',
+                    border: '1px solid',
+                    borderColor: previewCompany.is_verified ? '#fca5a5' : '#86efac',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    cursor: verifying ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {verifying ? 'Updating...' : previewCompany.is_verified ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><XCircle size={15} /> Unverify</span>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={15} /> Verify Company</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleActiveStatus(previewCompany)}
+                  disabled={togglingActive}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    background: previewCompany.is_active ? '#ffedd5' : '#dbeafe',
+                    color: previewCompany.is_active ? '#9a3412' : '#1e40af',
+                    border: '1px solid',
+                    borderColor: previewCompany.is_active ? '#fed7aa' : '#bfdbfe',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    cursor: togglingActive ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {togglingActive ? 'Updating...' : previewCompany.is_active ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><AlertTriangle size={15} /> Suspend</span>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Zap size={15} /> Activate</span>
+                  )}
+                </button>
+              </div>
+            </div>
 
-            <div className={styles.drawerContent} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              
-              {/* Status Section */}
-              <div style={{ display: 'grid', gap: '0.75rem', padding: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '16px', background: '#f8fafc' }}>
+            {/* Company Info */}
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', paddingBottom: '1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '16px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                display: 'grid',
+                placeItems: 'center',
+                overflow: 'hidden',
+                flexShrink: 0
+              }}>
+                {previewCompany.logo_url ? (
+                  <img src={getPublicStorageUrl('company-logos', previewCompany.logo_url)} alt={previewCompany.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                ) : (
+                  <span style={{ fontSize: '1.75rem', color: '#94a3b8', fontWeight: 700 }}>{previewCompany.name[0]}</span>
+                )}
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{previewCompany.name}</h3>
+                <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600,
+                    background: previewCompany.is_verified ? '#dcfce7' : '#fee2e2',
+                    color: previewCompany.is_verified ? '#166534' : '#991b1b'
+                  }}>
+                    {previewCompany.is_verified ? 'Verified Entity' : 'Unverified'}
+                  </span>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600,
+                    background: previewCompany.is_active ? '#e0f2fe' : '#f1f5f9',
+                    color: previewCompany.is_active ? '#0369a1' : '#475569'
+                  }}>
+                    {previewCompany.is_active ? 'Active' : 'Suspended'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Meta details */}
+            <div style={{ display: 'grid', gap: '1rem', fontSize: '0.9rem', color: '#334155' }}>
+              {previewCompany.website && (
                 <div>
-                  <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>Platform Authorization</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                    {previewCompany.is_active 
-                      ? 'This company is active. Associated recruiters can access features.' 
-                      : 'This company is suspended. Associated recruiters cannot log in or post jobs.'}
+                  <strong>Website:</strong>{' '}
+                  <a href={previewCompany.website} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}>
+                    {previewCompany.website} ↗
+                  </a>
+                </div>
+              )}
+              <div>
+                <strong>Industry:</strong> {previewCompany.industry || 'Not specified'}
+              </div>
+              <div>
+                <strong>Company Size:</strong> {previewCompany.size || 'Not specified'} employees
+              </div>
+              <div>
+                <strong>Location:</strong> {previewCompany.location || 'Not specified'}
+              </div>
+              {previewCompany.description && (
+                <div>
+                  <strong>About Company:</strong>
+                  <p style={{ margin: '6px 0 0 0', color: '#475569', lineHeight: 1.6 }}>
+                    {previewCompany.description}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => toggleVerification(previewCompany)}
-                    disabled={verifying}
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem',
-                      background: previewCompany.is_verified ? '#fee2e2' : '#dcfce7',
-                      color: previewCompany.is_verified ? '#991b1b' : '#166534',
-                      border: '1px solid',
-                      borderColor: previewCompany.is_verified ? '#fca5a5' : '#86efac',
-                      borderRadius: '10px',
-                      fontWeight: 700,
-                      cursor: verifying ? 'not-allowed' : 'pointer',
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    {verifying ? 'Updating...' : previewCompany.is_verified ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><XCircle size={15} /> Unverify</span>
-                    ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={15} /> Verify Company</span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleActiveStatus(previewCompany)}
-                    disabled={togglingActive}
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem',
-                      background: previewCompany.is_active ? '#ffedd5' : '#dbeafe',
-                      color: previewCompany.is_active ? '#9a3412' : '#1e40af',
-                      border: '1px solid',
-                      borderColor: previewCompany.is_active ? '#fed7aa' : '#bfdbfe',
-                      borderRadius: '10px',
-                      fontWeight: 700,
-                      cursor: togglingActive ? 'not-allowed' : 'pointer',
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    {togglingActive ? 'Updating...' : previewCompany.is_active ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><AlertTriangle size={15} /> Suspend</span>
-                    ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Zap size={15} /> Activate</span>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Company Info */}
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', paddingBottom: '1.25rem', borderBottom: '1px solid #f1f5f9' }}>
-                <div style={{
-                  width: '72px',
-                  height: '72px',
-                  borderRadius: '16px',
-                  backgroundColor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  display: 'grid',
-                  placeItems: 'center',
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}>
-                  {previewCompany.logo_url ? (
-                    <img src={getPublicStorageUrl('company-logos', previewCompany.logo_url)} alt={previewCompany.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <span style={{ fontSize: '1.75rem', color: '#94a3b8', fontWeight: 700 }}>{previewCompany.name[0]}</span>
-                  )}
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>{previewCompany.name}</h3>
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
-                    <span style={{
-                      padding: '2px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600,
-                      background: previewCompany.is_verified ? '#dcfce7' : '#fee2e2',
-                      color: previewCompany.is_verified ? '#166534' : '#991b1b'
-                    }}>
-                      {previewCompany.is_verified ? 'Verified Entity' : 'Unverified'}
-                    </span>
-                    <span style={{
-                      padding: '2px 8px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600,
-                      background: previewCompany.is_active ? '#e0f2fe' : '#f1f5f9',
-                      color: previewCompany.is_active ? '#0369a1' : '#475569'
-                    }}>
-                      {previewCompany.is_active ? 'Active' : 'Suspended'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Meta details */}
-              <div style={{ display: 'grid', gap: '1rem', fontSize: '0.9rem', color: '#334155' }}>
-                {previewCompany.website && (
-                  <div>
-                    <strong>Website:</strong>{' '}
-                    <a href={previewCompany.website} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}>
-                      {previewCompany.website} ↗
-                    </a>
-                  </div>
-                )}
-                <div>
-                  <strong>Industry:</strong> {previewCompany.industry || 'Not specified'}
-                </div>
-                <div>
-                  <strong>Company Size:</strong> {previewCompany.size || 'Not specified'} employees
-                </div>
-                <div>
-                  <strong>Location:</strong> {previewCompany.location || 'Not specified'}
-                </div>
-                {previewCompany.description && (
-                  <div>
-                    <strong>About Company:</strong>
-                    <p style={{ margin: '6px 0 0 0', color: '#475569', lineHeight: 1.6 }}>
-                      {previewCompany.description}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Tax Details */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>GSTIN</div>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.9rem' }}>{previewCompany.gstin || '—'}</div>
-                </div>
-                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>TAN</div>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.9rem' }}>{previewCompany.tan || '—'}</div>
-                </div>
-              </div>
-
-              {/* Documents */}
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem', paddingBottom: '2rem' }}>
-                {previewCompany.kyc_documents && (Array.isArray(previewCompany.kyc_documents) ? previewCompany.kyc_documents.length > 0 : true) ? (
-                  <div>
-                    <strong style={{ fontSize: '0.95rem', color: '#0f172a', display: 'block', marginBottom: '0.75rem' }}>Verification & KYC Documents</strong>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {(Array.isArray(previewCompany.kyc_documents) ? previewCompany.kyc_documents : [previewCompany.kyc_documents]).map((doc: any, index: number) => {
-                        const docUrl = doc?.url;
-                        const docName = doc?.name || `document_${index + 1}`;
-                        if (!docUrl) return null;
-                        return (
-                          <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '220px', display: 'flex', alignItems: 'center', gap: '6px' }} title={docName}>
-                              <FileText size={15} /> {docName}
-                            </span>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleView(docUrl)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '6px 12px',
-                                  background: '#eff6ff',
-                                  color: '#1d4ed8',
-                                  border: '1px solid #bfdbfe',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600
-                                }}
-                              >
-                                <FileText size={13} /> View
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDownload(docUrl, docName.endsWith('.pdf') ? docName : `${docName}.pdf`)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '6px 12px',
-                                  background: '#0f172a',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600
-                                }}
-                              >
-                                <Download size={13} /> Download
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <Folder size={40} style={{ color: '#cbd5e1', marginBottom: '8px' }} />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>No verification documents uploaded.</span>
-                  </div>
-                )}
-              </div>
-
+              )}
             </div>
+
+            {/* Tax Details */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+              <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>GSTIN</div>
+                <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.9rem' }}>{previewCompany.gstin || '—'}</div>
+              </div>
+              <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>TAN</div>
+                <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.9rem' }}>{previewCompany.tan || '—'}</div>
+              </div>
+            </div>
+
+            {/* Documents */}
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem', paddingBottom: '2rem' }}>
+              {previewCompany.kyc_documents && (Array.isArray(previewCompany.kyc_documents) ? previewCompany.kyc_documents.length > 0 : true) ? (
+                <div>
+                  <strong style={{ fontSize: '0.95rem', color: '#0f172a', display: 'block', marginBottom: '0.75rem' }}>Verification & KYC Documents</strong>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(Array.isArray(previewCompany.kyc_documents) ? previewCompany.kyc_documents : [previewCompany.kyc_documents]).map((doc: any, index: number) => {
+                      const docUrl = doc?.url;
+                      const docName = doc?.name || `document_${index + 1}`;
+                      if (!docUrl) return null;
+                      return (
+                        <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '220px', display: 'flex', alignItems: 'center', gap: '6px' }} title={docName}>
+                            <FileText size={15} /> {docName}
+                          </span>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleView(docUrl)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 12px',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                border: '1px solid #bfdbfe',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                fontWeight: 600
+                              }}
+                            >
+                              <FileText size={13} /> View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDownload(docUrl, docName.endsWith('.pdf') ? docName : `${docName}.pdf`)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 12px',
+                                background: '#0f172a',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                fontWeight: 600
+                              }}
+                            >
+                              <Download size={13} /> Download
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', padding: '1.25rem', textAlign: 'center', color: '#64748b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <Folder size={40} style={{ color: '#cbd5e1', marginBottom: '8px' }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>No verification documents uploaded.</span>
+                </div>
+              )}
+            </div>
+
           </div>
-        </div>
-      )}
+        )}
+      </DetailDrawer>
     </section>
   );
 }

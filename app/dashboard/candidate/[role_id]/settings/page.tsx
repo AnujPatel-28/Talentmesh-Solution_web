@@ -1,107 +1,144 @@
 "use client";
-
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
 import type { CandidateSettingsBundle } from '@/lib/candidate-profile';
 import { normalizeCandidateProfile } from '@/lib/candidate-profile';
 import { invokeFunction, insforge } from '@/lib/insforge';
-import styles from '../../../shared-dashboard.module.css';
-import AnimateOnScroll from '@/components/AnimateOnScroll';
-import { CustomSelect } from '@/components/ui/CustomSelect';
+import Toast from '@/components/ui/Toast';
+import { FormSkeleton } from '@/components/ui/LoadingSkeletons';
+import styles from './settings.module.css';
 
-/* ─── Premium SVG Icons ─── */
+/* ─── Icons ─── */
 const IC = {
-    user: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-    briefcase: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
-    bell: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
-    lock: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-    shield: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-    trash: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-    check: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-    globe: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
-    mail: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
-    phone: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+    profile: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+        </svg>
+    ),
+    preferences: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+    ),
+    security: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+    ),
+    notifications: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+    ),
+    privacy: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+    ),
+    trash: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+    )
 };
-
-type ToggleItem = { label: string; desc: string; on: boolean };
 
 const EMPTY_STATE: CandidateSettingsBundle = {
     profile: { id: '', email: '', name: '', phone: '', location: '', role: null, completed_onboarding: false },
     candidateProfile: {
         headline: '', skills: [], experience_years: null, education: [], resume_url: '',
         linkedin_url: '', github_url: '', portfolio_url: '', salary_min: null, salary_max: null,
-        currency: 'USD', open_to_remote: true, is_visible: true, preferred_locations: [],
+        currency: 'INR', open_to_remote: true, is_visible: true, preferred_locations: [],
         job_types: [], profile_strength: 0,
     },
 };
 
-const INITIAL_NOTIFICATIONS: ToggleItem[] = [
-    { label: 'Job Recommendations', desc: 'Get notified about jobs matching your profile', on: true },
-    { label: 'Application Updates', desc: 'Status changes on your applications', on: true },
-    { label: 'Weekly Digest', desc: 'Summary of new opportunities every week', on: false },
-];
-
-const INITIAL_PRIVACY: ToggleItem[] = [
-    { label: 'Profile Visibility', desc: 'Make your profile visible to recruiters', on: true },
-    { label: 'Show Match Score', desc: 'Allow companies to see your AI match score', on: true },
-];
-
-export default function CandidateSettingsPage() {
+export default function SettingsPage() {
+    const params = useParams();
     const router = useRouter();
+    const roleId = params.role_id as string;
     const { refreshUser } = useAuth();
+
+    const [activeTab, setActiveTab] = useState<'profile' | 'preferences' | 'security' | 'notifications' | 'privacy'>('profile');
+    const { user } = useAuth();
     const [form, setForm] = useState<CandidateSettingsBundle>(EMPTY_STATE);
-    const [expectedSalary, setExpectedSalary] = useState('');
-    const [preferredLocationsInput, setPreferredLocationsInput] = useState('');
-    const [security, setSecurity] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
-    const [privacy, setPrivacy] = useState(INITIAL_PRIVACY);
     const [isLoading, setIsLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [updatingPassword, setUpdatingPassword] = useState(false);
-    const [message, setMessage] = useState({ text: '', type: 'success' });
-    const [provider, setProvider] = useState<string>('email');
+    const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+    const [editingField, setEditingField] = useState<string | null>(null);
+
+    // Edit states for individual fields
+    const [editValue, setEditValue] = useState('');
+    const [editValue2, setEditValue2] = useState(''); // Secondary value for ranges
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const token = window.sessionStorage.getItem('tm_token');
-            if (token) {
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-                    const prov = payload.app_metadata?.provider || payload.app_metadata?.providers?.[0] || 'email';
-                    setProvider(prov);
-                } catch (err) {
-                    console.warn('Failed to parse OAuth provider from JWT:', err);
-                }
+        async function fetchData() {
+            try {
+                const res = await invokeFunction('candidate-profile', { method: 'GET' });
+                const data = res.data;
+                if (!data || !data.profile) throw new Error('Profile not found');
+
+                const bundle: CandidateSettingsBundle = {
+                    profile: {
+                        id: data.profile.id,
+                        email: data.profile.email,
+                        name: data.profile.name || '',
+                        phone: data.profile.phone || '',
+                        location: data.profile.location || '',
+                        role: data.profile.role,
+                        completed_onboarding: data.profile.completed_onboarding || false,
+                    },
+                    candidateProfile: normalizeCandidateProfile(data.candidateProfile || {})
+                };
+                setForm(bundle);
+            } catch (err) {
+                console.error("Error loading settings:", err);
+            } finally {
+                setIsLoading(false);
             }
         }
+        fetchData();
     }, []);
 
-    const handleUpdatePassword = async () => {
-        if (!security.newPassword) {
-            setMessage({ text: 'Please enter a new password.', type: 'error' });
-            return;
-        }
-        if (security.newPassword.length < 8) {
-            setMessage({ text: 'Password must be at least 8 characters long.', type: 'error' });
-            return;
-        }
-        if (!/[A-Z]/.test(security.newPassword)) {
-            setMessage({ text: 'Password must contain at least one uppercase letter.', type: 'error' });
-            return;
-        }
-        if (!/[0-9]/.test(security.newPassword)) {
-            setMessage({ text: 'Password must contain at least one number.', type: 'error' });
-            return;
-        }
-        if (security.newPassword !== security.confirmPassword) {
-            setMessage({ text: 'New password and confirm password do not match.', type: 'error' });
-            return;
-        }
+    const handleSaveField = async (fieldName: string) => {
+        try {
+            let updatedProfile = { ...form.profile };
+            let updatedCand = { ...form.candidateProfile };
 
-        setUpdatingPassword(true);
-        setMessage({ text: '', type: 'success' });
+            if (fieldName === 'name') updatedProfile.name = editValue;
+            if (fieldName === 'phone') updatedProfile.phone = editValue;
+            if (fieldName === 'location') updatedProfile.location = editValue;
+            if (fieldName === 'headline') updatedCand.headline = editValue;
+            if (fieldName === 'job_type') updatedCand.job_types = [editValue];
+            if (fieldName === 'expected_salary') {
+                updatedCand.salary_min = Number(editValue) || null;
+                updatedCand.salary_max = Number(editValue2) || null;
+            }
 
+            await invokeFunction('candidate-profile', {
+                method: 'PUT',
+                body: {
+                    profile: {
+                        ...updatedProfile,
+                        role: updatedProfile.role === null ? undefined : updatedProfile.role,
+                    },
+                    candidateProfile: updatedCand
+                }
+            });
+
+            setForm({ profile: updatedProfile, candidateProfile: updatedCand });
+            setEditingField(null);
+            setToast({ message: 'Settings saved successfully!', type: 'success' });
+            await refreshUser();
+        } catch (err: any) {
+            setToast({ message: err.message || 'Save failed', type: 'error' });
+        }
+    };
+
+    const handlePasswordUpdate = async () => {
+        if (!editValue || editValue.length < 8) {
+            setToast({ message: 'Password must be at least 8 characters long.', type: 'error' });
+            return;
+        }
         try {
             const token = window.sessionStorage.getItem('tm_token');
             if (!token) throw new Error('No active session. Please log in again.');
@@ -113,378 +150,378 @@ export default function CandidateSettingsPage() {
                     'apikey': process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    password: security.newPassword
-                })
+                body: JSON.stringify({ password: editValue })
             });
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || errData.error_description || 'Failed to update password');
-            }
-
-            // Sync with backend profile database if necessary
-            if (form.profile.id) {
-                const { error: profileError } = await insforge.database
-                    .from('profiles')
-                    .update({
-                        password_set_at: new Date().toISOString()
-                    })
-                    .eq('id', form.profile.id);
-
-                if (profileError) {
-                    console.warn('Failed to update password_set_at in DB profiles:', profileError.message);
-                }
-            }
-
-            setMessage({ text: 'Password updated successfully!', type: 'success' });
-            setSecurity({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            if (!response.ok) throw new Error('Failed to update password');
+            setEditingField(null);
+            setToast({ message: 'Password updated successfully!', type: 'success' });
         } catch (err: any) {
-            setMessage({ text: err.message || 'Error updating password.', type: 'error' });
-        } finally {
-            setUpdatingPassword(false);
+            setToast({ message: err.message, type: 'error' });
         }
     };
 
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                const res = await invokeFunction('candidate-profile', { method: 'GET' });
-                const data = res.data;
-                if (!data || !data.profile) throw new Error('Profile not found');
+    const handleToggleNotification = (key: string, val: boolean) => {
+        setToast({ message: 'Notification settings updated.', type: 'success' });
+    };
 
-                const profile = data.profile;
-                const candidateProfile = data.candidateProfile;
-
-                const bundle: CandidateSettingsBundle = {
-                    profile: {
-                        id: profile.id,
-                        email: profile.email,
-                        name: profile.name || '',
-                        phone: profile.phone || '',
-                        location: profile.location || '',
-                        role: profile.role,
-                        completed_onboarding: profile.completed_onboarding || false,
-                    },
-                    candidateProfile: normalizeCandidateProfile(candidateProfile || {})
-                };
-
-                setForm(bundle);
-                if (bundle.candidateProfile.salary_min) setExpectedSalary(`${bundle.candidateProfile.salary_min} - ${bundle.candidateProfile.salary_max || ''}`);
-                setPreferredLocationsInput(bundle.candidateProfile.preferred_locations.join(', '));
-            } catch (err) {
-                setMessage({ text: err instanceof Error ? err.message : 'Error loading profile', type: 'error' });
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        fetchData();
-    }, []);
-
-    const saveSettings = async (mode: 'profile' | 'preferences') => {
-        setSaving(true);
-        setMessage({ text: '', type: 'success' });
+    const handleTogglePrivacy = async () => {
+        const nextVal = !form.candidateProfile.is_visible;
         try {
-            await invokeFunction('candidate-profile', {
-                method: 'PUT',
-                body: {
-                    profile: {
-                        ...form.profile,
-                        role: form.profile.role === null ? undefined : form.profile.role,
-                    },
-                    candidateProfile: form.candidateProfile
-                }
-            });
-            
-            // Re-fetch to ensure sync
-            const res = await invokeFunction('candidate-profile', { method: 'GET' });
-            const data = res.data;
-            if (!data || !data.profile) throw new Error('Updated profile not found');
+            await insforge.database
+                .from('candidate_profiles')
+                .update({ is_visible: nextVal })
+                .eq('id', form.profile.id);
 
-            const updatedProfile = data.profile;
-            const candidateProfile = data.candidateProfile;
-
-            const updatedBundle: CandidateSettingsBundle = {
-                profile: {
-                    id: updatedProfile.id,
-                    email: updatedProfile.email,
-                    name: updatedProfile.name || '',
-                    phone: updatedProfile.phone || '',
-                    location: updatedProfile.location || '',
-                    role: updatedProfile.role,
-                    completed_onboarding: updatedProfile.completed_onboarding || false,
-                },
-                candidateProfile: normalizeCandidateProfile(candidateProfile || {})
-            };
-            setForm(updatedBundle);
-            
-            // 🔥 Refresh the global user state to update Navbar/Sidebar names
-            await refreshUser();
-            
-            setMessage({ text: mode === 'profile' ? 'Profile updated successfully!' : 'Preferences saved!', type: 'success' });
-        } catch (err) {
-            setMessage({ text: err instanceof Error ? err.message : 'Update failed', type: 'error' });
-        } finally {
-            setSaving(false);
+            setForm(prev => ({
+                ...prev,
+                candidateProfile: { ...prev.candidateProfile, is_visible: nextVal }
+            }));
+            setToast({ message: nextVal ? 'Profile visible to recruiters' : 'Profile hidden', type: 'info' });
+        } catch (e) {
+            console.error(e);
         }
     };
 
-    if (isLoading) return <div className={styles.loadingState}><div className={styles.spinner}></div><p>Preparing your workspace...</p></div>;
+    const chevronRight = (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
+    );
+
+    if (isLoading) {
+        return <FormSkeleton fields={5} />;
+    }
 
     return (
-        <div className={styles.dash}>
-            {/* Header Section */}
-            <div className={styles.settingsHeader}>
-                <div className={styles.titleArea}>
-                    <h1 className={styles.greetTitle}>Account Settings</h1>
-                    <p className={styles.greetSub}>Manage your professional identity and search preferences.</p>
-                </div>
-                <div className={styles.profileMeter}>
-                    <div className={styles.meterInfo}>
-                        <span className={styles.meterLabel}>Profile Strength</span>
-                        <span className={styles.meterVal}>{form.candidateProfile.profile_strength}%</span>
-                    </div>
-                    <div className={styles.meterBar}><div className={styles.meterFill} style={{ width: `${form.candidateProfile.profile_strength}%` }}></div></div>
+        <div style={{ display: 'flex', width: '100%', minHeight: 'calc(100vh - 64px)', fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: '#f8fafc' }}>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+            {/* ─── Left Sidebar ─── */}
+            <div style={{ width: '280px', backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', flexShrink: 0, padding: '24px 16px' }}>
+                <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#12263A', margin: '0 0 24px 8px', letterSpacing: '-0.02em' }}>
+                    Settings
+                </h1>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {([
+                        { id: 'profile', label: 'Account settings', desc: 'Your contact information', icon: IC.profile },
+                        { id: 'security', label: 'Security settings', desc: 'Password and protection', icon: IC.security, isNew: true },
+                        { id: 'notifications', label: 'Communications', desc: 'Alerts and preferences', icon: IC.notifications },
+                        { id: 'preferences', label: 'Device & Job preferences', desc: 'Salary, titles and options', icon: IC.preferences },
+                        { id: 'privacy', label: 'Privacy settings', desc: 'Your visibility preferences', icon: IC.privacy },
+                    ] as const).map(tab => {
+                        const isActive = activeTab === (tab.id as any);
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => { setActiveTab(tab.id as any); setEditingField(null); }}
+                                className={styles.settingsTabBtn}
+                                style={{
+                                    backgroundColor: isActive ? '#f0f7ff' : 'transparent',
+                                }}
+                            >
+                                <span style={{ color: isActive ? '#007BFF' : '#64748b', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                    {tab.icon}
+                                </span>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '14px', fontWeight: 600, color: isActive ? '#0056b3' : '#1e293b' }}>{tab.label}</span>
+                                        {(tab as any).isNew && (
+                                            <span className={styles.pillBadge}>New</span>
+                                        )}
+                                    </div>
+                                    <span style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.3 }}>{tab.desc}</span>
+                                </div>
+                                <span style={{ color: '#cbd5e1', flexShrink: 0 }}>{chevronRight}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
-            {message.text && (
-                <div className={`${styles.toast} ${styles[`toast_${message.type}`]}`}>
-                    {message.type === 'success' ? IC.check : '!'} {message.text}
+            {/* ─── Right Panel ─── */}
+            <div style={{ flex: 1, padding: '3rem 4rem', overflowY: 'auto', backgroundColor: '#f8fafc' }}>
+                <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+
+                    {activeTab === 'profile' && (
+                        <div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Account settings</h2>
+                                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Manage your primary account details and communication address.</p>
+                            </div>
+                            
+                            <div className={styles.settingsCard}>
+                                {([
+                                    { field: 'account_type', label: 'Account type', value: 'Jobseeker', action: 'Change account type', editable: false },
+                                    { field: 'email', label: 'Email', value: form.profile.email, action: 'Change email', editable: false },
+                                    { field: 'phone', label: 'Phone number', value: form.profile.phone || 'Not added', action: 'Change phone number', editable: true },
+                                    { field: 'name', label: 'Full name', value: form.profile.name, action: 'Change name', editable: true },
+                                ] as const).map(row => (
+                                    <div key={row.field} className={styles.settingsRow}>
+                                        {editingField === row.field ? (
+                                            <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'center' }}>
+                                                <input
+                                                    type="text"
+                                                    value={editValue}
+                                                    onChange={e => setEditValue(e.target.value)}
+                                                    className={styles.settingsInput}
+                                                    autoFocus
+                                                />
+                                                <button onClick={() => handleSaveField(row.field as any)} className={styles.actionBtnPrimary}>Save</button>
+                                                <button onClick={() => setEditingField(null)} className={styles.actionBtnSecondary}>Cancel</button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>{row.label}</span>
+                                                    <span style={{ fontSize: '15px', fontWeight: 500, color: '#1e293b' }}>{row.value}</span>
+                                                </div>
+                                                {row.editable && (
+                                                    <button
+                                                        onClick={() => { setEditingField(row.field as any); setEditValue((form.profile as any)[row.field] || ''); }}
+                                                        style={{ background: 'none', border: 'none', color: '#007BFF', fontSize: '14px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: '6px', transition: 'background 0.2s' }}
+                                                        onMouseOver={e => (e.currentTarget.style.backgroundColor = '#f0f7ff')}
+                                                        onMouseOut={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                                    >
+                                                        {row.action}
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Passkey row */}
+                                <div className={styles.settingsRow}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Passkey</span>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, background: '#e2e8f0', color: '#475569', borderRadius: '50%', fontSize: '11px', fontWeight: 700, cursor: 'help' }} title="Passkeys let you sign in without a password">i</span>
+                                        </div>
+                                        <span style={{ fontSize: '14px', color: '#94a3b8' }}>No passkey registered</span>
+                                    </div>
+                                    <button 
+                                        style={{ background: 'none', border: 'none', color: '#007BFF', fontSize: '14px', fontWeight: 600, cursor: 'pointer', padding: '6px 12px', borderRadius: '6px' }}
+                                        onMouseOver={e => (e.currentTarget.style.backgroundColor = '#f0f7ff')}
+                                        onMouseOut={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                    >
+                                        Create passkey
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'preferences' && (
+                        <div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Job preferences</h2>
+                                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Configure how matches and search queries are tailored to your profile.</p>
+                            </div>
+                            
+                            <div className={styles.settingsCard}>
+                                {/* Row 1: Headline */}
+                                <div className={styles.settingsRow}>
+                                    {editingField === 'headline' ? (
+                                        <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'center' }}>
+                                            <input 
+                                                type="text" 
+                                                value={editValue} 
+                                                onChange={(e) => setEditValue(e.target.value)} 
+                                                className={styles.settingsInput}
+                                                autoFocus
+                                            />
+                                            <button onClick={() => handleSaveField('headline')} className={styles.actionBtnPrimary}>Save</button>
+                                            <button onClick={() => setEditingField(null)} className={styles.actionBtnSecondary}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Job Title / Headline</span>
+                                                <span style={{ fontSize: '15px', fontWeight: 500, color: '#1e293b' }}>{form.candidateProfile.headline || 'Not set'}</span>
+                                            </div>
+                                            <button onClick={() => { setEditingField('headline'); setEditValue(form.candidateProfile.headline || ''); }} className={styles.actionBtnSecondary}>Edit</button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Row 2: Job Type */}
+                                <div className={styles.settingsRow}>
+                                    {editingField === 'job_type' ? (
+                                        <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'center' }}>
+                                            <select 
+                                                value={editValue} 
+                                                onChange={(e) => setEditValue(e.target.value)} 
+                                                className={styles.settingsInput}
+                                                style={{ padding: '10px' }}
+                                            >
+                                                <option value="Full-time">Full-time</option>
+                                                <option value="Contract">Contract</option>
+                                                <option value="Freelance">Freelance</option>
+                                                <option value="Internship">Internship</option>
+                                            </select>
+                                            <button onClick={() => handleSaveField('job_type')} className={styles.actionBtnPrimary}>Save</button>
+                                            <button onClick={() => setEditingField(null)} className={styles.actionBtnSecondary}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Job Type</span>
+                                                <span style={{ fontSize: '15px', fontWeight: 500, color: '#1e293b' }}>{form.candidateProfile.job_types?.[0] || 'Full-time'}</span>
+                                            </div>
+                                            <button onClick={() => { setEditingField('job_type'); setEditValue(form.candidateProfile.job_types?.[0] || 'Full-time'); }} className={styles.actionBtnSecondary}>Edit</button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Row 3: Expected Salary */}
+                                <div className={styles.settingsRow}>
+                                    {editingField === 'expected_salary' ? (
+                                        <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'center' }}>
+                                            <input 
+                                                type="number" 
+                                                placeholder="Min Salary" 
+                                                value={editValue} 
+                                                onChange={(e) => setEditValue(e.target.value)} 
+                                                className={styles.settingsInput}
+                                            />
+                                            <input 
+                                                type="number" 
+                                                placeholder="Max Salary" 
+                                                value={editValue2} 
+                                                onChange={(e) => setEditValue2(e.target.value)} 
+                                                className={styles.settingsInput}
+                                            />
+                                            <button onClick={() => handleSaveField('expected_salary')} className={styles.actionBtnPrimary}>Save</button>
+                                            <button onClick={() => setEditingField(null)} className={styles.actionBtnSecondary}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Expected Salary</span>
+                                                <span style={{ fontSize: '15px', fontWeight: 500, color: '#1e293b' }}>
+                                                    {form.candidateProfile.salary_min ? `${form.candidateProfile.currency} ${form.candidateProfile.salary_min.toLocaleString()} - ${form.candidateProfile.salary_max ? form.candidateProfile.salary_max.toLocaleString() : 'No max'}` : 'Not set'}
+                                                </span>
+                                            </div>
+                                            <button onClick={() => { setEditingField('expected_salary'); setEditValue(String(form.candidateProfile.salary_min || '')); setEditValue2(String(form.candidateProfile.salary_max || '')); }} className={styles.actionBtnSecondary}>Edit</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'security' && (
+                        <div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Security settings</h2>
+                                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Manage your account protection and authentication credentials.</p>
+                            </div>
+                            
+                            <div className={styles.settingsCard}>
+                                <div className={styles.settingsRow}>
+                                    {editingField === 'password' ? (
+                                        <div style={{ display: 'flex', gap: '12px', width: '100%', alignItems: 'center' }}>
+                                            <input 
+                                                type="password" 
+                                                placeholder="Enter new password (min 8 chars)" 
+                                                value={editValue} 
+                                                onChange={(e) => setEditValue(e.target.value)} 
+                                                className={styles.settingsInput}
+                                                autoFocus
+                                            />
+                                            <button onClick={handlePasswordUpdate} className={styles.actionBtnPrimary}>Update</button>
+                                            <button onClick={() => setEditingField(null)} className={styles.actionBtnSecondary}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Security Credentials</span>
+                                                <span style={{ fontSize: '15px', color: '#64748b', letterSpacing: '2px' }}>••••••••••••</span>
+                                            </div>
+                                            <button onClick={() => { setEditingField('password'); setEditValue(''); }} className={styles.actionBtnSecondary}>Update Password</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'notifications' && (
+                        <div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Communications</h2>
+                                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Control the frequency and channels of alerts you receive.</p>
+                            </div>
+                            
+                            <div className={styles.settingsCard}>
+                                {[
+                                    { key: 'recommendations', label: 'Job Recommendations', desc: 'Receive AI-matched roles directly in your inbox' },
+                                    { key: 'updates', label: 'Application Updates', desc: 'Status updates on your active submissions' }
+                                ].map(item => (
+                                    <div key={item.key} className={styles.settingsRow}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b' }}>{item.label}</span>
+                                            <span style={{ fontSize: '13px', color: '#64748b' }}>{item.desc}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleToggleNotification(item.key, true)} 
+                                            className={styles.actionBtnSecondary}
+                                            style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderColor: '#bae6fd', fontWeight: 600 }}
+                                        >
+                                            Enabled
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'privacy' && (
+                        <div>
+                            <div style={{ marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1e293b', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Privacy settings</h2>
+                                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Manage your visibility and discoverability in search databases.</p>
+                            </div>
+                            
+                            <div className={styles.settingsCard}>
+                                <div className={styles.settingsRow}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <span style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b' }}>Recruiter Discoverability</span>
+                                        <span style={{ fontSize: '13px', color: '#64748b', maxWidth: '80%' }}>Allow verified companies to find your profile and download your resume.</span>
+                                    </div>
+                                    
+                                    {/* Custom Switch Toggle representation */}
+                                    <div 
+                                        onClick={handleTogglePrivacy}
+                                        style={{
+                                            width: '52px',
+                                            height: '28px',
+                                            borderRadius: '99px',
+                                            backgroundColor: form.candidateProfile.is_visible ? '#007BFF' : '#cbd5e1',
+                                            padding: '2px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: form.candidateProfile.is_visible ? 'flex-end' : 'flex-start',
+                                            transition: 'all 0.2s ease',
+                                            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '24px',
+                                            height: '24px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#ffffff',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                            transition: 'all 0.2s ease'
+                                        }} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
-            )}
-
-            <div className={styles.settingsGrid}>
-                {/* Profile Section */}
-                <AnimateOnScroll animation="fadeUp" delay={100}>
-                    <div className={styles.settingsCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardIconBox} style={{ background: '#eff6ff', color: '#3b82f6' }}>{IC.user}</div>
-                            <h2 className={styles.cardTitle}>Personal Information</h2>
-                        </div>
-                        <div className={styles.formStack}>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Full Name</label>
-                                <div className={styles.inputIconWrap}>
-                                    <span className={styles.inputIcon}>{IC.user}</span>
-                                    <input value={form.profile.name} onChange={e => setForm(p => ({ ...p, profile: { ...p.profile, name: e.target.value } }))} className={styles.premiumInput} placeholder="John Doe" />
-                                </div>
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Email Address</label>
-                                <div className={styles.inputIconWrap}>
-                                    <span className={styles.inputIcon}>{IC.mail}</span>
-                                    <input value={form.profile.email} readOnly className={`${styles.premiumInput} ${styles.inputReadOnly}`} />
-                                </div>
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Registration Platform</label>
-                                <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center' }}>
-                                    {provider === 'google' && (
-                                        <span style={{
-                                            background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                                            color: '#1e40af',
-                                            border: '1px solid #bfdbfe',
-                                            padding: '0.4rem 0.8rem',
-                                            borderRadius: '8px',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem'
-                                        }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/></svg>
-                                            Google Identity
-                                        </span>
-                                    )}
-                                    {provider === 'linkedin' && (
-                                        <span style={{
-                                            background: 'linear-gradient(135deg, #f0f7ff, #e0f2fe)',
-                                            color: '#0369a1',
-                                            border: '1px solid #bae6fd',
-                                            padding: '0.4rem 0.8rem',
-                                            borderRadius: '8px',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem'
-                                        }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                                            LinkedIn OAuth
-                                        </span>
-                                    )}
-                                    {provider !== 'google' && provider !== 'linkedin' && (
-                                        <span style={{
-                                            background: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)',
-                                            color: '#6b21a8',
-                                            border: '1px solid #e9d5ff',
-                                            padding: '0.4rem 0.8rem',
-                                            borderRadius: '8px',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem'
-                                        }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                                            Manual Email Login
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className={styles.formRow}>
-                                <div className={styles.inputGroup}>
-                                    <label className={styles.fieldLabel}>Phone</label>
-                                    <div className={styles.inputIconWrap}>
-                                        <span className={styles.inputIcon}>{IC.phone}</span>
-                                        <input value={form.profile.phone} onChange={e => setForm(p => ({ ...p, profile: { ...p.profile, phone: e.target.value } }))} className={styles.premiumInput} placeholder="+1 234 567 890" />
-                                    </div>
-                                </div>
-                                <div className={styles.inputGroup}>
-                                    <label className={styles.fieldLabel}>Location</label>
-                                    <div className={styles.inputIconWrap}>
-                                        <span className={styles.inputIcon}>{IC.globe}</span>
-                                        <input value={form.profile.location} onChange={e => setForm(p => ({ ...p, profile: { ...p.profile, location: e.target.value } }))} className={styles.premiumInput} placeholder="Bangalore, KA" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className={styles.cardFooter}>
-                            <button onClick={() => saveSettings('profile')} disabled={saving} className={styles.premiumBtn}>
-                                {saving ? <div className={styles.spinnerSmall}></div> : 'Save Profile Changes'}
-                            </button>
-                        </div>
-                    </div>
-                </AnimateOnScroll>
-
-                {/* Job Preferences Section */}
-                <AnimateOnScroll animation="fadeUp" delay={200}>
-                    <div className={styles.settingsCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.briefcase}</div>
-                            <h2 className={styles.cardTitle}>Job search preferences</h2>
-                        </div>
-                        <div className={styles.formStack}>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Desired Headline</label>
-                                <input value={form.candidateProfile.headline} onChange={e => setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, headline: e.target.value } }))} className={styles.premiumInput} placeholder="Senior Product Designer" />
-                            </div>
-                            <div className={styles.formRow}>
-                                <div className={styles.inputGroup}>
-                                    <label className={styles.fieldLabel}>Employment Type</label>
-                                    <CustomSelect 
-                                        value={form.candidateProfile.job_types?.[0] || ''} 
-                                        onChange={e => setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, job_types: [e.target.value] } }))} 
-                                        className={styles.premiumSelect}
-                                        options={['Full-time', 'Contract', 'Freelance', 'Internship']}
-                                    />
-                                </div>
-                                <div className={styles.inputGroup}>
-                                    <label className={styles.fieldLabel}>Expected Salary (Monthly)</label>
-                                    <input value={expectedSalary} onChange={e => setExpectedSalary(e.target.value)} className={styles.premiumInput} placeholder="e.g. 5000 - 8000" />
-                                </div>
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Preferred Locations (Comma separated)</label>
-                                <input value={preferredLocationsInput} onChange={e => {
-                                    setPreferredLocationsInput(e.target.value);
-                                    setForm(p => ({ ...p, candidateProfile: { ...p.candidateProfile, preferred_locations: e.target.value.split(',').map(s => s.trim()) } }));
-                                }} className={styles.premiumInput} placeholder="Remote, Mumbai, Delhi" />
-                            </div>
-                        </div>
-                        <div className={styles.cardFooter}>
-                            <button onClick={() => saveSettings('preferences')} disabled={saving} className={styles.premiumBtn} style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                                {saving ? <div className={styles.spinnerSmall}></div> : 'Update Preferences'}
-                            </button>
-                        </div>
-                    </div>
-                </AnimateOnScroll>
-
-                {/* Notifications Section */}
-                <AnimateOnScroll animation="fadeUp" delay={300}>
-                    <div className={styles.settingsCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.bell}</div>
-                            <h2 className={styles.cardTitle}>Notifications</h2>
-                        </div>
-                        <div className={styles.toggleStack}>
-                            {notifications.map((item, i) => (
-                                <div key={i} className={styles.toggleItem}>
-                                    <div className={styles.toggleText}>
-                                        <span className={styles.toggleLabel}>{item.label}</span>
-                                        <span className={styles.toggleDesc}>{item.desc}</span>
-                                    </div>
-                                    <button className={`${styles.switch} ${item.on ? styles.switchOn : ''}`} onClick={() => setNotifications(p => p.map((it, idx) => idx === i ? { ...it, on: !it.on } : it))}>
-                                        <div className={styles.switchHandle}></div>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </AnimateOnScroll>
-
-                {/* Privacy Section */}
-                <AnimateOnScroll animation="fadeUp" delay={400}>
-                    <div className={styles.settingsCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardIconBox} style={{ background: '#f5f3ff', color: '#8b5cf6' }}>{IC.shield}</div>
-                            <h2 className={styles.cardTitle}>Privacy & Visibility</h2>
-                        </div>
-                        <div className={styles.toggleStack}>
-                            {privacy.map((item, i) => (
-                                <div key={i} className={styles.toggleItem}>
-                                    <div className={styles.toggleText}>
-                                        <span className={styles.toggleLabel}>{item.label}</span>
-                                        <span className={styles.toggleDesc}>{item.desc}</span>
-                                    </div>
-                                    <button className={`${styles.switch} ${item.on ? styles.switchOn : ''}`} onClick={() => setPrivacy(p => p.map((it, idx) => idx === i ? { ...it, on: !it.on } : it))}>
-                                        <div className={styles.switchHandle}></div>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </AnimateOnScroll>
-
-                {/* Security Section */}
-                <AnimateOnScroll animation="fadeUp" delay={500}>
-                    <div className={styles.settingsCard}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardIconBox} style={{ background: '#ecfdf5', color: '#059669' }}>{IC.lock}</div>
-                            <h2 className={styles.cardTitle}>Security</h2>
-                        </div>
-                        <div className={styles.formStack}>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>New Password</label>
-                                <input type="password" placeholder="••••••••" value={security.newPassword} onChange={e => setSecurity(p => ({ ...p, newPassword: e.target.value }))} className={styles.premiumInput} />
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label className={styles.fieldLabel}>Confirm New Password</label>
-                                <input type="password" placeholder="••••••••" value={security.confirmPassword} onChange={e => setSecurity(p => ({ ...p, confirmPassword: e.target.value }))} className={styles.premiumInput} />
-                            </div>
-                        </div>
-                        <div className={styles.cardFooter}>
-                            <button className={styles.secondaryBtn} onClick={handleUpdatePassword} disabled={updatingPassword}>
-                                {updatingPassword ? <div className={styles.spinnerSmall}></div> : 'Update Securely'}
-                            </button>
-                        </div>
-                    </div>
-                </AnimateOnScroll>
-
-                {/* Danger Zone Section */}
-                <AnimateOnScroll animation="fadeUp" delay={600}>
-                    <div className={styles.settingsCard} style={{ border: '1px solid #fee2e2', background: '#fffafb' }}>
-                        <div className={styles.cardHeader}>
-                            <div className={styles.cardIconBox} style={{ background: '#fef2f2', color: '#ef4444' }}>{IC.trash}</div>
-                            <h2 className={styles.cardTitle} style={{ color: '#ef4444' }}>Danger Zone</h2>
-                        </div>
-                        <p className={styles.toggleDesc} style={{ marginBottom: '1rem' }}>Permanently remove your account and all associated data from TalentMesh. This action cannot be undone.</p>
-                        <button className={styles.dangerBtn}>
-                            {IC.trash} Delete My Account
-                        </button>
-                    </div>
-                </AnimateOnScroll>
             </div>
         </div>
     );

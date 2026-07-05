@@ -17,7 +17,7 @@ const insforge = createClient({
 });
 
 async function main() {
-  const email = "onboard_test_cand@example.com";
+  const email = "gaureepatel397@gmail.com";
   console.log("Checking user profile for:", email);
 
   const { data: profile, error } = await insforge.database
@@ -32,51 +32,9 @@ async function main() {
   }
 
   if (!profile) {
-    console.log("Profile does not exist. Creating fresh user...");
-    const { data: authData, error: authError } = await insforge.auth.signUp({
-      email,
-      password: 'StrongPassword123!',
-      name: 'Onboarding Test Candidate',
-    });
-
-    if (authError) {
-      console.error("Signup error:", authError);
-      return;
-    }
-
-    const userId = authData?.user?.id;
-    console.log("Created user with ID:", userId);
-
-    const { error: profileError } = await insforge.database
-      .from('profiles')
-      .upsert({
-        id: userId,
-        email,
-        name: 'Onboarding Test Candidate',
-        role: 'candidate',
-        completed_onboarding: false,
-      });
-
-    if (profileError) {
-      console.error("Profile upsert error:", profileError);
-    } else {
-      console.log("Upserted fresh candidate profile!");
-    }
+    console.log("Profile does not exist.");
   } else {
     console.log("Profile exists:", profile);
-    if (profile.completed_onboarding) {
-      console.log("User has completed onboarding. Resetting status to false...");
-      const { error: updateError } = await insforge.database
-        .from('profiles')
-        .update({ completed_onboarding: false })
-        .eq('id', profile.id);
-
-      if (updateError) {
-        console.error("Update error:", updateError);
-      } else {
-        console.log("Successfully reset completed_onboarding to false!");
-      }
-    }
   }
 }
 

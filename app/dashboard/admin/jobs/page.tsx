@@ -10,6 +10,9 @@ import { invokeFunction } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter } from 'next/navigation';
 import { CompanyRegisterForm } from '../_components/CompanyRegisterForm';
+import DataTable, { Column } from '@/components/dashboard/DataTable';
+import DetailDrawer from '@/components/dashboard/DetailDrawer';
+import StatusPill from '@/components/dashboard/StatusPill';
 
 
 type CompanyOption = {
@@ -168,6 +171,93 @@ export default function AdminJobsPage() {
     active: jobs.filter(j => j.status === 'active').length,
     pending: jobs.filter(j => !j.is_approved).length,
   }), [jobs, totalCount]);
+
+  const columns = useMemo<Column<AdminJob>[]>(() => [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={jobs.length > 0 && selectedIds.size === jobs.length}
+          onChange={() => {
+            if (selectedIds.size === jobs.length) {
+              setSelectedIds(new Set());
+            } else {
+              setSelectedIds(new Set(jobs.map(j => j.id)));
+            }
+          }}
+          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+        />
+      ),
+      key: 'selection',
+      width: '40px',
+      render: (job) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(job.id)}
+          onChange={() => {
+            setSelectedIds(prev => {
+              const next = new Set(prev);
+              if (next.has(job.id)) next.delete(job.id);
+              else next.add(job.id);
+              return next;
+            });
+          }}
+          onClick={(e) => e.stopPropagation()}
+          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+        />
+      ),
+      align: 'center'
+    },
+    {
+      header: 'Job Title',
+      key: 'title',
+      render: (job) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 600, color: 'var(--tm-text-primary)' }}>{job.title}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--tm-text-secondary)' }}>
+            {job.companies?.name || 'Unknown Company'} • {job.type}
+          </span>
+        </div>
+      )
+    },
+    {
+      header: 'Department',
+      key: 'department',
+      render: (job) => <span>{job.department || 'General'}</span>
+    },
+    {
+      header: 'Location',
+      key: 'location',
+      render: (job) => <span>{job.location}</span>
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      render: (job) => <StatusPill status={job.status as any} />
+    },
+    {
+      header: 'Approved',
+      key: 'is_approved',
+      render: (job) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: job.is_approved ? '#10b981' : '#f59e0b'
+          }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--tm-text-secondary)' }}>
+            {job.is_approved ? 'Approved' : 'Pending'}
+          </span>
+        </span>
+      )
+    },
+    {
+      header: 'Date Posted',
+      key: 'created_at',
+      render: (job) => <span>{job.created_at ? new Date(job.created_at).toLocaleDateString('en-IN') : '—'}</span>
+    }
+  ], [jobs, selectedIds]);
 
   const fetchJobs = useCallback(async (p = page, s = filterStatus, q = search) => {
     setLoading(true);
@@ -441,48 +531,33 @@ export default function AdminJobsPage() {
             <AdminButton onClick={() => fetchJobs(0)}>Apply</AdminButton>
           </div>
 
-          <div className={styles.listBody}>
-            {(authLoading || loading) ? <div className={styles.emptyState}>Loading jobs...</div> :
-              jobs.length === 0 ? <div className={styles.emptyState}>No jobs found.</div> : (
-                jobs.map(job => (
-                  <article key={job.id}
-                    className={`${styles.jobCard} ${previewJob?.id === job.id ? styles.cardActive : ''}`}
-                    onClick={() => setPreviewJob(job)}
-                  >
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div
-                        onClick={(e) => toggleSelect(job.id, e)}
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '6px',
-                          border: '2px solid #cbd5e1',
-                          backgroundColor: selectedIds.has(job.id) ? '#2563eb' : 'transparent',
-                          borderColor: selectedIds.has(job.id) ? '#2563eb' : '#cbd5e1',
-                          display: 'grid',
-                          placeItems: 'center',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {selectedIds.has(job.id) && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><polyline points="20 6 9 17 4 12" /></svg>}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div className={styles.jobCardHeader}>
-                          <h2 className={styles.jobTitle}>{job.title}</h2>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            {!job.is_approved && <span className={styles.statusBadge} style={{ background: '#fef3c7', color: '#92400e' }}>Pending</span>}
-                            <span className={`${styles.statusBadge} ${styles[`status_${job.status}`]}`}>
-                              {job.status}
-                            </span>
-                          </div>
-                        </div>
-                        <p className={styles.jobMeta}>{(job as any).companies?.name} • {job.location} • {job.type}</p>
-                      </div>
-                    </div>
-                  </article>
-                ))
-              )}
+          <div className={styles.listBody} style={{ padding: 0, border: 'none', background: 'transparent' }}>
+            <DataTable
+              columns={columns}
+              data={jobs}
+              loading={authLoading || loading}
+              onRowClick={(row) => setPreviewJob(row)}
+              emptyState={
+                <div className={styles.emptyState}>No jobs found matching the criteria.</div>
+              }
+            />
           </div>
+
+          {totalPages > 1 && (
+            <div className={styles.pagination}>
+              <button disabled={page === 0} onClick={() => { setPage(page - 1); fetchJobs(page - 1); }} className={styles.pageButton}>Prev</button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  className={`${styles.pageButton} ${page === i ? styles.pageActive : ''}`}
+                  onClick={() => { setPage(i); fetchJobs(i); }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button disabled={page === totalPages - 1} onClick={() => { setPage(page + 1); fetchJobs(page + 1); }} className={styles.pageButton}>Next</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -682,29 +757,40 @@ export default function AdminJobsPage() {
         </div>
       )}
 
-      {previewJob && (
-        <div className={styles.drawerOverlay} onClick={() => setPreviewJob(null)}>
-          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-            <div className={styles.drawerHeader}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Job Details</h2>
-              <button className={styles.drawerClose} onClick={() => setPreviewJob(null)}>×</button>
+      <DetailDrawer
+        isOpen={!!previewJob}
+        onClose={() => setPreviewJob(null)}
+        title="Job Details"
+      >
+        {previewJob && (
+          <div className={styles.drawerContent} style={{ padding: 0 }}>
+            <JobCard job={previewJob} showActions={false} />
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              {!previewJob.is_approved && (
+                <AdminButton style={{ flex: 1, background: '#10b981' }} onClick={() => handleApprove(previewJob.id)}>Approve & Go Live</AdminButton>
+              )}
+              <AdminButton style={{ flex: 1 }} onClick={() => handleEdit(previewJob)}>Edit Job</AdminButton>
+              <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Delete</AdminButton>
             </div>
-            <div className={styles.drawerContent}>
-              <JobCard job={previewJob} showActions={false} />
-              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                {!previewJob.is_approved && (
-                  <AdminButton style={{ flex: 1, background: '#10b981' }} onClick={() => handleApprove(previewJob.id)}>Approve & Go Live</AdminButton>
-                )}
-                <AdminButton style={{ flex: 1 }} onClick={() => handleEdit(previewJob)}>Edit Job</AdminButton>
-                <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Delete</AdminButton>
-              </div>
-              <div style={{ marginTop: '32px' }}>
-                <h3 style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Full Description</h3>
-                <div style={{ fontSize: '0.95rem', lineHeight: '1.8', color: '#334155', whiteSpace: 'pre-wrap' }}>
-                  {previewJob.description}
-                </div>
+            <div style={{ marginTop: '32px' }}>
+              <h3 style={{ fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Full Description</h3>
+              <div style={{ fontSize: '0.95rem', lineHeight: '1.8', color: '#334155', whiteSpace: 'pre-wrap' }}>
+                {previewJob.description}
               </div>
             </div>
+          </div>
+        )}
+      </DetailDrawer>
+
+      {/* Floating Bulk Action Selection Bar */}
+      {selectedIds.size > 0 && (
+        <div className={styles.bulkBar}>
+          <span className={styles.bulkInfo}>{selectedIds.size} jobs selected</span>
+          <div className={styles.bulkButtons}>
+            <AdminButton onClick={() => handleBulkAction('approve')}>Approve</AdminButton>
+            <AdminButton onClick={() => handleBulkAction('reject')}>Reject</AdminButton>
+            <AdminButton variant="danger" onClick={() => handleBulkAction('delete')}>Delete</AdminButton>
+            <AdminButton variant="secondary" onClick={() => { setSelectedIds(new Set()); }}>Clear</AdminButton>
           </div>
         </div>
       )}

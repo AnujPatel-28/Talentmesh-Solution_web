@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getServerUser } from '@/lib/server-auth';
-import DashboardLayoutClient from './DashboardLayoutClient';
+import LayoutSwitcher from './LayoutSwitcher';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
@@ -52,5 +52,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect(`/login?rd=${depth + 1}`);
   }
 
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  return <LayoutSwitcher>{children}</LayoutSwitcher>;
 }

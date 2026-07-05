@@ -72,7 +72,10 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const host = headersList.get("host") || "";
+  const pathname = headersList.get("x-pathname") || "";
   const isPortal = host.startsWith("jobs.") || host.startsWith("app.") || host.startsWith("admin.");
+  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup") || pathname.startsWith("/auth");
+  const skipHeaderFooter = isPortal || isAuthRoute;
 
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
@@ -83,7 +86,7 @@ export default async function RootLayout({
         <AuthProvider>
           <QueryProvider>
             <ScrollToTop />
-            {!isPortal ? (
+            {!skipHeaderFooter ? (
               <div className={layoutStyles.rootFlexContainer}>
                 <NavbarWrapper>
                   <Navbar />

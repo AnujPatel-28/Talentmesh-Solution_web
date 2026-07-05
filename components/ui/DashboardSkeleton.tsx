@@ -111,3 +111,112 @@ export function FormSkeleton() {
         </div>
     );
 }
+
+export function CandidateDashboardSkeleton({ label = 'Loading jobs...' }: { label?: string }) {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f8fafc', width: '100%', fontFamily: 'sans-serif' }}>
+            <style>{`
+                @keyframes skeleton-pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: .4; }
+                }
+                .sk-pulse {
+                    animation: skeleton-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                    background-color: #e2e8f0;
+                }
+            `}</style>
+
+            {/* 3-Column Content Body */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100%' }}>
+                
+                {/* Column 1: Left Profile Sidebar (250px) */}
+                <div style={{ width: 250, borderRight: '1px solid #e2e8f0', background: '#f8fafc', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box', flexShrink: 0 }}>
+                    <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                        <div className="sk-pulse" style={{ width: 64, height: 64, borderRadius: '50%' }} />
+                        <div className="sk-pulse" style={{ width: 100, height: 16, borderRadius: 4 }} />
+                        <div className="sk-pulse" style={{ width: 140, height: 12, borderRadius: 4 }} />
+                        <div className="sk-pulse" style={{ width: 80, height: 12, borderRadius: 4 }} />
+                        <div style={{ width: '100%', borderTop: '1px solid #e2e8f0', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <div className="sk-pulse" style={{ width: 50, height: 10, borderRadius: 3 }} />
+                                <div className="sk-pulse" style={{ width: 24, height: 10, borderRadius: 3 }} />
+                            </div>
+                            <div className="sk-pulse" style={{ width: '100%', height: 4, borderRadius: 9999 }} />
+                        </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="sk-pulse" style={{ width: '100%', height: 38, borderRadius: 8 }} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Column 2: Center Column welcome + list (440px) */}
+                <div style={{ width: 440, borderRight: '1px solid #e2e8f0', background: '#ffffff', padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box', flexShrink: 0 }}>
+                    {/* Search bar placeholder */}
+                    <div className="sk-pulse" style={{ width: '100%', height: 48, borderRadius: 9999 }} />
+                    
+                    {/* Welcome message placeholder */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                        <div className="sk-pulse" style={{ width: 140, height: 18, borderRadius: 4 }} />
+                        <div className="sk-pulse" style={{ width: 220, height: 13, borderRadius: 4 }} />
+                    </div>
+
+                    {/* Status indicator */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '4px 0' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#007BFF' }} className="sk-pulse" />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>{label}</span>
+                    </div>
+
+                    {/* Job Cards Placeholders */}
+                    {[1, 2, 3].map(i => (
+                        <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div className="sk-pulse" style={{ width: 70, height: 18, borderRadius: 4 }} />
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                    <div className="sk-pulse" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                                    <div className="sk-pulse" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                                </div>
+                            </div>
+                            <div className="sk-pulse" style={{ width: '80%', height: 16, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '50%', height: 12, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '60%', height: 12, borderRadius: 4 }} />
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <div className="sk-pulse" style={{ width: 60, height: 18, borderRadius: 4 }} />
+                                <div className="sk-pulse" style={{ width: 80, height: 18, borderRadius: 4 }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Column 3: Right Column details panel (flex 1) */}
+                <div style={{ flex: 1, background: '#ffffff', padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: 680 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div className="sk-pulse" style={{ width: '70%', height: 26, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '40%', height: 16, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '30%', height: 14, borderRadius: 4 }} />
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                <div className="sk-pulse" style={{ width: 200, height: 44, borderRadius: 8 }} />
+                                <div className="sk-pulse" style={{ width: 44, height: 44, borderRadius: 8 }} />
+                                <div className="sk-pulse" style={{ width: 44, height: 44, borderRadius: 8 }} />
+                                <div className="sk-pulse" style={{ width: 44, height: 44, borderRadius: 8 }} />
+                            </div>
+                        </div>
+                        <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: 0 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div className="sk-pulse" style={{ width: 140, height: 18, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '100%', height: 14, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '95%', height: 14, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '90%', height: 14, borderRadius: 4 }} />
+                            <div className="sk-pulse" style={{ width: '40%', height: 14, borderRadius: 4 }} />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+}
+

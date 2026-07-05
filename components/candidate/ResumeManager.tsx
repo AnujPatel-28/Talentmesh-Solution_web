@@ -236,9 +236,16 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
     const setPrimaryResume = async (resumeId: string) => {
         if (!activeCandidateId) return;
         try {
+            // Find the file_url of the selected resume so we can sync resume_url too
+            const selectedResume = resumes.find(r => r.id === resumeId);
+            const updatePayload: Record<string, any> = { primary_resume_id: resumeId };
+            if (selectedResume?.file_url) {
+                updatePayload.resume_url = selectedResume.file_url;
+            }
+
             const { error } = await insforge.database
                 .from('candidate_profiles')
-                .update({ primary_resume_id: resumeId })
+                .update(updatePayload)
                 .eq('id', activeCandidateId);
             
             if (error) throw error;
@@ -265,6 +272,14 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             });
 
             if (error) throw error;
+
+            // Also sync resume_url and primary_resume_id so profile page shows the right resume
+            await insforge.database
+                .from('candidate_profiles')
+                .update({ resume_url: resume.file_url, primary_resume_id: resume.id })
+                .eq('id', activeCandidateId);
+
+            setPrimaryResumeId(resume.id);
         } catch (err: any) {
             setResumes(oldResumes);
             setToast({ message: 'Failed to set default: ' + err.message, type: 'error' });

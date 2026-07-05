@@ -8,5 +8,5 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return <ErrorView error={error} reset={reset} title="[Role_id]" />;
+  return <ErrorView error={error} reset={reset} title="Something went wrong" />;
 }

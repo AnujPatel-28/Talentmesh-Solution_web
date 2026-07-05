@@ -19,6 +19,7 @@ const IC = {
 
 export default function RecruiterSettingsPage() {
     const { user, refreshUser } = useAuth();
+    const [activeTab, setActiveTab] = useState<'profile' | 'company' | 'hiring' | 'templates' | 'billing' | 'team'>('profile');
     const [profile, setProfile] = useState({
         name: '',
         email: '',
@@ -223,266 +224,357 @@ export default function RecruiterSettingsPage() {
                 </button>
             </div>
 
-            <div className={styles.settingsGrid}>
-                {/* Personal Profile Section */}
-                <div className={styles.settingsCard}>
-                    <div className={styles.cardHeader}>
-                        <div className={styles.cardIcon}>{IC.user}</div>
-                        <h3 className={styles.cardTitle}>Recruiter Profile</h3>
-                    </div>
-
-                    <div className={styles.avatarSection}>
-                        <div 
-                            className={styles.avatarLarge}
-                            onClick={() => avatarInputRef.current?.click()}
-                        >
-                            {profile.avatar_url ? (
-                                <img src={getPublicStorageUrl('avatars', profile.avatar_url)} alt={profile.name} />
-                            ) : (
-                                profile.name?.charAt(0) || 'R'
-                            )}
-                            <div className={styles.avatarOverlay}>{IC.camera}</div>
-                            <input 
-                                type="file" 
-                                ref={avatarInputRef} 
-                                style={{ display: 'none' }} 
-                                accept="image/*"
-                                onChange={(e) => handleFileUpload(e, 'avatar')}
-                            />
-                        </div>
-                        <div className={styles.avatarMeta}>
-                            <span className={styles.avatarLabel}>Profile Photo</span>
-                            <span className={styles.avatarHint}>Click to update. PNG or JPG, max 2MB.</span>
-                        </div>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <div className={styles.field}>
-                            <label>Full Name</label>
-                            <input 
-                                value={profile.name} 
-                                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                                placeholder="Enter your full name"
-                            />
-                        </div>
-                        <div className={styles.field}>
-                            <label>Job Title</label>
-                            <div className={styles.inputWithIcon}>
-                                <span className={styles.inputIcon}>{IC.briefcase}</span>
-                                <input 
-                                    value={profile.job_title} 
-                                    onChange={(e) => setProfile({ ...profile, job_title: e.target.value })}
-                                    placeholder="e.g. Senior Technical Recruiter"
-                                />
-                            </div>
-                        </div>
-                        <div className={styles.field}>
-                            <label>Contact Phone</label>
-                            <input 
-                                value={profile.phone} 
-                                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                                placeholder="+1 (555) 000-0000"
-                            />
-                        </div>
-                        <div className={styles.field}>
-                            <label>Email Address</label>
-                            <input value={profile.email} disabled className={styles.inputDisabled} />
-                            <span className={styles.fieldHint}>Email cannot be changed here.</span>
-                        </div>
-                        <div className={styles.field}>
-                            <label>Role / Permissions</label>
-                            <div style={{ marginTop: '0.35rem' }}>
-                                <span style={{
-                                    background: '#f1f5f9',
-                                    color: '#475569',
-                                    border: '1px solid #cbd5e1',
-                                    padding: '0.4rem 0.8rem',
-                                    borderRadius: '8px',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 600,
-                                    display: 'inline-flex',
+            <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '2rem', marginTop: '1.5rem' }}>
+                {/* Left Sidebar Menu */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', background: '#fafbfc', padding: '1rem', borderRadius: '12px', border: '1px solid var(--color-border)', height: 'fit-content' }}>
+                    {[
+                        { id: 'profile', label: 'Recruiter Profile', icon: IC.user },
+                        { id: 'company', label: 'Company Profile', icon: IC.building },
+                        { id: 'hiring', label: 'Hiring & Pipeline', icon: IC.briefcase },
+                        { id: 'templates', label: 'Job Templates', icon: IC.briefcase },
+                        { id: 'billing', label: 'Billing & Subscriptions', icon: IC.globe },
+                    ].map(tab => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                style={{
+                                    display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.4rem',
-                                    textTransform: 'capitalize'
-                                }}>
-                                    👤 {recruiterRole}
-                                </span>
-                            </div>
-                        </div>
-                        <div className={styles.field}>
-                            <label>Registration Platform</label>
-                            <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center' }}>
-                                {provider === 'google' && (
-                                    <span style={{
-                                        background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-                                        color: '#1e40af',
-                                        border: '1px solid #bfdbfe',
-                                        padding: '0.4rem 0.8rem',
-                                        borderRadius: '8px',
-                                        fontSize: '0.85rem',
-                                        fontWeight: 600,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.4rem'
-                                    }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/></svg>
-                                        Google Identity
-                                    </span>
-                                )}
-                                {provider === 'linkedin' && (
-                                    <span style={{
-                                        background: 'linear-gradient(135deg, #f0f7ff, #e0f2fe)',
-                                        color: '#0369a1',
-                                        border: '1px solid #bae6fd',
-                                        padding: '0.4rem 0.8rem',
-                                        borderRadius: '8px',
-                                        fontSize: '0.85rem',
-                                        fontWeight: 600,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.4rem'
-                                    }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                                        LinkedIn OAuth
-                                    </span>
-                                )}
-                                {provider !== 'google' && provider !== 'linkedin' && (
-                                    <span style={{
-                                        background: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)',
-                                        color: '#6b21a8',
-                                        border: '1px solid #e9d5ff',
-                                        padding: '0.4rem 0.8rem',
-                                        borderRadius: '8px',
-                                        fontSize: '0.85rem',
-                                        fontWeight: 600,
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.4rem'
-                                    }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                                        Manual Email Login
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                                    gap: '0.75rem',
+                                    padding: '0.75rem 1rem',
+                                    background: isActive ? 'var(--sidebar-active)' : 'transparent',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                    fontWeight: isActive ? 700 : 500,
+                                    fontSize: '0.88rem',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'all 0.16s'
+                                }}
+                            >
+                                <span style={{ display: 'inline-flex', color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>{tab.icon}</span>
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* Company Information Section */}
-                <div className={styles.settingsCard}>
-                    <div className={styles.cardHeader}>
-                        <div className={styles.cardIcon}>{IC.building}</div>
-                        <h3 className={styles.cardTitle}>Company Information</h3>
-                    </div>
-
-                    <div className={styles.logoSection}>
-                        <div 
-                            className={styles.logoBox}
-                            onClick={() => logoInputRef.current?.click()}
-                        >
-                            {profile.logo_url ? (
-                                <img src={getPublicStorageUrl('company-logos', profile.logo_url)} alt={profile.company_name} />
-                            ) : (
-                                IC.building
-                            )}
-                            <div className={styles.logoOverlay}>{IC.camera}</div>
-                            <input 
-                                type="file" 
-                                ref={logoInputRef} 
-                                style={{ display: 'none' }} 
-                                accept="image/*"
-                                onChange={(e) => handleFileUpload(e, 'logo')}
-                            />
-                        </div>
-                        <div className={styles.logoMeta}>
-                            <span className={styles.avatarLabel}>Company Logo</span>
-                            <span className={styles.avatarHint}>Visible on your job postings.</span>
-                        </div>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                        <div className={styles.field}>
-                            <label>Company Name</label>
-                            <input 
-                                value={profile.company_name} 
-                                onChange={(e) => setProfile({ ...profile, company_name: e.target.value })}
-                                placeholder="e.g. Acme Corp"
-                            />
-                        </div>
-                        <div className={styles.field}>
-                            <label>Industry</label>
-                            <CustomSelect 
-                                value={profile.industry} 
-                                onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
-                                className={styles.select}
-                                options={['Technology', 'Finance', 'Healthcare', 'Education', 'Manufacturing', 'Retail']}
-                            />
-                        </div>
-                        <div className={styles.field}>
-                            <label>Company Website</label>
-                            <div className={styles.inputWithIcon}>
-                                <span className={styles.inputIcon}>{IC.globe}</span>
-                                <input 
-                                    value={profile.website} 
-                                    onChange={(e) => setProfile({ ...profile, website: e.target.value })}
-                                    placeholder="https://example.com"
-                                />
+                {/* Right Tab Content */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    {activeTab === 'profile' && (
+                        <div className={styles.settingsCard}>
+                            <div className={styles.cardHeader}>
+                                <div className={styles.cardIcon}>{IC.user}</div>
+                                <h3 className={styles.cardTitle}>Recruiter Profile</h3>
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                {/* Billing & Subscription Section */}
-                <div className={styles.settingsCard}>
-                    <div className={styles.cardHeader}>
-                        <div className={styles.cardIcon}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                                <rect width="20" height="14" x="2" y="5" rx="2" />
-                                <line x1="2" x2="22" y1="10" y2="10" />
-                            </svg>
-                        </div>
-                        <h3 className={styles.cardTitle}>Billing & Subscription</h3>
-                    </div>
-
-                    {recruiterRole === 'admin' ? (
-                        <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
-                            <div className={styles.field}>
-                                <label>Subscription Plan</label>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 600, color: '#0f172a' }}>Enterprise Plan</div>
-                                        <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Renews on July 15, 2026</div>
-                                    </div>
-                                    <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 600 }}>Active</span>
+                            <div className={styles.avatarSection}>
+                                <div 
+                                    className={styles.avatarLarge}
+                                    onClick={() => avatarInputRef.current?.click()}
+                                >
+                                    {profile.avatar_url ? (
+                                        <img src={getPublicStorageUrl('avatars', profile.avatar_url)} alt={profile.name} />
+                                    ) : (
+                                        profile.name?.charAt(0) || 'R'
+                                    )}
+                                    <div className={styles.avatarOverlay}>{IC.camera}</div>
+                                    <input 
+                                        type="file" 
+                                        ref={avatarInputRef} 
+                                        style={{ display: 'none' }} 
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, 'avatar')}
+                                    />
+                                </div>
+                                <div className={styles.avatarMeta}>
+                                    <span className={styles.avatarLabel}>Profile Photo</span>
+                                    <span className={styles.avatarHint}>Click to update. PNG or JPG, max 2MB.</span>
                                 </div>
                             </div>
-                            <div className={styles.field} style={{ marginTop: '1rem' }}>
-                                <label>Billing Email</label>
-                                <input placeholder="billing@company.com" defaultValue="billing@company.com" />
+
+                            <div className={styles.formGroup}>
+                                <div className={styles.field}>
+                                    <label>Full Name</label>
+                                    <input 
+                                        value={profile.name} 
+                                        onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                                        placeholder="Enter your full name"
+                                    />
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Job Title</label>
+                                    <div className={styles.inputWithIcon}>
+                                        <span className={styles.inputIcon}>{IC.briefcase}</span>
+                                        <input 
+                                            value={profile.job_title} 
+                                            onChange={(e) => setProfile({ ...profile, job_title: e.target.value })}
+                                            placeholder="e.g. Senior Technical Recruiter"
+                                        />
+                                    </div>
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Contact Phone</label>
+                                    <input 
+                                        value={profile.phone} 
+                                        onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                                        placeholder="+1 (555) 000-0000"
+                                    />
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Email Address</label>
+                                    <input value={profile.email} disabled className={styles.inputDisabled} />
+                                    <span className={styles.fieldHint}>Email cannot be changed here.</span>
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Role / Permissions</label>
+                                    <div style={{ marginTop: '0.35rem' }}>
+                                        <span style={{
+                                            background: '#f1f5f9',
+                                            color: '#475569',
+                                            border: '1px solid #cbd5e1',
+                                            padding: '0.4rem 0.8rem',
+                                            borderRadius: '8px',
+                                            fontSize: '0.85rem',
+                                            fontWeight: 600,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                            textTransform: 'capitalize'
+                                        }}>
+                                            👤 {recruiterRole}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Registration Platform</label>
+                                    <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center' }}>
+                                        {provider === 'google' && (
+                                            <span style={{
+                                                background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+                                                color: '#1e40af',
+                                                border: '1px solid #bfdbfe',
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '8px',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/></svg>
+                                                Google Identity
+                                            </span>
+                                        )}
+                                        {provider === 'linkedin' && (
+                                            <span style={{
+                                                background: 'linear-gradient(135deg, #f0f7ff, #e0f2fe)',
+                                                color: '#0369a1',
+                                                border: '1px solid #bae6fd',
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '8px',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                                                LinkedIn OAuth
+                                            </span>
+                                        )}
+                                        {provider !== 'google' && provider !== 'linkedin' && (
+                                            <span style={{
+                                                background: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)',
+                                                color: '#6b21a8',
+                                                border: '1px solid #e9d5ff',
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '8px',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                                Manual Email Login
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    ) : (
-                        <div style={{ 
-                            marginTop: '1.5rem', 
-                            padding: '1rem', 
-                            backgroundColor: '#fef2f2', 
-                            border: '1px solid #fecaca', 
-                            borderRadius: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.5rem',
-                            color: '#991b1b'
-                        }}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                                </svg>
-                                Access Restricted
+                    )}
+
+                    {activeTab === 'company' && (
+                        <div className={styles.settingsCard}>
+                            <div className={styles.cardHeader}>
+                                <div className={styles.cardIcon}>{IC.building}</div>
+                                <h3 className={styles.cardTitle}>Company Information</h3>
                             </div>
-                            <p style={{ fontSize: '0.85rem', margin: 0, color: '#7f1d1d', lineHeight: '1.4' }}>
-                                Billing and subscription configurations are restricted. You are currently logged in as a <strong>{recruiterRole}</strong>. Only Company Admins can manage billing settings.
-                            </p>
+
+                            <div className={styles.logoSection}>
+                                <div 
+                                    className={styles.logoBox}
+                                    onClick={() => logoInputRef.current?.click()}
+                                >
+                                    {profile.logo_url ? (
+                                        <img src={getPublicStorageUrl('company-logos', profile.logo_url)} alt={profile.company_name} />
+                                    ) : (
+                                        IC.building
+                                    )}
+                                    <div className={styles.logoOverlay}>{IC.camera}</div>
+                                    <input 
+                                        type="file" 
+                                        ref={logoInputRef} 
+                                        style={{ display: 'none' }} 
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, 'logo')}
+                                    />
+                                </div>
+                                <div className={styles.logoMeta}>
+                                    <span className={styles.avatarLabel}>Company Logo</span>
+                                    <span className={styles.avatarHint}>Visible on your job postings.</span>
+                                </div>
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <div className={styles.field}>
+                                    <label>Company Name</label>
+                                    <input 
+                                        value={profile.company_name} 
+                                        onChange={(e) => setProfile({ ...profile, company_name: e.target.value })}
+                                        placeholder="e.g. Acme Corp"
+                                    />
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Industry</label>
+                                    <CustomSelect 
+                                        value={profile.industry} 
+                                        onChange={(e) => setProfile({ ...profile, industry: e.target.value })}
+                                        className={styles.select}
+                                        options={['Technology', 'Finance', 'Healthcare', 'Education', 'Manufacturing', 'Retail']}
+                                    />
+                                </div>
+                                <div className={styles.field}>
+                                    <label>Company Website</label>
+                                    <div className={styles.inputWithIcon}>
+                                        <span className={styles.inputIcon}>{IC.globe}</span>
+                                        <input 
+                                            value={profile.website} 
+                                            onChange={(e) => setProfile({ ...profile, website: e.target.value })}
+                                            placeholder="https://example.com"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'hiring' && (
+                        <div className={styles.settingsCard}>
+                            <div className={styles.cardHeader}>
+                                <div className={styles.cardIcon}>{IC.briefcase}</div>
+                                <h3 className={styles.cardTitle}>Hiring & Pipeline Preferences</h3>
+                            </div>
+                            <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+                                <div className={styles.field}>
+                                    <label>Default Interview Stages Sequence</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '0.5rem' }}>
+                                        {['Screening', 'Technical Round', 'System Design', 'Culture Fit', 'Offer Stage'].map((stage, idx) => (
+                                            <span key={stage} style={{ background: 'var(--color-bg-page)', border: '1px solid var(--color-border)', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
+                                                {idx + 1}. {stage}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className={styles.field} style={{ marginTop: '1rem' }}>
+                                    <label>Scorecard Grading Type</label>
+                                    <CustomSelect 
+                                        value="Overall Match (1-5 Stars)"
+                                        onChange={() => {}}
+                                        className={styles.select}
+                                        options={['Overall Match (1-5 Stars)', 'Pass/Fail', 'Detailed Category Rubric']}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'templates' && (
+                        <div className={styles.settingsCard}>
+                            <div className={styles.cardHeader}>
+                                <div className={styles.cardIcon}>{IC.briefcase}</div>
+                                <h3 className={styles.cardTitle}>Recruiter Templates</h3>
+                            </div>
+                            <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+                                <div className={styles.field}>
+                                    <label>Default Email Template</label>
+                                    <textarea 
+                                        style={{ width: '100%', minHeight: '120px', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-border)', fontFamily: 'inherit', fontSize: '0.85rem' }}
+                                        defaultValue={`Hi {{candidate_name}},\n\nThank you for applying to the {{job_title}} role at {{company_name}}. We reviewed your application and would love to schedule a brief call.`}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'billing' && (
+                        <div className={styles.settingsCard}>
+                            <div className={styles.cardHeader}>
+                                <div className={styles.cardIcon}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                        <rect width="20" height="14" x="2" y="5" rx="2" />
+                                        <line x1="2" x2="22" y1="10" y2="10" />
+                                    </svg>
+                                </div>
+                                <h3 className={styles.cardTitle}>Billing & Subscription</h3>
+                            </div>
+
+                            {recruiterRole === 'admin' ? (
+                                <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+                                    <div className={styles.field}>
+                                        <label>Subscription Plan</label>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: '#0f172a' }}>Enterprise Plan</div>
+                                                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Renews on July 15, 2026</div>
+                                            </div>
+                                            <span style={{ background: '#dcfce7', color: '#15803d', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 600 }}>Active</span>
+                                        </div>
+                                    </div>
+                                    <div className={styles.field} style={{ marginTop: '1rem' }}>
+                                        <label>Billing Email</label>
+                                        <input placeholder="billing@company.com" defaultValue="billing@company.com" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ 
+                                    marginTop: '1.5rem', 
+                                    padding: '1rem', 
+                                    backgroundColor: '#fef2f2', 
+                                    border: '1px solid #fecaca', 
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.5rem',
+                                    color: '#991b1b'
+                                }}>
+                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                        Access Restricted
+                                    </div>
+                                    <p style={{ fontSize: '0.85rem', margin: 0, color: '#7f1d1d', lineHeight: '1.4' }}>
+                                        Billing and subscription configurations are restricted. You are currently logged in as a <strong>{recruiterRole}</strong>. Only Company Admins can manage billing settings.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
