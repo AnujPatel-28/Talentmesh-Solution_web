@@ -60,7 +60,7 @@ export default function CompanyReviewsPage() {
                     .select('id, name, logo_url, industry, size');
                 
                 if (dbData && dbData.length > 0) {
-                    dbCompanies = dbData.map(c => {
+                    dbCompanies = dbData.map((c: any) => {
                         // Get initials for logo
                         const initials = c.name ? c.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : 'C';
                         return {
