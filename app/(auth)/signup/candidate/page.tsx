@@ -104,10 +104,18 @@ export default function CandidateSignupPage() {
     const handleSocialSignup = async (provider: 'google' | 'linkedin') => {
         try {
             setError('');
+            setIsLoading(true);
+
+            // Generate random state parameter to prevent login CSRF
+            const randomState = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            if (typeof window !== 'undefined') {
+                window.sessionStorage.setItem(`oauth_state_${provider}`, randomState);
+            }
+
             const siteUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
             const { data, error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
-                redirectTo: `${siteUrl}/auth/callback?role=candidate`,
+                redirectTo: `${siteUrl}/auth/callback?role=candidate&state=${encodeURIComponent(randomState)}`,
                 skipBrowserRedirect: true,
                 ...(provider === 'google' ? { additionalParams: { prompt: 'select_account' } } : {}),
             });
@@ -119,9 +127,12 @@ export default function CandidateSignupPage() {
             if (authError) throw authError;
             if (data?.url) {
                 window.location.href = data.url;
+            } else {
+                setIsLoading(false);
             }
         } catch (err: any) {
             setError(`Failed to initiate ${provider} signup. Please try again.`);
+            setIsLoading(false);
         }
     };
 
@@ -169,7 +180,7 @@ export default function CandidateSignupPage() {
                 </div>
 
                 <div className={styles.socialAuth} style={{ gridTemplateColumns: '1fr 1fr' }}>
-                    <button onClick={() => handleSocialSignup('google')} className={styles.socialBtn}>
+                    <button onClick={() => handleSocialSignup('google')} className={styles.socialBtn} disabled={isLoading}>
                         <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -178,7 +189,7 @@ export default function CandidateSignupPage() {
                         </svg>
                         <span>Google</span>
                     </button>
-                    <button onClick={() => handleSocialSignup('linkedin')} className={styles.socialBtn}>
+                    <button onClick={() => handleSocialSignup('linkedin')} className={styles.socialBtn} disabled={isLoading}>
                         <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#0077b5">
                             <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
                         </svg>

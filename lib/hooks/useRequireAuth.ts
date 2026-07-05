@@ -10,7 +10,8 @@ export const useRequireAuth = () => {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push('/login');
+      const returnTo = typeof window !== 'undefined' ? encodeURIComponent(window.location.pathname + window.location.search) : '';
+      router.push(`/login${returnTo ? `?returnTo=${returnTo}` : ''}`);
     }
   }, [user, isLoading, router]);
 

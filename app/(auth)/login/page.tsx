@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 import styles from './login.module.css';
 import { LoadingScreen } from '@/components/ui';
+import { CandidateTopNavSkeleton, OpsSidebarSkeleton } from '@/components/ui/RedirectSkeletons';
+
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Dashboard-shaped skeleton — shown during sign-in redirect for all roles.
@@ -122,47 +124,7 @@ function DashboardRedirectSkeleton({ label = 'Signing you in…' }: { label?: st
     );
 }
 
-function TechStackParticles() {
-    const techs = ["React", "Rust", "Go", "Next.js", "TypeScript", "AWS", "Python", "Kubernetes", "Docker", "Node.js", "GraphQL", "PostgreSQL"];
-    return (
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: 0.12 }}>
-            {techs.map((tech, i) => {
-                const top = `${10 + (i * 7.5) % 80}%`;
-                const left = `${5 + (i * 12) % 90}%`;
-                const delay = i * 1.5;
-                const duration = 20 + (i * 5) % 15;
-                return (
-                    <motion.div
-                        key={i}
-                        style={{
-                            position: 'absolute',
-                            top,
-                            left,
-                            fontSize: '0.85rem',
-                            fontWeight: 800,
-                            color: 'var(--primary-blue)',
-                            letterSpacing: '0.05em',
-                            whiteSpace: 'nowrap',
-                        }}
-                        animate={{
-                            y: [0, -40, 0],
-                            x: [0, 20, 0],
-                            opacity: [0.3, 0.9, 0.3],
-                        }}
-                        transition={{
-                            duration,
-                            repeat: Infinity,
-                            delay,
-                            ease: "easeInOut",
-                        }}
-                    >
-                        {tech}
-                    </motion.div>
-                );
-            })}
-        </div>
-    );
-}
+
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -336,7 +298,10 @@ function LoginContent() {
                     const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
                     const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
                     const authedClient = createClient({ baseUrl, anonKey });
-                    authedClient.setAccessToken(result.accessToken ?? null);
+                    const isJwt = result.accessToken && result.accessToken.split('.').length === 3;
+                    if (isJwt) {
+                        authedClient.setAccessToken(result.accessToken ?? null);
+                    }
                     const { data: recProfile } = await authedClient.database
                         .from('recruiter_profiles')
                         .select('company_id, job_title')
@@ -466,7 +431,10 @@ function LoginContent() {
                     const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
                     const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
                     const authedClient = createClient({ baseUrl, anonKey });
-                    authedClient.setAccessToken(result.accessToken ?? null);
+                    const isJwt = result.accessToken && result.accessToken.split('.').length === 3;
+                    if (isJwt) {
+                        authedClient.setAccessToken(result.accessToken ?? null);
+                    }
                     const { data: recProfile } = await authedClient.database
                         .from('recruiter_profiles')
                         .select('company_id, job_title')
@@ -540,12 +508,14 @@ function LoginContent() {
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred. Please try again.');
             setIsLoading(false);
+            setIsRedirecting(false);
         }
     };
 
     const handleOAuthLogin = async (provider: 'google' | 'linkedin') => {
         try {
             setError('');
+            setIsLoading(true);
 
             // Generate random state parameter to prevent login CSRF
             const randomState = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -554,9 +524,10 @@ function LoginContent() {
             }
 
             const siteUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
+            const roleParam = typeof window !== 'undefined' && window.location.hostname.startsWith('app.') ? 'recruiter' : 'candidate';
             const { data, error: authError } = await directInsforge.auth.signInWithOAuth({
                 provider,
-                redirectTo: `${siteUrl}/auth/callback?state=${encodeURIComponent(randomState)}`,
+                redirectTo: `${siteUrl}/auth/callback?role=${roleParam}&state=${encodeURIComponent(randomState)}`,
                 skipBrowserRedirect: true,
                 ...(provider === 'google' ? { additionalParams: { prompt: 'select_account' } } : {}),
             });
@@ -570,15 +541,21 @@ function LoginContent() {
             if (authError) throw authError;
             if (data?.url) {
                 window.location.href = data.url;
+            } else {
+                setIsLoading(false);
             }
         } catch (err: any) {
             setError(`Failed to initiate ${provider} login. Please try again.`);
+            setIsLoading(false);
         }
     };
 
-    // While navigating away, show the unified brand loader instead of the login form
+    // While navigating away, show the role-matching skeleton UI loader instead of the login form
     if (isRedirecting) {
-        return <LoadingScreen label={redirectLabel} />;
+        if (redirectLabel.toLowerCase().includes('candidate')) {
+            return <CandidateTopNavSkeleton label={redirectLabel} />;
+        }
+        return <OpsSidebarSkeleton label={redirectLabel} />;
     }
 
     return (
@@ -589,7 +566,7 @@ function LoginContent() {
                 <div className={styles.leftPanelContent}>
                     <div className={styles.heroBranding}>
                         <h2 className={styles.heroBrandingTitle}>
-                            Connecting Elite Talent <br />
+                            <span className={styles.heroBrandingText}>Connecting Elite Talent</span> <br />
                             <span className={styles.heroBrandingHighlight}>To Great Teams</span>
                         </h2>
                         <p className={styles.heroBrandingSub}>
@@ -615,8 +592,7 @@ function LoginContent() {
 
             {/* Right Panel: Form Side (55% width) */}
             <div className={styles.rightPanel}>
-                {/* Tech stack particle animations */}
-                <TechStackParticles />
+
 
                 {/* Drifting Background Blobs */}
                 <div className={styles.blobContainer}>
@@ -652,7 +628,7 @@ function LoginContent() {
                         </motion.div>
 
                         <motion.div variants={itemVariants} className={styles.socialRow}>
-                            <button className={styles.socialBtn} type="button" onClick={() => handleOAuthLogin('google')}>
+                            <button className={styles.socialBtn} type="button" onClick={() => handleOAuthLogin('google')} disabled={isLoading}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -661,7 +637,7 @@ function LoginContent() {
                                 </svg>
                                 <span>Google</span>
                             </button>
-                            <button className={styles.socialBtn} type="button" onClick={() => handleOAuthLogin('linkedin')}>
+                            <button className={styles.socialBtn} type="button" onClick={() => handleOAuthLogin('linkedin')} disabled={isLoading}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#0077B5' }}>
                                     <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
                                 </svg>

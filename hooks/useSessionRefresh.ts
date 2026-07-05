@@ -20,12 +20,33 @@ export function useSessionRefresh(role?: string) {
       activeRef.current = true;
     };
 
+    const handleVisibilityChange = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        const lastRefresh = parseInt(localStorage.getItem('tm_last_refresh_time') || '0');
+        const now = Date.now();
+        // If last refresh was more than 3 minutes ago, proactively renew session immediately on return
+        if (now - lastRefresh > 3 * 60 * 1000) {
+          localStorage.setItem('tm_last_refresh_time', now.toString());
+          console.log('[SessionRefresh] Tab became visible. Proactively renewing backgrounded session.');
+          try {
+            await refreshAccessToken();
+          } catch (err) {
+            console.warn('[SessionRefresh] Visibility token refresh failed:', err);
+          }
+        }
+      }
+    };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('mousedown', handleActivity);
       window.addEventListener('keydown', handleActivity);
       window.addEventListener('scroll', handleActivity);
       window.addEventListener('click', handleActivity);
       window.addEventListener('touchstart', handleActivity);
+    }
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
     }
 
     let intervalMs = 15 * 60 * 1000; // Default candidate / fallback rate: 15m
@@ -100,6 +121,9 @@ export function useSessionRefresh(role?: string) {
         window.removeEventListener('scroll', handleActivity);
         window.removeEventListener('click', handleActivity);
         window.removeEventListener('touchstart', handleActivity);
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };
   }, [role]);

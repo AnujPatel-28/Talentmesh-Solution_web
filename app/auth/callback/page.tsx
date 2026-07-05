@@ -5,6 +5,8 @@ import { insforge, getSession } from '@/lib/insforge';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { getMyProfile } from '@/lib/api/profile';
 import { LoadingScreen } from '@/components/ui';
+import { CandidateTopNavSkeleton, OpsSidebarSkeleton } from '@/components/ui/RedirectSkeletons';
+
 import { createClient } from '@insforge/sdk';
 
 let callbackLaunched = false;
@@ -18,8 +20,17 @@ function AuthCallbackContent() {
   // Loading states: 'authenticating' (fetching sesssion) -> 'fetching_profile' (fetching DB profile) -> 'redirecting'
   const [loadingState, setLoadingState] = useState<'authenticating' | 'fetching_profile' | 'redirecting' | 'error'>('authenticating');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'candidate' | 'recruiter' | 'admin' | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const initialRole = defaultRole || (typeof window !== 'undefined' && window.location.hostname.startsWith('app.') ? 'recruiter' : 'candidate');
+    setUserRole(initialRole as any);
+
     if (callbackLaunched) return;
     callbackLaunched = true;
 
@@ -41,11 +52,29 @@ function AuthCallbackContent() {
             }
           }
           if (!foundState && stateParam) {
-            // State param present but doesn't match stored state — CSRF attempt
-            console.error('[auth-callback] OAuth state mismatch — potential CSRF attack detected');
-            setLoadingState('error');
-            setErrorMessage('Security validation failed. Please try logging in again.');
-            return;
+            // Check if we already have an active session (e.g. from double render in StrictMode)
+            let hasActiveSession = false;
+            try {
+              await insforge.auth.getCurrentUser();
+              const authAny = insforge.auth as any;
+              const session = authAny.tokenManager?.getSession() || null;
+              if (session) {
+                hasActiveSession = true;
+              }
+            } catch {}
+
+            const verifier = typeof window !== 'undefined' ? window.sessionStorage.getItem('insforge_pkce_verifier') : null;
+            if (!hasActiveSession && !verifier) {
+              // State param present but doesn't match stored state, and no PKCE verifier is present — CSRF attempt
+              console.error('[auth-callback] OAuth state mismatch — potential CSRF attack detected');
+              setLoadingState('error');
+              setErrorMessage('Security validation failed. Please try logging in again.');
+              return;
+            } else if (!hasActiveSession && verifier) {
+              console.warn('[auth-callback] OAuth state mismatch detected, but PKCE verifier is present. Proceeding with PKCE exchange.');
+            } else {
+              console.warn('[auth-callback] State mismatch ignored: Active session already resolved.');
+            }
           }
         }
 
@@ -66,20 +95,79 @@ function AuthCallbackContent() {
         if (!session) {
           console.warn('[auth-callback] No existing session found, attempting fallbacks...');
 
-          // Fallback A: Try refreshing the session via our custom proxy refresh helper
-          const { refreshAccessToken } = await import('@/lib/insforge');
-          const newToken = await refreshAccessToken();
-          if (newToken) {
+          const { pendingOAuthCode } = await import('@/lib/insforge');
+          const code = pendingOAuthCode;
+
+          if (code) {
+            // Priority 1: PKCE OAuth Code Flow
+            const verifier = typeof window !== 'undefined' ? window.sessionStorage.getItem('insforge_pkce_verifier') : null;
+            console.warn(`[auth-callback] Executing code exchange: code present=${!!code}, pkce_verifier present=${!!verifier}`);
             try {
-              const { data: userData } = await insforge.auth.getCurrentUser();
-              if (userData?.user) {
-                session = { user: userData.user, accessToken: newToken };
+              // OAuth codes are single-use — do NOT retry, or the code will be consumed
+              // by the first attempt and the retry will get "Invalid or expired code".
+              const ctrl = new AbortController();
+              const timer = setTimeout(() => ctrl.abort(), 35_000);
+              let proxyRes: Response;
+              try {
+                proxyRes = await fetch('/api/auth/oauth/exchange', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ code, code_verifier: verifier }),
+                  signal: ctrl.signal,
+                });
+              } finally {
+                clearTimeout(timer);
               }
-            } catch { /* ignore */ }
+
+              if (proxyRes.ok) {
+                const exchangeData = await proxyRes.json();
+                const token = exchangeData.accessToken || exchangeData.access_token;
+                const user = exchangeData.user || exchangeData.data?.user;
+
+                if (token && user) {
+                  window.sessionStorage.removeItem('insforge_pkce_verifier');
+                  if (exchangeData.csrfToken) {
+                    const maxAge = 7 * 24 * 60 * 60;
+                    document.cookie = `insforge_csrf_token=${encodeURIComponent(exchangeData.csrfToken)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  }
+                  session = { user, accessToken: token };
+                  // Sync the token into the main SDK TokenManager for any subsequent SDK calls
+                  const mainAuth = insforge.auth as any;
+                  if (mainAuth.tokenManager) {
+                    mainAuth.tokenManager.saveSession(session);
+                    if (mainAuth.http?.setAuthToken) {
+                      mainAuth.http.setAuthToken(token);
+                    }
+                  }
+                } else {
+                  console.error('[auth-callback] Exchange succeeded but response missing token/user:', exchangeData);
+                }
+              } else {
+                const errText = await proxyRes.text();
+                console.error(`[auth-callback] Exchange returned ${proxyRes.status}:`, errText);
+              }
+            } catch (err) {
+              console.error('[auth-callback] Network error during exchange:', err);
+            }
           }
 
-          // Fallback B: Extract from URL hash (Magic Link / Implicit flow)
+          // If no code was present or the exchange failed, try other fallbacks
+          if (!session) {
+            // Fallback A: Try refreshing the session via our custom proxy refresh helper
+            const { refreshAccessToken } = await import('@/lib/insforge');
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              try {
+                const { data: userData } = await insforge.auth.getCurrentUser();
+                if (userData?.user) {
+                  session = { user: userData.user, accessToken: newToken };
+                }
+              } catch { /* ignore */ }
+            }
+          }
+
           if (!session && typeof window !== 'undefined' && window.location.hash) {
+            // Fallback B: Extract from URL hash (Magic Link / Implicit flow)
             const params = new URLSearchParams(window.location.hash.substring(1));
             const hashAccessToken = params.get('access_token');
             if (hashAccessToken) {
@@ -89,60 +177,6 @@ function AuthCallbackContent() {
                   session = { user: userData.user, accessToken: hashAccessToken };
                 }
               } catch { /* ignore */ }
-            }
-          }
-
-          // Fallback C: Manually exchange the OAuth code via our secure Next.js proxy.
-          // The proxy (/api/auth/oauth/exchange) explicitly sets the tm_access_token HttpOnly cookie,
-          // which the /api/v1/remote route does NOT do. Always prefer this path for OAuth.
-          if (!session && typeof window !== 'undefined') {
-            const { pendingOAuthCode } = await import('@/lib/insforge');
-            // pendingOAuthCode is set by insforge.ts which strips insforge_code/code from the URL
-            // before any SDK client is created. This prevents the SDK from auto-consuming the code.
-            const code = pendingOAuthCode;
-            const verifier = window.sessionStorage.getItem('insforge_pkce_verifier');
-
-            console.warn(`[auth-callback] Fallback C: code present=${!!code}, pkce_verifier present=${!!verifier}`);
-
-            if (!code) {
-              console.error('[auth-callback] No OAuth code found. Did the OAuth flow complete correctly?');
-            } else {
-              try {
-                const proxyRes = await fetch('/api/auth/oauth/exchange', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                    code,
-                    code_verifier: verifier
-                  }),
-                });
-
-                if (proxyRes.ok) {
-                  const exchangeData = await proxyRes.json();
-                  const token = exchangeData.accessToken || exchangeData.access_token;
-                  const user = exchangeData.user || exchangeData.data?.user;
-
-                  if (token && user) {
-                    window.sessionStorage.removeItem('insforge_pkce_verifier');
-                    session = { user, accessToken: token };
-                    // Sync the token into the main SDK TokenManager for any subsequent SDK calls
-                    const mainAuth = insforge.auth as any;
-                    if (mainAuth.tokenManager) {
-                      mainAuth.tokenManager.saveSession(session);
-                      if (mainAuth.http?.setAuthToken) {
-                        mainAuth.http.setAuthToken(token);
-                      }
-                    }
-                  } else {
-                    console.error('[auth-callback] Exchange succeeded but response missing token/user:', exchangeData);
-                  }
-                } else {
-                  const errText = await proxyRes.text();
-                  console.error(`[auth-callback] Exchange returned ${proxyRes.status}:`, errText);
-                }
-              } catch (err) {
-                console.error('[auth-callback] Network error during exchange:', err);
-              }
             }
           }
         }
@@ -220,6 +254,7 @@ function AuthCallbackContent() {
       }
 
       let finalRole = existingProfile?.role || detectedRole || 'candidate';
+      setUserRole(finalRole as any);
 
       // Prevent privilege escalation: only allow 'candidate' or 'recruiter' for new accounts via OAuth
       if (!existingProfile?.role && (finalRole === 'admin' || finalRole === 'super_admin')) {
@@ -353,7 +388,23 @@ function AuthCallbackContent() {
       ? 'Redirecting to your dashboard…'
       : errorMessage || 'Something went wrong.';
 
-  return <LoadingScreen label={stateLabel} />;
+  const isRecruiter = typeof window !== 'undefined'
+    ? (window.location.hostname.startsWith('app.') || 
+       window.location.search.includes('role=recruiter') || 
+       window.location.search.includes('role=admin'))
+    : (searchParams.get('role') === 'recruiter' || searchParams.get('role') === 'admin');
+
+  if (loadingState === 'error') {
+    return <LoadingScreen label={stateLabel} />;
+  }
+
+  const isCandidate = userRole === 'candidate' || (!userRole && !isRecruiter);
+
+  if (isCandidate) {
+    return <CandidateTopNavSkeleton label={stateLabel} />;
+  }
+
+  return <OpsSidebarSkeleton label={stateLabel} />;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -367,6 +418,8 @@ function AuthCallbackSkeleton({
   state: 'authenticating' | 'fetching_profile' | 'redirecting' | 'error';
   errorMessage: string | null;
 }) {
+  const searchParams = useSearchParams();
+
   const stateLabel =
     state === 'authenticating'
       ? 'Signing you in…'
@@ -376,10 +429,18 @@ function AuthCallbackSkeleton({
       ? 'Redirecting to your dashboard…'
       : errorMessage || 'Something went wrong.';
 
+  const isRecruiter = typeof window !== 'undefined'
+    ? (window.location.hostname.startsWith('app.') || 
+       window.location.search.includes('role=recruiter') || 
+       window.location.search.includes('role=admin'))
+    : (searchParams.get('role') === 'recruiter' || searchParams.get('role') === 'admin');
+
+  if (!isRecruiter) {
+    return <CandidateTopNavSkeleton label={stateLabel} />;
+  }
+
   return (
     <>
-
-
       <div className="auth-skeleton-shell">
         {/* ── Sidebar skeleton ── */}
         <aside className="auth-sk-sidebar">
