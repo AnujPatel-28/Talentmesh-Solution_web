@@ -276,10 +276,10 @@ async function _proxy(request: NextRequest) {
     ['/privacy', '/terms', '/about', '/contact'].some(p => pathname.startsWith(p));
 
   const isCandidatePortal = pathname.startsWith('/candidate/dashboard') ||
-    (isJobsPortal && !isPublicJobsPath && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+    (isJobsPortal && !isStaticOrApi && !isPublicJobsPath && !isAuthPage && !isAuthCallback && !pathname.startsWith('/onboarding'));
 
   const isRecruiterPortal = pathname.startsWith('/recruiter/') || pathname === '/recruiter' ||
-    (isAppPortal && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+    (isAppPortal && !isStaticOrApi && !isAuthPage && !isAuthCallback && !pathname.startsWith('/onboarding'));
 
   // On localhost, subdomains don't resolve — skip cross-subdomain redirects entirely.
   // Path-based routing in this middleware handles access control correctly on localhost.

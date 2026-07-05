@@ -15,6 +15,7 @@ const cspHeader = `
     img-src 'self' blob: data: https://*.insforge.app https://cdn.insforge.dev https://insforge-storage.s3.us-east-2.amazonaws.com https://*.s3.us-east-2.amazonaws.com https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://images.unsplash.com;
     font-src 'self' https://fonts.gstatic.com;
     connect-src 'self' https://*.insforge.app ${insforgeUrl} https://insforge-storage.s3.us-east-2.amazonaws.com https://*.s3.us-east-2.amazonaws.com https://api.anthropic.com wss:;
+    frame-src 'self' blob:;
     frame-ancestors 'none';
 `;
 
