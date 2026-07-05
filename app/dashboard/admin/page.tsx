@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from '../shared-dashboard.module.css';
@@ -29,6 +29,8 @@ const IC = {
 
 import { invokeFunction } from '@/lib/insforge';
 import { safeValidate, dashboardSchema } from '@/lib/contracts/schemas';
+
+import StatCard from '@/components/dashboard/StatCard';
 
 type DashboardData = {
   metrics: {
@@ -62,6 +64,7 @@ const FALLBACK_DASHBOARD: DashboardData = {
 export default function AdminDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
@@ -237,6 +240,37 @@ export default function AdminDashboardPage() {
         <RefreshButton onRefresh={handleRefresh} isRefreshing={isRefreshing} lastUpdated={lastUpdated} />
       </div>
 
+      {/* Sub-Navigation Tabs */}
+      <div style={{ borderBottom: '1px solid var(--sidebar-border)', marginBottom: '1.5rem', display: 'flex', gap: '1.25rem' }}>
+        <button
+          className={styles.viewAll}
+          style={{ fontSize: '0.85rem', padding: '0.6rem 0.1rem', borderBottom: '2px solid var(--primary-blue)', color: 'var(--primary-blue)', fontWeight: 700, cursor: 'default' }}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => router.push('/dashboard/admin/reports')}
+          className={styles.viewAll}
+          style={{ fontSize: '0.85rem', padding: '0.6rem 0.1rem', borderBottom: '2px solid transparent', color: 'var(--neutral-text-muted)', fontWeight: 600 }}
+        >
+          Reports
+        </button>
+        <button
+          onClick={() => router.push('/dashboard/admin/recruiters')}
+          className={styles.viewAll}
+          style={{ fontSize: '0.85rem', padding: '0.6rem 0.1rem', borderBottom: '2px solid transparent', color: 'var(--neutral-text-muted)', fontWeight: 600 }}
+        >
+          Team & Access
+        </button>
+        <button
+          onClick={() => router.push('/dashboard/admin/settings')}
+          className={styles.viewAll}
+          style={{ fontSize: '0.85rem', padding: '0.6rem 0.1rem', borderBottom: '2px solid transparent', color: 'var(--neutral-text-muted)', fontWeight: 600 }}
+        >
+          Settings
+        </button>
+      </div>
+
       {/* Stats Widgets */}
       <AnimateOnScroll animation="fadeUp" delay={100}>
         {statsLoading ? (
@@ -245,65 +279,30 @@ export default function AdminDashboardPage() {
           <StatsErrorState onRetry={handleRetry} />
         ) : (
           <div className={styles.stats}>
-            <motion.div 
-              className={cn(styles.statPremium, styles.glowBluePremium)}
-              whileHover={{ y: -4 }}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <div className={styles.statTopPremium}>
-                <span className={styles.statLabelPremium}>Total Users</span>
-                <span className={styles.statIconBoxPremium} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
-              </div>
-              <span className={styles.statValPremium}>{totalUsers}</span>
-              <span className={styles.statHintPremium}>{dashboardData?.metrics.totalCandidates || 0} candidates + {dashboardData?.metrics.totalRecruiters || 0} recruiters</span>
-            </motion.div>
-
-            <motion.div 
-              className={cn(styles.statPremium, styles.glowGreenPremium)}
-              whileHover={{ y: -4 }}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.08 }}
-            >
-              <div className={styles.statTopPremium}>
-                <span className={styles.statLabelPremium}>Active Jobs</span>
-                <span className={styles.statIconBoxPremium} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
-              </div>
-              <span className={styles.statValPremium}>{dashboardData?.metrics.totalJobs || 0}</span>
-              <span className={styles.statHintPremium}>Published listings</span>
-            </motion.div>
-
-            <motion.div 
-              className={cn(styles.statPremium, styles.glowOrangePremium)}
-              whileHover={{ y: -4 }}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.16 }}
-            >
-              <div className={styles.statTopPremium}>
-                <span className={styles.statLabelPremium}>Total Applications</span>
-                <span className={styles.statIconBoxPremium} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
-              </div>
-              <span className={styles.statValPremium}>{dashboardData?.metrics.totalApplications || 0}</span>
-              <span className={styles.statHintPremium}>Across all listings</span>
-            </motion.div>
-
-            <motion.div 
-              className={cn(styles.statPremium, styles.glowPurplePremium)}
-              whileHover={{ y: -4 }}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.24 }}
-            >
-              <div className={styles.statTopPremium}>
-                <span className={styles.statLabelPremium}>Recruiters</span>
-                <span className={styles.statIconBoxPremium} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
-              </div>
-              <span className={styles.statValPremium}>{dashboardData?.metrics.totalRecruiters || 0}</span>
-              <span className={styles.statHintPremium}>Active accounts</span>
-            </motion.div>
+            <StatCard
+              label="Total Users"
+              value={totalUsers}
+              icon={IC.users}
+              delta={`${dashboardData?.metrics.totalCandidates || 0} cand. + ${dashboardData?.metrics.totalRecruiters || 0} rec.`}
+            />
+            <StatCard
+              label="Active Jobs"
+              value={dashboardData?.metrics.totalJobs || 0}
+              icon={IC.clipboard}
+              delta="Active published listings"
+            />
+            <StatCard
+              label="Total Applications"
+              value={dashboardData?.metrics.totalApplications || 0}
+              icon={IC.send}
+              delta="Across all active job posts"
+            />
+            <StatCard
+              label="Recruiters"
+              value={dashboardData?.metrics.totalRecruiters || 0}
+              icon={IC.checkCircle}
+              delta="Approved recruiter accounts"
+            />
           </div>
         )}
       </AnimateOnScroll>

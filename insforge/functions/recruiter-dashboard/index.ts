@@ -22,7 +22,8 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
     const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
     if (authError || !authData?.user) {
@@ -31,7 +32,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     const userId = authData.user.id;
     const resolvedServiceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || req.headers.get('x-insforge-service-key') || '';
-    const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey || serviceKey || anonKey, isServerMode: true });
+    const insforgeAdmin = createClient({ baseUrl, anonKey: resolvedServiceKey || serviceKey || anonKey });
 
     // Validate requester role
     const { data: requesterProfile, error: requesterError } = await insforgeAdmin.database

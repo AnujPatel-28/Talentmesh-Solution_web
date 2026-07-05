@@ -47,6 +47,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  let extractedRefreshToken = '';
+  if (cookieHeader) {
+    const rtMatch = cookieHeader.match(/insforge_refresh_token=([^;]+)/);
+    if (rtMatch) {
+      extractedRefreshToken = rtMatch[1];
+    }
+  }
+
+  // If there's no refresh token, the user is genuinely logged out.
+  // Return 401 early to avoid hitting the backend and throwing scary proxy errors.
+  if (!extractedRefreshToken) {
+    return NextResponse.json(
+      { error: 'AUTH_UNAUTHORIZED', message: 'No refresh token provided in cookies' },
+      { status: 401 }
+    );
+  }
+
   const insforgeRes = await fetch(`${INSFORGE_URL}/api/auth/refresh`, {
     method: 'POST',
     headers: {
@@ -91,7 +108,7 @@ export async function POST(request: NextRequest) {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
       if (domainParts.includes('localhost')) {
-        domain = '.localhost';
+        // Do not set domain on localhost
       } else if (!host.includes('127.0.0.1')) {
         domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
       }
@@ -117,9 +134,26 @@ export async function POST(request: NextRequest) {
         ...cookieOptions,
         maxAge: 60 * 60 * 24 * 30, // 30 days
       });
+      // Explicitly delete any legacy insforge_refresh_token cookie on the root path '/' to prevent duplicates
+      response.cookies.set('insforge_refresh_token', '', {
+        ...cookieOptions,
+        path: '/',
+        maxAge: 0,
+      });
+      // Set the path explicitly to /api/auth to limit cookie exposure and match backend
       response.cookies.set('insforge_refresh_token', refreshToken, {
         ...cookieOptions,
+        path: '/api/auth',
         maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+    }
+
+    const newCsrf = parsedData.csrfToken || parsedData.csrf_token;
+    if (newCsrf) {
+      response.cookies.set('insforge_csrf_token', newCsrf, {
+        ...cookieOptions,
+        httpOnly: false, // Must be accessible to client JS
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       });
     }
   }
@@ -127,6 +161,12 @@ export async function POST(request: NextRequest) {
   // Forward Set-Cookie headers, stripping Secure on localhost
   insforgeRes.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'set-cookie') {
+      // If this set-cookie header is setting insforge_refresh_token, skip forwarding it
+      // since we explicitly manage it via response.cookies.set
+      if (value.toLowerCase().includes('insforge_refresh_token=')) {
+        return;
+      }
+
       const fixed = IS_PROD
         ? value
         : value.replace(/;\s*Secure/gi, '').replace(/SameSite=None/gi, 'SameSite=Lax');

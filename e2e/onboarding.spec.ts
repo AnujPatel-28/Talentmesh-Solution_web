@@ -28,36 +28,56 @@ test.describe('Candidate E2E Flow: Login -> Onboarding -> Resume Upload -> Job A
 
     // 3. Wait for redirect to /onboarding/candidate
     console.log('Waiting for redirection to /onboarding/candidate...');
-    await page.waitForURL('**/onboarding/candidate', { timeout: 45000 });
+    await page.waitForURL(/\/onboarding\/candidate/, { timeout: 45000 });
     console.log('Successfully redirected to onboarding page!');
 
     // 4. STEP 1: Basic Info
     console.log('Step 1: Basic Info...');
     // Wait up to 30 seconds for the onboarding form's h1 to contain the text
-    await expect(page.locator('h1')).toContainText('Complete your candidate profile', { timeout: 30000 });
+    await expect(page.locator('h1')).toContainText('Basic Information', { timeout: 30000 });
     
     // Ensure name is set, or fill it
     const nameVal = await page.inputValue('input[placeholder="Your full name"]');
     if (!nameVal) {
       await page.fill('input[placeholder="Your full name"]', 'Onboarding Test Candidate');
     }
-    await page.fill('input[placeholder="+1 555 123 4567"]', '555-0199');
-    await page.fill('input[placeholder="City, Country"]', 'New York, USA');
+    await page.fill('input[placeholder="(555) 000-0000"]', '555-0199');
+    
+    // Type city and click it in the autocomplete list
+    await page.fill('input[placeholder="Search city in India (e.g. Bengaluru, Mumbai)..."]', 'Bengaluru, Karnataka');
+    await page.click('div.absolute >> text=Bengaluru, Karnataka');
     
     // Click Continue
     await page.click('button:has-text("Continue")');
     console.log('Step 1 completed!');
 
-    // 5. STEP 2: Professional Info
-    console.log('Step 2: Professional Info...');
-    await page.fill('input[placeholder="Frontend Developer"]', 'Software Developer');
+    // Select Professional Domain (CustomSelect)
+    await page.click('text=Select Professional Domain');
+    await page.click('text=Engineering & Technology');
+    
+    // Fill Headline / Specialization (input with dynamic placeholder)
+    await page.fill('input[placeholder="Search roles in Engineering & Technology..."]', 'Frontend Engineer');
+    await page.click('div.absolute >> text=Frontend Engineer');
     
     // Add Skill
-    await page.fill('input[placeholder="Add a skill"]', 'JavaScript');
-    await page.click('form:has(input[placeholder="Add a skill"]) button:has-text("Add")');
+    await page.fill('input[placeholder="Search and add skills..."]', 'JavaScript');
+    await page.click('form:has(input[placeholder="Search and add skills..."]) button:has-text("Add")');
     
-    await page.fill('input[placeholder="3"]', '2');
-    await page.fill('textarea[placeholder="B.Tech in Computer Science"]', 'B.S. in Computer Science');
+    // Select Experience Level (CustomSelect)
+    await page.click('text=Select experience level');
+    await page.click('text=2 Years');
+    
+    // Highest Education Degree (CustomSelect)
+    await page.click('text=Select highest degree');
+    await page.click('text=B.Tech / B.E. (Bachelor of Technology / Engineering)');
+    
+    // Specialization / Field of Study (CustomSelect)
+    await page.click('text=Select specialization');
+    await page.click('text=Computer Science & Engineering');
+    
+    // College / University (CustomSelect)
+    await page.click('text=Select college / university');
+    await page.click('text=Bangalore University, Bengaluru');
     
     // Click Continue
     await page.click('button:has-text("Continue")');
@@ -65,12 +85,18 @@ test.describe('Candidate E2E Flow: Login -> Onboarding -> Resume Upload -> Job A
 
     // 6. STEP 3: Preferences
     console.log('Step 3: Preferences...');
-    await page.fill('input[placeholder="50000"]', '60000');
-    await page.fill('input[placeholder="90000"]', '90000');
+    
+    // Salary Min (CustomSelect)
+    await page.click('text=Select minimum');
+    await page.click('text=₹6,00,000');
+    
+    // Salary Max (CustomSelect)
+    await page.click('text=Select maximum');
+    await page.click('text=₹10,00,000');
     
     // Add Preferred Location
-    await page.fill('input[placeholder="Add a preferred location"]', 'New York');
-    await page.click('form:has(input[placeholder="Add a preferred location"]) button:has-text("Add")');
+    await page.fill('input[placeholder="Search and add preferred cities..."]', 'Bengaluru, Karnataka');
+    await page.click('form:has(input[placeholder="Search and add preferred cities..."]) button:has-text("Add")');
     
     // Select Job Type
     await page.click('text=Select job type');
@@ -96,7 +122,7 @@ test.describe('Candidate E2E Flow: Login -> Onboarding -> Resume Upload -> Job A
     
     // 8. Redirect to dashboard
     console.log('Waiting for redirection to candidate dashboard...');
-    await page.waitForURL('**/candidate/dashboard', { timeout: 45000, waitUntil: 'commit' });
+    await page.waitForURL(/candidate\/dashboard|dashboard\/candidate/, { timeout: 45000, waitUntil: 'commit' });
     await page.waitForSelector('h1:has-text("Welcome back")', { timeout: 30000 });
     console.log('Successfully onboarded and redirected to Candidate Dashboard!');
 

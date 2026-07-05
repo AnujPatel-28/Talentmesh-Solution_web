@@ -414,40 +414,37 @@ export default function AdminSettingsPage() {
       </header>
 
       {/* Tabs selector */}
-      <div className="flex border-b border-neutral-800 mb-8 gap-6">
-        <button
-          onClick={() => setActiveTab('general')}
-          className={`flex items-center gap-2 pb-4 text-sm font-semibold tracking-wide transition-all ${
-            activeTab === 'general'
-              ? 'border-b-2 border-violet-600 text-violet-500'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <Settings className="h-4 w-4" />
-          General Settings
-        </button>
-        <button
-          onClick={() => setActiveTab('devices')}
-          className={`flex items-center gap-2 pb-4 text-sm font-semibold tracking-wide transition-all ${
-            activeTab === 'devices'
-              ? 'border-b-2 border-violet-600 text-violet-500'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <Smartphone className="h-4 w-4" />
-          Active Devices
-        </button>
-        <button
-          onClick={() => setActiveTab('quarantine')}
-          className={`flex items-center gap-2 pb-4 text-sm font-semibold tracking-wide transition-all ${
-            activeTab === 'quarantine'
-              ? 'border-b-2 border-violet-600 text-violet-500'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <FolderLock className="h-4 w-4" />
-          Quarantine Manager
-        </button>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', marginBottom: '2rem', gap: '1.5rem' }}>
+        {[
+          { id: 'general', label: 'General Settings', icon: <Settings className="h-4 w-4" /> },
+          { id: 'devices', label: 'Active Sessions & Devices', icon: <Smartphone className="h-4 w-4" /> },
+          { id: 'quarantine', label: 'Quarantine Manager', icon: <FolderLock className="h-4 w-4" /> },
+        ].map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                paddingBottom: '1rem',
+                background: 'none',
+                border: 'none',
+                borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                fontWeight: isActive ? 700 : 600,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                transition: 'all 0.16s'
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {message.text && (

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import styles from './notification-center.module.css';
 import { formatDistanceToNow } from 'date-fns';
 import { useRealTimeNotifications, NotificationData } from '@/lib/hooks/useRealTimeNotifications';
+import EmptyState from '@/components/dashboard/EmptyState';
+
 
 type Notification = {
     id: string;
@@ -57,6 +59,7 @@ export default function NotificationCenter({ role }: { role: 'admin' | 'recruite
     const { notifications: dbNotifications, unreadCount: dbUnreadCount, isLoading, markAsRead, markAllAsRead, refresh } = useRealTimeNotifications();
     const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
     const [activeTab, setActiveTab] = useState<'inbox' | 'archived'>('inbox');
+    const [selectedCategory, setSelectedCategory] = useState<'all' | 'application' | 'message' | 'interview' | 'offer' | 'system' | 'security'>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
     // Sync DB notifications into local state
@@ -64,7 +67,20 @@ export default function NotificationCenter({ role }: { role: 'admin' | 'recruite
         setLocalNotifications(dbNotifications.map(mapDbToNotification));
     }, [dbNotifications]);
 
-    const filteredNotifications = localNotifications.filter(n => n.folder === activeTab);
+    const filteredNotifications = localNotifications.filter(n => {
+        if (n.folder !== activeTab) return false;
+        if (selectedCategory === 'all') return true;
+        const dbN = dbNotifications.find(db => db.id === n.id);
+        const type = dbN?.type || '';
+        if (selectedCategory === 'application') return type.includes('application');
+        if (selectedCategory === 'message') return type.includes('message') || type.includes('chat');
+        if (selectedCategory === 'interview') return type.includes('interview');
+        if (selectedCategory === 'offer') return type.includes('offer');
+        if (selectedCategory === 'security') return type.includes('security');
+        if (selectedCategory === 'system') return type.includes('system') || type.includes('welcome') || type.includes('billing');
+        return true;
+    });
+
     const selectedMessage = localNotifications.find(n => n.id === selectedId);
     
     const unreadCount = localNotifications.filter(n => !n.read && n.folder === 'inbox').length;
@@ -155,6 +171,41 @@ export default function NotificationCenter({ role }: { role: 'admin' | 'recruite
                     </div>
                 </div>
                 
+                {/* Category Tabs Bar */}
+                <div style={{
+                    display: 'flex',
+                    gap: '0.85rem',
+                    borderBottom: '1px solid var(--color-border)',
+                    padding: '0.5rem 1rem',
+                    background: '#fafbfc',
+                    overflowX: 'auto',
+                    scrollbarWidth: 'none',
+                    whiteSpace: 'nowrap'
+                }}>
+                    {(['all', 'application', 'message', 'interview', 'offer', 'system', 'security'] as const).map(cat => {
+                        const isActive = selectedCategory === cat;
+                        return (
+                            <button
+                                key={cat}
+                                onClick={() => { setSelectedCategory(cat); setSelectedId(null); }}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: '0.4rem 0.2rem',
+                                    borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                    fontWeight: isActive ? 700 : 600,
+                                    fontSize: '0.78rem',
+                                    cursor: 'pointer',
+                                    textTransform: 'capitalize'
+                                }}
+                            >
+                                {cat === 'all' ? 'All' : cat === 'application' ? 'Applications' : cat === 'message' ? 'Messages' : cat === 'interview' ? 'Interviews' : cat === 'offer' ? 'Offers' : cat}
+                            </button>
+                        );
+                    })}
+                </div>
+                
                 <div className={styles.scrollArea}>
                     {isLoading ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
@@ -232,12 +283,12 @@ export default function NotificationCenter({ role }: { role: 'admin' | 'recruite
                         </div>
                     </>
                 ) : (
-                    <div className={styles.emptyState}>
-                        <div className={styles.emptyIcon}>
-                            {Icons.mailOpen}
-                        </div>
-                        <div className={styles.emptyText}>Select an item to read</div>
-                        <div style={{ fontSize: '0.85rem', marginTop: '8px' }}>Nothing is selected</div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <EmptyState 
+                            title="No notification selected"
+                            description="Select a notification from the list on the left to view its details."
+                            illustrationType="notifications"
+                        />
                     </div>
                 )}
             </div>

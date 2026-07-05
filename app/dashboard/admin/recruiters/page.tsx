@@ -14,6 +14,9 @@ import { mutationQueue } from '@/lib/mutationQueue';
 import { canPerform, Role } from '@/lib/permissions';
 import { recordMetric, startTrace, endTrace } from '@/lib/observability';
 import { Globe, Users, Clock, CheckCircle2, XCircle, FileText, Download, Smartphone, Trash2, ShieldAlert } from 'lucide-react';
+import DataTable, { Column } from '@/components/dashboard/DataTable';
+import DetailDrawer from '@/components/dashboard/DetailDrawer';
+import StatusPill from '@/components/dashboard/StatusPill';
 
 
 type RecruiterProfile = {
@@ -1735,6 +1738,100 @@ export default function AdminRecruitersPage() {
     return p?.status === 'pending_verification';
   };
 
+  const columns = useMemo<Column<AdminRecruiter>[]>(() => [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={recruiters.length > 0 && selectedIds.length === recruiters.length}
+          onChange={() => {
+            if (selectedIds.length === recruiters.length) {
+              clearSelection();
+            } else {
+              recruiters.forEach(r => {
+                if (!selectedIds.includes(r.id)) toggleSelect(r.id);
+              });
+            }
+          }}
+          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+        />
+      ),
+      key: 'selection',
+      width: '40px',
+      render: (recruiter) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(recruiter.id)}
+          onChange={() => toggleSelect(recruiter.id)}
+          onClick={(e) => e.stopPropagation()}
+          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+        />
+      ),
+      align: 'center'
+    },
+    {
+      header: 'Recruiter',
+      key: 'name',
+      render: (recruiter) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 600, color: 'var(--tm-text-primary)' }}>{recruiter.name}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--tm-text-secondary)' }}>{recruiter.email}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Company',
+      key: 'company_name',
+      render: (recruiter) => {
+        const p = getProfile(recruiter);
+        return <span style={{ fontWeight: 500 }}>{p?.company_name || 'Individual Recruiter'}</span>;
+      }
+    },
+    {
+      header: 'Industry',
+      key: 'industry',
+      render: (recruiter) => {
+        const p = getProfile(recruiter);
+        return <span>{p?.industry || '—'}</span>;
+      }
+    },
+    {
+      header: 'Job Title',
+      key: 'job_title',
+      render: (recruiter) => {
+        const p = getProfile(recruiter);
+        return <span>{p?.job_title || '—'}</span>;
+      }
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      render: (recruiter) => {
+        const isPending = isPendingVerification(recruiter);
+        const p = getProfile(recruiter);
+        if (isPending) {
+          return <StatusPill status="pending" customLabel="Pending Verification" />;
+        }
+        if (!p?.is_approved) {
+          return <StatusPill status="warning" customLabel="Unverified" />;
+        }
+        return <StatusPill status="approved" customLabel="Verified" />;
+      }
+    },
+    {
+      header: 'Active',
+      key: 'is_active',
+      render: (recruiter) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: recruiter.is_active ? '#10b981' : '#cbd5e1' }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--tm-text-secondary)' }}>
+            {recruiter.is_active ? 'Active' : 'Suspended'}
+          </span>
+        </span>
+      )
+    }
+  ], [recruiters, selectedIds, toggleSelect, clearSelection]);
+
   // Selection telemetry tracker
   useEffect(() => {
     recordMetric('selection', selectedIds.length);
@@ -1883,7 +1980,8 @@ export default function AdminRecruitersPage() {
 
       if (uploadErr) throw uploadErr;
 
-      const downloadUrl = insforge.storage.from('export-candidates').getPublicUrl(`jobs/${jobId}.csv`);
+      const { data } = insforge.storage.from('export-candidates').getPublicUrl(`jobs/${jobId}.csv`);
+      const downloadUrl = data?.publicUrl || '';
 
       // Completing and unlocking the job
       await insforge.database.from('export_jobs').update({
@@ -2166,10 +2264,12 @@ export default function AdminRecruitersPage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div className={styles.grid}>
-        {(authLoading || loading) ? (
-          Array.from({ length: 6 }).map((_, i) => <RecruiterCardSkeleton key={i} />)
-        ) : recruiters.length === 0 ? (
+      <DataTable
+        columns={columns}
+        data={recruiters}
+        loading={authLoading || loading}
+        onRowClick={(row) => setPreviewUser(row)}
+        emptyState={
           <div className={styles.emptyState}>
             <h3>No recruiters found</h3>
             <p style={{ margin: '8px 0 16px', color: '#64748b' }}>No recruiter accounts matched your active search criteria.</p>
@@ -2184,86 +2284,8 @@ export default function AdminRecruitersPage() {
               )}
             </div>
           </div>
-        ) : (
-          recruiters.map((recruiter) => {
-            const profile = getProfile(recruiter);
-            const isPending = isPendingVerification(recruiter);
-            const isChecked = isSelected(recruiter.id);
-            return (
-              <article
-                key={recruiter.id}
-                className={`${styles.candidateCard} ${isChecked ? styles.cardSelected : ''}`}
-                onClick={() => setPreviewUser(recruiter)}
-                style={{ position: 'relative', cursor: 'pointer', border: isChecked ? '2px solid #3b82f6' : '1px solid #eef2f6' }}
-              >
-                {/* Selection Checkbox */}
-                <div
-                  style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleSelect(recruiter.id);
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    readOnly
-                    className={styles.checkboxInput}
-                  />
-                </div>
-
-                <div className={styles.cardHeader} style={{ paddingRight: '24px' }}>
-                  <div className={styles.initials} style={{ background: '#f59e0b', color: 'white' }}>
-                    {recruiter.name ? recruiter.name.charAt(0).toUpperCase() : '?'}
-                  </div>
-                  <div className={styles.mainInfo}>
-                    <h3 className={styles.name}>{recruiter.name}</h3>
-                    <p className={styles.email}>{recruiter.email}</p>
-                  </div>
-                  {isPending ? (
-                    <div className={styles.strengthBadge} style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={12} /> Pending
-                    </div>
-                  ) : !profile?.is_approved ? (
-                    <div className={styles.strengthBadge} style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
-                      Unverified
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className={styles.body}>
-                  <p className={styles.headline}><strong>{profile?.company_name || 'Individual Recruiter'}</strong></p>
-                  <div className={styles.meta}>
-                    <span><Globe size={14} /> {profile?.industry || 'Unspecified Industry'}</span>
-                    <span><Users size={14} /> {profile?.company_size || 'N/A'} employees</span>
-                  </div>
-                </div>
-
-                <div className={styles.footer}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div className={`${styles.statusDot} ${recruiter.is_active ? styles.dotActive : ''}`} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                      {recruiter.is_active ? 'Active Account' : 'Suspended'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {isPending && hasApprovePerm && (
-                      <button
-                        className={styles.actionBtn}
-                        style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a', padding: '2px 8px', borderRadius: '6px', border: '1px solid' }}
-                        onClick={e => { e.stopPropagation(); setVerifyTarget(recruiter); }}
-                      >
-                        ✉️ Verify OTP
-                      </button>
-                    )}
-                    <span className={styles.actionBtn}>Audit →</span>
-                  </div>
-                </div>
-              </article>
-            );
-          })
-        )}
-      </div>
+        }
+      />
 
       {totalPages > 1 && (
         <div className={styles.pagination}>
@@ -2282,350 +2304,347 @@ export default function AdminRecruitersPage() {
       )}
 
       {/* ── Recruiter Detail Drawer ────────────────────────────────────────── */}
-      {previewUser && (
-        <div className={styles.drawerOverlay} onClick={() => setPreviewUser(null)}>
-          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-            <header className={styles.drawerHeader}>
-              <h2>Recruiter Profile</h2>
-              <button className={styles.drawerClose} onClick={() => setPreviewUser(null)}>×</button>
-            </header>
-
-            <div className={styles.drawerContent}>
-              {/* Status toggle */}
-              <div className={styles.statusToggle} style={{ display: 'grid', gap: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
-                <div>
-                  <strong>Account Authorization</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                    {previewUser.is_active ? 'Recruiter can post jobs and review talent.' : 'Recruiter dashboard access is disabled.'}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    disabled={!hasEditPerm}
-                    onClick={() => toggleStatus(previewUser)}
-                    style={{
-                      flex: 1,
-                      padding: '0.6rem',
-                      background: previewUser.is_active ? '#fee2e2' : '#dcfce7',
-                      color: previewUser.is_active ? '#991b1b' : '#166534',
-                      border: '1px solid',
-                      borderColor: previewUser.is_active ? '#fca5a5' : '#86efac',
-                      borderRadius: '8px',
-                      fontWeight: 600,
-                      cursor: hasEditPerm ? 'pointer' : 'not-allowed',
-                      opacity: hasEditPerm ? 1 : 0.6,
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                      {previewUser.is_active ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                      {previewUser.is_active ? 'Deactivate' : 'Activate'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!hasDeletePerm}
-                    onClick={async () => {
-                      if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete recruiter ${previewUser.name}?\n\nThis will delete their auth account and database records.`)) {
-                        try {
-                          const { error: delError } = await invokeFunction('admin-recruiters', {
-                            method: 'DELETE',
-                            queries: { id: previewUser.id }
-                          });
-                          if (delError) throw new Error(delError.message);
-                          alert('Recruiter deleted successfully');
-                          setPreviewUser(null);
-                          fetchRecruiters(page, activeSearch, statusFilter, sort, true);
-                        } catch (err: any) {
-                          alert('Failed to delete recruiter: ' + err.message);
-                        }
-                      }
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '0.6rem',
-                      background: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: 600,
-                      cursor: hasDeletePerm ? 'pointer' : 'not-allowed',
-                      opacity: hasDeletePerm ? 1 : 0.6,
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                      <Trash2 size={15} /> Permanent Delete
-                    </span>
-                  </button>
-                </div>
+      <DetailDrawer
+        isOpen={!!previewUser}
+        onClose={() => setPreviewUser(null)}
+        title="Recruiter Profile"
+      >
+        {previewUser && (
+          <div className={styles.drawerContent} style={{ padding: 0 }}>
+            {/* Status toggle */}
+            <div className={styles.statusToggle} style={{ display: 'grid', gap: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
+              <div>
+                <strong>Account Authorization</strong>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                  {previewUser.is_active ? 'Recruiter can post jobs and review talent.' : 'Recruiter dashboard access is disabled.'}
+                </p>
               </div>
-
-              {/* Pending verification banner */}
-              {isPendingVerification(previewUser) && (
-                <div style={{
-                  background: '#fffbeb', border: '1px solid #fde68a',
-                  borderRadius: '12px', padding: '1.25rem', marginBottom: '0.5rem'
-                }}>
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#92400e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={16} /> Email Not Yet Verified
-                  </p>
-                  <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#78350f' }}>
-                    This recruiter has not verified their email yet. Call them, get the OTP code from their inbox, and verify on their behalf.
-                  </p>
-                  {hasApprovePerm && (
-                    <button
-                      onClick={() => setVerifyTarget(previewUser)}
-                      style={{
-                        width: '100%', padding: '0.75rem',
-                        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                        color: 'white', border: 'none', borderRadius: '8px',
-                        fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                      }}
-                    >
-                      <Smartphone size={16} /> Enter OTP Code (Verify on Behalf)
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Send Credentials */}
-              <div style={{
-                background: '#f0fdf4', border: '1px solid #bbf7d0',
-                borderRadius: '12px', padding: '1rem', marginBottom: '0.5rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
-              }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem', color: '#166534' }}>📧 Send Login Info</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#15803d' }}>Email the recruiter their credentials</p>
-                </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
+                  type="button"
                   disabled={!hasEditPerm}
-                  onClick={() => setCredentialsTarget({ email: previewUser.email, name: previewUser.name })}
+                  onClick={() => toggleStatus(previewUser)}
                   style={{
-                    padding: '0.5rem 1rem', background: '#16a34a',
-                    color: 'white', border: 'none', borderRadius: '8px',
-                    fontWeight: 600, cursor: hasEditPerm ? 'pointer' : 'not-allowed', opacity: hasEditPerm ? 1 : 0.6, fontSize: '0.8rem',
-                    whiteSpace: 'nowrap'
+                    flex: 1,
+                    padding: '0.6rem',
+                    background: previewUser.is_active ? '#fee2e2' : '#dcfce7',
+                    color: previewUser.is_active ? '#991b1b' : '#166534',
+                    border: '1px solid',
+                    borderColor: previewUser.is_active ? '#fca5a5' : '#86efac',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: hasEditPerm ? 'pointer' : 'not-allowed',
+                    opacity: hasEditPerm ? 1 : 0.6,
+                    fontSize: '0.85rem'
                   }}
                 >
-                  Send Now
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                    {previewUser.is_active ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+                    {previewUser.is_active ? 'Deactivate' : 'Activate'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasDeletePerm}
+                  onClick={async () => {
+                    if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete recruiter ${previewUser.name}?\n\nThis will delete their auth account and database records.`)) {
+                      try {
+                        const { error: delError } = await invokeFunction('admin-recruiters', {
+                          method: 'DELETE',
+                          queries: { id: previewUser.id }
+                        });
+                        if (delError) throw new Error(delError.message);
+                        alert('Recruiter deleted successfully');
+                        setPreviewUser(null);
+                        fetchRecruiters(page, activeSearch, statusFilter, sort, true);
+                      } catch (err: any) {
+                        alert('Failed to delete recruiter: ' + err.message);
+                      }
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '0.6rem',
+                    background: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: hasDeletePerm ? 'pointer' : 'not-allowed',
+                    opacity: hasDeletePerm ? 1 : 0.6,
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                    <Trash2 size={15} /> Permanent Delete
+                  </span>
                 </button>
               </div>
+            </div>
 
-              <section className={styles.profileSection}>
-                <h4>Company Info</h4>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-                  <div className={styles.initials} style={{ width: '64px', height: '64px', fontSize: '1.5rem', background: '#f59e0b', color: 'white' }}>
-                    {getProfile(previewUser)?.company_name?.[0] || 'C'}
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0 }}>{getProfile(previewUser)?.company_name || 'N/A'}</h3>
-                    <p style={{ margin: '4px 0 0', color: '#64748b' }}>{getProfile(previewUser)?.industry} · {getProfile(previewUser)?.company_size} Employees</p>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gap: '0.25rem', fontSize: '0.875rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-                  <div><strong>Registered Office Address:</strong></div>
-                  <div style={{ color: '#475569', lineHeight: 1.5 }}>
-                    {getProfile(previewUser)?.companies?.location || getProfile(previewUser)?.company_address || 'Not Provided'}
-                  </div>
-                </div>
-              </section>
-
-              <section className={styles.profileSection}>
-                <h4>About Company</h4>
-                <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#334155' }}>
-                  {getProfile(previewUser)?.about || 'No company description provided.'}
+            {/* Pending verification banner */}
+            {isPendingVerification(previewUser) && (
+              <div style={{
+                background: '#fffbeb', border: '1px solid #fde68a',
+                borderRadius: '12px', padding: '1.25rem', marginBottom: '0.5rem'
+              }}>
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#92400e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock size={16} /> Email Not Yet Verified
                 </p>
-              </section>
-
-              <section className={styles.profileSection}>
-                <h4>Contact Details</h4>
-                <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
-                  <div><strong>Name:</strong> {previewUser.name}</div>
-                  <div><strong>Email:</strong> {previewUser.email}</div>
-                  <div><strong>Phone:</strong> {previewUser.phone || 'N/A'}</div>
-                  <div><strong>Role:</strong> {getProfile(previewUser)?.job_title || 'N/A'}</div>
-                  <div><strong>Joined:</strong> {new Date(previewUser.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                  <div>
-                    <strong>Account Status:</strong>{' '}
-                    <span style={{
-                      padding: '2px 8px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
-                      background: isPendingVerification(previewUser) ? '#fef3c7' : previewUser.is_active ? '#dcfce7' : '#fee2e2',
-                      color: isPendingVerification(previewUser) ? '#92400e' : previewUser.is_active ? '#166534' : '#991b1b',
-                      display: 'inline-flex', alignItems: 'center', gap: '4px'
-                    }}>
-                      {isPendingVerification(previewUser) ? (
-                        <>
-                          <Clock size={12} /> Pending Verification
-                        </>
-                      ) : previewUser.is_active ? (
-                        <>
-                          <CheckCircle2 size={12} /> Active
-                        </>
-                      ) : (
-                        <>
-                          <XCircle size={12} /> Suspended
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  {getProfile(previewUser)?.website_url && (
-                    <div><strong>Website:</strong> <a href={getProfile(previewUser)?.website_url} target="_blank" style={{ color: '#3b82f6' }}>{getProfile(previewUser)?.website_url}</a></div>
-                  )}
-                </div>
-                {getProfile(previewUser)?.document_url && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <strong>Company Verification Document:</strong><br />
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleView(getProfile(previewUser)!.document_url!)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                      >
-                        <FileText size={15} /> View Document
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(getProfile(previewUser)!.document_url!, 'company_document.pdf')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                      >
-                        <Download size={15} /> Download
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              {/* KYC Details Section */}
-              <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Personal KYC Verification</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
-                  <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>PAN Card Number</div>
-                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.pan_number || '—'}</div>
-                  </div>
-                  <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Aadhaar Card Number</div>
-                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.aadhaar_number ? getProfile(previewUser)!.aadhaar_number!.replace(/(\d{4})/g, '$1 ').trim() : '—'}</div>
-                  </div>
-                </div>
-                {getProfile(previewUser)?.kyc_document_url && (
-                  <div style={{ marginTop: '0.75rem' }}>
-                    <strong>KYC Document (Aadhaar/PAN Copy):</strong><br />
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleView(getProfile(previewUser)!.kyc_document_url!)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                      >
-                        <FileText size={15} /> View KYC
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(getProfile(previewUser)!.kyc_document_url!, 'kyc_document.pdf')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                      >
-                        <Download size={15} /> Download
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              {/* Emergency Contact Section */}
-              <section className={styles.profileSection} style={{ background: '#fef3c7', padding: '1.25rem', borderRadius: '12px', border: '1px solid #fde68a' }}>
-                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#78350f', borderBottom: '1px solid #fde68a', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldAlert size={18} /> Emergency Contact</h4>
-                <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.875rem', color: '#451a03' }}>
-                  <div><strong>Name:</strong> {getProfile(previewUser)?.emergency_contact_name || '—'}</div>
-                  <div><strong>Phone:</strong> {getProfile(previewUser)?.emergency_contact_phone || '—'}</div>
-                  <div><strong>Address:</strong> {getProfile(previewUser)?.emergency_contact_address || '—'}</div>
-                </div>
-              </section>
-
-              {/* Company Tax Details */}
-              {(getProfile(previewUser)?.companies?.gstin || getProfile(previewUser)?.companies?.tan) && (
-                <section className={styles.profileSection} style={{ background: '#f0fdf4', padding: '1.25rem', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
-                  <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#166534', borderBottom: '1px solid #bbf7d0', paddingBottom: '0.5rem' }}>Company Tax Details</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>GSTIN</div>
-                      <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{getProfile(previewUser)?.companies?.gstin || '—'}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>TAN</div>
-                      <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{getProfile(previewUser)?.companies?.tan || '—'}</div>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {/* Approve & Setup Button — shown when recruiter is NOT yet approved */}
-              {!getProfile(previewUser)?.is_approved && hasApprovePerm && (
-                <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #ede9fe, #fce7f3)', border: '1px solid #c4b5fd', borderRadius: '16px' }}>
-                  <p style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#4c1d95' }}>
-                    Verify Recruiter Account
-                  </p>
-                  <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#6d28d9', lineHeight: 1.5 }}>
-                    Review the details above. Click below to verify this recruiter, set a password, and send login credentials.
-                  </p>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#78350f' }}>
+                  This recruiter has not verified their email yet. Call them, get the OTP code from their inbox, and verify on their behalf.
+                </p>
+                {hasApprovePerm && (
                   <button
-                    onClick={() => setApproveSetupTarget(previewUser)}
+                    onClick={() => setVerifyTarget(previewUser)}
                     style={{
-                      width: '100%', padding: '0.875rem',
-                      background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-                      color: 'white', border: 'none', borderRadius: '12px',
-                      fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem',
-                      boxShadow: '0 4px 15px rgba(109, 40, 217, 0.3)'
+                      width: '100%', padding: '0.75rem',
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: 'white', border: 'none', borderRadius: '8px',
+                      fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
                     }}
                   >
-                    Verify Recruiter
+                    <Smartphone size={16} /> Enter OTP Code (Verify on Behalf)
                   </button>
+                )}
+              </div>
+            )}
+
+            {/* Send Credentials */}
+            <div style={{
+              background: '#f0fdf4', border: '1px solid #bbf7d0',
+              borderRadius: '12px', padding: '1rem', marginBottom: '0.5rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem'
+            }}>
+              <div>
+                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.875rem', color: '#166534' }}>📧 Send Login Info</p>
+                <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#15803d' }}>Email the recruiter their credentials</p>
+              </div>
+              <button
+                disabled={!hasEditPerm}
+                onClick={() => setCredentialsTarget({ email: previewUser.email, name: previewUser.name })}
+                style={{
+                  padding: '0.5rem 1rem', background: '#16a34a',
+                  color: 'white', border: 'none', borderRadius: '8px',
+                  fontWeight: 600, cursor: hasEditPerm ? 'pointer' : 'not-allowed', opacity: hasEditPerm ? 1 : 0.6, fontSize: '0.8rem',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Send Now
+              </button>
+            </div>
+
+            <section className={styles.profileSection}>
+              <h4>Company Info</h4>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <div className={styles.initials} style={{ width: '64px', height: '64px', fontSize: '1.5rem', background: '#f59e0b', color: 'white' }}>
+                  {getProfile(previewUser)?.company_name?.[0] || 'C'}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0 }}>{getProfile(previewUser)?.company_name || 'N/A'}</h3>
+                  <p style={{ margin: '4px 0 0', color: '#64748b' }}>{getProfile(previewUser)?.industry} · {getProfile(previewUser)?.company_size} Employees</p>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.25rem', fontSize: '0.875rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+                <div><strong>Registered Office Address:</strong></div>
+                <div style={{ color: '#475569', lineHeight: 1.5 }}>
+                  {getProfile(previewUser)?.companies?.location || getProfile(previewUser)?.company_address || 'Not Provided'}
+                </div>
+              </div>
+            </section>
+
+            <section className={styles.profileSection}>
+              <h4>About Company</h4>
+              <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#334155' }}>
+                {getProfile(previewUser)?.about || 'No company description provided.'}
+              </p>
+            </section>
+
+            <section className={styles.profileSection}>
+              <h4>Contact Details</h4>
+              <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.9rem' }}>
+                <div><strong>Name:</strong> {previewUser.name}</div>
+                <div><strong>Email:</strong> {previewUser.email}</div>
+                <div><strong>Phone:</strong> {previewUser.phone || 'N/A'}</div>
+                <div><strong>Role:</strong> {getProfile(previewUser)?.job_title || 'N/A'}</div>
+                <div><strong>Joined:</strong> {new Date(previewUser.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                <div>
+                  <strong>Account Status:</strong>{' '}
+                  <span style={{
+                    padding: '2px 8px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 600,
+                    background: isPendingVerification(previewUser) ? '#fef3c7' : previewUser.is_active ? '#dcfce7' : '#fee2e2',
+                    color: isPendingVerification(previewUser) ? '#92400e' : previewUser.is_active ? '#166534' : '#991b1b',
+                    display: 'inline-flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    {isPendingVerification(previewUser) ? (
+                      <>
+                        <Clock size={12} /> Pending Verification
+                      </>
+                    ) : previewUser.is_active ? (
+                      <>
+                        <CheckCircle2 size={12} /> Active
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={12} /> Suspended
+                      </>
+                    )}
+                  </span>
+                </div>
+                {getProfile(previewUser)?.website_url && (
+                  <div><strong>Website:</strong> <a href={getProfile(previewUser)?.website_url} target="_blank" style={{ color: '#3b82f6' }}>{getProfile(previewUser)?.website_url}</a></div>
+                )}
+              </div>
+              {getProfile(previewUser)?.document_url && (
+                <div style={{ marginTop: '1rem' }}>
+                  <strong>Company Verification Document:</strong><br />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleView(getProfile(previewUser)!.document_url!)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      <FileText size={15} /> View Document
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(getProfile(previewUser)!.document_url!, 'company_document.pdf')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      <Download size={15} /> Download
+                    </button>
+                  </div>
                 </div>
               )}
+            </section>
 
-              {hasEditPerm && (
-                <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <h4>Send Custom Price Plan</h4>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Send a custom pricing plan to this recruiter.</p>
-
-                  <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
-                    {['Unlimited Talent Search', 'Dedicated Account Manager', 'AI Candidate Matching', 'Featured Job Posts', 'API Integration'].map(f => (
-                      <label key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={proposalFeatures.includes(f)} onChange={() => toggleFeature(f)} />
-                        {f}
-                      </label>
-                    ))}
+            {/* KYC Details Section */}
+            <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Personal KYC Verification</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>PAN Card Number</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.pan_number || '—'}</div>
+                </div>
+                <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Aadhaar Card Number</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.aadhaar_number ? getProfile(previewUser)!.aadhaar_number!.replace(/(\d{4})/g, '$1 ').trim() : '—'}</div>
+                </div>
+              </div>
+              {getProfile(previewUser)?.kyc_document_url && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <strong>KYC Document (Aadhaar/PAN Copy):</strong><br />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleView(getProfile(previewUser)!.kyc_document_url!)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      <FileText size={15} /> View KYC
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(getProfile(previewUser)!.kyc_document_url!, 'kyc_document.pdf')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      <Download size={15} /> Download
+                    </button>
                   </div>
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '4px' }}>Custom Price (INR)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 50000"
-                      value={proposalPrice}
-                      onChange={e => setProposalPrice(e.target.value)}
-                      className={styles.searchInput}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <button
-                    className={styles.primaryButton}
-                    style={{ width: '100%' }}
-                    disabled={sendingProposal || !proposalPrice}
-                    onClick={() => sendCustomProposal(previewUser)}
-                  >
-                    {sendingProposal ? 'Sending...' : 'Generate & Email Proposal'}
-                  </button>
-                </section>
+                </div>
               )}
-            </div>
+            </section>
+
+            {/* Emergency Contact Section */}
+            <section className={styles.profileSection} style={{ background: '#fef3c7', padding: '1.25rem', borderRadius: '12px', border: '1px solid #fde68a' }}>
+              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#78350f', borderBottom: '1px solid #fde68a', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldAlert size={18} /> Emergency Contact</h4>
+              <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.875rem', color: '#451a03' }}>
+                <div><strong>Name:</strong> {getProfile(previewUser)?.emergency_contact_name || '—'}</div>
+                <div><strong>Phone:</strong> {getProfile(previewUser)?.emergency_contact_phone || '—'}</div>
+                <div><strong>Address:</strong> {getProfile(previewUser)?.emergency_contact_address || '—'}</div>
+              </div>
+            </section>
+
+            {/* Company Tax Details */}
+            {(getProfile(previewUser)?.companies?.gstin || getProfile(previewUser)?.companies?.tan) && (
+              <section className={styles.profileSection} style={{ background: '#f0fdf4', padding: '1.25rem', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
+                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#166534', borderBottom: '1px solid #bbf7d0', paddingBottom: '0.5rem' }}>Company Tax Details</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>GSTIN</div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{getProfile(previewUser)?.companies?.gstin || '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>TAN</div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{getProfile(previewUser)?.companies?.tan || '—'}</div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Approve & Setup Button — shown when recruiter is NOT yet approved */}
+            {!getProfile(previewUser)?.is_approved && hasApprovePerm && (
+              <div style={{ padding: '1.25rem', background: 'linear-gradient(135deg, #ede9fe, #fce7f3)', border: '1px solid #c4b5fd', borderRadius: '16px' }}>
+                <p style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#4c1d95' }}>
+                  Verify Recruiter Account
+                </p>
+                <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#6d28d9', lineHeight: 1.5 }}>
+                  Review the details above. Click below to verify this recruiter, set a password, and send login credentials.
+                </p>
+                <button
+                  onClick={() => setApproveSetupTarget(previewUser)}
+                  style={{
+                    width: '100%', padding: '0.875rem',
+                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                    color: 'white', border: 'none', borderRadius: '12px',
+                    fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem',
+                    boxShadow: '0 4px 15px rgba(109, 40, 217, 0.3)'
+                  }}
+                >
+                  Verify Recruiter
+                </button>
+              </div>
+            )}
+
+            {hasEditPerm && (
+              <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <h4>Send Custom Price Plan</h4>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>Send a custom pricing plan to this recruiter.</p>
+
+                <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                  {['Unlimited Talent Search', 'Dedicated Account Manager', 'AI Candidate Matching', 'Featured Job Posts', 'API Integration'].map(f => (
+                    <label key={f} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={proposalFeatures.includes(f)} onChange={() => toggleFeature(f)} />
+                      {f}
+                    </label>
+                  ))}
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '4px' }}>Custom Price (INR)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 50000"
+                    value={proposalPrice}
+                    onChange={e => setProposalPrice(e.target.value)}
+                    className={styles.searchInput}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <button
+                  className={styles.primaryButton}
+                  style={{ width: '100%' }}
+                  disabled={sendingProposal || !proposalPrice}
+                  onClick={() => sendCustomProposal(previewUser)}
+                >
+                  {sendingProposal ? 'Sending...' : 'Generate & Email Proposal'}
+                </button>
+              </section>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </DetailDrawer>
 
       {/* ── Company Register Drawer ──────────────────────────────────────── */}
       {showCompanyRegister && (

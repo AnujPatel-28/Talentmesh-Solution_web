@@ -3,6 +3,39 @@ import { NextRequest, NextResponse } from 'next/server';
 const INSFORGE_URL = process.env.NEXT_PUBLIC_INSFORGE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY!;
 
+// In-memory rate limiting store: key -> { count, resetAt }
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+// Clean up expired entries every minute
+if (typeof global !== 'undefined' && !(global as any).__rateLimitCleanup) {
+  (global as any).__rateLimitCleanup = true;
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitMap.entries()) {
+      if (now > entry.resetAt) {
+        rateLimitMap.delete(key);
+      }
+    }
+  }, 60 * 1000);
+}
+
+function checkRateLimit(key: string, maxAttempts: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  
+  if (entry.count >= maxAttempts) {
+    return false;
+  }
+  
+  entry.count++;
+  return true;
+}
+
 export async function GET(request: NextRequest, props: { params: Promise<{ path: string[] }> }) {
   return handleProxy(request, props);
 }
@@ -25,6 +58,27 @@ export async function HEAD(request: NextRequest, props: { params: Promise<{ path
   return handleProxy(request, props);
 }
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    let jsonPayload: string;
+    if (typeof Buffer !== 'undefined') {
+      jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
+    } else {
+      jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+    }
+    const payload = JSON.parse(jsonPayload);
+    if (!payload.exp) return true;
+    return payload.exp <= Math.floor(Date.now() / 1000) - 5;
+  } catch {
+    return true;
+  }
+}
+
 async function handleProxy(request: NextRequest, props: { params: Promise<{ path: string[] }> }) {
   const url = new URL(request.url);
   const rawPath = url.pathname.replace(/^\/api\/v1\/remote/, '');
@@ -40,7 +94,7 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
     headers.set('x-insforge-service-key', process.env.INSFORGE_SERVICE_KEY);
   }
 
-  // Upgrade Anon Key to User Token if cookie is present
+  // Upgrade Anon Key to User Token if cookie is present and not expired
   const authHeader = headers.get('authorization');
   let token = ANON_KEY;
 
@@ -49,16 +103,74 @@ async function handleProxy(request: NextRequest, props: { params: Promise<{ path
     const match = cookieHeader.match(/tm_access_token=([^;]+)/);
     if (match) {
       let decoded = decodeURIComponent(match[1]);
-      token = decoded.startsWith('Bearer ') ? decoded.substring(7) : decoded;
+      let parsedToken = decoded.startsWith('Bearer ') ? decoded.substring(7) : decoded;
+      if (parsedToken && !isTokenExpired(parsedToken)) {
+        token = parsedToken;
+      }
     }
   }
 
+  // Detect public GET requests to allow unauthenticated access via service role key
+  const isPublicGet = request.method === 'GET' && (
+    rawPath.includes('/api/database/records/blog') ||
+    rawPath.includes('/api/database/records/jobs')
+  );
+
   // If the frontend didn't send an auth header, or it sent the Anon Key, use the token (which is user token if exists, else Anon Key)
   if (!authHeader || authHeader.replace('Bearer ', '') === ANON_KEY) {
-    headers.set('authorization', `Bearer ${token}`);
+    if (token === ANON_KEY && isPublicGet && process.env.INSFORGE_SERVICE_KEY) {
+      headers.set('authorization', `Bearer ${process.env.INSFORGE_SERVICE_KEY}`);
+    } else {
+      headers.set('authorization', `Bearer ${token}`);
+    }
   }
 
   const isStorageGet = request.method === 'GET' && url.pathname.includes('storage/buckets/');
+
+  // Rate Limiting for Authentication Endpoints
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+             request.headers.get('x-real-ip') || 
+             'unknown';
+  
+  const path = rawPath.toLowerCase();
+  
+  // Apply rate limits to sensitive endpoints
+  if (path.includes('auth/login') || path.includes('functions/admin-auth-login')) {
+    if (!checkRateLimit(`login:${ip}`, 5, 15 * 60 * 1000)) { // 5 per 15 min
+      return new NextResponse(JSON.stringify({ error: 'Too many login attempts. Please try again later.' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '900' }
+      });
+    }
+  } else if (path.includes('auth/verify') || path.includes('functions/auth-verify')) {
+    if (!checkRateLimit(`otp:${ip}`, 5, 10 * 60 * 1000)) { // 5 per 10 min
+      return new NextResponse(JSON.stringify({ error: 'Too many verification attempts. Please try again later.' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '600' }
+      });
+    }
+  } else if (path.includes('auth/signup') || path.includes('functions/auth-signup')) {
+    if (!checkRateLimit(`signup:${ip}`, 10, 15 * 60 * 1000)) { // 10 per 15 min
+      return new NextResponse(JSON.stringify({ error: 'Too many signup attempts. Please try again later.' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '900' }
+      });
+    }
+  } else if (path.includes('reset_password') || path.includes('password-reset')) {
+    if (!checkRateLimit(`reset:${ip}`, 3, 60 * 60 * 1000)) { // 3 per hour
+      return new NextResponse(JSON.stringify({ error: 'Too many password reset attempts. Please try again later.' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '3600' }
+      });
+    }
+  } else if (path.includes('resume-parse')) {
+    if (!checkRateLimit(`resume:${ip}`, 20, 60 * 60 * 1000)) { // 20 per hour (DoS mitigation)
+      return new NextResponse(JSON.stringify({ error: 'Resume parsing rate limit exceeded. Please try again later.' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '3600' }
+      });
+    }
+  }
 
   // CSRF & Payload Size Guard for Mutating Requests
   let requestBody: any = undefined;
@@ -258,7 +370,6 @@ function fixCookies(request: NextRequest, sourceResponse: Response, targetRespon
     // Override Domain
     if (isLocal) {
       fixed = fixed.replace(/Domain=[^;]+(;|$)/i, '').replace(/;\s*$/, '');
-      fixed = `${fixed}; Domain=.localhost`;
     } else {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');

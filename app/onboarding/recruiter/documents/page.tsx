@@ -2,8 +2,9 @@
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthContext';
-import styles from '../../onboarding.module.css';
 import { invokeFunction } from '@/lib/insforge';
+import { motion } from 'framer-motion';
+import styles from '../../onboarding.module.css';
 
 export default function RecruiterDocuments() {
     const { user, refreshUser } = useAuth();
@@ -38,7 +39,13 @@ export default function RecruiterDocuments() {
     };
 
     return (
-        <div className={styles.card}>
+        <motion.div 
+            className={styles.card}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+        >
             <div className={styles.stepper}>
                 <span className={`${styles.stepDot} ${styles.stepDotDone}`}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -131,6 +138,6 @@ export default function RecruiterDocuments() {
                     router.push(`/dashboard/recruiter/${updatedUser?.public_id || user?.public_id || user?.role_id || 'recruiter'}`);
                 }}>Skip for now</button>
             </p>
-        </div>
+        </motion.div>
     );
 }

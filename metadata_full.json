@@ -1,0 +1,619 @@
+{
+  "auth": {
+    "oAuthProviders": [
+      "github",
+      "google",
+      "linkedin"
+    ],
+    "customOAuthProviders": [],
+    "smtpConfig": {
+      "enabled": false,
+      "host": "",
+      "port": 465,
+      "username": "",
+      "hasPassword": false,
+      "senderEmail": "",
+      "senderName": "",
+      "minIntervalSeconds": 60
+    },
+    "requireEmailVerification": true,
+    "passwordMinLength": 6,
+    "requireNumber": false,
+    "requireLowercase": false,
+    "requireUppercase": false,
+    "requireSpecialChar": false,
+    "verifyEmailMethod": "code",
+    "resetPasswordMethod": "code",
+    "allowedRedirectUrls": [],
+    "disableSignup": false
+  },
+  "database": {
+    "tables": [
+      {
+        "tableName": "access_requests",
+        "recordCount": 0
+      },
+      {
+        "tableName": "activity",
+        "recordCount": 12
+      },
+      {
+        "tableName": "admin_invites",
+        "recordCount": 0
+      },
+      {
+        "tableName": "admin_permissions",
+        "recordCount": 0
+      },
+      {
+        "tableName": "admin_users",
+        "recordCount": 7
+      },
+      {
+        "tableName": "ai_interviews",
+        "recordCount": 0
+      },
+      {
+        "tableName": "ai_suggestion_cache",
+        "recordCount": 0
+      },
+      {
+        "tableName": "announcement_dismissals",
+        "recordCount": 0
+      },
+      {
+        "tableName": "announcements",
+        "recordCount": 0
+      },
+      {
+        "tableName": "application_events",
+        "recordCount": 0
+      },
+      {
+        "tableName": "application_status_history",
+        "recordCount": 37
+      },
+      {
+        "tableName": "applications",
+        "recordCount": 35
+      },
+      {
+        "tableName": "audit_log",
+        "recordCount": 10
+      },
+      {
+        "tableName": "auth_attempts",
+        "recordCount": 0
+      },
+      {
+        "tableName": "auth_events",
+        "recordCount": 0
+      },
+      {
+        "tableName": "authorization_events",
+        "recordCount": 0
+      },
+      {
+        "tableName": "blog",
+        "recordCount": 1
+      },
+      {
+        "tableName": "candidate_profiles",
+        "recordCount": 60
+      },
+      {
+        "tableName": "candidate_resumes",
+        "recordCount": 42
+      },
+      {
+        "tableName": "cleanup_job_runs",
+        "recordCount": 0
+      },
+      {
+        "tableName": "companies",
+        "recordCount": 6
+      },
+      {
+        "tableName": "company_profiles",
+        "recordCount": 0
+      },
+      {
+        "tableName": "custom_proposals",
+        "recordCount": 0
+      },
+      {
+        "tableName": "debug_output",
+        "recordCount": 3
+      },
+      {
+        "tableName": "export_candidates",
+        "recordCount": 0
+      },
+      {
+        "tableName": "export_jobs",
+        "recordCount": 0
+      },
+      {
+        "tableName": "idempotency_keys",
+        "recordCount": 0
+      },
+      {
+        "tableName": "interviews",
+        "recordCount": 0
+      },
+      {
+        "tableName": "job_alerts",
+        "recordCount": 0
+      },
+      {
+        "tableName": "jobs",
+        "recordCount": 2
+      },
+      {
+        "tableName": "live_ai_interviews",
+        "recordCount": 0
+      },
+      {
+        "tableName": "messages",
+        "recordCount": 0
+      },
+      {
+        "tableName": "notification_events",
+        "recordCount": 0
+      },
+      {
+        "tableName": "notification_jobs",
+        "recordCount": 0
+      },
+      {
+        "tableName": "notification_preferences",
+        "recordCount": 150
+      },
+      {
+        "tableName": "notification_receipts",
+        "recordCount": 0
+      },
+      {
+        "tableName": "notification_templates",
+        "recordCount": 5
+      },
+      {
+        "tableName": "notifications",
+        "recordCount": 45
+      },
+      {
+        "tableName": "nvites",
+        "recordCount": 0
+      },
+      {
+        "tableName": "offers",
+        "recordCount": 0
+      },
+      {
+        "tableName": "platform_settings",
+        "recordCount": 4
+      },
+      {
+        "tableName": "profiles",
+        "recordCount": 150
+      },
+      {
+        "tableName": "recruiter_candidate_notes",
+        "recordCount": 0
+      },
+      {
+        "tableName": "recruiter_profiles",
+        "recordCount": 4
+      },
+      {
+        "tableName": "recruiter_users",
+        "recordCount": 25
+      },
+      {
+        "tableName": "resume_access_log",
+        "recordCount": 2
+      },
+      {
+        "tableName": "saved_candidates",
+        "recordCount": 0
+      },
+      {
+        "tableName": "saved_jobs",
+        "recordCount": 5
+      },
+      {
+        "tableName": "storage_quarantine",
+        "recordCount": 0
+      },
+      {
+        "tableName": "subscription_events",
+        "recordCount": 0
+      },
+      {
+        "tableName": "subscriptions",
+        "recordCount": 0
+      },
+      {
+        "tableName": "test_rpc_sync",
+        "recordCount": 0
+      },
+      {
+        "tableName": "user_auth_state",
+        "recordCount": 164
+      },
+      {
+        "tableName": "user_preferences",
+        "recordCount": 1
+      },
+      {
+        "tableName": "user_rate_limits",
+        "recordCount": 0
+      },
+      {
+        "tableName": "user_sessions",
+        "recordCount": 98
+      }
+    ],
+    "totalSizeInGB": 0.019398494623601437,
+    "hint": "To retrieve detailed schema information for a specific table, call the get-table-schema tool with the table name."
+  },
+  "storage": {
+    "buckets": [
+      {
+        "name": "announcement_images",
+        "public": true,
+        "createdAt": "2026-06-08T13:20:01.284Z",
+        "objectCount": 2
+      },
+      {
+        "name": "application-snapshots",
+        "public": false,
+        "createdAt": "2026-06-10T05:38:37.646Z",
+        "objectCount": 31
+      },
+      {
+        "name": "avatars",
+        "public": true,
+        "createdAt": "2026-06-02T14:27:01.563Z",
+        "objectCount": 21
+      },
+      {
+        "name": "blog_images_final",
+        "public": true,
+        "createdAt": "2026-03-28T13:56:34.773Z",
+        "objectCount": 4
+      },
+      {
+        "name": "company-logos",
+        "public": true,
+        "createdAt": "2026-03-28T06:20:05.121Z",
+        "objectCount": 1
+      },
+      {
+        "name": "recruiter_documents",
+        "public": false,
+        "createdAt": "2026-05-29T11:37:38.175Z",
+        "objectCount": 14
+      },
+      {
+        "name": "resumes",
+        "public": false,
+        "createdAt": "2026-03-26T10:49:14.904Z",
+        "objectCount": 72
+      }
+    ],
+    "totalSizeInGB": 0.012529974803328514
+  },
+  "functions": [
+    {
+      "slug": "recruiter-document-proxy",
+      "name": "Recruiter Document Proxy",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "cleanup-stale-resources",
+      "name": "Cleanup Stale Resources",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "test-auth-pattern",
+      "name": "Test Auth Pattern",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "notification-worker",
+      "name": "Notification Worker",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "resume-proxy",
+      "name": "Resume Proxy",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "cleanup-idempotency-keys",
+      "name": "Cleanup Idempotency Keys",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-audit",
+      "name": "Admin Audit",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-announcements",
+      "name": "Admin Announcements",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "update-application",
+      "name": "Update Application",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "recruiter-profile",
+      "name": "Recruiter Profile",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "interview-generator",
+      "name": "Interview Generator",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "company-profile",
+      "name": "Company Profile",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "candidates",
+      "name": "Candidates",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "ai-match",
+      "name": "Ai Match",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "activate-recruiter",
+      "name": "Activate Recruiter",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "recommendations",
+      "name": "Recommendations",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "recruiter-request",
+      "name": "Recruiter Request",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-settings",
+      "name": "Admin Settings",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-recruiters",
+      "name": "Admin Recruiters",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-export-audit",
+      "name": "Admin Export Audit",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-companies",
+      "name": "Admin Companies",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-candidates",
+      "name": "Admin Candidates",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "recruiter-dashboard",
+      "name": "Recruiter Dashboard",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "candidate-dashboard",
+      "name": "Candidate Dashboard",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-audit-logs",
+      "name": "Admin Audit Logs",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-applications",
+      "name": "Admin Applications",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-jobs",
+      "name": "Admin Jobs",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-reports",
+      "name": "Admin Reports",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-dashboard",
+      "name": "Admin Dashboard",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-blogs",
+      "name": "Admin Blogs",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "upload-resume",
+      "name": "Upload Resume",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "upload-logo",
+      "name": "Upload Logo",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "upload-blog-image",
+      "name": "Upload Blog Image",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "resume-parse",
+      "name": "Resume Parse",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-recruiter",
+      "name": "Admin Recruiter",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "dashboard",
+      "name": "Dashboard",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "profile-complete-onboarding",
+      "name": "Profile Complete Onboarding",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "mfa-status",
+      "name": "Mfa Status",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "mfa-backup-codes",
+      "name": "Mfa Backup Codes",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "jobs-id",
+      "name": "Jobs Id",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "jobs",
+      "name": "Jobs",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "candidate-profile",
+      "name": "Candidate Profile",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "candidate-applications-id",
+      "name": "Candidate Applications Id",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "candidate-applications",
+      "name": "Candidate Applications",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "blogs-slug",
+      "name": "Blogs Slug",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "blogs",
+      "name": "Blogs",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "auth-verify",
+      "name": "Auth Verify",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "auth-signup",
+      "name": "Auth Signup",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "auth-session",
+      "name": "Auth Session",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-forgot-password",
+      "name": "Admin Forgot Password",
+      "description": "",
+      "status": "active"
+    },
+    {
+      "slug": "admin-auth-login",
+      "name": "Admin Auth Login",
+      "description": "",
+      "status": "active"
+    }
+  ],
+  "deployments": {
+    "customSlug": null
+  },
+  "version": "1.0.0"
+}

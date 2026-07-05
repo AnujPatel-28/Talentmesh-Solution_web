@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
       if (domainParts.includes('localhost')) {
-        domain = '.localhost';
+        // Do not set domain on localhost
       } else if (!host.includes('127.0.0.1')) {
         domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
       }
@@ -83,8 +83,16 @@ export async function POST(request: NextRequest) {
         ...cookieOptions,
         maxAge: 60 * 60 * 24 * 30, // 30 days
       });
+      // Explicitly delete any legacy insforge_refresh_token cookie on the root path '/' to prevent duplicates
+      response.cookies.set('insforge_refresh_token', '', {
+        ...cookieOptions,
+        path: '/',
+        maxAge: 0,
+      });
+      // Set the path explicitly to /api/auth to limit cookie exposure and match backend
       response.cookies.set('insforge_refresh_token', refreshToken, {
         ...cookieOptions,
+        path: '/api/auth',
         maxAge: 60 * 60 * 24 * 30, // 30 days
       });
     }
@@ -93,6 +101,12 @@ export async function POST(request: NextRequest) {
   // Forward Set-Cookie headers, stripping Secure on localhost so the browser stores them
   insforgeRes.headers.forEach((value, key) => {
     if (key.toLowerCase() === 'set-cookie') {
+      // If this set-cookie header is setting insforge_refresh_token, skip forwarding it
+      // since we explicitly manage it via response.cookies.set
+      if (value.toLowerCase().includes('insforge_refresh_token=')) {
+        return;
+      }
+
       let fixed = value;
       // Inject root domain for multi-tenant cookie sharing
       const host = request.headers.get('host') || '';

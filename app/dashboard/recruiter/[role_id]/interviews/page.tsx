@@ -1,11 +1,20 @@
 "use client";
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge, invokeFunction } from '@/lib/insforge';
-import Link from 'next/link';
-import styles from './interviews.module.css';
+import { useRouter } from 'next/navigation';
+import styles from '../../shared-dashboard.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
+import { toast } from 'react-hot-toast';
+import { cn } from '@/lib/utils';
+
+import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
+import StatCard from '@/components/dashboard/StatCard';
+import DataTable, { Column } from '@/components/dashboard/DataTable';
+import FilterBar from '@/components/dashboard/FilterBar';
+import DetailDrawer from '@/components/dashboard/DetailDrawer';
+import StatusPill from '@/components/dashboard/StatusPill';
 
 /* ─── Types ─── */
 interface Interview {
@@ -30,57 +39,13 @@ interface ScheduleFormData {
 type StatusFilter = 'all' | 'scheduled' | 'completed' | 'cancelled';
 type DateFilter = 'today' | 'week' | 'month' | 'all';
 
-/* ─── Helpers ─── */
-function fmt(iso: string) {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' }) +
-        ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-
-function groupByDate(list: Interview[]): Record<string, Interview[]> {
-    const now = new Date(); now.setHours(0, 0, 0, 0);
-    const tom = new Date(now); tom.setDate(tom.getDate() + 1);
-    const endWeek = new Date(now); endWeek.setDate(endWeek.getDate() + 7);
-    const groups: Record<string, Interview[]> = {};
-    for (const iv of list) {
-        const d = new Date(iv.scheduled_at); d.setHours(0, 0, 0, 0);
-        let key: string;
-        if (d.getTime() === now.getTime()) key = 'Today';
-        else if (d.getTime() === tom.getTime()) key = 'Tomorrow';
-        else if (d > now && d <= endWeek) key = 'This Week';
-        else if (d < now) key = 'Past';
-        else key = 'Upcoming';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(iv);
-    }
-    return groups;
-}
-
-function pillClass(s: Interview['status'], mod: Record<string, string>) {
-    return `${mod.pill} ${
-        s === 'scheduled' ? mod.pillScheduled :
-        s === 'completed' ? mod.pillCompleted :
-        s === 'cancelled' ? mod.pillCancelled :
-        s === 'no_show' ? mod.pillNoShow :
-        mod.pillRescheduled
-    }`;
-}
-
-function typeLabel(t: Interview['type']) {
-    return { video: 'Video Call', phone: 'Phone', in_person: 'In Person', technical: 'Technical' }[t];
-}
-
 /* ─── Icons ─── */
 const IC = {
     plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
     video: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>,
-    phone: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.64A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>,
-    map: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+    phone: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 10.8a19.79 19.79 0 0 1-3.07-8.64A2 2 0 0 1 2 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 14.92v2z"/></svg>,
+    map: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
     code: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
-    dots: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>,
-    cal: <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-    x: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>,
-    check: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
     calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
     clock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
 };
@@ -92,14 +57,8 @@ function TypeIcon({ t }: { t: Interview['type'] }) {
     return IC.code;
 }
 
-/* ─── Toast ─── */
-function Toast({ msg, type, onClose }: { msg: string; type: 'success' | 'error'; onClose: () => void }) {
-    useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
-    return (
-        <div className={`${styles.toast} ${type === 'error' ? styles.toastError : styles.toastSuccess}`}>
-            {type === 'success' ? IC.check : IC.x} {msg}
-        </div>
-    );
+function typeLabel(t: Interview['type']) {
+    return { video: 'Video Call', phone: 'Phone', in_person: 'In Person', technical: 'Technical' }[t];
 }
 
 /* ─── Schedule Modal ─── */
@@ -162,7 +121,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
             if (!app) throw new Error('Application not found');
             const scheduled_at = new Date(`${form.date}T${form.time}`).toISOString();
             
-            // Format title into notes
             const combinedNotes = `Title: ${form.title || ''}\n\nNotes: ${form.notes || ''}`;
 
             const { error } = await insforge.database.from('interviews').insert([{
@@ -185,6 +143,7 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
             onSuccess();
         } catch (err: any) {
             console.error(err);
+            toast.error(err.message || 'Failed to schedule interview');
         } finally {
             setLoading(false);
         }
@@ -199,17 +158,16 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
 
     return (
         <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-            <div className={styles.modal}>
+            <div className={styles.modal} style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)', borderRadius: 'var(--tm-card-radius)' }}>
                 <div className={styles.modalHeader}>
                     <div>
-                        <h2 className={styles.modalTitle}>Schedule new interview</h2>
-                        <p className={styles.modalSubtitle}>Fill in the correct information for this interview.</p>
+                        <h2 className={styles.modalTitle} style={{ color: 'var(--tm-text-primary)' }}>Schedule new interview</h2>
+                        <p className={styles.modalSubtitle} style={{ color: 'var(--tm-text-secondary)' }}>Fill in the correct information for this interview.</p>
                     </div>
-                    <button className={styles.modalCloseCircle} onClick={onClose}>{IC.x}</button>
+                    <button className={styles.modalCloseCircle} onClick={onClose} style={{ color: 'var(--tm-text-secondary)' }}>✕</button>
                 </div>
                 
                 <form onSubmit={handleSubmit}>
-                    {/* Selection */}
                     <div className={styles.formRow}>
                         <label className={styles.label}>Select Candidate & Job</label>
                         <CustomSelect 
@@ -225,11 +183,10 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                         />
                     </div>
 
-                    {/* Job / Candidate Card Details */}
                     {selectedApp && (
                         <div className={styles.formRow}>
                             <label className={styles.label}>Interview Details</label>
-                            <div className={styles.detailsCard}>
+                            <div className={styles.detailsCard} style={{ background: 'var(--tm-surface-muted)', border: '1px solid var(--tm-border)' }}>
                                 <div className={styles.detailsCardHeader}>
                                     <div className={styles.companyAvatar}>
                                         {selectedApp.job?.logo_url ? (
@@ -241,26 +198,24 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                                         )}
                                     </div>
                                     <div className={styles.detailsCardText}>
-                                        <h4 className={styles.jobCardTitle}>{selectedApp.job?.title}</h4>
-                                        <span className={styles.companyCardName}>{selectedApp.job?.company_name || 'TalentMesh Company'}</span>
+                                        <h4 className={styles.jobCardTitle} style={{ color: 'var(--tm-text-primary)' }}>{selectedApp.job?.title}</h4>
+                                        <span className={styles.companyCardName} style={{ color: 'var(--tm-text-secondary)' }}>{selectedApp.job?.company_name || 'TalentMesh Company'}</span>
                                     </div>
                                 </div>
-                                
-                                <div className={styles.detailsCardDivider} />
-                                
+                                <div className={styles.detailsCardDivider} style={{ borderColor: 'var(--tm-border)' }} />
                                 <div className={styles.detailsCardSubGrid}>
                                     <div className={styles.detailsTagGroup}>
                                         <span className={styles.detailsTagLabel}>Skills</span>
                                         <div className={styles.detailsTags}>
                                             {(selectedApp.job?.skills_required || ['General']).slice(0, 3).map((sk: string) => (
-                                                <span key={sk} className={styles.skillsTag}>{sk}</span>
+                                                <span key={sk} className={styles.skillsTag} style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)', color: 'var(--tm-text-secondary)' }}>{sk}</span>
                                             ))}
                                         </div>
                                     </div>
                                     <div className={styles.detailsTagGroup}>
                                         <span className={styles.detailsTagLabel}>Position type</span>
                                         <div className={styles.detailsTags}>
-                                            <span className={styles.typeTag}>{selectedApp.job?.type || 'Full-time'}</span>
+                                            <span className={styles.typeTag} style={{ background: 'var(--tm-surface)', border: '1px solid var(--tm-border)', color: 'var(--tm-text-secondary)' }}>{selectedApp.job?.type || 'Full-time'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -268,7 +223,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                         </div>
                     )}
 
-                    {/* Interview Title */}
                     <div className={styles.formRow}>
                         <label className={styles.label}>Interview Title</label>
                         <input 
@@ -281,7 +235,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                         />
                     </div>
 
-                    {/* Meeting URL */}
                     <div className={styles.formRow}>
                         <label className={styles.label}>Interview Type</label>
                         <div className={styles.typeGrid}>
@@ -313,7 +266,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                         </div>
                     )}
 
-                    {/* Date, Time & Duration */}
                     <div className={styles.rowTwo}>
                         <div className={styles.formRow}>
                             <label className={styles.label}>Interview date & time</label>
@@ -351,7 +303,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                         </div>
                     </div>
 
-                    {/* Prospect Details */}
                     <div className={styles.prospectSection}>
                         <h3 className={styles.prospectHeader}>Prospect Details</h3>
                         <div className={styles.rowTwo}>
@@ -376,9 +327,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                                 />
                             </div>
                         </div>
-                        <button type="button" className={styles.addProspectBtn}>
-                            <span className={styles.plusIcon}>+</span> Add Prospect
-                        </button>
                     </div>
 
                     <div className={styles.formRow}>
@@ -388,7 +336,6 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                             placeholder="Topics to cover, preparation notes…" />
                     </div>
 
-                    {/* Footer Actions */}
                     <div className={styles.modalFooter}>
                         <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancel</button>
                         <button type="submit" className={styles.submitBtn} disabled={loading}>
@@ -401,56 +348,20 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
     );
 }
 
-/* ─── Menu ─── */
-function CardMenu({ iv, onRefresh }: { iv: Interview; onRefresh: () => void }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-        document.addEventListener('mousedown', fn);
-        return () => document.removeEventListener('mousedown', fn);
-    }, []);
-
-    const cancel = async () => {
-        setOpen(false);
-        await insforge.database.from('interviews').update({ status: 'cancelled' }).eq('id', iv.id);
-        onRefresh();
-    };
-
-    return (
-        <div ref={ref} style={{ position: 'relative' }}>
-            <button className={styles.menuBtn} onClick={() => setOpen(o => !o)}>{IC.dots}</button>
-            {open && (
-                <div className={styles.dropdown}>
-                    <Link href={`/dashboard/recruiter/${iv.recruiter_id}/interviews/${iv.id}`}
-                        className={styles.dropdownItem} onClick={() => setOpen(false)}>
-                        View Details
-                    </Link>
-                    <Link href={`/dashboard/recruiter/${iv.recruiter_id}/interviews/${iv.id}?tab=feedback`}
-                        className={styles.dropdownItem} onClick={() => setOpen(false)}>
-                        Add Feedback
-                    </Link>
-                    <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} onClick={cancel}>
-                        Cancel Interview
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-}
-
 /* ─── Main Page ─── */
 export default function InterviewsPage({ params }: { params: Promise<{ role_id: string }> }) {
     const { role_id } = React.use(params);
     const { user: authUser, isLoading: authLoading } = useAuth();
+    const router = useRouter();
+
     const [interviews, setInterviews] = useState<Interview[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [search, setSearch] = useState('');
+    const [selectedIv, setSelectedIv] = useState<Interview | null>(null);
     const fetching = useRef(false);
 
     const fetchInterviews = useCallback(async () => {
@@ -479,203 +390,312 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
     const startWeek = new Date(now); startWeek.setDate(now.getDate() - now.getDay());
     const endWeek = new Date(startWeek); endWeek.setDate(startWeek.getDate() + 7);
 
-    const stats = {
-        today: interviews.filter(i => new Date(i.scheduled_at).toDateString() === todayStr).length,
-        week: interviews.filter(i => { const d = new Date(i.scheduled_at); return d >= startWeek && d < endWeek; }).length,
-        pendingFeedback: interviews.filter(i => i.status === 'completed' && !i.feedback).length,
-        completionRate: interviews.length
-            ? Math.round((interviews.filter(i => i.status === 'completed').length / interviews.length) * 100)
-            : 0,
-    };
+    const stats = useMemo(() => {
+        return {
+            today: interviews.filter(i => new Date(i.scheduled_at).toDateString() === todayStr).length,
+            week: interviews.filter(i => { const d = new Date(i.scheduled_at); return d >= startWeek && d < endWeek; }).length,
+            pendingFeedback: interviews.filter(i => i.status === 'completed' && !i.feedback).length,
+            completionRate: interviews.length
+                ? Math.round((interviews.filter(i => i.status === 'completed').length / interviews.length) * 100)
+                : 0,
+        };
+    }, [interviews, todayStr, startWeek, endWeek]);
 
     /* ─── Filter ─── */
-    const filtered = interviews.filter(iv => {
-        if (statusFilter !== 'all' && iv.status !== statusFilter) return false;
-        if (typeFilter !== 'all' && iv.type !== typeFilter) return false;
-        if (dateFilter !== 'all') {
-            const d = new Date(iv.scheduled_at);
-            if (dateFilter === 'today' && d.toDateString() !== todayStr) return false;
-            if (dateFilter === 'week' && (d < startWeek || d >= endWeek)) return false;
-            if (dateFilter === 'month') {
-                const m = new Date(now.getFullYear(), now.getMonth(), 1);
-                const mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-                if (d < m || d >= mEnd) return false;
+    const filtered = useMemo(() => {
+        return interviews.filter(iv => {
+            if (statusFilter !== 'all' && iv.status !== statusFilter) return false;
+            if (typeFilter !== 'all' && iv.type !== typeFilter) return false;
+            if (dateFilter !== 'all') {
+                const d = new Date(iv.scheduled_at);
+                if (dateFilter === 'today' && d.toDateString() !== todayStr) return false;
+                if (dateFilter === 'week' && (d < startWeek || d >= endWeek)) return false;
+                if (dateFilter === 'month') {
+                    const m = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const mEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    if (d < m || d >= mEnd) return false;
+                }
             }
-        }
-        if (search) {
-            const q = search.toLowerCase();
-            return (iv.candidate?.full_name || '').toLowerCase().includes(q) ||
-                (iv.job?.title || '').toLowerCase().includes(q);
-        }
-        return true;
-    });
-
-    const grouped = groupByDate(filtered);
-    const groupOrder = ['Today', 'Tomorrow', 'This Week', 'Upcoming', 'Past'];
+            if (search) {
+                const q = search.toLowerCase();
+                return (iv.candidate?.full_name || '').toLowerCase().includes(q) ||
+                    (iv.job?.title || '').toLowerCase().includes(q);
+            }
+            return true;
+        });
+    }, [interviews, statusFilter, typeFilter, dateFilter, todayStr, startWeek, endWeek, search]);
 
     if (loading || authLoading) {
-        return (
-            <div className={styles.page}>
-                <div className={styles.loadingWrap}>
-                    <div className={styles.spinner} />
-                    <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Loading interviews…</span>
-                </div>
-            </div>
-        );
+        return <HomeSkeleton />;
     }
 
-    return (
-        <div className={styles.page}>
-            {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+    const filters = [
+        {
+            key: 'date',
+            label: 'Time Filter',
+            options: [
+                { value: 'all', label: 'All Time' },
+                { value: 'today', label: 'Today' },
+                { value: 'week', label: 'This Week' },
+                { value: 'month', label: 'This Month' }
+            ],
+            value: dateFilter,
+            onChange: (val: string) => setDateFilter(val as DateFilter)
+        },
+        {
+            key: 'type',
+            label: 'Interview Type',
+            options: [
+                { value: 'all', label: 'All Types' },
+                { value: 'video', label: 'Video Call' },
+                { value: 'phone', label: 'Phone Call' },
+                { value: 'in_person', label: 'In Person' },
+                { value: 'technical', label: 'Technical' }
+            ],
+            value: typeFilter,
+            onChange: setTypeFilter
+        }
+    ];
 
-            {/* Header */}
-            <div className={styles.pageHeader}>
-                <div>
-                    <h1 className={styles.pageTitle}>Interviews</h1>
-                    <p className={styles.pageSub}>Manage and track all candidate interviews</p>
+    const columns: Column<Interview>[] = [
+        {
+            header: 'Candidate',
+            key: 'candidate.full_name',
+            render: (iv) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {iv.candidate?.avatar_url ? (
+                        <img src={getPublicStorageUrl('avatars', iv.candidate.avatar_url)} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--tm-surface-muted)', border: '1px solid var(--tm-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: 'var(--tm-accent)' }}>
+                            {(iv.candidate?.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--tm-text-primary)' }}>{iv.candidate?.full_name}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--tm-text-secondary)' }}>{iv.candidate?.email}</span>
+                    </div>
                 </div>
-                <button className={styles.scheduleBtn} onClick={() => setShowModal(true)}>
+            )
+        },
+        {
+            header: 'Job Role',
+            key: 'job.title',
+            render: (iv) => <span style={{ fontWeight: 500 }}>{iv.job?.title || '—'}</span>
+        },
+        {
+            header: 'Type',
+            key: 'type',
+            render: (iv) => (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}>
+                    <TypeIcon t={iv.type} /> {typeLabel(iv.type)}
+                </span>
+            )
+        },
+        {
+            header: 'Scheduled At',
+            key: 'scheduled_at',
+            render: (iv) => <span>{new Date(iv.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+        },
+        {
+            header: 'Duration',
+            key: 'duration_mins',
+            render: (iv) => <span>{iv.duration_mins} min</span>
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            render: (iv) => <StatusPill status={iv.status} />
+        }
+    ];
+
+    return (
+        <div className={cn(styles.dash, styles.dashPremium)}>
+            {/* Header */}
+            <div className={styles.pageHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h1 className={styles.pageHeaderTitle}>Interviews</h1>
+                    <p className={styles.pageHeaderSub}>Manage and track all candidate interviews</p>
+                </div>
+                <button className={styles.primaryAction} style={{ width: 'auto', padding: '0.6rem 1.25rem', gap: '0.4rem' }} onClick={() => setShowModal(true)}>
                     {IC.plus} Schedule Interview
                 </button>
             </div>
 
             {/* Stats */}
-            <div className={styles.statsRow}>
-                <div className={styles.statCard}>
-                    <span className={styles.statLabel}>Today</span>
-                    <span className={styles.statValue}>{stats.today}</span>
-                    <span className={styles.statHint}>scheduled for today</span>
-                </div>
-                <div className={styles.statCard}>
-                    <span className={styles.statLabel}>This Week</span>
-                    <span className={styles.statValue}>{stats.week}</span>
-                    <span className={styles.statHint}>in current week</span>
-                </div>
-                <div className={styles.statCard}>
-                    <span className={styles.statLabel}>Pending Feedback</span>
-                    <span className={styles.statValue}>{stats.pendingFeedback}</span>
-                    <span className={styles.statHint}>completed, no feedback</span>
-                </div>
-                <div className={styles.statCard}>
-                    <span className={styles.statLabel}>Completion Rate</span>
-                    <span className={styles.statValue}>{stats.completionRate}%</span>
-                    <span className={styles.statHint}>of total interviews</span>
-                </div>
+            <div className={styles.stats}>
+                <StatCard label="Today" value={stats.today} icon={IC.calendar} delta="scheduled for today" />
+                <StatCard label="This Week" value={stats.week} icon={IC.calendar} delta="in current week" />
+                <StatCard label="Pending Feedback" value={stats.pendingFeedback} icon={IC.calendar} delta="completed, no feedback" />
+                <StatCard label="Completion Rate" value={`${stats.completionRate}%`} icon={IC.calendar} delta="of total interviews" />
             </div>
 
-            {/* Filters */}
-            <div className={styles.filterBar}>
-                <div className={styles.tabs}>
+            {/* Filter Bar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--tm-surface)', border: '1px solid var(--tm-border)', borderRadius: 'var(--tm-card-radius)', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--tm-border)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
                     {(['all', 'scheduled', 'completed', 'cancelled'] as StatusFilter[]).map(s => (
-                        <button key={s} className={`${styles.tab} ${statusFilter === s ? styles.tabActive : ''}`}
+                        <button key={s} 
+                            style={{
+                                padding: '0.45rem 1rem', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
+                                border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                                background: statusFilter === s ? 'var(--tm-accent)' : 'var(--tm-surface-muted)',
+                                color: statusFilter === s ? '#fff' : 'var(--tm-text-secondary)',
+                            }}
                             onClick={() => setStatusFilter(s)}>
                             {s.charAt(0).toUpperCase() + s.slice(1)}
                         </button>
                     ))}
                 </div>
-                <div className={styles.filterDivider} />
-                <div style={{ width: '150px' }}>
-                    <CustomSelect 
-                        className={styles.filterSelect} 
-                        value={dateFilter}
-                        onChange={e => setDateFilter(e.target.value as DateFilter)}
-                        options={[
-                            { value: 'all', label: 'All Time' },
-                            { value: 'today', label: 'Today' },
-                            { value: 'week', label: 'This Week' },
-                            { value: 'month', label: 'This Month' }
-                        ]}
-                    />
-                </div>
-                <div style={{ width: '150px' }}>
-                    <CustomSelect 
-                        className={styles.filterSelect} 
-                        value={typeFilter}
-                        onChange={e => setTypeFilter(e.target.value)}
-                        options={[
-                            { value: 'all', label: 'All Types' },
-                            { value: 'video', label: 'Video' },
-                            { value: 'phone', label: 'Phone' },
-                            { value: 'in_person', label: 'In Person' },
-                            { value: 'technical', label: 'Technical' }
-                        ]}
-                    />
-                </div>
-                <div className={styles.filterDivider} />
-                <input className={styles.searchInput} placeholder="Search by candidate or job…"
-                    value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
 
-            {/* List */}
-            {filtered.length === 0 ? (
-                <div className={styles.empty}>
-                    <span className={styles.emptyIcon}>{IC.cal}</span>
-                    <h3 className={styles.emptyTitle}>No interviews yet</h3>
-                    <p className={styles.emptyDesc}>Schedule your first interview to get started.</p>
-                    <button className={styles.emptyBtn} onClick={() => setShowModal(true)}>
-                        {IC.plus} Schedule Interview
-                    </button>
-                </div>
-            ) : (
-                <div className={styles.groups}>
-                    {groupOrder.map(grp => {
-                        const items = grouped[grp];
-                        if (!items?.length) return null;
-                        return (
-                            <div key={grp} className={styles.group}>
-                                <span className={styles.groupLabel}>{grp}</span>
-                                {items.map(iv => {
-                                    const initials = (iv.candidate?.full_name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
-                                    return (
-                                        <div key={iv.id} className={styles.card}>
-                                            {iv.candidate?.avatar_url
-                                                ? <img src={getPublicStorageUrl('avatars', iv.candidate.avatar_url)} alt="" className={styles.avatarImg} />
-                                                : <div className={styles.avatar}>{initials}</div>
-                                            }
-                                            <div className={styles.candidateInfo}>
-                                                <span className={styles.candidateName}>{iv.candidate?.full_name || 'Unknown'}</span>
-                                                <span className={styles.jobTitle}>{iv.job?.title || '—'}</span>
-                                            </div>
-                                            <div className={styles.meta}>
-                                                <span className={styles.typeIcon}>
-                                                    <TypeIcon t={iv.type} /> {typeLabel(iv.type)}
-                                                </span>
-                                                <span className={styles.dateTime}>{fmt(iv.scheduled_at)}</span>
-                                                <span className={styles.durationBadge}>{iv.duration_mins} min</span>
-                                                <span className={pillClass(iv.status, styles)}>
-                                                    {iv.status.replace('_', ' ')}
-                                                </span>
-                                            </div>
-                                            <div className={styles.cardActions}>
-                                                {iv.type === 'video' && iv.meeting_link && iv.status === 'scheduled' && (
-                                                    <a href={iv.meeting_link} target="_blank" rel="noopener noreferrer"
-                                                        className={styles.joinBtn}>
-                                                        {IC.video} Join Call
-                                                    </a>
-                                                )}
-                                                <CardMenu iv={iv} onRefresh={fetchInterviews} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* Modal */}
-            {showModal && (
-                <ScheduleModal
-                    recruiterId={authUser?.id || role_id}
-                    onClose={() => setShowModal(false)}
-                    onSuccess={() => {
-                        setShowModal(false);
-                        setToast({ msg: 'Interview scheduled successfully!', type: 'success' });
-                        fetchInterviews();
+                <FilterBar
+                    search={search}
+                    onSearchChange={setSearch}
+                    searchPlaceholder="Search by candidate or job..."
+                    filters={filters}
+                    onClearAll={() => {
+                        setSearch('');
+                        setDateFilter('all');
+                        setTypeFilter('all');
                     }}
                 />
-            )}
+
+                <DataTable
+                    columns={columns}
+                    data={filtered}
+                    onRowClick={(row) => setSelectedIv(row)}
+                />
+            </div>
+
+            {/* Detail Drawer */}
+            <DetailDrawer
+                isOpen={!!selectedIv}
+                onClose={() => setSelectedIv(null)}
+                title="Interview Details"
+            >
+                {selectedIv && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div>
+                            <span style={{ textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 800, color: 'var(--tm-accent)', letterSpacing: '0.05em' }}>
+                                {typeLabel(selectedIv.type)}
+                            </span>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--tm-text-primary)', margin: '0.25rem 0 0.5rem' }}>
+                                {selectedIv.candidate?.full_name}
+                            </h3>
+                            <p style={{ color: 'var(--tm-text-secondary)', margin: 0, fontSize: '0.875rem' }}>
+                                Position: <strong>{selectedIv.job?.title}</strong>
+                            </p>
+                        </div>
+
+                        <hr style={{ border: 'none', borderTop: '1px solid var(--tm-border)', margin: 0 }} />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--tm-text-secondary)' }}>Status:</span>
+                                <StatusPill status={selectedIv.status} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--tm-text-secondary)' }}>Scheduled At:</span>
+                                <span style={{ fontWeight: 600 }}>{new Date(selectedIv.scheduled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--tm-text-secondary)' }}>Duration:</span>
+                                <span style={{ fontWeight: 600 }}>{selectedIv.duration_mins} Minutes</span>
+                            </div>
+                            {selectedIv.meeting_link && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                    <span style={{ color: 'var(--tm-text-secondary)' }}>Meeting Link:</span>
+                                    <a href={selectedIv.meeting_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--tm-accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                                        Open Link
+                                    </a>
+                                </div>
+                            )}
+                            {selectedIv.location && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                    <span style={{ color: 'var(--tm-text-secondary)' }}>Location:</span>
+                                    <span style={{ fontWeight: 600 }}>{selectedIv.location}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedIv.notes && (
+                            <>
+                                <hr style={{ border: 'none', borderTop: '1px solid var(--tm-border)', margin: 0 }} />
+                                <div>
+                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem' }}>Notes</h4>
+                                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--tm-text-secondary)', background: 'var(--tm-surface-muted)', padding: '0.75rem', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>
+                                        {selectedIv.notes}
+                                    </p>
+                                </div>
+                            </>
+                        )}
+
+                        <hr style={{ border: 'none', borderTop: '1px solid var(--tm-border)', margin: 0 }} />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {selectedIv.type === 'video' && selectedIv.meeting_link && selectedIv.status === 'scheduled' && (
+                                <a 
+                                    href={selectedIv.meeting_link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        display: 'block',
+                                        textAlign: 'center',
+                                        padding: '0.6rem',
+                                        background: 'var(--tm-accent)',
+                                        color: 'white',
+                                        textDecoration: 'none',
+                                        borderRadius: '6px',
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem'
+                                    }}
+                                >
+                                    Join Call
+                                </a>
+                            )}
+                            {selectedIv.status === 'completed' && (
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '0.6rem',
+                                        background: 'var(--tm-accent)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={() => router.push(`/dashboard/recruiter/${role_id}/interviews/${selectedIv.id}?tab=feedback`)}
+                                >
+                                    Add Feedback
+                                </button>
+                            )}
+                            {selectedIv.status === 'scheduled' && (
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '0.6rem',
+                                        background: 'none',
+                                        border: '1px solid var(--tm-status-error-text)',
+                                        color: 'var(--tm-status-error-text)',
+                                        borderRadius: '6px',
+                                        fontWeight: 600,
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={async () => {
+                                        await insforge.database.from('interviews').update({ status: 'cancelled' }).eq('id', selectedIv.id);
+                                        setSelectedIv(null);
+                                        fetchInterviews();
+                                        toast.success('Interview cancelled successfully');
+                                    }}
+                                >
+                                    Cancel Interview
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </DetailDrawer>
         </div>
     );
 }

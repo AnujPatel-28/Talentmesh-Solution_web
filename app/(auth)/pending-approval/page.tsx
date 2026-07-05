@@ -53,13 +53,7 @@ export default function PendingApprovalPage() {
                             <polyline points="12 6 12 12 16 14" />
                         </svg>
                     </div>
-                    <style>{`
-                        @keyframes pulse {
-                            0% { transform: scale(1); opacity: 1; }
-                            50% { transform: scale(1.05); opacity: 0.8; }
-                            100% { transform: scale(1); opacity: 1; }
-                        }
-                    `}</style>
+
                     <h1 className={styles.title}>Account Under Review</h1>
                     <p className={styles.subtitle} style={{ fontSize: '0.88rem', lineHeight: '1.45rem', marginTop: '0.5rem', color: '#64748b' }}>
                         Thank you for registering! Your recruiter application is currently being vetted by our administration team.

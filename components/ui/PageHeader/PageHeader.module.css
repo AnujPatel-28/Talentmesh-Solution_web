@@ -164,9 +164,64 @@
     opacity: 0.3;
 }
 
+/* ── withBg Variant (light-wave images) ── */
+.header.withBg {
+    /* Image replaces the dark gradient — use transparent so image shows */
+    background: transparent;
+}
+.header.withBg::before,
+.header.withBg::after {
+    display: none;
+}
+.header.withBg .title {
+    color: #0f172a;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.6);
+}
+.header.withBg .description {
+    color: #1e3a5f;
+}
+.header.withBg .breadcrumb {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #1e40af;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.header.withBg .highlight {
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.header.withBg .decor1,
+.header.withBg .decor2 {
+    opacity: 0.12;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+    .header {
+        padding: 9rem 2rem 6rem;
+    }
+}
+
 @media (max-width: 768px) {
     .header {
-        padding: 8rem 1.5rem 5rem;
+        padding: 8rem 1.25rem 5rem;
+    }
+
+    .title {
+        font-size: clamp(2rem, 7vw, 3rem);
+        letter-spacing: -0.02em;
+    }
+
+    .description {
+        font-size: 1rem;
+    }
+
+    .breadcrumb {
+        font-size: 0.75rem;
+        padding: 0.4rem 1rem;
     }
 
     .decor1,
@@ -175,3 +230,23 @@
         height: 250px;
     }
 }
+
+@media (max-width: 480px) {
+    .header {
+        padding: 7rem 1rem 4rem;
+    }
+
+    .title {
+        font-size: clamp(1.75rem, 8vw, 2.5rem);
+    }
+
+    .decor1 {
+        width: 180px;
+        height: 180px;
+    }
+
+    .decor2 {
+        width: 140px;
+        height: 140px;
+    }
+}

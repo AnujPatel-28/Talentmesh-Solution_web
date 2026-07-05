@@ -6,3 +6,6 @@ export { default as ValueShowcase } from './ValueShowcase/ValueShowcase';
 export { default as InfoLayout } from './InfoLayout/InfoLayout';
 export { default as SectionHeader } from './SectionHeader/SectionHeader';
 export { CustomSelect } from './CustomSelect';
+export { default as HeroBg } from './HeroBg/HeroBg';
+export { default as CTA } from './CTA/CTA';
+export { default as LoadingScreen } from './LoadingScreen/LoadingScreen';

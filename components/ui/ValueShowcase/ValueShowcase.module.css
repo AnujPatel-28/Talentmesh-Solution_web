@@ -1,6 +1,6 @@
 .section {
-    padding: 10rem 2rem;
-    background: #ffffff;
+    padding: 6rem 2rem;
+    background: transparent;
 }
 
 .container {
@@ -50,15 +50,23 @@
 }
 
 .card {
-    padding: 1rem;
+    padding: 1.75rem;
     transition: var(--transition-smooth);
     display: flex;
     flex-direction: column;
     height: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+    border-color: rgba(59, 130, 246, 0.2);
 }
 
 .iconWrap {

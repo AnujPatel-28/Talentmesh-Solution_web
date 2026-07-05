@@ -6,14 +6,14 @@ import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
 import styles from './pipeline.module.css';
 
 const STAGES = [
-    { id: 'applied',      label: 'Applied',      color: '#3b82f6', bg: '#eff6ff' },
-    { id: 'reviewing',    label: 'Reviewing',    color: '#f59e0b', bg: '#fffbeb' },
-    { id: 'shortlisted',  label: 'Shortlisted',  color: '#10b981', bg: '#f0fdf4' },
-    { id: 'interviewing', label: 'Interviewing', color: '#7c3aed', bg: '#f5f3ff' },
-    { id: 'offered',      label: 'Offered',      color: '#10b981', bg: '#f0fdf4' },
-    { id: 'hired',        label: 'Hired',        color: '#059669', bg: '#ecfdf5' },
-    { id: 'rejected',     label: 'Rejected',     color: '#ef4444', bg: '#fff1f2' },
-    { id: 'withdrawn',    label: 'Withdrawn',    color: '#64748b', bg: '#f1f5f9' },
+    { id: 'applied',      label: 'Applied',      color: 'var(--status-info-text)',      bg: 'var(--status-info-bg)' },
+    { id: 'reviewing',    label: 'Reviewing',    color: 'var(--status-info-text)',      bg: 'var(--status-info-bg)' },
+    { id: 'shortlisted',  label: 'Shortlisted',  color: 'var(--status-purple-text)',   bg: 'var(--status-purple-bg)' },
+    { id: 'interviewing', label: 'Interviewing', color: 'var(--status-warning-text)',    bg: 'var(--status-warning-bg)' },
+    { id: 'offered',      label: 'Offered',      color: 'var(--status-success-text)',   bg: 'var(--status-success-bg)' },
+    { id: 'hired',        label: 'Hired',        color: 'var(--status-success-text)', bg: 'var(--status-success-bg)' },
+    { id: 'rejected',     label: 'Rejected',     color: 'var(--status-error-text)',     bg: 'var(--status-error-bg)' },
+    { id: 'withdrawn',    label: 'Withdrawn',    color: 'var(--neutral-text-muted)', bg: 'var(--neutral-surface)' },
 ] as const;
 
 type Stage = typeof STAGES[number]['id'];

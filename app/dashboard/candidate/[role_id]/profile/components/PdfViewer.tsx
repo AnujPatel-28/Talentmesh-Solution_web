@@ -9,6 +9,12 @@ export default function PdfViewer({ url }: PdfViewerProps) {
   // Production Security Hardening: Ensure only trusted secure protocols and whitelisted storage hosts are loaded.
   const isTrusted = React.useMemo(() => {
     if (url.startsWith('/')) return true; // Relative URLs to the same host are trusted
+    if (url.startsWith('blob:')) {
+      if (typeof window !== 'undefined') {
+        return url.includes(window.location.origin);
+      }
+      return true;
+    }
     try {
       const parsedUrl = new URL(url);
       const host = parsedUrl.hostname;

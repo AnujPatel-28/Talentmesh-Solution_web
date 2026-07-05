@@ -22,6 +22,18 @@ export default function ErrorView({
     console.error('Boundary Error:', error);
   }, [error]);
 
+  const isTechnicalError = 
+    !error.message ||
+    error.message.includes('is not a function') ||
+    error.message.includes('Cannot read properties') ||
+    error.message.includes('undefined') ||
+    error.message.includes('null') ||
+    error.message.includes('JSON') ||
+    error.message.includes('token') ||
+    error.message.includes('fetch');
+
+  const displayMessage = isTechnicalError ? message : error.message;
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center animate-fade-in">
       <div className="mb-6 p-4 rounded-full bg-red-50 text-red-500">
@@ -43,7 +55,7 @@ export default function ErrorView({
 
       <h2 className="text-2xl font-bold text-slate-900 mb-2">{title}</h2>
       <p className="text-slate-600 max-w-md mb-8">
-        {error.message || message}
+        {displayMessage}
       </p>
 
       <div className="flex gap-4">

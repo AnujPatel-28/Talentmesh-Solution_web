@@ -112,7 +112,7 @@ export function useRealTimeNotifications() {
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
           new Notification(newNotif.title, {
             body: newNotif.message,
-            icon: '/TalentMesh_Logo-removebg-preview.png',
+            icon: '/TalentMesh_page-0002-removebg-preview.png',
           });
         }
 

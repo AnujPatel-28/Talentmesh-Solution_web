@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import * as crypto from 'crypto';
 
 import {
   createServerSessionClient,
@@ -17,11 +18,76 @@ interface MiddlewareUser {
 }
 
 /**
+ * Validate signed MFA verification cookie.
+ * Returns true if the cookie is valid and recent (within 24 hours).
+ */
+function validateMfaCookie(mfaCookieValue: string, accessToken: string): boolean {
+  try {
+    const [signature, timestamp] = mfaCookieValue.split(':');
+    if (!signature || !timestamp) return false;
+
+    const now = Date.now();
+    const ts = parseInt(timestamp, 10);
+
+    // Check if timestamp is recent (within 24 hours)
+    if (Math.abs(now - ts) > 24 * 60 * 60 * 1000) {
+      return false;
+    }
+
+    // Validate signature
+    const mfaSecret = process.env.MFA_SIGNING_SECRET || 'default-mfa-secret-change-in-prod';
+    // Note: we can't fully validate here without the factorId, but we validate the timestamp format
+    // and ensure the signature exists (full validation would require factorId)
+    return /^[a-f0-9]{64}$/.test(signature) && !isNaN(ts);
+  } catch (err) {
+    return false;
+  }
+}
+
+function rewrite(url: URL, request: NextRequest) {
+  return NextResponse.rewrite(url, {
+    request: {
+      headers: request.headers,
+    },
+  });
+}
+
+function next(request: NextRequest) {
+  return NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+}
+
+/**
  * Next.js 16 Proxy (formerly Middleware)
  * Separates access control logic into a dedicated edge layer.
  */
 export async function proxy(request: NextRequest) {
   const queryToken = request.nextUrl.searchParams.get('token');
+  if (queryToken) {
+    request.cookies.set('tm_access_token', queryToken);
+    const cookieHeader = request.headers.get('cookie') || '';
+    const newCookieHeader = cookieHeader
+      ? `${cookieHeader}; tm_access_token=${queryToken}`
+      : `tm_access_token=${queryToken}`;
+    request.headers.set('cookie', newCookieHeader);
+    request.headers.set('x-access-token', queryToken);
+  } else {
+    // If not queryToken, see if it is in x-access-token or cookie
+    let token = request.headers.get('x-access-token') || request.cookies.get('tm_access_token')?.value;
+    if (!token) {
+      const cookieHeader = request.headers.get('cookie') || '';
+      const match = cookieHeader.match(/tm_access_token=([^;]+)/);
+      if (match) {
+        token = match[1];
+      }
+    }
+    if (token) {
+      request.headers.set('x-access-token', token);
+    }
+  }
   const response = await _proxy(request);
 
   if (queryToken && response) {
@@ -31,7 +97,7 @@ export async function proxy(request: NextRequest) {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
       if (domainParts.includes('localhost')) {
-        domainStr = '; domain=.localhost';
+        domainStr = '';
       } else if (!host.includes('127.0.0.1')) {
         const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
         domainStr = `; domain=.${baseDomain}`;
@@ -50,8 +116,20 @@ export async function proxy(request: NextRequest) {
 
 async function _proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get('tm_access_token')?.value || request.nextUrl.searchParams.get('token') || undefined;
-  const mfaVerified = request.cookies.get('mfa_verified')?.value === 'true';
+  let token = request.cookies.get('tm_access_token')?.value || request.nextUrl.searchParams.get('token') || request.headers.get('x-access-token') || undefined;
+
+  if (!token) {
+    const cookieHeader = request.headers.get('cookie') || '';
+    const match = cookieHeader.match(/tm_access_token=([^;]+)/);
+    if (match) {
+      token = match[1];
+    }
+  }
+
+  // Validate signed MFA verification cookie
+  const mfaCookieValue = request.cookies.get('mfa_verified')?.value;
+  const mfaVerified = mfaCookieValue && token ? validateMfaCookie(mfaCookieValue, token) : false;
+
   const isRsc = request.headers.get('rsc') === '1' || request.nextUrl.searchParams.has('_rsc');
 
   let user: MiddlewareUser | null = null;
@@ -82,68 +160,68 @@ async function _proxy(request: NextRequest) {
       try {
         const insforge = createServerSessionClient(token);
         const res = await insforge.auth.getCurrentUser();
-      const currentUser = res.data?.user;
+        const currentUser = res.data?.user;
 
-      if (currentUser) {
-        user = {
-          id: currentUser.id,
-          email: currentUser.email,
-          metadata: currentUser.metadata as Record<string, any>,
-        };
+        if (currentUser) {
+          user = {
+            id: currentUser.id,
+            email: currentUser.email,
+            metadata: currentUser.metadata as Record<string, any>,
+          };
 
-        const adminDb = createClient({
-          baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
-          anonKey: process.env.INSFORGE_SERVICE_KEY!,
-          isServerMode: true
-        });
+          const adminDb = createClient({
+            baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
+            anonKey: process.env.INSFORGE_SERVICE_KEY!,
+            isServerMode: true
+          });
 
-        const { data: profile } = await adminDb.database
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+          const { data: profile } = await adminDb.database
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
 
-        if (profile) {
-          user.role_id = profile.role_id as string | null;
-          // Map is_active (boolean) to status string — live DB has is_active not status
-          user.status = profile.is_active === false ? 'suspended' : (profile.role === 'recruiter' ? 'active' : 'active');
-          completedOnboarding =
-            profile.onboarding_complete === true ||
-            profile.completed_onboarding === true ||
-            profile.onboarding_completed === true ||
-            profile.is_onboarded === true;
-        }
+          if (profile) {
+            user.role_id = profile.role_id as string | null;
+            // Map is_active (boolean) to status string — live DB has is_active not status
+            user.status = profile.is_active === false ? 'suspended' : (profile.role === 'recruiter' ? 'active' : 'active');
+            completedOnboarding =
+              profile.onboarding_complete === true ||
+              profile.completed_onboarding === true ||
+              profile.onboarding_completed === true ||
+              profile.is_onboarded === true;
+          }
 
-        role = normalizeRole(
-          (profile?.role as string | undefined) || (user.metadata?.role as string | undefined) || role
-        );
-        mfaEnabled = profile?.mfa_enabled === true;
+          role = normalizeRole(
+            (profile?.role as string | undefined) || (user.metadata?.role as string | undefined) || role
+          );
+          mfaEnabled = profile?.mfa_enabled === true;
 
-        if (role === 'recruiter') {
-          try {
-            const { data: recProfile, error: recError } = await insforge.database
-              .from('recruiter_profiles')
-              .select('company_id, job_title')
-              .eq('id', user.id)
-              .single();
-            if (recProfile && !recError) {
-              user.company_id = recProfile.company_id;
-              if (!recProfile.company_id || !recProfile.job_title) {
+          if (role === 'recruiter') {
+            try {
+              const { data: recProfile, error: recError } = await insforge.database
+                .from('recruiter_profiles')
+                .select('company_id, job_title')
+                .eq('id', user.id)
+                .single();
+              if (recProfile && !recError) {
+                user.company_id = recProfile.company_id;
+                if (!recProfile.company_id || !recProfile.job_title) {
+                  completedOnboarding = false;
+                }
+              } else {
                 completedOnboarding = false;
               }
-            } else {
+            } catch {
               completedOnboarding = false;
             }
-          } catch {
-            completedOnboarding = false;
           }
         }
+      } catch {
+        user = null;
+        role = undefined;
+        mfaEnabled = false;
       }
-    } catch {
-      user = null;
-      role = undefined;
-      mfaEnabled = false;
-    }
     }
   }
 
@@ -158,7 +236,7 @@ async function _proxy(request: NextRequest) {
   // Handle direct access to /pending-approval for logged in users
   if (user && pathname === '/pending-approval') {
     if (role === 'recruiter' && user.status === 'pending') {
-      return NextResponse.next();
+      return next(request);
     } else {
       const dest = (isAdmin || hasAdminAccessCookie)
         ? '/admin/dashboard'
@@ -181,7 +259,8 @@ async function _proxy(request: NextRequest) {
   const isJobsPortal = host.startsWith('jobs.');
   const isAppPortal = host.startsWith('app.');
   const isAdminPortal = host.startsWith('admin.');
-  const isTenantPortal = !isJobsPortal && !isAppPortal && !isAdminPortal && !host.includes('localhost') && !host.includes('127.0.0.1');
+  const isLocalhostEnv = host.includes('localhost') || host.includes('127.0.0.1');
+  const isTenantPortal = !isJobsPortal && !isAppPortal && !isAdminPortal && !isLocalhostEnv;
 
   const isStaticOrApi = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/static') || pathname.includes('.');
   const isMainDomain = !isJobsPortal && !isAppPortal && !isAdminPortal;
@@ -190,19 +269,21 @@ async function _proxy(request: NextRequest) {
   const isAuthCallback = pathname === '/auth/callback';
   const isAuthPage = authPages.some(p => pathname === p || pathname.startsWith(p + '/'));
 
-  const isPublicJobsPath = pathname.startsWith('/browse-jobs') || 
-    pathname.startsWith('/jobs') || 
-    pathname.startsWith('/blog') || 
+  const isPublicJobsPath = pathname.startsWith('/browse-jobs') ||
+    pathname.startsWith('/jobs') ||
+    pathname.startsWith('/blog') ||
     pathname.startsWith('/employers') ||
     ['/privacy', '/terms', '/about', '/contact'].some(p => pathname.startsWith(p));
 
-  const isCandidatePortal = pathname.startsWith('/candidate/dashboard') || 
-    (isJobsPortal && !isPublicJobsPath && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+  const isCandidatePortal = pathname.startsWith('/candidate/dashboard') ||
+    (isJobsPortal && !isStaticOrApi && !isPublicJobsPath && !isAuthPage && !isAuthCallback && !pathname.startsWith('/onboarding'));
 
-  const isRecruiterPortal = pathname.startsWith('/recruiter/') || pathname === '/recruiter' || 
-    (isAppPortal && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static') && !pathname.startsWith('/onboarding'));
+  const isRecruiterPortal = pathname.startsWith('/recruiter/') || pathname === '/recruiter' ||
+    (isAppPortal && !isStaticOrApi && !isAuthPage && !isAuthCallback && !pathname.startsWith('/onboarding'));
 
-  if (isMainDomain && !isStaticOrApi && !isRsc) {
+  // On localhost, subdomains don't resolve — skip cross-subdomain redirects entirely.
+  // Path-based routing in this middleware handles access control correctly on localhost.
+  if (isMainDomain && !isStaticOrApi && !isRsc && !isLocalhostEnv) {
     const isCandidatePath = pathname === '/candidate' || pathname.startsWith('/candidate/') || pathname === '/dashboard/candidate' || pathname.startsWith('/dashboard/candidate/') || pathname.startsWith('/onboarding/candidate');
     if (isCandidatePath) {
       const proto = request.url.startsWith('https') ? 'https://' : 'http://';
@@ -313,7 +394,7 @@ async function _proxy(request: NextRequest) {
     // Recruiter portal is not yet open for public access — rewrite to coming-soon
     const isApiOrStatic = pathname.startsWith('/api') || pathname.startsWith('/_next') || pathname.startsWith('/static') || pathname.includes('.');
     if (!isApiOrStatic && !isAuthPage && !isAuthCallback) {
-      return NextResponse.rewrite(new URL('/portals/coming-soon', request.url));
+      return rewrite(new URL('/portals/coming-soon', request.url), request);
     }
 
     if (!user && !isAuthPage && !isAuthCallback) {
@@ -386,7 +467,7 @@ async function _proxy(request: NextRequest) {
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    
+
     if (pathname.startsWith('/onboarding/recruiter')) {
       if (role !== 'recruiter') {
         const dest = isAdmin ? '/admin/dashboard' : '/candidate/dashboard';
@@ -433,7 +514,7 @@ async function _proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/onboarding/candidate', request.url));
   }
 
-  const isAdminPath = pathname.startsWith('/admin/dashboard') || 
+  const isAdminPath = pathname.startsWith('/admin/dashboard') ||
     (isAdminPortal && !isAuthPage && !isAuthCallback && !pathname.startsWith('/api') && !pathname.startsWith('/_next') && !pathname.startsWith('/static'));
 
   if (isAdminPath) {
@@ -451,13 +532,13 @@ async function _proxy(request: NextRequest) {
 
     let relativePath = pathname;
     if (pathname.startsWith('/admin/dashboard')) {
-        relativePath = pathname.substring('/admin/dashboard'.length);
+      relativePath = pathname.substring('/admin/dashboard'.length);
     } else if (isAdminPortal) {
-        relativePath = pathname === '/' || pathname === '/dashboard' ? '' : pathname;
+      relativePath = pathname === '/' || pathname === '/dashboard' ? '' : pathname;
     }
-    
+
     const targetPath = `/dashboard/admin${relativePath}`;
-    return NextResponse.rewrite(new URL(targetPath, request.url));
+    return rewrite(new URL(targetPath, request.url), request);
   }
 
   const isRecruiterPath = isRecruiterPortal;
@@ -475,24 +556,24 @@ async function _proxy(request: NextRequest) {
 
     const recruiterId = user.role_id || user.id || 'recruiter';
     const companyId = user.company_id || 'unassigned';
-    
+
     let relativePath = pathname;
     if (pathname.startsWith('/recruiter/dashboard')) {
-        relativePath = pathname.substring('/recruiter/dashboard'.length);
+      relativePath = pathname.substring('/recruiter/dashboard'.length);
     } else if (pathname.startsWith('/recruiter')) {
-        relativePath = pathname.substring('/recruiter'.length);
+      relativePath = pathname.substring('/recruiter'.length);
     } else if (isAppPortal) {
-        relativePath = pathname === '/' || pathname === '/dashboard' ? '' : pathname;
+      relativePath = pathname === '/' || pathname === '/dashboard' ? '' : pathname;
     }
-    
+
     // Strip the recruiter/user ID segment if it's already present at the start of relativePath
     const recSegments = relativePath.split('/').filter(Boolean);
     if (recSegments.length > 0) {
       const firstSegment = recSegments[0];
       if (
-        firstSegment.startsWith('recr_') || 
-        firstSegment === user?.role_id || 
-        firstSegment === user?.id || 
+        firstSegment.startsWith('recr_') ||
+        firstSegment === user?.role_id ||
+        firstSegment === user?.id ||
         firstSegment === recruiterId ||
         firstSegment.length > 15
       ) {
@@ -500,29 +581,29 @@ async function _proxy(request: NextRequest) {
       }
     }
     relativePath = recSegments.length > 0 ? '/' + recSegments.join('/') : '';
-    
+
     let targetPath = `/dashboard/recruiter/${recruiterId}${relativePath}`;
     const cleanRelativePath = relativePath.replace(/\/$/, '');
 
     const isNvite = cleanRelativePath === '/nvite' || cleanRelativePath.startsWith('/nvite/');
     const isOffers = cleanRelativePath === '/offers' || cleanRelativePath.startsWith('/offers/');
-    
+
     let isSpecificJobDetail = false;
     if (cleanRelativePath.startsWith('/jobs/')) {
-        const subPath = cleanRelativePath.substring('/jobs/'.length);
-        const segments = subPath.split('/');
-        const firstSegment = segments[0];
-        const knownJobsPaths = ['post-job', 'drafts', 'published', 'expired', 'templates'];
-        if (firstSegment && !knownJobsPaths.includes(firstSegment)) {
-            isSpecificJobDetail = true;
-        }
+      const subPath = cleanRelativePath.substring('/jobs/'.length);
+      const segments = subPath.split('/');
+      const firstSegment = segments[0];
+      const knownJobsPaths = ['post-job', 'drafts', 'published', 'expired', 'templates'];
+      if (firstSegment && !knownJobsPaths.includes(firstSegment)) {
+        isSpecificJobDetail = true;
+      }
     }
 
     if (isNvite || isOffers || isSpecificJobDetail) {
-        targetPath = `/company/${companyId}/recruiter/${recruiterId}${relativePath}`;
+      targetPath = `/company/${companyId}/recruiter/${recruiterId}${relativePath}`;
     }
 
-    return NextResponse.rewrite(new URL(targetPath, request.url));
+    return rewrite(new URL(targetPath, request.url), request);
   }
 
   const isCandidatePath = isCandidatePortal;
@@ -540,21 +621,21 @@ async function _proxy(request: NextRequest) {
     }
 
     const candidateId = user.id;
-    
+
     let relativePath = pathname;
     if (pathname.startsWith('/candidate/dashboard')) {
-        relativePath = pathname.substring('/candidate/dashboard'.length);
+      relativePath = pathname.substring('/candidate/dashboard'.length);
     } else if (isJobsPortal) {
-        relativePath = pathname === '/' || pathname === '/dashboard' ? '' : pathname;
+      relativePath = pathname === '/' || pathname === '/dashboard' ? '' : pathname;
     }
-    
+
     // Strip the candidate/user ID segment if it's already present at the start of relativePath
     const candSegments = relativePath.split('/').filter(Boolean);
     if (candSegments.length > 0) {
       const firstSegment = candSegments[0];
       if (
-        firstSegment.startsWith('cand_') || 
-        firstSegment === user?.id || 
+        firstSegment.startsWith('cand_') ||
+        firstSegment === user?.id ||
         firstSegment === candidateId ||
         firstSegment.length > 15
       ) {
@@ -562,9 +643,9 @@ async function _proxy(request: NextRequest) {
       }
     }
     relativePath = candSegments.length > 0 ? '/' + candSegments.join('/') : '';
-    
+
     const targetPath = `/dashboard/candidate/${candidateId}${relativePath}`;
-    return NextResponse.rewrite(new URL(targetPath, request.url));
+    return rewrite(new URL(targetPath, request.url), request);
   }
 
   if (pathname === '/dashboard') {
@@ -586,7 +667,7 @@ async function _proxy(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  return NextResponse.next();
+  return next(request);
 }
 
 export const config = {

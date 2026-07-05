@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 
 import { invokeFunction } from '@/lib/insforge';
 import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ──────────────────────────────────────────────────────────────────────
 const Ico = {
@@ -141,6 +142,11 @@ export default function JobDetailPage() {
 
     return (
         <main className={styles.page}>
+            {/* Ken Burns Animated Background Layer */}
+            <div className={styles.bgWrapper}>
+                <div className={styles.bgImage} />
+                <div className={styles.bgOverlay} />
+            </div>
 
             {/* ── Hero ── */}
             <AnimateOnScroll animation="fadeUp">
@@ -157,7 +163,11 @@ export default function JobDetailPage() {
 
                         <div className={styles.heroInner}>
                             <div className={styles.companyLogo} style={{ background: job.color || '#0D47A1' }}>
-                                {job.logo || job.company_profiles?.company_name?.[0]}
+                                {job.company_profiles?.logo_url ? (
+                                    <img src={getPublicStorageUrl('company-logos', job.company_profiles.logo_url)} alt={job.company_profiles?.company_name} className={styles.logoImage} />
+                                ) : (
+                                    job.logo || job.company_profiles?.company_name?.[0]
+                                )}
                             </div>
 
                             <div className={styles.heroInfo}>

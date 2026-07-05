@@ -11,6 +11,9 @@ import { mutationQueue } from '@/lib/mutationQueue';
 import { canPerform, Role } from '@/lib/permissions';
 import { recordMetric, startTrace, endTrace } from '@/lib/observability';
 import { MapPin, Briefcase, FileText, Download, CheckCircle2, XCircle, Trash2, ShieldAlert } from 'lucide-react';
+import DataTable, { Column } from '@/components/dashboard/DataTable';
+import DetailDrawer from '@/components/dashboard/DetailDrawer';
+import StatusPill from '@/components/dashboard/StatusPill';
 
 type CandidateProfile = {
   headline?: string;
@@ -366,6 +369,95 @@ export default function AdminCandidatesPage() {
 
   const currentProfile = previewUser ? getProfile(previewUser) : null;
 
+  const columns = useMemo<Column<AdminCandidate>[]>(() => [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={candidates.length > 0 && selectedIds.length === candidates.length}
+          onChange={() => {
+            if (selectedIds.length === candidates.length) {
+              clearSelection();
+            } else {
+              candidates.forEach(c => {
+                if (!selectedIds.includes(c.id)) toggleSelect(c.id);
+              });
+            }
+          }}
+          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+        />
+      ),
+      key: 'selection',
+      width: '40px',
+      render: (candidate) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(candidate.id)}
+          onChange={() => toggleSelect(candidate.id)}
+          onClick={(e) => e.stopPropagation()}
+          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+        />
+      ),
+      align: 'center'
+    },
+    {
+      header: 'Candidate',
+      key: 'name',
+      render: (candidate) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 600, color: 'var(--tm-text-primary)' }}>{candidate.name || 'Anonymous user'}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--tm-text-secondary)' }}>{candidate.email}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Headline',
+      key: 'headline',
+      render: (candidate) => {
+        const profile = getProfile(candidate);
+        return <span>{profile?.headline || 'Profile incomplete'}</span>;
+      }
+    },
+    {
+      header: 'Location',
+      key: 'location',
+      render: (candidate) => <span>{candidate.location || 'Remote'}</span>
+    },
+    {
+      header: 'Experience',
+      key: 'experience_years',
+      render: (candidate) => {
+        const profile = getProfile(candidate);
+        return <span>{profile?.experience_years ? `${profile.experience_years} years` : 'Entry'}</span>;
+      }
+    },
+    {
+      header: 'Strength',
+      key: 'profile_strength',
+      render: (candidate) => {
+        const profile = getProfile(candidate);
+        return <span>{profile?.profile_strength || 0}%</span>;
+      }
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      render: (candidate) => <StatusPill status={candidate.status} />
+    },
+    {
+      header: 'Active',
+      key: 'is_active',
+      render: (candidate) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: candidate.is_active ? '#10b981' : '#cbd5e1' }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--tm-text-secondary)' }}>
+            {candidate.is_active ? 'Active' : 'Deactivated'}
+          </span>
+        </span>
+      )
+    }
+  ], [candidates, selectedIds, toggleSelect, clearSelection]);
+
   // Single candidate mutation (optimistic with rollback) using Edge Function PATCH with Idempotency
   const updateCandidateStatus = async (targetUser: AdminCandidate, payload: Partial<AdminCandidate>) => {
     const backupCandidates = [...candidates];
@@ -554,7 +646,8 @@ export default function AdminCandidatesPage() {
 
       if (uploadErr) throw uploadErr;
 
-      const downloadUrl = insforge.storage.from('export-candidates').getPublicUrl(`jobs/${jobId}.csv`);
+      const { data } = insforge.storage.from('export-candidates').getPublicUrl(`jobs/${jobId}.csv`);
+      const downloadUrl = data?.publicUrl || '';
 
       // Completing and unlocking the job
       await insforge.database.from('export_jobs').update({
@@ -922,10 +1015,12 @@ export default function AdminCandidatesPage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div className={styles.grid}>
-        {(authLoading || loading) ? (
-          Array.from({ length: 6 }).map((_, i) => <CandidateCardSkeleton key={i} />)
-        ) : candidates.length === 0 ? (
+      <DataTable
+        columns={columns}
+        data={candidates}
+        loading={authLoading || loading}
+        onRowClick={(row) => setPreviewUser(row)}
+        emptyState={
           <div className={styles.emptyState}>
             <h3>No candidates found</h3>
             <p style={{ margin: '8px 0 16px', color: '#64748b' }}>No candidate profiles matched your active search criteria.</p>
@@ -933,71 +1028,8 @@ export default function AdminCandidatesPage() {
               Clear Search & Filters
             </button>
           </div>
-        ) : (
-          candidates.map((candidate) => {
-            const profile = getProfile(candidate);
-            const isChecked = isSelected(candidate.id);
-            return (
-              <article
-                key={candidate.id}
-                className={`${styles.candidateCard} ${isChecked ? styles.cardSelected : ''}`}
-                onClick={() => setPreviewUser(candidate)}
-                style={{ position: 'relative', cursor: 'pointer', border: isChecked ? '2px solid #3b82f6' : '1px solid #eef2f6' }}
-              >
-                {/* Selection Checkbox */}
-                <div
-                  style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleSelect(candidate.id);
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    readOnly
-                    className={styles.checkboxInput}
-                  />
-                </div>
-
-                <div className={styles.cardHeader} style={{ paddingRight: '24px' }}>
-                  <div className={styles.initials}>{candidate.name ? candidate.name.charAt(0).toUpperCase() : '?'}</div>
-                  <div className={styles.mainInfo}>
-                     <h3 className={styles.name}>{candidate.name || 'Anonymous user'}</h3>
-                    <p className={styles.email}>{candidate.email}</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginRight: '8px' }}>
-                    <div className={styles.strengthBadge}>
-                      {profile?.profile_strength || 0}%
-                    </div>
-                    {candidate.status === 'pending' && (
-                       <span style={{ fontSize: '0.65rem', fontWeight: 800, background: '#fff7ed', color: '#c2410c', padding: '2px 8px', borderRadius: '100px', border: '1px solid #ffedd5' }}>Pending</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className={styles.body}>
-                  <p className={styles.headline}>{profile?.headline || 'Profile incomplete'}</p>
-                  <div className={styles.meta}>
-                    <span><MapPin size={14} /> {candidate.location || 'Remote'}</span>
-                    <span><Briefcase size={14} /> {profile?.experience_years ? `${profile.experience_years}y` : 'Entry'}</span>
-                  </div>
-                </div>
-
-                <div className={styles.footer}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div className={`${styles.statusDot} ${candidate.is_active ? styles.dotActive : ''}`} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                      {candidate.is_active ? 'Active' : 'Deactivated'}
-                    </span>
-                  </div>
-                  <span className={styles.actionBtn}>Open Profile →</span>
-                </div>
-              </article>
-            );
-          })
-        )}
-      </div>
+        }
+      />
 
       {totalPages > 1 && (
         <div className={styles.pagination}>
@@ -1016,179 +1048,176 @@ export default function AdminCandidatesPage() {
       )}
 
       {/* Detail Drawer Modal */}
-      {previewUser && (
-        <div className={styles.drawerOverlay} onClick={() => setPreviewUser(null)}>
-          <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-            <header className={styles.drawerHeader}>
-              <h2>Candidate Details</h2>
-              <button className={styles.drawerClose} onClick={() => setPreviewUser(null)}>×</button>
-            </header>
-            
-            <div className={styles.drawerContent}>
-              <div className={styles.statusToggle} style={{ display: 'grid', gap: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
-                <div>
-                  <strong>Account Access</strong>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                    {previewUser.is_active ? 'Candidate can apply and browse jobs.' : 'Candidate access is currently restricted.'}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    disabled={!hasEditPerm}
-                    onClick={() => updateCandidateStatus(previewUser, { is_active: !previewUser.is_active })}
-                    style={{
-                      flex: 1,
-                      padding: '0.6rem',
-                      background: previewUser.is_active ? '#fee2e2' : '#dcfce7',
-                      color: previewUser.is_active ? '#991b1b' : '#166534',
-                      border: '1px solid',
-                      borderColor: previewUser.is_active ? '#fca5a5' : '#86efac',
-                      borderRadius: '8px',
-                      fontWeight: 600,
-                      cursor: hasEditPerm ? 'pointer' : 'not-allowed',
-                      opacity: hasEditPerm ? 1 : 0.6,
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                      {previewUser.is_active ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
-                      {previewUser.is_active ? 'Deactivate' : 'Activate'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!hasDeletePerm}
-                    onClick={async () => {
-                      if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete candidate ${previewUser.name}?\n\nThis will delete their auth account and database records.`)) {
-                        try {
-                          const { error: delError } = await invokeFunction('admin-candidates', {
-                            method: 'DELETE',
-                            queries: { id: previewUser.id }
-                          });
-                          if (delError) throw new Error(delError.message);
-                          alert('Candidate deleted successfully');
-                          setPreviewUser(null);
-                          fetchCandidates(page, activeSearch, sort, status, true);
-                        } catch (err: any) {
-                          alert('Failed to delete: ' + err.message);
-                        }
+      <DetailDrawer
+        isOpen={!!previewUser}
+        onClose={() => setPreviewUser(null)}
+        title="Candidate Details"
+      >
+        {previewUser && (
+          <div className={styles.drawerContent} style={{ padding: 0 }}>
+            <div className={styles.statusToggle} style={{ display: 'grid', gap: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}>
+              <div>
+                <strong>Account Access</strong>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                  {previewUser.is_active ? 'Candidate can apply and browse jobs.' : 'Candidate access is currently restricted.'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  disabled={!hasEditPerm}
+                  onClick={() => updateCandidateStatus(previewUser, { is_active: !previewUser.is_active })}
+                  style={{
+                    flex: 1,
+                    padding: '0.6rem',
+                    background: previewUser.is_active ? '#fee2e2' : '#dcfce7',
+                    color: previewUser.is_active ? '#991b1b' : '#166534',
+                    border: '1px solid',
+                    borderColor: previewUser.is_active ? '#fca5a5' : '#86efac',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: hasEditPerm ? 'pointer' : 'not-allowed',
+                    opacity: hasEditPerm ? 1 : 0.6,
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                    {previewUser.is_active ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
+                    {previewUser.is_active ? 'Deactivate' : 'Activate'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasDeletePerm}
+                  onClick={async () => {
+                    if (window.confirm(`Are you absolutely sure you want to PERMANENTLY delete candidate ${previewUser.name}?\n\nThis will delete their auth account and database records.`)) {
+                      try {
+                        const { error: delError } = await invokeFunction('admin-candidates', {
+                          method: 'DELETE',
+                          queries: { id: previewUser.id }
+                        });
+                        if (delError) throw new Error(delError.message);
+                        alert('Candidate deleted successfully');
+                        setPreviewUser(null);
+                        fetchCandidates(page, activeSearch, sort, status, true);
+                      } catch (err: any) {
+                        alert('Failed to delete: ' + err.message);
                       }
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: '0.6rem',
-                      background: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: 600,
-                      cursor: hasDeletePerm ? 'pointer' : 'not-allowed',
-                      opacity: hasDeletePerm ? 1 : 0.6,
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                      <Trash2 size={15} /> Permanent Delete
-                    </span>
-                  </button>
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '0.6rem',
+                    background: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    cursor: hasDeletePerm ? 'pointer' : 'not-allowed',
+                    opacity: hasDeletePerm ? 1 : 0.6,
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                    <Trash2 size={15} /> Permanent Delete
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <section className={styles.profileSection}>
+              <h4>Basic Information</h4>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div className={styles.initials} style={{ width: '64px', height: '64px', fontSize: '1.5rem' }}>
+                  {previewUser.name ? previewUser.name[0].toUpperCase() : '?'}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0 }}>{previewUser.name}</h3>
+                  <p style={{ margin: '4px 0 0', color: '#64748b' }}>{previewUser.email}</p>
                 </div>
               </div>
+            </section>
 
+            <section className={styles.profileSection}>
+              <h4>Professional Summary</h4>
+              <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#334155' }}>
+                {currentProfile?.headline || 'No summary provided.'}
+              </p>
+              <div className={styles.meta} style={{ marginTop: '1rem' }}>
+                <span><MapPin size={14} /> {previewUser.location || 'Not specified'}</span>
+                <span><Briefcase size={14} /> {currentProfile?.experience_years || '0'} years of experience</span>
+              </div>
+            </section>
+
+            {currentProfile?.skills && currentProfile.skills.length > 0 && (
               <section className={styles.profileSection}>
-                <h4>Basic Information</h4>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <div className={styles.initials} style={{ width: '64px', height: '64px', fontSize: '1.5rem' }}>
-                    {previewUser.name ? previewUser.name[0].toUpperCase() : '?'}
+                <h4>Skills</h4>
+                <div className={styles.skills}>
+                  {currentProfile.skills.map((s, i) => (
+                    <span key={i} className={styles.skillTag}>{s}</span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section className={styles.profileSection}>
+              <h4>Links & Resume</h4>
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                {currentProfile?.resume_url && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
+                      onClick={() => handleView(currentProfile.resume_url!, currentProfile.primary_resume_id)}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                        <FileText size={15} /> View Resume
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.pageButton}
+                      style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
+                      onClick={() => handleDownload(currentProfile.resume_url!, 'candidate_resume.pdf', currentProfile.primary_resume_id)}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                        <Download size={15} /> Download
+                      </span>
+                    </button>
                   </div>
-                  <div>
-                    <h3 style={{ margin: 0 }}>{previewUser.name}</h3>
-                    <p style={{ margin: '4px 0 0', color: '#64748b' }}>{previewUser.email}</p>
-                  </div>
-                </div>
-              </section>
+                )}
+              </div>
+            </section>
 
-              <section className={styles.profileSection}>
-                <h4>Professional Summary</h4>
-                <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#334155' }}>
-                  {currentProfile?.headline || 'No summary provided.'}
-                </p>
-                <div className={styles.meta} style={{ marginTop: '1rem' }}>
-                  <span><MapPin size={14} /> {previewUser.location || 'Not specified'}</span>
-                  <span><Briefcase size={14} /> {currentProfile?.experience_years || '0'} years of experience</span>
-                </div>
-              </section>
-
-              {currentProfile?.skills && currentProfile.skills.length > 0 && (
-                <section className={styles.profileSection}>
-                  <h4>Skills</h4>
-                  <div className={styles.skills}>
-                    {currentProfile.skills.map((s, i) => (
-                      <span key={i} className={styles.skillTag}>{s}</span>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              <section className={styles.profileSection}>
-                <h4>Links & Resume</h4>
-                <div style={{ display: 'grid', gap: '0.75rem' }}>
-                  {currentProfile?.resume_url && (
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className={styles.primaryButton}
-                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
-                        onClick={() => handleView(currentProfile.resume_url!, currentProfile.primary_resume_id)}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                          <FileText size={15} /> View Resume
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.pageButton}
-                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', cursor: 'pointer' }}
-                        onClick={() => handleDownload(currentProfile.resume_url!, 'candidate_resume.pdf', currentProfile.primary_resume_id)}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                          <Download size={15} /> Download
-                        </span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section className={styles.profileSection} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', marginTop: 'auto' }}>
-                <h4>Account Approval</h4>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button 
-                    disabled={!hasApprovePerm}
-                    className={styles.primaryButton} 
-                    style={{ flex: 1, background: previewUser.status === 'approved' ? '#f0fdf4' : '#10b981', color: previewUser.status === 'approved' ? '#166534' : 'white', border: previewUser.status === 'approved' ? '1px solid #bbf7d0' : 'none', cursor: hasApprovePerm ? 'pointer' : 'not-allowed', opacity: hasApprovePerm ? 1 : 0.6 }}
-                    onClick={() => updateCandidateStatus(previewUser, { status: 'approved' })}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                      <CheckCircle2 size={15} /> {previewUser.status === 'approved' ? 'Approved' : 'Approve Candidate'}
-                    </span>
-                  </button>
-                  <button 
-                    disabled={!hasApprovePerm}
-                    className={styles.pageButton} 
-                    style={{ flex: 1, color: previewUser.status === 'rejected' ? '#dc2626' : '#64748b', borderColor: previewUser.status === 'rejected' ? '#fecaca' : '#e2e8f0', background: previewUser.status === 'rejected' ? '#fef2f2' : 'white', cursor: hasApprovePerm ? 'pointer' : 'not-allowed', opacity: hasApprovePerm ? 1 : 0.6 }}
-                    onClick={() => updateCandidateStatus(previewUser, { status: 'rejected' })}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
-                      <XCircle size={15} /> {previewUser.status === 'rejected' ? 'Rejected' : 'Reject'}
-                    </span>
-                  </button>
-                </div>
-              </section>
-            </div>
+            <section className={styles.profileSection} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', marginTop: 'auto' }}>
+              <h4>Account Approval</h4>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button 
+                  disabled={!hasApprovePerm}
+                  className={styles.primaryButton} 
+                  style={{ flex: 1, background: previewUser.status === 'approved' ? '#f0fdf4' : '#10b981', color: previewUser.status === 'approved' ? '#166534' : 'white', border: previewUser.status === 'approved' ? '1px solid #bbf7d0' : 'none', cursor: hasApprovePerm ? 'pointer' : 'not-allowed', opacity: hasApprovePerm ? 1 : 0.6 }}
+                  onClick={() => updateCandidateStatus(previewUser, { status: 'approved' })}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                    <CheckCircle2 size={15} /> {previewUser.status === 'approved' ? 'Approved' : 'Approve Candidate'}
+                  </span>
+                </button>
+                <button 
+                  disabled={!hasApprovePerm}
+                  className={styles.pageButton} 
+                  style={{ flex: 1, color: previewUser.status === 'rejected' ? '#dc2626' : '#64748b', borderColor: previewUser.status === 'rejected' ? '#fecaca' : '#e2e8f0', background: previewUser.status === 'rejected' ? '#fef2f2' : 'white', cursor: hasApprovePerm ? 'pointer' : 'not-allowed', opacity: hasApprovePerm ? 1 : 0.6 }}
+                  onClick={() => updateCandidateStatus(previewUser, { status: 'rejected' })}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', justifyContent: 'center', width: '100%' }}>
+                    <XCircle size={15} /> {previewUser.status === 'rejected' ? 'Rejected' : 'Reject'}
+                  </span>
+                </button>
+              </div>
+            </section>
           </div>
-        </div>
-      )}
+        )}
+      </DetailDrawer>
 
       {/* Floating Bulk Action Selection Bar */}
       {selectedIds.length > 0 && (

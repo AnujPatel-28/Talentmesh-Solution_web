@@ -93,7 +93,7 @@
     height: 100%;
     background-image: url('/Background.png');
     background-size: cover;
-    background-position: center 30px;
+    background-position: center top;
     background-repeat: no-repeat;
     z-index: 1;
     pointer-events: none;
@@ -102,13 +102,13 @@
 
 @keyframes waveFlow {
     0% {
-        background-position: 50% 30px;
+        background-position: 50% 0;
     }
     50% {
-        background-position: 47% 55px;
+        background-position: 47% 0;
     }
     100% {
-        background-position: 50% 30px;
+        background-position: 50% 0;
     }
 }
 
@@ -1053,6 +1053,65 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     max-width: 1200px;
     margin: 0 auto;
+}
+
+.ctaCardGlass {
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(20px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(120%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 25px 50px -12px rgba(31, 38, 135, 0.08) !important;
+    color: #0f172a !important;
+}
+
+.ctaCardGlass::before {
+    display: none !important;
+}
+
+.ctaCardGlass::after {
+    content: '';
+    position: absolute;
+    bottom: -150px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 450px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+    filter: blur(40px);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.ctaTitleGlass {
+    color: #0f172a !important;
+    background: none !important;
+    -webkit-background-clip: initial !important;
+    background-clip: initial !important;
+    -webkit-text-fill-color: initial !important;
+}
+
+.ctaDescGlass {
+    color: #475569 !important;
+    opacity: 0.95 !important;
+}
+
+.ctaCardGlass .ctaBtn {
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%) !important;
+    color: #ffffff !important;
+    border-radius: 12px !important;
+    padding: 1rem 2.5rem !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3) !important;
+    transition: all 0.3s ease !important;
+    position: relative;
+    z-index: 10;
+}
+
+.ctaCardGlass .ctaBtn:hover {
+    background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 15px 30px rgba(79, 70, 229, 0.5) !important;
 }
 
 .ctaCard::before {
@@ -2146,6 +2205,11 @@
         padding-left: 1.25rem;
         padding-right: 1.25rem;
         min-height: auto;
+    }
+
+    .hero::before {
+        background-size: 100% 100% !important;
+        animation: none !important;
     }
 
     .heroGrid {

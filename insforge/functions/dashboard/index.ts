@@ -12,7 +12,8 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     const { type, companyId, candidateId } = await req.json();
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
 
     if (type === 'company') {
       const [jobsRes, candidatesRes, interviewsRes, activityRes] = await Promise.all([

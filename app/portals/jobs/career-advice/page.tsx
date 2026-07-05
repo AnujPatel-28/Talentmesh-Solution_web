@@ -1,16 +1,23 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import SearchIcon from '@mui/icons-material/Search';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import AnimateOnScroll from '@/components/AnimateOnScroll';
+import { CTA } from '@/components/sections';
 import styles from './career-advice.module.css';
+import { SectionHeader, CustomSelect } from '@/components/ui';
+import { 
+    Clock, 
+    Sparkles, 
+    ShieldAlert, 
+    Download, 
+    Check, 
+    BookOpen, 
+    ArrowRight,
+    Award,
+    Briefcase
+} from 'lucide-react';
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-const CheckIco = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>;
-const ClockIco = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
-const StarIco = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>;
-
-// ─── Form Data ────────────────────────────────────────────────────────────────
+// ─── Form Options & Data ──────────────────────────────────────────────────────
 const CURRENT_STATUS = ['Actively Looking', 'Passively Exploring', 'Recently Laid Off', 'Fresh Graduate', 'Career Changer', 'Currently Employed'];
 const EXP_YEARS = ['0–1 years', '1–3 years', '3–5 years', '5–10 years', '10+ years'];
 const HELP_OPTIONS = ['Resume Review', 'Interview Prep', 'Job Search Strategy', 'Career Switching Advice', 'Salary Negotiation', 'LinkedIn Optimisation', 'Other'];
@@ -30,15 +37,80 @@ const TESTIMONIALS = [
     { quote: 'As a fresh graduate I had no idea how to stand out. The team gave me a specific, actionable plan that actually worked.', name: 'Mei Lin', role: 'Data Analyst @ Analytics Co.' },
 ];
 
-const STATS = [
-    { val: '500+', label: 'Candidates Guided' },
-    { val: '94%', label: 'Success Rate' },
-    { val: '48hr', label: 'Response Time' },
+// ─── Unified Sector Hub Data ─────────────────────────────────────────────────
+const SECTORS = [
+    {
+        id: "technology",
+        title: "Software Engineering",
+        description: "Build and scale modern software applications using code.",
+        icon: <Briefcase size={20} />,
+        skills: ["React & Next.js", "Node.js & Python", "System Design", "Cloud Infrastructure"],
+        roadmap: [
+            "Learn programming fundamentals & data structures.",
+            "Build 2-3 production-ready full-stack projects.",
+            "Practice mock system design & coding interviews."
+        ],
+        playbookTitle: "Tech Recruiting Playbook",
+        playbookTips: [
+            "Optimize your GitHub readme to show production-ready projects, not just academic exercises.",
+            "Be prepared to explain the 'why' behind database selection (SQL vs NoSQL) for scaled apps.",
+            "Build a project incorporating LLM integrations or vector databases to stand out."
+        ]
+    },
+    {
+        id: "creative",
+        title: "Product Design (UI/UX)",
+        description: "Design intuitive interfaces and premium user experiences.",
+        icon: <Sparkles size={20} />,
+        skills: ["Figma & Prototyping", "User Research Synthesis", "Design Systems", "Interaction Design"],
+        roadmap: [
+            "Master design tools (Figma, Framer) & typography.",
+            "Create 2 detailed case studies showcasing iteration.",
+            "Collaborate with developers to understand handoff."
+        ],
+        playbookTitle: "Creative & Design Playbook",
+        playbookTips: [
+            "Treat your case studies like stories. Clearly state the conflict, the user struggle, and the outcome.",
+            "Learn basic React/HTML/CSS so you can speak the same language as front-end developers.",
+            "Show evidence of design iteration: explain why your first three ideas didn't work."
+        ]
+    },
+    {
+        id: "finance",
+        title: "Finance & Strategy",
+        description: "Analyze financial data and drive corporate transaction strategies.",
+        icon: <Award size={20} />,
+        skills: ["LBO & DCF Modeling", "Data Analysis (SQL)", "PowerPoint Storytelling", "Market Research"],
+        roadmap: [
+            "Build strong foundations in corporate accounting.",
+            "Practice modeling complex merger & acquisition scenarios.",
+            "Network with professionals to secure warm referrals."
+        ],
+        playbookTitle: "Finance & Strategy Playbook",
+        playbookTips: [
+            "Understand macroeconomic trends, interest rate dynamics, and their impact on corporate dealmaking.",
+            "Flawless formatting in Excel and PowerPoint is non-negotiable; errors signal lack of diligence.",
+            "Network early. Build genuine relationships months before recruiting cycles open."
+        ]
+    }
 ];
 
-import { SectionHeader, CustomSelect } from '@/components/ui';
-
 export default function CareerAdvicePage() {
+    // ─── Filter State ───
+    const [activeCategory, setActiveCategory] = useState<'All' | 'Technology' | 'Creative' | 'Finance'>('All');
+
+    // ─── Sector Cards Tab State ───
+    const [sectorTabs, setSectorTabs] = useState<Record<string, 'roadmap' | 'playbook'>>({
+        technology: 'roadmap',
+        creative: 'roadmap',
+        finance: 'roadmap'
+    });
+
+    // ─── Download Form State ───
+    const [downloadEmail, setDownloadEmail] = useState('');
+    const [downloaded, setDownloaded] = useState(false);
+
+    // ─── Consultation Request Form State ───
     const [form, setForm] = useState({
         fullName: '', email: '', phone: '', status: '', currentTitle: '', industry: '', expYears: '',
         contactTime: '', contactMethod: '', situation: ''
@@ -54,113 +126,255 @@ export default function CareerAdvicePage() {
         setSubmitted(true);
     };
 
+    const handleDownloadSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (downloadEmail.trim()) {
+            setDownloaded(true);
+            setTimeout(() => {
+                setDownloaded(false);
+                setDownloadEmail('');
+            }, 6000);
+        }
+    };
+
+    // Filter logic
+    const filteredSectors = SECTORS.filter(s => activeCategory === 'All' || s.id === activeCategory.toLowerCase());
+
     return (
         <main className={styles.page}>
-            {/* <section className={styles.blogHero}>
-                <h1 className={styles.blogTitle}>Level up your career with <span className="text-gradient">expert insights</span></h1>
-                <p className={styles.blogSub}>Discover actionable advice, industry trends, and the tools you need to stand out in today&apos;s competitive job market.</p>
-                <div className={styles.searchBox}>
-                    <SearchIcon className={styles.searchIcon} />
-                    <input type="text" placeholder="Search articles..." className={styles.searchInput} />
-                </div>
-            </section> */}
-
-            {/* ── CATEGORY FILTERS ── */}
-            {/* <div className={styles.categoryFilters}>
-                {['All', 'Resume Tips', 'Interview Prep', 'Salary Negotiation', 'AI in Recruiting'].map(c => (
-                    <button key={c} className={`${styles.filterPill} ${c === 'All' ? styles.filterPillActive : ''}`}>{c}</button>
-                ))}
-            </div> */}
-
-            {/* ── BLOG GRID ── */}
-            {/* <div className={styles.blogGrid}>
-                <div className={`${styles.articleCard} ${styles.featuredCard}`} style={{ backgroundImage: 'url(/images/tech-office.jpg)' }}>
-                    <div className={styles.cardContent}>
-                        <span className={styles.articleTag}>AI in Recruiting</span>
-                        <h2 className={styles.featuredTitle}>How Generative AI is Reshaping the Hiring Process in 2024</h2>
-                        <p className={styles.featuredDesc}>Stay ahead of the curve by understanding how top companies are using AI to screen candidates and what you can do to optimize your profile.</p>
-                    </div>
-                </div>
-                <div className={styles.articleCard}>
-                    <div>
-                        <span className={`${styles.articleTag} ${styles.articleTagDark}`}>Interview Prep</span>
-                        <h2 className={styles.articleTitle}>5 Questions You Should Always Ask at the End of an Interview</h2>
-                        <p className={styles.articleDesc}>Flipping the script shows engagement and helps you determine if the company culture is the right fit.</p>
-                    </div>
-                    <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
-                </div>
+            {/* Moving background container with translation & scaling animation */}
+            <div className={styles.bgWrapper}>
+                <div className={styles.bgImage} />
+                <div className={styles.bgOverlay} />
             </div>
 
-            <div className={styles.blogGridSecondary}>
-                <div className={styles.articleCard}>
-                    <div>
-                        <span className={`${styles.articleTag} ${styles.articleTagDark}`}>Salary Negotiation</span>
-                        <h2 className={styles.articleTitle}>The Art of the Counter-Offer: Knowing Your Worth</h2>
-                        <p className={styles.articleDesc}>A step-by-step guide to confidently navigating salary discussions without risking the job offer.</p>
-                    </div>
-                    <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
-                </div>
-                <div className={styles.articleCard} style={{ padding: 0 }}>
-                    <div style={{ height: '220px', backgroundImage: 'url(/images/careers-team.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
-                    <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                        <span className={`${styles.articleTag} ${styles.articleTagDark}`} style={{ width: 'fit-content' }}>Resume Tips</span>
-                        <h2 className={styles.articleTitle}>Modernizing Your Resume for Applicant Tracking Systems (ATS)</h2>
-                        <p className={styles.articleDesc}>Formatting mistakes might be getting you auto-rejected. Learn how to structure your resume to pass the initial digital screening.</p>
-                        <Link href="#" className={styles.readMore}>Read more <ArrowForwardIcon fontSize="small" /></Link>
-                    </div>
-                </div>
-            </div> */}
-
-            {/* ── NEWSLETTER ── */}
-            {/* <section className={styles.newsletterSection}>
-                <div className={styles.newsletterBox}>
-                    <div className={styles.newsletterContent}>
-                        <h2 className={styles.newsletterTitle}>Stay ahead of the <span className="text-gradient">curve</span></h2>
-                        <p className={styles.newsletterDesc}>Get weekly career advice, industry insights, and exclusive tips delivered straight to your inbox.</p>
-                    </div>
-                    <form className={styles.newsletterForm} onSubmit={(e) => e.preventDefault()}>
-                        <input type="email" placeholder="Enter your email address" className={styles.newsletterInput} required />
-                        <button type="submit" className={styles.newsletterBtn}>Subscribe</button>
-                    </form>
-                </div>
-            </section> */}
-
-            {/* ── HERO ── */}
+            {/* ── HERO SECTION ── */}
             <section className={styles.hero}>
                 <div className="premium-container">
                     <div className={styles.heroInner}>
                         <SectionHeader
                             centered
                             className={styles.heroHeader}
-                            tag="Career Services"
-                            title={<>Expert Guidance for Your <span className={styles.highlight}>Career Path</span></>}
-                            description="From resume reviews to interview preparation, our experts are here to help you navigate your next big move."
+                            tag="Alumni Advice Network"
+                            title={<>Real Journeys. Tactical <span className={styles.highlightText}>Career Advice.</span></>}
+                            description="Access battle-tested playbooks, resilience roadmaps, and hourly breakdowns compiled directly from alumni at market-leading organizations."
                         />
                     </div>
                 </div>
             </section>
 
-            {/* ── FORM + ASIDE ── */}
-            <section className={styles.formSection}>
+            {/* ── INTERACTIVE ALUMNI HUB ── */}
+            <section className={styles.hubSection}>
+                <div className="premium-container">
+                    {/* Category Filter Pills */}
+                    <div className={styles.filtersContainer}>
+                        {(['All', 'Technology', 'Creative', 'Finance'] as const).map(cat => (
+                            <button
+                                key={cat}
+                                className={`${styles.filterPill} ${activeCategory === cat ? styles.filterPillActive : ''}`}
+                                onClick={() => setActiveCategory(cat)}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Sector Hub Cards Grid */}
+                    <div className={styles.gridSectionHeaderWrap}>
+                        <h2 className={styles.gridSectionTitle}>
+                            <Sparkles className={styles.columnIcon} />
+                            Explore Sector <span className={styles.highlightText}>Career Hubs</span>
+                        </h2>
+                    </div>
+
+                    <div className={styles.sectorsGrid}>
+                        {filteredSectors.map(sector => {
+                            const activeTab = sectorTabs[sector.id] || 'roadmap';
+                            return (
+                                <div key={sector.id} className={`${styles.glassCard} ${styles.sectorCard}`}>
+                                    {/* Sector Header */}
+                                    <div className={styles.sectorHeader}>
+                                        <div className={styles.sectorIconBox}>
+                                            {sector.icon}
+                                        </div>
+                                        <div>
+                                            <h3 className={styles.sectorTitle}>{sector.title}</h3>
+                                            <p className={styles.sectorDesc}>{sector.description}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Tab Selectors */}
+                                    <div className={styles.tabTriggers}>
+                                        <button
+                                            type="button"
+                                            className={`${styles.tabTrigger} ${activeTab === 'roadmap' ? styles.tabTriggerActive : ''}`}
+                                            onClick={() => setSectorTabs(p => ({ ...p, [sector.id]: 'roadmap' }))}
+                                        >
+                                            Career Roadmap
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`${styles.tabTrigger} ${activeTab === 'playbook' ? styles.tabTriggerActive : ''}`}
+                                            onClick={() => setSectorTabs(p => ({ ...p, [sector.id]: 'playbook' }))}
+                                        >
+                                            Recruiting Playbook
+                                        </button>
+                                    </div>
+
+                                    {/* Tab Contents */}
+                                    <div className={styles.tabContent}>
+                                        {activeTab === 'roadmap' ? (
+                                            <div className={styles.tabPanel}>
+                                                <div className={styles.navSection}>
+                                                    <h4 className={styles.navSubTitle}>Core Skills Required:</h4>
+                                                    <div className={styles.skillsContainer}>
+                                                        {sector.skills.map((skill, idx) => (
+                                                            <span key={idx} className={styles.skillPill}>{skill}</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className={styles.navSection} style={{ marginTop: '20px' }}>
+                                                    <h4 className={styles.navSubTitle}>Milestone Roadmap to Land Job:</h4>
+                                                    <ol className={styles.roadmapList}>
+                                                        {sector.roadmap.map((step, idx) => (
+                                                            <li key={idx} className={styles.roadmapStep}>
+                                                                <span className={styles.stepNum}>{idx + 1}</span>
+                                                                <span className={styles.stepText}>{step}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ol>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className={styles.tabPanel}>
+                                                <div className={styles.playbookSection}>
+                                                    <h4 className={styles.playbookTitle}>{sector.playbookTitle}</h4>
+                                                    <span className={styles.playbookSecLabel}>Tactical Strategy:</span>
+                                                    <ul className={styles.playbookBullets}>
+                                                        {sector.playbookTips.map((tip, idx) => (
+                                                            <li key={idx} className={styles.playbookBullet}>
+                                                                <Check size={14} className={styles.checkIcon} />
+                                                                <span>{tip}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* ── FULL-WIDTH RESOURCES & PREP BANNER ── */}
+                    <div className={`${styles.glassCard} ${styles.resourcesBannerCard}`}>
+                        <h2 className={styles.bannerSectionTitle}>
+                            <BookOpen className={styles.columnIcon} />
+                            Prep & Download <span className={styles.highlightText}>Resources</span>
+                        </h2>
+                        <div className={styles.bannerDivider} />
+                        
+                        <div className={styles.bannerLayout}>
+                            {/* Left Column: Download Form */}
+                            <div className={styles.bannerDownloadCol}>
+                                <div className={styles.downloadHeader}>
+                                    <div className={styles.downloadIconBox}>
+                                        <Download size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className={styles.downloadTitle}>Download Tip Book</h3>
+                                        <p className={styles.downloadSubtitle}>Compiled checklist of top 10 alumni tips</p>
+                                    </div>
+                                </div>
+                                <p className={styles.downloadText}>
+                                    Get our complete 25-page compiled PDF guide containing resume templates, salary negotiation scripts, and portfolio checklists.
+                                </p>
+                                
+                                {downloaded ? (
+                                    <div className={styles.downloadSuccessBox}>
+                                        <Check size={18} />
+                                        <span>Check your inbox for the download link!</span>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleDownloadSubmit} className={styles.downloadForm}>
+                                        <input
+                                            type="email"
+                                            required
+                                            placeholder="Enter your email address"
+                                            className={styles.downloadInput}
+                                            value={downloadEmail}
+                                            onChange={e => setDownloadEmail(e.target.value)}
+                                        />
+                                        <button type="submit" className={styles.downloadBtn}>
+                                            Send Me PDF <ArrowRight size={16} />
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+
+                            <div className={styles.bannerColumnDivider} />
+
+                            {/* Right Column: Pre-Interview Checklist */}
+                            <div className={styles.bannerChecklistCol}>
+                                <div className={styles.checklistHeader}>
+                                    <div className={styles.checklistIconBox}>
+                                        <ShieldAlert size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className={styles.checklistTitle}>Pre-Interview Checklist</h3>
+                                        <p className={styles.checklistSubtitle}>Essential steps before your next interview round</p>
+                                    </div>
+                                </div>
+                                <div className={styles.checklistGrid}>
+                                    {[
+                                        { title: "Company Research", desc: "Understand their product, values, culture, and recent news announcements." },
+                                        { title: "STAR Stories", desc: "Prepare 3-4 stories highlighting problem-solving and collaboration skills." },
+                                        { title: "Smart Questions", desc: "Formulate 3 strategic questions for the team about their current bottlenecks." },
+                                        { title: "Technical Prep", desc: "Double check your IDE, camera, microphone, and internet connection reliability." }
+                                    ].map((item, idx) => (
+                                        <div key={idx} className={styles.checklistItem}>
+                                            <div className={styles.bulletCheck}><Check size={14} /></div>
+                                            <div>
+                                                <strong className={styles.checklistStepTitle}>{item.title}</strong>
+                                                <p className={styles.checklistStepDesc}>{item.desc}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            {/* ── 1-ON-1 CONSULTATION SECTION ── */}
+            <section id="consultation-form" className={styles.consultationSection}>
                 <div className="premium-container">
                     <div className={styles.formLayout}>
-
-                        {/* Form card */}
-                        <div className={styles.formCard}>
+                        {/* Glassmorphic styled form card */}
+                        <div className={`${styles.glassCard} ${styles.formCard}`}>
                             {submitted ? (
                                 <div className={styles.successState}>
-                                    <div className={styles.successIco}><CheckIco /></div>
+                                    <div className={styles.successIco}>
+                                        <Check size={28} />
+                                    </div>
                                     <h2 className={styles.successTitle}>Request Received!</h2>
-                                    <p className={styles.successDesc}>Thank you, <strong>{form.fullName || 'there'}</strong>. A TalentMesh career specialist will reach out to you within 24–48 hours.</p>
-                                    <div className={styles.successBadge}><ClockIco /> 24–48 hr response</div>
+                                    <p className={styles.successDesc}>
+                                        Thank you, <strong>{form.fullName || 'there'}</strong>. A TalentMesh career specialist will reach out to you within 24–48 hours.
+                                    </p>
+                                    <div className={styles.successBadge}>
+                                        <Clock size={16} /> <span>24–48 hr response</span>
+                                    </div>
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} className={styles.form} noValidate>
-                                    <h2 className={styles.formTitle}>Request My Career Consultation</h2>
+                                    <h2 className={styles.formTitle}>Request My <span className={styles.highlightText}>Career Consultation</span></h2>
                                     <p className={styles.formNote}>All fields required unless marked <em>(optional)</em></p>
 
                                     <div className={styles.formTrustNote}>
-                                        <ClockIco />
+                                        <Clock size={16} />
                                         <span>Our team typically responds within <strong>24–48 hours.</strong></span>
                                     </div>
 
@@ -201,7 +415,7 @@ export default function CareerAdvicePage() {
                                                 className={styles.select}
                                                 value={form.status}
                                                 onChange={e => set('status', (e as any).target.value)}
-                                                placeholder="Select your status"
+                                                placeholder="Select status"
                                                 options={CURRENT_STATUS.map(s => ({ label: s, value: s }))}
                                                 required
                                             />
@@ -226,7 +440,7 @@ export default function CareerAdvicePage() {
                                         </div>
                                         <div className={styles.field}>
                                             <label className={styles.label}>Industry / Domain of Interest</label>
-                                            <input required className={styles.input} type="text" placeholder="e.g. FinTech, Healthcare" value={form.industry} onChange={e => set('industry', e.target.value)} />
+                                            <input required className={styles.input} type="text" placeholder="e.g. FinTech, Creative" value={form.industry} onChange={e => set('industry', e.target.value)} />
                                         </div>
                                     </div>
 
@@ -237,7 +451,6 @@ export default function CareerAdvicePage() {
                                     </div>
                                     <div className={styles.formSectionDivider} />
 
-                                    {/* Multi-select help needs */}
                                     <div className={styles.field}>
                                         <label className={styles.label}>What kind of help do you need? <span className={styles.selectAll}>(select all that apply)</span></label>
                                         <div className={styles.chipGroup}>
@@ -305,24 +518,32 @@ export default function CareerAdvicePage() {
                             )}
                         </div>
 
-                        {/* Aside */}
-                        <div className={styles.aside}>
-                            <div className={styles.asideCard}>
+                        {/* Glassmorphic styled sidebar */}
+                        <div className={styles.minimalAside}>
+                            <div className={`${styles.glassCard} ${styles.asideInfoCard}`}>
                                 <h3 className={styles.asideTitle}>What you get</h3>
                                 {['Personalised career roadmap', '1-on-1 specialist call', 'Tailored job search strategy', 'Resume & LinkedIn review tips', 'Salary benchmarking insights'].map(item => (
-                                    <div key={item} className={styles.asideItem}><span className={styles.asideCheck}><CheckIco /></span><span>{item}</span></div>
-                                ))}
-                            </div>
-                            <div className={styles.asideStat}>
-                                {STATS.map(s => (
-                                    <div key={s.val} className={styles.asideStatItem}>
-                                        <div className={styles.asideStatVal}>{s.val}</div>
-                                        <div className={styles.asideStatLabel}>{s.label}</div>
+                                    <div key={item} className={styles.asideItem}>
+                                        <span className={styles.asideCheck}><Check size={14} /></span>
+                                        <span>{item}</span>
                                     </div>
                                 ))}
                             </div>
+                            <div className={`${styles.glassCard} ${styles.asideStatsCard}`}>
+                                <div className={styles.asideStatItem}>
+                                    <div className={styles.asideStatVal}>500+</div>
+                                    <div className={styles.asideStatLabel}>GUIDED</div>
+                                </div>
+                                <div className={styles.asideStatItem}>
+                                    <div className={styles.asideStatVal}>94%</div>
+                                    <div className={styles.asideStatLabel}>SUCCESS</div>
+                                </div>
+                                <div className={styles.asideStatItem}>
+                                    <div className={styles.asideStatVal}>48hr</div>
+                                    <div className={styles.asideStatLabel}>RESPONSE</div>
+                                </div>
+                            </div>
                         </div>
-
                     </div>
                 </div>
             </section>
@@ -334,9 +555,8 @@ export default function CareerAdvicePage() {
                     <div className="premium-container">
                         <SectionHeader
                             centered
-                            light
                             tag="Process"
-                            title="How it works"
+                            title={<>How It <span className={styles.highlightText}>Works</span></>}
                         />
                         <div className={styles.stepsRow}>
                             {STEPS.map((step, idx) => (
@@ -358,18 +578,18 @@ export default function CareerAdvicePage() {
                     <div className="premium-container">
                         <SectionHeader
                             centered
-                            light
                             tag="Testimonials"
-                            title="What Candidates Say"
+                            title={<>What Candidates <span className={styles.highlightText}>Say</span></>}
                             description="Trusted by hundreds of professionals seeking their next career milestone."
                         />
                         <div className={styles.testiGrid}>
                             {TESTIMONIALS.map((t, i) => (
-                                <div key={i} className={`${styles.testiCard} glass-card`}>
-                                    <div className={styles.stars}>{[...Array(5)].map((_, si) => <StarIco key={si} />)}</div>
+                                <div key={i} className={`${styles.glassCard} ${styles.testiCard}`}>
                                     <p className={styles.quote}>&ldquo;{t.quote}&rdquo;</p>
                                     <div className={styles.author}>
-                                        <div className={styles.authorAvatar}>{t.name.split(' ').map(w => w[0]).join('')}</div>
+                                        <div className={styles.authorAvatar}>
+                                            {t.name.split(' ').map(w => w[0]).join('')}
+                                        </div>
                                         <div>
                                             <div className={styles.authorName}>{t.name}</div>
                                             <div className={styles.authorRole}>{t.role}</div>
@@ -381,6 +601,15 @@ export default function CareerAdvicePage() {
                     </div>
                 </section>
             </div>
+            <AnimateOnScroll animation="scaleUp">
+                <CTA 
+                    glass
+                    title={<>Ready to Level Up Your <span className="text-gradient">Career?</span></>}
+                    description="Connect with our industry mentors and land your dream tech role faster."
+                    buttonText="Request a Consultation"
+                    buttonLink="#consultation-form"
+                />
+            </AnimateOnScroll>
         </main>
     );
 }

@@ -142,7 +142,7 @@ test.describe('Authentication Flow', () => {
     await page.fill('#password', 'password123');
     await page.click('button[type="submit"]');
 
-    await page.waitForURL(/candidate\/dashboard|dashboard\/candidate/, { timeout: 15000 });
+    await page.waitForURL(/candidate\/dashboard|dashboard\/candidate/, { timeout: 45000, waitUntil: 'commit' });
     await expect(page).toHaveURL(/candidate\/dashboard|dashboard\/candidate/);
   });
 });

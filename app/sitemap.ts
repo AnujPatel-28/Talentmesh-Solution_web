@@ -6,7 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const pages = [
     '',
     '/about',
-    '/contact',
+    '/portals/jobs/contact',
     '/jobs',
     '/employers',
     '/job-seekers',

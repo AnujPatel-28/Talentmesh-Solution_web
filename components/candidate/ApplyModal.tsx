@@ -582,6 +582,60 @@ function SkillBadge({ label, matched }: { label: string; matched: boolean }) {
     );
 }
 
+const st = {
+    input: {
+        width: '100%',
+        padding: '0.65rem 0.85rem',
+        borderRadius: '10px',
+        border: '1.5px solid #cbd5e1',
+        fontSize: '0.85rem',
+        outline: 'none',
+        background: '#ffffff',
+        boxSizing: 'border-box' as const,
+        fontFamily: 'inherit',
+        transition: 'all 0.15s ease-in-out',
+    },
+    label: {
+        display: 'block',
+        fontSize: '0.72rem',
+        fontWeight: 700,
+        color: '#475569',
+        marginBottom: '6px',
+        textTransform: 'uppercase' as const,
+        letterSpacing: '0.02em',
+    },
+    card: {
+        background: '#f8fafc',
+        border: '1px solid #f1f5f9',
+        borderRadius: '16px',
+        padding: '1.25rem 1.5rem',
+    },
+    cardTitle: {
+        margin: '0 0 1rem',
+        fontSize: '0.78rem',
+        fontWeight: 800,
+        textTransform: 'uppercase' as const,
+        letterSpacing: '0.06em',
+        color: '#475569',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+    },
+    select: {
+        width: '100%',
+        padding: '0.65rem 0.85rem',
+        borderRadius: '10px',
+        border: '1.5px solid #cbd5e1',
+        fontSize: '0.85rem',
+        outline: 'none',
+        background: '#ffffff',
+        boxSizing: 'border-box' as const,
+        fontFamily: 'inherit',
+        fontWeight: 500,
+        transition: 'all 0.15s ease-in-out',
+    }
+};
+
 export default function ApplyModal({
     isOpen, onClose, jobId, jobTitle, companyName,
     candidateProfile, jobSkills = [], onSuccess
@@ -910,29 +964,51 @@ export default function ApplyModal({
     // ─── Step: Profile review (Quick) / Profile edit (Manual) ─────────────────
     const renderStepProfile = () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Job Info Card */}
-            <div style={{
-                background: 'linear-gradient(135deg, #f8fafc, #faf5ff)',
-                border: '1px solid #e2e8f0',
-                borderRadius: 16,
-                padding: '1.1rem 1.25rem',
-                position: 'relative',
-                overflow: 'hidden'
-            }}>
-                <div style={{
-                    position: 'absolute', top: 0, right: 0,
-                    width: '60px', height: '60px',
-                    background: 'radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 70%)'
-                }} />
-                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', marginBottom: 6 }}>
-                    🎯 Applying For Job / Role
-                </label>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
-                    {jobTitle}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500, marginTop: 2 }}>
-                    {companyName}
-                </div>
+            {/* Apply Type Selector */}
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '0.25rem' }}>
+                {[
+                    { key: 'quick', title: '⚡ Fast Apply', desc: 'Use your saved profile & default resume for a 1-click submission.' },
+                    { key: 'manual', title: '✏️ Manual Apply', desc: 'Customize details, upload a custom resume, and answer screening Qs.' }
+                ].map(t => {
+                    const isSelected = applyType === t.key;
+                    return (
+                        <div
+                            key={t.key}
+                            onClick={() => { setApplyType(t.key as any); setStep(0); }}
+                            style={{
+                                flex: 1,
+                                padding: '16px',
+                                borderRadius: '16px',
+                                border: `2.5px solid ${isSelected ? '#007BFF' : '#e2e8f0'}`,
+                                backgroundColor: isSelected ? '#F0F7FF' : '#ffffff',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px',
+                                boxShadow: isSelected ? '0 4px 12px rgba(0,123,255,0.06)' : 'none',
+                                position: 'relative'
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: isSelected ? '#0056b3' : '#12263A' }}>
+                                    {t.title}
+                                </span>
+                                <div style={{
+                                    width: '16px', height: '16px', borderRadius: '50%',
+                                    border: `2.5px solid ${isSelected ? '#007BFF' : '#cbd5e1'}`,
+                                    backgroundColor: isSelected ? '#007BFF' : 'transparent',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    {isSelected && <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'white' }} />}
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: isSelected ? '#3b82f6' : '#64748b', lineHeight: 1.4, fontWeight: 500 }}>
+                                {t.desc}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Skill match banner */}
@@ -1010,33 +1086,34 @@ export default function ApplyModal({
                 )
             ) : (
                 /* ── Manual: editable fields ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     {/* Personal section */}
-                    <div style={{ background: '#f8fafc', borderRadius: 14, padding: '1rem 1.25rem', border: '1px solid #f1f5f9' }}>
-                        <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={st.card}>
+                        <h3 style={st.cardTitle}>
                             <Ico.User /> Personal Details
                         </h3>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Full Name *</label>
-                                <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your name"
-                                    style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', background: 'white', boxSizing: 'border-box' }} />
+                                <label className="tm-label" style={st.label}>Full Name *</label>
+                                <input type="text" className="tm-input" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your name"
+                                    style={st.input} />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Email *</label>
-                                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com"
-                                    style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', background: 'white', boxSizing: 'border-box' }} />
+                                <label className="tm-label" style={st.label}>Email *</label>
+                                <input type="email" className="tm-input" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com"
+                                    style={st.input} />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Phone *</label>
-                                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 XXXXX XXXXX"
-                                    style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', background: 'white', boxSizing: 'border-box' }} />
+                                <label className="tm-label" style={st.label}>Phone *</label>
+                                <input type="tel" className="tm-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 XXXXX XXXXX"
+                                    style={st.input} />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Location *</label>
+                                <label className="tm-label" style={st.label}>Location *</label>
                                 <div ref={locationDropdownRef} className="relative w-full">
                                     <input 
                                         type="text" 
+                                        className="tm-input"
                                         value={location} 
                                         onChange={e => {
                                             const val = e.target.value;
@@ -1049,7 +1126,7 @@ export default function ApplyModal({
                                             setIsLocationDropdownOpen(true);
                                         }}
                                         placeholder="Search city in India (e.g. Bengaluru, Mumbai)..."
-                                        style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                                        style={st.input}
                                     />
                                     {isLocationDropdownOpen && (
                                         <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto p-2 space-y-0.5 no-scrollbar">
@@ -1098,13 +1175,13 @@ export default function ApplyModal({
                     </div>
 
                     {/* Professional section */}
-                    <div style={{ background: '#f8fafc', borderRadius: 14, padding: '1rem 1.25rem', border: '1px solid #f1f5f9' }}>
-                        <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }}>
+                    <div style={st.card}>
+                        <h3 style={st.cardTitle}>
                             💼 Professional Details
                         </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Headline / Current Role *</label>
+                                <label className="tm-label" style={st.label}>Headline / Current Role *</label>
                                 <select
                                     value={headlineSelection}
                                     onChange={e => {
@@ -1116,7 +1193,8 @@ export default function ApplyModal({
                                             setHeadline(manualHeadline || '');
                                         }
                                     }}
-                                    style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', background: 'white', boxSizing: 'border-box', fontWeight: 500 }}
+                                    className="tm-select"
+                                    style={st.select}
                                 >
                                     <option value="" disabled>Select Role</option>
                                     {HEADLINE_PRESETS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -1131,13 +1209,14 @@ export default function ApplyModal({
                                             setHeadline(e.target.value);
                                         }}
                                         placeholder="Enter your current role manually"
-                                        style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                                        className="tm-input"
+                                        style={st.input}
                                     />
                                 )}
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Experience (Years) *</label>
+                                    <label className="tm-label" style={st.label}>Experience (Years) *</label>
                                     <select
                                         value={expSelection}
                                         onChange={e => {
@@ -1149,7 +1228,8 @@ export default function ApplyModal({
                                                 setExperienceYears(manualExp || '');
                                             }
                                         }}
-                                        style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', background: 'white', boxSizing: 'border-box', fontWeight: 500 }}
+                                        className="tm-select"
+                                        style={st.select}
                                     >
                                         <option value="" disabled>Select Experience</option>
                                         <option value="0">Less than 1 Year</option>
@@ -1178,7 +1258,8 @@ export default function ApplyModal({
                                                     }
                                                 }}
                                                 placeholder="Enter experience (e.g. 2.5)"
-                                                style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                                                className="tm-input"
+                                                style={st.input}
                                             />
                                             {manualExp && isNaN(Number(manualExp)) && (
                                                 <span style={{ fontSize: '0.65rem', color: '#dc2626', marginTop: 2, display: 'block' }}>
@@ -1189,9 +1270,9 @@ export default function ApplyModal({
                                     )}
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Highest Degree *</label>
+                                    <label className="tm-label" style={st.label}>Highest Degree *</label>
                                     <CustomSelect
-                                        className=""
+                                        className="tm-select"
                                         value={INDIAN_DEGREES.includes(degree) || !degree ? degree : 'Other Degree'}
                                         onChange={e => {
                                             const val = e.target.value;
@@ -1207,17 +1288,18 @@ export default function ApplyModal({
                                             value={degree === 'Other Degree' ? '' : degree}
                                             onChange={e => setDegree(e.target.value)}
                                             placeholder="Specify Custom Degree"
-                                            style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                                            className="tm-input"
+                                            style={st.input}
                                         />
                                     )}
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>Specialization / Field of Study</label>
+                                    <label className="tm-label" style={st.label}>Specialization / Field of Study</label>
                                     <CustomSelect
-                                        className=""
+                                        className="tm-select"
                                         value={FIELDS_OF_STUDY.includes(fieldOfStudy) || !fieldOfStudy ? fieldOfStudy : 'Other Field of Study'}
                                         onChange={e => {
                                             const val = e.target.value;
@@ -1232,14 +1314,15 @@ export default function ApplyModal({
                                             value={fieldOfStudy === 'Other Field of Study' ? '' : fieldOfStudy}
                                             onChange={e => setFieldOfStudy(e.target.value)}
                                             placeholder="Specify Specialization"
-                                            style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                                            className="tm-input"
+                                            style={st.input}
                                         />
                                     )}
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>College / University *</label>
+                                    <label className="tm-label" style={st.label}>College / University *</label>
                                     <CustomSelect
-                                        className=""
+                                        className="tm-select"
                                         value={getUniversitiesForLocation(location).includes(institution) || !institution ? institution : 'Other Institution'}
                                         onChange={e => {
                                             const val = e.target.value;
@@ -1255,28 +1338,29 @@ export default function ApplyModal({
                                             value={institution === 'Other Institution' ? '' : institution}
                                             onChange={e => setInstitution(e.target.value)}
                                             placeholder="Specify Custom Institution"
-                                            style={{ width: '100%', marginTop: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}
+                                            className="tm-input"
+                                            style={st.input}
                                         />
                                     )}
                                 </div>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#475569', marginBottom: 4 }}>
-                                    Skills (comma separated) * — <span style={{ color: '#3b82f6', fontWeight: 500 }}>job needs: {finalJobSkills.slice(0, 4).join(', ')}{finalJobSkills.length > 4 ? '…' : ''}</span>
+                                <label className="tm-label" style={st.label}>
+                                    Skills (comma separated) * — <span style={{ color: '#007BFF', fontWeight: 500 }}>job needs: {finalJobSkills.slice(0, 4).join(', ')}{finalJobSkills.length > 4 ? '…' : ''}</span>
                                 </label>
-                                <input type="text" value={skillsString} onChange={e => setSkillsString(e.target.value)} placeholder="React, TypeScript, Node.js, Python"
-                                    style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                                <input type="text" className="tm-input" value={skillsString} onChange={e => setSkillsString(e.target.value)} placeholder="React, TypeScript, Node.js, Python"
+                                    style={st.input} />
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                                 {[
                                     { label: 'Portfolio', val: portfolioUrl, set: setPortfolioUrl },
                                     { label: 'LinkedIn', val: linkedinUrl, set: setLinkedinUrl },
                                     { label: 'GitHub', val: githubUrl, set: setGithubUrl },
                                 ].map(({ label, val, set }) => (
                                     <div key={label}>
-                                        <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, color: '#64748b', marginBottom: 3 }}>{label}</label>
-                                        <input type="url" value={val} onChange={e => set(e.target.value)} placeholder="https://..."
-                                            style={{ width: '100%', padding: '0.4rem 0.55rem', borderRadius: 7, border: '1px solid #e2e8f0', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }} />
+                                        <label className="tm-label" style={{ ...st.label, textTransform: 'none', color: '#64748b', fontSize: '0.68rem', marginBottom: 4 }}>{label}</label>
+                                        <input type="url" className="tm-input" value={val} onChange={e => set(e.target.value)} placeholder="https://..."
+                                            style={{ ...st.input, padding: '0.5rem 0.65rem', fontSize: '0.8rem' }} />
                                     </div>
                                 ))}
                             </div>
@@ -1328,50 +1412,43 @@ export default function ApplyModal({
                 </div>
             )}
 
-            {/* Apply type toggle at bottom of profile step */}
-            <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', borderRadius: 12, padding: '0.35rem' }}>
-                {(['quick', 'manual'] as const).map(t => (
-                    <button key={t} type="button" onClick={() => { setApplyType(t); setStep(0); }}
-                        style={{
-                            flex: 1, padding: '0.55rem', border: 'none', borderRadius: 9,
-                            background: applyType === t ? 'white' : 'transparent',
-                            color: applyType === t ? 'var(--primary-blue)' : '#64748b',
-                            fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
-                            boxShadow: applyType === t ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-                            transition: 'all 0.2s', fontFamily: 'inherit'
-                        }}>
-                        {t === 'quick' ? '⚡ Quick Apply' : '✏️ Manual Apply'}
-                    </button>
-                ))}
-            </div>
+
         </div>
     );
 
     // ─── Step: Screening (Manual only) ────────────────────────────────────────
     const renderStepScreening = () => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1.25rem' }}>
-                <h3 style={{ margin: '0 0 1rem', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={st.card}>
+                <h3 style={st.cardTitle}>
                     <Ico.Shield /> Screening Questions
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     {[
-                        { q: 'Do you require work visa/sponsorship?', state: sponsorshipRequired, set: setSponsorshipRequired },
-                        { q: 'Are you open to relocation if required?', state: relocationInterest, set: setRelocationInterest },
+                        { q: 'Do you require work visa/sponsorship? *', state: sponsorshipRequired, set: setSponsorshipRequired },
+                        { q: 'Are you open to relocation if required? *', state: relocationInterest, set: setRelocationInterest },
                     ].map(({ q, state, set }) => (
                         <div key={q}>
-                            <p style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>{q}</p>
-                            <div style={{ display: 'flex', gap: 10 }}>
+                            <p style={{ margin: '0 0 0.6rem', fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>{q}</p>
+                            <div style={{ display: 'flex', gap: 12 }}>
                                 {['Yes', 'No'].map(opt => (
                                     <label key={opt} style={{
                                         display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-                                        padding: '0.55rem 1.1rem', borderRadius: 10, border: `1.5px solid ${state === opt ? 'var(--primary-blue)' : '#e2e8f0'}`,
+                                        padding: '0.6rem 1.25rem', borderRadius: 10, border: `1.5px solid ${state === opt ? '#007BFF' : '#cbd5e1'}`,
                                         background: state === opt ? '#eff6ff' : 'white',
-                                        fontWeight: 600, fontSize: '0.85rem', color: state === opt ? 'var(--primary-blue)' : '#64748b',
-                                        transition: 'all 0.15s'
+                                        fontWeight: 600, fontSize: '0.85rem', color: state === opt ? '#007BFF' : '#475569',
+                                        transition: 'all 0.15s',
+                                        boxShadow: state === opt ? '0 2px 8px rgba(0,123,255,0.06)' : 'none'
                                     }}>
                                         <input type="radio" style={{ display: 'none' }} checked={state === opt} onChange={() => (set as any)(opt)} />
-                                        {state === opt ? '●' : '○'} {opt}
+                                        <span style={{
+                                            width: 14, height: 14, borderRadius: '50%',
+                                            border: `2px solid ${state === opt ? '#007BFF' : '#cbd5e1'}`,
+                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+                                        }}>
+                                            {state === opt && <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#007BFF' }} />}
+                                        </span>
+                                        {opt}
                                     </label>
                                 ))}
                             </div>
@@ -1380,8 +1457,8 @@ export default function ApplyModal({
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                                Years of <span style={{ color: 'var(--primary-blue)' }}>{mainSkill}</span> experience *
+                            <label className="tm-label" style={st.label}>
+                                Years of <span style={{ color: '#007BFF' }}>{mainSkill}</span> experience *
                             </label>
                             <select
                                 value={dynamicExpSelection}
@@ -1394,7 +1471,8 @@ export default function ApplyModal({
                                         setDynamicExp(manualDynamicExp || '');
                                     }
                                 }}
-                                style={{ width: '100%', padding: '0.55rem 0.7rem', borderRadius: 9, border: '1px solid #e2e8f0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: 'white', fontWeight: 500 }}
+                                className="tm-select"
+                                style={st.select}
                             >
                                 <option value="" disabled>Select Experience</option>
                                 {DYNAMIC_EXP_PRESETS.map(opt => <option key={opt} value={opt}>{opt} {Number(opt) === 1 ? 'Year' : 'Years'}</option>)}
@@ -1413,7 +1491,8 @@ export default function ApplyModal({
                                             }
                                         }}
                                         placeholder="Enter experience (e.g. 1.5)"
-                                        style={{ width: '100%', padding: '0.55rem 0.7rem', borderRadius: 9, border: '1px solid #e2e8f0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                        className="tm-input"
+                                        style={st.input}
                                     />
                                     {manualDynamicExp && isNaN(Number(manualDynamicExp)) && (
                                         <span style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 2, display: 'block' }}>
@@ -1424,9 +1503,9 @@ export default function ApplyModal({
                             )}
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: 6 }}>Earliest joining date *</label>
-                            <input type="date" value={joiningDate} onChange={e => setJoiningDate(e.target.value)}
-                                style={{ width: '100%', padding: '0.55rem 0.7rem', borderRadius: 9, border: '1px solid #e2e8f0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                            <label className="tm-label" style={st.label}>Earliest joining date *</label>
+                            <input type="date" className="tm-input" value={joiningDate} onChange={e => setJoiningDate(e.target.value)}
+                                style={st.input} />
                         </div>
                     </div>
                 </div>
@@ -1451,15 +1530,14 @@ export default function ApplyModal({
                     value={coverLetter}
                     onChange={e => setCoverLetter(e.target.value.slice(0, 1500))}
                     placeholder={`Hi ${companyName} team,\n\nI'm excited to apply for the ${jobTitle} role. With my background in ${finalJobSkills.slice(0, 2).join(' and ')}, I believe I can bring immediate value to your team...\n\nLooking forward to connecting!`}
+                    className="tm-textarea"
                     style={{
                         width: '100%', minHeight: 180, padding: '1rem', borderRadius: 14,
-                        border: '1px solid #e2e8f0', fontFamily: 'inherit', fontSize: '0.88rem',
+                        border: '1.5px solid #cbd5e1', fontFamily: 'inherit', fontSize: '0.88rem',
                         resize: 'vertical', outline: 'none', lineHeight: 1.65,
-                        background: '#fafafa', boxSizing: 'border-box',
-                        transition: 'border-color 0.2s'
+                        background: '#ffffff', boxSizing: 'border-box',
+                        transition: 'all 0.15s ease'
                     }}
-                    onFocus={e => e.target.style.borderColor = 'var(--primary-blue)'}
-                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                 />
             </div>
         </div>
@@ -1549,6 +1627,32 @@ export default function ApplyModal({
             }}
             onClick={e => { if (e.target === e.currentTarget && !loading) onClose(); }}
         >
+            <style>{`
+                .tm-input {
+                    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                }
+                .tm-input:focus {
+                    border-color: #007BFF !important;
+                    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12) !important;
+                }
+                .tm-select {
+                    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                }
+                .tm-select:focus {
+                    border-color: #007BFF !important;
+                    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12) !important;
+                }
+                .tm-textarea {
+                    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                }
+                .tm-textarea:focus {
+                    border-color: #007BFF !important;
+                    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.12) !important;
+                }
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
             <div
                 ref={modalRef}
                 tabIndex={-1}
@@ -1628,10 +1732,10 @@ export default function ApplyModal({
                                 disabled={loading}
                                 style={{
                                     padding: '0.65rem 1.8rem', border: 'none', borderRadius: 12,
-                                    background: loading ? '#94a3b8' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                                    background: loading ? '#94a3b8' : 'linear-gradient(135deg, #007BFF, #0056b3)',
                                     color: 'white', fontWeight: 700, fontSize: '0.95rem',
                                     cursor: loading ? 'default' : 'pointer',
-                                    boxShadow: loading ? 'none' : '0 4px 14px rgba(37,99,235,0.35)',
+                                    boxShadow: loading ? 'none' : '0 4px 14px rgba(0,123,255,0.3)',
                                     transition: 'all 0.25s', fontFamily: 'inherit',
                                     display: 'flex', alignItems: 'center', gap: 8
                                 }}
@@ -1652,10 +1756,11 @@ export default function ApplyModal({
                                 disabled={blockAdvance || loading}
                                 style={{
                                     padding: '0.65rem 1.8rem', border: 'none', borderRadius: 12,
-                                    background: blockAdvance ? '#e2e8f0' : 'var(--primary-blue)',
+                                    background: blockAdvance ? '#e2e8f0' : '#007BFF',
                                     color: blockAdvance ? '#94a3b8' : 'white',
                                     fontWeight: 700, fontSize: '0.88rem',
                                     cursor: blockAdvance ? 'not-allowed' : 'pointer',
+                                    boxShadow: blockAdvance ? 'none' : '0 4px 12px rgba(0,123,255,0.2)',
                                     transition: 'all 0.2s', fontFamily: 'inherit'
                                 }}
                             >

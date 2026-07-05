@@ -21,7 +21,8 @@ export default async function handler(req: Request): Promise<Response> {
     const token = authHeader?.split(' ')[1];
     
     // Use service role if needed, but here we just need to fetch job details
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token ?? null);
 
     const { jobId } = await req.json();
     if (!jobId) {

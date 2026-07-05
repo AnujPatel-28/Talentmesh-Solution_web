@@ -15,16 +15,38 @@ export async function POST(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams.toString();
   const queryString = searchParams ? `?${searchParams}` : '';
 
-  const insforgeRes = await fetch(`${INSFORGE_URL.replace(/\/$/, '')}/api/auth/oauth/exchange${queryString}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': ANON_KEY,
-      'Authorization': `Bearer ${ANON_KEY}`,
-      'x-client-info': 'talentmesh-web',
-    },
-    body,
-  });
+  const exchangeUrl = `${INSFORGE_URL.replace(/\/$/, '')}/api/auth/oauth/exchange${queryString}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': ANON_KEY,
+    'Authorization': `Bearer ${ANON_KEY}`,
+    'x-client-info': 'talentmesh-web',
+  };
+
+
+  let insforgeRes: Response;
+  try {
+    // OAuth codes are single-use — do NOT retry on failure or timeout, or the code
+    // will be consumed by the first attempt and the retry will get "Invalid or expired code".
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000); // generous 30s timeout
+    try {
+      insforgeRes = await fetch(exchangeUrl, {
+        method: 'POST',
+        headers,
+        body,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (err: any) {
+    console.error('[oauth/exchange] Exchange request failed:', err.name, err.message);
+    return NextResponse.json(
+      { error: 'OAuth exchange timed out. Please try logging in again.' },
+      { status: 504 }
+    );
+  }
 
   if (!insforgeRes.ok) {
     const errorText = await insforgeRes.text();
@@ -87,7 +109,7 @@ export async function POST(request: NextRequest) {
       const parts = host.split(':');
       const domainParts = parts[0].split('.');
       if (domainParts.includes('localhost')) {
-        domain = '.localhost';
+        // Do not set domain on localhost
       } else if (!host.includes('127.0.0.1')) {
         domain = `.${domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.')}`;
       }
