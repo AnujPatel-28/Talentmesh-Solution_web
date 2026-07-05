@@ -100,6 +100,22 @@ export default function MFAVerifyPage() {
                 });
             }
 
+            // Set signed MFA verification cookie
+            try {
+                await fetch('/api/auth/mfa-complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        factorId,
+                        timestamp: Date.now()
+                    })
+                });
+            } catch (err) {
+                console.warn('Failed to set MFA cookie:', err);
+                // Continue anyway - cookie might still be set
+            }
+
             // Redirect based on role
             const dest = user?.role === 'super_admin' || user?.role === 'admin'
                        ? '/dashboard/admin'

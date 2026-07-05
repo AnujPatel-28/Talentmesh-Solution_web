@@ -9,6 +9,127 @@ import { validateCandidateProfile } from '@/lib/validation/candidate';
 import { normalizeCandidateProfile } from '@/lib/candidate-profile';
 import Toast from '@/components/ui/Toast';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+
+const INDIAN_CITIES = [
+  'Agra, Uttar Pradesh',
+  'Ahmedabad, Gujarat',
+  'Ajmer, Rajasthan',
+  'Allahabad (Prayagraj), Uttar Pradesh',
+  'Amritsar, Punjab',
+  'Anantnag, Jammu & Kashmir',
+  'Asansol, West Bengal',
+  'Aurangabad (Chhatrapati Sambhajinagar), Maharashtra',
+  'Belagavi, Karnataka',
+  'Bengaluru, Karnataka',
+  'Bhagalpur, Bihar',
+  'Bhilai, Chhattisgarh',
+  'Bhopal, Madhya Pradesh',
+  'Bhubaneswar, Odisha',
+  'Bilaspur, Chhattisgarh',
+  'Bokaro Steel City, Jharkhand',
+  'Chandigarh',
+  'Chennai, Tamil Nadu',
+  'Coimbatore, Tamil Nadu',
+  'Cuttack, Odisha',
+  'Dehradun, Uttarakhand',
+  'Delhi, NCT',
+  'Dhanbad, Jharkhand',
+  'Dharamshala, Himachal Pradesh',
+  'Dibrugarh, Assam',
+  'Durg, Chhattisgarh',
+  'Durgapur, West Bengal',
+  'Faridabad, Haryana',
+  'Gandhinagar, Gujarat',
+  'Gaya, Bihar',
+  'Ghaziabad, Uttar Pradesh',
+  'Guntur, Andhra Pradesh',
+  'Gurgaon, Haryana',
+  'Guwahati, Assam',
+  'Gwalior, Madhya Pradesh',
+  'Haldwani, Uttarakhand',
+  'Haridwar, Uttarakhand',
+  'Hubballi-Dharwad, Karnataka',
+  'Hyderabad, Telangana',
+  'Indore, Madhya Pradesh',
+  'Jabalpur, Madhya Pradesh',
+  'Jaipur, Rajasthan',
+  'Jalandhar, Punjab',
+  'Jammu, Jammu & Kashmir',
+  'Jamnagar, Gujarat',
+  'Jamshedpur, Jharkhand',
+  'Jodhpur, Rajasthan',
+  'Kanpur, Uttar Pradesh',
+  'Karimnagar, Telangana',
+  'Karnal, Haryana',
+  'Kochi, Kerala',
+  'Kolkata, West Bengal',
+  'Kota, Rajasthan',
+  'Kozhikode, Kerala',
+  'Kurnool, Andhra Pradesh',
+  'Lucknow, Uttar Pradesh',
+  'Ludhiana, Punjab',
+  'Madgaon, Goa',
+  'Madurai, Tamil Nadu',
+  'Mandi, Himachal Pradesh',
+  'Mangaluru, Karnataka',
+  'Meerut, Uttar Pradesh',
+  'Mormugao, Goa',
+  'Mumbai, Maharashtra',
+  'Muzaffarpur, Bihar',
+  'Mysore, Karnataka',
+  'Nagpur, Maharashtra',
+  'Nashik, Maharashtra',
+  'New Delhi, NCT',
+  'Noida, Uttar Pradesh',
+  'Panaji, Goa',
+  'Panipat, Haryana',
+  'Patiala, Punjab',
+  'Patna, Bihar',
+  'Pune, Maharashtra',
+  'Puri, Odisha',
+  'Raipur, Chhattisgarh',
+  'Rajkot, Gujarat',
+  'Rajnandgaon, Chhattisgarh',
+  'Ranchi, Jharkhand',
+  'Rourkela, Odisha',
+  'Salem, Tamil Nadu',
+  'Shimla, Himachal Pradesh',
+  'Siliguri, West Bengal',
+  'Sonipat, Haryana',
+  'Srinagar, Jammu & Kashmir',
+  'Surat, Gujarat',
+  'Thane, Maharashtra',
+  'Thiruvananthapuram, Kerala',
+  'Thrissur, Kerala',
+  'Tinsukia, Assam',
+  'Tirupati, Andhra Pradesh',
+  'Tiruppur, Tamil Nadu',
+  'Tiruchirappalli, Tamil Nadu',
+  'Udhampur, Jammu & Kashmir',
+  'Ujjain, Madhya Pradesh',
+  'Udaipur, Rajasthan',
+  'Vadodara, Gujarat',
+  'Varanasi, Uttar Pradesh',
+  'Vijayawada, Andhra Pradesh',
+  'Visakhapatnam, Andhra Pradesh',
+  'Warangal, Telangana'
+];
+
+const EXPERIENCE_OPTIONS = [
+  { label: 'Fresher (No Experience)', value: '0' },
+  { label: '1 Year', value: '1' },
+  { label: '2 Years', value: '2' },
+  { label: '3 Years', value: '3' },
+  { label: '4 Years', value: '4' },
+  { label: '5 Years', value: '5' },
+  { label: '6 Years', value: '6' },
+  { label: '7 Years', value: '7' },
+  { label: '8 Years', value: '8' },
+  { label: '9 Years', value: '9' },
+  { label: '10+ Years', value: '10' },
+  { label: 'Custom (Specify years in decimals)', value: 'custom' }
+];
 
 import { useProfileDirtyState } from './hooks/useProfileDirtyState';
 import { useProfileCompletion } from './hooks/useProfileCompletion';
@@ -43,9 +164,12 @@ export default function ProfilePage() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const resumeInputRef = useRef<HTMLInputElement>(null);
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
 
   // Computed state references (shallow references)
   const cp = useMemo((): CandidateProfile => {
@@ -123,6 +247,16 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target as Node)) {
+        setIsLocationDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const updateCandidateProfile = useCallback(async (updates: Partial<CandidateProfile>) => {
@@ -403,10 +537,74 @@ export default function ProfilePage() {
     }
   }, [cp, updateCandidateProfile]);
 
-  const handlePreviewOpen = useCallback(() => {
-    setIsPreviewOpen(true);
-    trackProfileEvent('Resume Preview Opened');
-  }, []);
+  const handlePreviewOpen = useCallback(async () => {
+    if (!cp.primary_resume_id) {
+      setToast({ message: 'Please upload a resume first or set a primary resume.', type: 'error' });
+      return;
+    }
+    
+    try {
+      const token = window.sessionStorage.getItem('tm_token');
+      const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${cp.primary_resume_id}&accessType=viewed`;
+      
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch from proxy');
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      setPreviewBlobUrl(blobUrl);
+      setIsPreviewOpen(true);
+      trackProfileEvent('Resume Preview Opened');
+    } catch (err: any) {
+      console.error('Failed to preview resume:', err);
+      setToast({ message: 'Failed to preview resume: ' + err.message, type: 'error' });
+    }
+  }, [cp.primary_resume_id]);
+
+  const handlePreviewClose = useCallback(() => {
+    setIsPreviewOpen(false);
+    if (previewBlobUrl) {
+      window.URL.revokeObjectURL(previewBlobUrl);
+      setPreviewBlobUrl(null);
+    }
+  }, [previewBlobUrl]);
+
+  const handleDownload = useCallback(async () => {
+    if (!cp.primary_resume_id) {
+      setToast({ message: 'Please upload a resume first or set a primary resume.', type: 'error' });
+      return;
+    }
+    
+    try {
+      const token = window.sessionStorage.getItem('tm_token');
+      const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${cp.primary_resume_id}&accessType=downloaded`;
+      
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to download resume');
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = cp.resume_url?.split('/').pop() || 'resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      trackProfileEvent('Resume Downloaded');
+    } catch (err: any) {
+      console.error('Failed to download resume:', err);
+      setToast({ message: 'Failed to download resume: ' + err.message, type: 'error' });
+    }
+  }, [cp.primary_resume_id, cp.resume_url]);
 
   // Performance loader shimmer skeleton
   if (isLoading) {
@@ -481,6 +679,7 @@ export default function ProfilePage() {
         updatedAt={cp.updated_at}
         onAvatarClick={() => isEditing && avatarInputRef.current?.click()}
         onResumePreview={handlePreviewOpen}
+        onResumeDownload={handleDownload}
         onResumeUploadClick={() => resumeInputRef.current?.click()}
         onEditToggle={() => isEditing ? handleCancel() : setIsEditing(true)}
       />
@@ -570,22 +769,124 @@ export default function ProfilePage() {
                 </div>
                 <div className={styles.field}>
                   <label className={styles.formLabel}>Location</label>
-                  <input
-                    className={styles.formInput}
-                    value={profile.location || ''}
-                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                    placeholder="e.g. Bangalore, IN"
-                  />
+                  <div ref={locationDropdownRef} className="relative w-full">
+                    <input
+                      className={styles.formInput}
+                      value={profile.location || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfile({ ...profile, location: val });
+                        setLocationSearchQuery(val);
+                        setIsLocationDropdownOpen(true);
+                      }}
+                      onFocus={() => {
+                        setLocationSearchQuery(profile.location || '');
+                        setIsLocationDropdownOpen(true);
+                      }}
+                      placeholder="Search city in India (e.g. Bengaluru, Mumbai)..."
+                    />
+                    {isLocationDropdownOpen && (
+                      <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto p-2 space-y-0.5 no-scrollbar">
+                        {locationSearchQuery.trim() && !INDIAN_CITIES.some(c => c.toLowerCase() === locationSearchQuery.toLowerCase().trim()) && (
+                          <div
+                            onClick={() => {
+                              setProfile({ ...profile, location: locationSearchQuery.trim() });
+                              setIsLocationDropdownOpen(false);
+                            }}
+                            className="flex items-center justify-between p-2 hover:bg-blue-50 rounded-lg cursor-pointer text-xs text-blue-600 font-bold border border-dashed border-blue-200 transition-colors"
+                          >
+                            <span>Use custom: &ldquo;{locationSearchQuery}&rdquo;</span>
+                            <span>+</span>
+                          </div>
+                        )}
+                        {INDIAN_CITIES.filter(city =>
+                          city.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                        ).map(city => (
+                          <div
+                            key={city}
+                            onClick={() => {
+                              setProfile({ ...profile, location: city });
+                              setIsLocationDropdownOpen(false);
+                            }}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-xs hover:bg-slate-50 transition-colors ${profile.location === city ? 'bg-blue-50 text-blue-600 font-bold' : 'text-slate-700'}`}
+                          >
+                            <span>{city}</span>
+                            {profile.location === city && <span className="text-blue-600">✓</span>}
+                          </div>
+                        ))}
+                        {INDIAN_CITIES.filter(city =>
+                          city.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                        ).length === 0 && !locationSearchQuery.trim() && (
+                          <div className="text-center py-3 text-xs text-slate-400">Type to search Indian cities...</div>
+                        )}
+                        {INDIAN_CITIES.filter(city =>
+                          city.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                        ).length === 0 && locationSearchQuery.trim() && (
+                          <div className="text-center py-3 text-xs text-slate-400">No matching Indian cities found.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className={styles.field}>
                   <label className={styles.formLabel}>Years of Experience</label>
-                  <input
-                    type="number"
+                  <CustomSelect
                     className={styles.formInput}
-                    value={cp.experience_years || 0}
-                    onChange={(e) => setProfile({ ...profile, candidate_profiles: { ...cp, experience_years: parseInt(e.target.value) || 0 } as CandidateProfile })}
+                    value={
+                      cp.experience_years === null || cp.experience_years === undefined
+                        ? ''
+                        : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(cp.experience_years as number)
+                        ? String(cp.experience_years)
+                        : 'custom'
+                    }
+                    onChange={(e: any) => {
+                      const val = e.target.value;
+                      if (val === 'custom') {
+                        setProfile({
+                          ...profile,
+                          candidate_profiles: {
+                            ...cp,
+                            experience_years: 1.5
+                          } as CandidateProfile
+                        });
+                      } else {
+                        setProfile({
+                          ...profile,
+                          candidate_profiles: {
+                            ...cp,
+                            experience_years: val === '' ? null : Number(val)
+                          } as CandidateProfile
+                        });
+                      }
+                    }}
+                    options={EXPERIENCE_OPTIONS}
+                    placeholder="Select experience level"
                   />
                 </div>
+                {(cp.experience_years !== null && cp.experience_years !== undefined &&
+                  ![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(cp.experience_years as number)) && (
+                    <div className={styles.field}>
+                      <label className={styles.formLabel}>Specify Custom Experience (Years in decimals)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        className={styles.formInput}
+                        value={String(cp.experience_years)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProfile({
+                            ...profile,
+                            candidate_profiles: {
+                              ...cp,
+                              experience_years: val === '' ? null : Number(val)
+                            } as CandidateProfile
+                          });
+                        }}
+                        placeholder="e.g. 1.5"
+                      />
+                    </div>
+                )}
                 <div className={styles.field}>
                   <label className={styles.formLabel}>Phone Number</label>
                   <input
@@ -647,6 +948,7 @@ export default function ProfilePage() {
             skills={cp.skills}
             isEditing={isEditing}
             onUpdate={handleUpdateSkills}
+            headline={cp.headline || ''}
           />
 
           {/* Work experience timeline */}
@@ -663,6 +965,7 @@ export default function ProfilePage() {
             education={Array.isArray(cp.education) ? cp.education : []}
             isEditing={isEditing}
             onUpdate={handleUpdateEducation}
+            location={profile.location || ''}
           />
 
           {/* Social connections presence */}
@@ -678,11 +981,11 @@ export default function ProfilePage() {
       </div>
 
       {/* Resume modal viewer loaded on-demand */}
-      {cp.resume_url && (
+      {previewBlobUrl && (
         <ResumePreviewModal
           isOpen={isPreviewOpen}
-          onClose={() => setIsPreviewOpen(false)}
-          resumeUrl={getPublicStorageUrl('resumes', cp.resume_url)}
+          onClose={handlePreviewClose}
+          resumeUrl={previewBlobUrl}
         />
       )}
     </div>

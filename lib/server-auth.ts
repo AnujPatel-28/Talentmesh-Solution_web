@@ -1,14 +1,15 @@
 import 'server-only';
 
 import { createClient } from '@insforge/sdk';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import type { User } from '@/types/auth';
 
 
 export async function getServerUser(): Promise<User | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get('tm_access_token')?.value;
+  const headersList = await headers();
+  const token = headersList.get('x-access-token') || cookieStore.get('tm_access_token')?.value;
 
   if (!token) return null;
 

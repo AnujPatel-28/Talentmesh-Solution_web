@@ -9,6 +9,7 @@ import { invokeFunction } from '@/lib/insforge';
 import { SectionHeader } from '@/components/ui';
 import { useSavedJobs } from '@/hooks/useSavedJobs';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const Ico = {
@@ -24,7 +25,7 @@ const Ico = {
     Clock: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
     ArrowR: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-7-7 7 7-7 7" /></svg>,
     More: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>,
-    Share: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>,
+    Share: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>,
     Copy: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>,
 };
 
@@ -45,20 +46,35 @@ function getPostedDays(createdAt?: string | null) {
     return Math.max(0, Math.floor((Date.now() - createdTime) / 86400000));
 }
 
+// Deterministic Indian Rupees formatter to prevent Next.js SSR hydration mismatches
+function formatIndianRupees(num: number): string {
+    const x = num.toString();
+    const lastThree = x.slice(-3);
+    const otherNumbers = x.slice(0, -3);
+    if (otherNumbers !== '') {
+        const remaining = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+        return remaining + ',' + lastThree;
+    }
+    return lastThree;
+}
+
 function formatSalary(min?: number | null, max?: number | null, currency?: string | null) {
     if (!min && !max) return 'Competitive';
     const symbol = currency === 'USD' ? '$' : '₹';
+    const formatVal = (v: number) => {
+        if (currency === 'USD') {
+            return v.toLocaleString('en-US');
+        }
+        if (v >= 100000) {
+            return `${v / 100000}L`;
+        }
+        return formatIndianRupees(v);
+    };
     if (min && max) {
-        const formatVal = (v: number) => {
-            if (currency !== 'USD' && v >= 100000) {
-                return `${v / 100000}L`;
-            }
-            return v.toLocaleString();
-        };
         return `${symbol}${formatVal(min)} - ${symbol}${formatVal(max)}`;
     }
-    if (min) return `${symbol}${min.toLocaleString()}+`;
-    return `${symbol}${(max || 0).toLocaleString()}`;
+    if (min) return `${symbol}${formatVal(min)}+`;
+    return `${symbol}${formatVal(max || 0)}`;
 }
 
 function getInitials(name?: string | null) {
@@ -102,13 +118,18 @@ export default function BrowseJobsPage() {
     const { isSaved, toggleSave } = useSavedJobs(user?.id || null);
     const [page, setPage] = useState(1);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+    const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
+    const toggleFaq = (index: number) => {
+        setFaqOpen(prev => ({ ...prev, [index]: !prev[index] }));
+    };
 
     useEffect(() => {
         async function fetchJobs(attempt = 1) {
             try {
                 const { data, error } = await invokeFunction('jobs', {
                     method: 'GET',
-                    queries: { limit: '100' }
+                    queries: { limit: '100' },
+                    timeoutMs: 45000
                 });
 
                 if (error) {
@@ -292,6 +313,12 @@ export default function BrowseJobsPage() {
 
     return (
         <main className={styles.page}>
+            {/* Ken Burns Animated Background Layer */}
+            <div className={styles.bgWrapper}>
+                <div className={styles.bgImage} />
+                <div className={styles.bgOverlay} />
+            </div>
+
             <section className={styles.hero}>
                 <div className={styles.customContainer}>
                     <div className={styles.heroContent}>
@@ -331,6 +358,29 @@ export default function BrowseJobsPage() {
                             {POPULAR_TAGS.map(tag => (
                                 <button key={tag} className={styles.popularTag} onClick={() => { setSearch(tag); setPage(1); }}>{tag}</button>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Stats Section */}
+            <section className={styles.statsSection}>
+                <div className={styles.customContainer}>
+                    <div className={styles.statsGrid}>
+                        <div className={styles.statCard}>
+                            <span className={styles.statNumber}>91%</span>
+                            <h3 className={styles.statTitle}>Skill Aligned</h3>
+                            <p className={styles.statDesc}>Meet the minimum requirement for the right job.</p>
+                        </div>
+                        <div className={styles.statCard}>
+                            <span className={styles.statNumber}>90%</span>
+                            <h3 className={styles.statTitle}>Fast and Effective</h3>
+                            <p className={styles.statDesc}>Connect options quickly, search and selective.</p>
+                        </div>
+                        <div className={styles.statCard}>
+                            <span className={styles.statNumber}>89%</span>
+                            <h3 className={styles.statTitle}>Wide Range</h3>
+                            <p className={styles.statDesc}>Track analytics that fits your skills and values.</p>
                         </div>
                     </div>
                 </div>
@@ -458,62 +508,49 @@ export default function BrowseJobsPage() {
                                     const companyInitials = company.initials || companyName?.[0] || 'TM';
                                     return (
                                         <Link key={job.id} href={`/browse-jobs/${job.id}`} className={styles.jobCard} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                            <div className={styles.jobLogo} style={{ background: companyColor }}>
-                                                {companyInitials}
-                                            </div>
-
-                                            <div className={styles.jobContentArea}>
-                                                <div className={styles.jobTitleRow}>
-                                                    <span className={styles.jobTitleText}>{job.title}</span>
-                                                    {(job.posted_days <= 1 || job.is_new) && (
-                                                        <span className={styles.newBadge}>New</span>
+                                            <div className={styles.jobCardTop}>
+                                                <div className={styles.jobLogo} style={{ background: companyColor }}>
+                                                    {company.logo_url ? (
+                                                        <img src={getPublicStorageUrl('company-logos', company.logo_url)} alt={companyName} className={styles.logoImage} />
+                                                    ) : (
+                                                        companyInitials
                                                     )}
                                                 </div>
-
-                                                <div className={styles.companyRow}>
-                                                    <span className={styles.companyNameText}>{companyName}</span>
-                                                    <svg className={styles.verifiedIcon} width="14" height="14" viewBox="0 0 24 24" fill="#2563EB" style={{ flexShrink: 0 }}>
-                                                        <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                                    </svg>
+                                                <div className={styles.companyMeta}>
+                                                    <div className={styles.companyRow}>
+                                                        <span className={styles.companyNameText}>{companyName}</span>
+                                                        <svg className={styles.verifiedIcon} width="14" height="14" viewBox="0 0 24 24" fill="#2563EB" style={{ flexShrink: 0 }}>
+                                                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                                        </svg>
+                                                    </div>
+                                                    <span className={styles.companyLoc}>{job.location}</span>
                                                 </div>
-
-                                                <div className={styles.metaRow}>
-                                                    <div className={styles.metaItem}>
-                                                        <Ico.Location />
-                                                        <span>{job.location}</span>
-                                                    </div>
-                                                    <div className={styles.metaItem}>
-                                                        <Ico.Briefcase />
-                                                        <span>{job.type}</span>
-                                                    </div>
-                                                    <div className={styles.metaItem}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                                                        <span>{job.salary}</span>
-                                                    </div>
-                                                    <div className={styles.metaItem}>
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                                        <span>{job.posted_days === 0 ? 'Today' : `${job.posted_days}d ago`}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className={styles.techTagsRow}>
-                                                    {(job.skills_required && job.skills_required.length > 0 ? job.skills_required : ['React', 'Next.js', 'TypeScript', 'Tailwind CSS']).slice(0, 4).map((tag: string) => (
-                                                        <span key={tag} className={styles.techTag}>{tag}</span>
-                                                    ))}
-                                                    {(job.skills_required && job.skills_required.length > 4) && (
-                                                        <span className={styles.techTag}>+{job.skills_required.length - 4}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className={styles.jobActionsArea}>
                                                 <button
                                                     className={`${styles.cardHeartBtn} ${saved ? styles.cardHeartBtnActive : ''}`}
                                                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSave(job.id); }}
                                                     aria-label={saved ? 'Unsave' : 'Save job'}>
                                                     {saved ? <Ico.HeartFill /> : <Ico.Heart />}
                                                 </button>
+                                            </div>
+
+                                            <div className={styles.jobCardBody}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <h3 className={styles.jobTitleText}>{job.title}</h3>
+                                                    {(job.posted_days <= 1 || job.is_new) && (
+                                                        <span className={styles.newBadge}>New</span>
+                                                    )}
+                                                </div>
+                                                <span className={styles.jobSalary}>{job.salary}</span>
                                                 
+                                                <div className={styles.techTagsRow}>
+                                                    <span className={styles.techTag}>{job.type}</span>
+                                                    {(job.skills_required && job.skills_required.length > 0 ? job.skills_required : ['React', 'Next.js']).slice(0, 2).map((tag: string) => (
+                                                        <span key={tag} className={styles.techTag}>{tag}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className={styles.jobCardBottom}>
                                                 <span className={styles.viewJobOutlineBtn} onClick={(e) => {
                                                     e.preventDefault();
                                                     if (!user) {
@@ -522,7 +559,10 @@ export default function BrowseJobsPage() {
                                                         router.push(`/browse-jobs/${job.id}`);
                                                     }
                                                 }}>
-                                                    View Job <Ico.ArrowR />
+                                                    Apply this job
+                                                </span>
+                                                <span className={styles.postedTime}>
+                                                    {job.posted_days === 0 ? 'Today' : `${job.posted_days}d ago`}
                                                 </span>
                                             </div>
                                         </Link>
@@ -562,6 +602,122 @@ export default function BrowseJobsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Testimonials Section */}
+            <section className={styles.testimonialsSection}>
+                <div className={styles.customContainer}>
+                    <div className={styles.sectionHeader}>
+                        <div className={styles.sectionBadge}>Testimonials</div>
+                        <h2 className={styles.sectionTitleText}>What Our <span className={styles.highlightText}>Clients Say</span></h2>
+                        <p className={styles.sectionDescText}>Real stories from candidates and teams achieving milestones on TalentMesh.</p>
+                    </div>
+                    <div className={styles.testimonialsGrid}>
+                        <div className={styles.testimonialCard}>
+                            <div className={styles.rating}>⭐⭐⭐⭐⭐</div>
+                            <p className={styles.quote}>
+                                "TalentMesh cut our hiring time in half. The quality of candidates we received was unmatched by any other platform we've used."
+                            </p>
+                            <div className={styles.authorRow}>
+                                <div className={styles.authorAvatar}>AS</div>
+                                <div>
+                                    <h4 className={styles.authorName}>Ananya Sharma</h4>
+                                    <p className={styles.authorRole}>Head of People, TechFlow</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.testimonialCard}>
+                            <div className={styles.rating}>⭐⭐⭐⭐⭐</div>
+                            <p className={styles.quote}>
+                                "I stopped applying to black holes. On TalentMesh, companies reached out to me, and I had 3 offers in a week. Incredible experience."
+                            </p>
+                            <div className={styles.authorRow}>
+                                <div className={styles.authorAvatar}>RG</div>
+                                <div>
+                                    <h4 className={styles.authorName}>Rohan Gupta</h4>
+                                    <p className={styles.authorRole}>Senior Product Designer</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className={styles.testimonialCard}>
+                            <div className={styles.rating}>⭐⭐⭐⭐⭐</div>
+                            <p className={styles.quote}>
+                                "The bias-free matching is a game changer. We've built our most diverse and high-performing team yet using this tool."
+                            </p>
+                            <div className={styles.authorRow}>
+                                <div className={styles.authorAvatar}>PP</div>
+                                <div>
+                                    <h4 className={styles.authorName}>Priya Patel</h4>
+                                    <p className={styles.authorRole}>CTO, InnovateX</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Custom CTA Section */}
+            <section className={styles.ctaSection}>
+                <div className={styles.ctaCard}>
+                    <div className={styles.ctaLeft}>
+                        <h2 className={styles.ctaTitle}>Transforming the Way <br/>You Find Jobs!</h2>
+                        <p className={styles.ctaDesc}>Step into your dream career today with AI-powered matching and verified employer connections.</p>
+                        <form className={styles.ctaForm} onSubmit={(e) => e.preventDefault()}>
+                            <input type="email" placeholder="Enter Your Email" required className={styles.ctaInput} />
+                            <button type="submit" className={styles.ctaBtn}>Register Now</button>
+                        </form>
+                    </div>
+                    <div className={styles.ctaRight}>
+                        <div className={styles.floatingPreviewCard1}>
+                            <div className={styles.floatingPreviewIcon}>💻</div>
+                            <div>
+                                <h4 className={styles.floatingPreviewTitle}>Web Developer</h4>
+                                <p className={styles.floatingPreviewCompany}>TalentMesh Labs • ₹18L - ₹24L</p>
+                            </div>
+                        </div>
+                        <div className={styles.floatingPreviewCard2}>
+                            <div className={styles.floatingPreviewIcon}>🎨</div>
+                            <div>
+                                <h4 className={styles.floatingPreviewTitle}>Product Designer</h4>
+                                <p className={styles.floatingPreviewCompany}>Design Studio • ₹15L - ₹20L</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* FAQ Accordion Section */}
+            <section className={styles.faqSection}>
+                <div className={styles.customContainer}>
+                    <div className={styles.sectionHeader}>
+                        <div className={styles.sectionBadge}>FAQ</div>
+                        <h2 className={styles.sectionTitleText}>Frequently Asked <span className={styles.highlightText}>Questions</span></h2>
+                    </div>
+                    <div className={styles.faqList}>
+                        {[
+                            { q: "How do I post a job listing?", a: "Create an employer account, go to your recruiter dashboard, and click 'Post a Job' in the menu." },
+                            { q: "How do I manage applications?", a: "Track all applications directly through your candidate or recruiter dashboard with real-time status updates." },
+                            { q: "How do I contact customer support?", a: "Reach out via the live chat icon on the bottom right or send an email to support@talentmesh.com." },
+                            { q: "What should I do if I receive fake applications or spam?", a: "Our support moderation team reviews every profile. You can flag suspicious profiles using the report button on the application card." },
+                            { q: "Can I promote my company on your platform?", a: "Yes, we offer custom branding spaces, featured job postings, and custom company pages to attract top-tier talent." }
+                        ].map((faq, idx) => {
+                            const isOpen = !!faqOpen[idx];
+                            return (
+                                <div key={idx} className={styles.faqItem}>
+                                    <button className={styles.faqQuestionRow} onClick={() => toggleFaq(idx)}>
+                                        <span className={styles.faqQuestionText}>{faq.q}</span>
+                                        <span className={`${styles.faqToggleIcon} ${isOpen ? styles.faqToggleIconOpen : ''}`}>{isOpen ? '−' : '+'}</span>
+                                    </button>
+                                    {isOpen && (
+                                        <div className={styles.faqAnswerRow}>
+                                            <p className={styles.faqAnswerText}>{faq.a}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
         </main>
     );
 }

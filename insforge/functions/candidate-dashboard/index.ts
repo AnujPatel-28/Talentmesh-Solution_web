@@ -29,7 +29,8 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
     const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
     if (authError || !authData?.user || authData.user.id === 'project-admin-with-api-key') {
@@ -71,8 +72,8 @@ export default async function handler(req: Request): Promise<Response> {
     // Use user-scoped client only for auth verification
     const dbClient = adminClient;
 
-    // Fetch everything in parallel
-    const [profileRes, candidateProfileRes, appsRes, interviewsRes, jobsRes, activityRes] = await Promise.all([
+    // Fetch everything in parallel using allSettled so one failure doesn't crash the dashboard
+    const results = await Promise.allSettled([
       // 1. Profile
       dbClient.database.from('profiles').select('*').eq('id', targetUserId).single(),
       // 2. Candidate Profile
@@ -92,6 +93,15 @@ export default async function handler(req: Request): Promise<Response> {
       // 6. Recent Activity
       dbClient.database.from('activity').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }).limit(5)
     ]);
+
+    const getValue = (res: any) => res.status === 'fulfilled' ? res.value : { data: null, error: res.reason, count: 0 };
+
+    const profileRes = getValue(results[0]);
+    const candidateProfileRes = getValue(results[1]);
+    const appsRes = getValue(results[2]);
+    const interviewsRes = getValue(results[3]);
+    const jobsRes = getValue(results[4]);
+    const activityRes = getValue(results[5]);
 
     const profile = profileRes.data;
 

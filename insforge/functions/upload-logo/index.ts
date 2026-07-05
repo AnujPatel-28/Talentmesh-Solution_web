@@ -20,7 +20,8 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Missing file or companyId' }), { status: 400 });
     }
 
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
 
     // Validate image types
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];

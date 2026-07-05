@@ -36,7 +36,8 @@ export default async function handler(req: Request): Promise<Response> {
   const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
   const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
 
-  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey, edgeFunctionToken: token, isServerMode: true });
+  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey });
+  insforge.setAccessToken(token);
   const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
   if (authError || !authData?.user || authData.user.id === 'project-admin-with-api-key') {

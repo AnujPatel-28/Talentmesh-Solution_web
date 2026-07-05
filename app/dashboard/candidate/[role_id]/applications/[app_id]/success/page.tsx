@@ -49,17 +49,11 @@ export default function ApplicationSuccessPage() {
             display: 'flex', flexDirection: 'column', gap: '2rem',
             animation: 'fadeIn 0.6s ease-out'
         }}>
-            <style jsx>{`
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes scaleIn { from { transform: scale(0.8); } to { transform: scale(1); } }
-                .success-ring {
-                    width: 80px; height: 80px; border-radius: 50%; background: #f0fdf4;
-                    color: #10b981; display: flex; alignItems: center; justifyContent: center;
-                    margin: 0 auto; border: 2px solid #bbf7d0; animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                }
-            `}</style>
-
-            <div className="success-ring">
+            <div style={{
+                width: 80, height: 80, borderRadius: '50%', background: '#f0fdf4',
+                color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto', border: '2px solid #bbf7d0', animation: 'scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}>
                 <IC.Check />
             </div>
 

@@ -2,6 +2,358 @@ import React, { useState } from 'react';
 import styles from '../../../../shared-dashboard.module.css';
 import SectionStatus from './SectionStatus';
 import type { EducationEntry } from '@/types/user';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+
+const INDIAN_DEGREES = [
+  'B.Tech / B.E. (Bachelor of Technology / Engineering)',
+  'BCA (Bachelor of Computer Applications)',
+  'B.Sc (Bachelor of Science)',
+  'B.Com (Bachelor of Commerce)',
+  'BBA (Bachelor of Business Administration)',
+  'B.A. (Bachelor of Arts)',
+  'M.Tech / M.E. (Master of Technology / Engineering)',
+  'MCA (Master of Computer Applications)',
+  'MBA (Master of Business Administration)',
+  'M.Sc (Master of Science)',
+  'M.Com (Master of Commerce)',
+  'M.A. (Master of Arts)',
+  'Ph.D / Doctorate',
+  'Diploma Degree',
+  'Higher Secondary (12th)',
+  'Other Degree'
+];
+
+const FIELDS_OF_STUDY = [
+  'Computer Science & Engineering',
+  'Information Technology',
+  'Electronics & Communication Engineering',
+  'Electrical & Electronics Engineering',
+  'Mechanical Engineering',
+  'Civil Engineering',
+  'Chemical Engineering',
+  'Aerospace & Aeronautical Engineering',
+  'Biotechnology / Biomedical Engineering',
+  'Data Science & Artificial Intelligence',
+  'Computer Applications (BCA / MCA)',
+  'Business Administration (BBA / MBA)',
+  'Finance & Accounting',
+  'Marketing & Sales',
+  'Human Resource Management',
+  'Operations & Supply Chain Management',
+  'Economics',
+  'Commerce (B.Com / M.Com)',
+  'Mathematics & Statistics',
+  'Physics',
+  'Chemistry',
+  'Biology & Life Sciences',
+  'MBBS / Medicine',
+  'Pharmacy (B.Pharm / M.Pharm)',
+  'Nursing',
+  'Law (LLB / LLM)',
+  'Psychology & Cognitive Science',
+  'Sociology & Social Work',
+  'Political Science & International Relations',
+  'History',
+  'English Literature & Linguistics',
+  'Journalism & Mass Communication',
+  'Graphic Design & Animation',
+  'UI/UX & Product Design',
+  'Fine Arts & Visual Arts',
+  'Architecture',
+  'Other Field of Study'
+];
+
+const STATE_UNIVERSITIES_COLLEGES: Record<string, string[]> = {
+  'Karnataka': [
+    'Indian Institute of Science (IISc), Bengaluru',
+    'Visvesvaraya Technological University (VTU), Belagavi',
+    'Bangalore University, Bengaluru',
+    'Manipal Academy of Higher Education, Manipal',
+    'National Institute of Technology Karnataka (NITK), Surathkal',
+    'Christ University, Bengaluru',
+    'PES University, Bengaluru',
+    'M. S. Ramaiah Institute of Technology, Bengaluru',
+    'R.V. College of Engineering (RVCE), Bengaluru',
+    'B.M.S. College of Engineering, Bengaluru',
+    'IIIT Bangalore, Bengaluru',
+    'Alliance University, Bengaluru',
+    'University of Mysore, Mysuru',
+    'Karnatak University, Dharwad',
+    'St. Joseph\'s University, Bengaluru',
+    'Reva University, Bengaluru'
+  ],
+  'Maharashtra': [
+    'Indian Institute of Technology (IIT) Bombay, Mumbai',
+    'University of Mumbai, Mumbai',
+    'Savitribai Phule Pune University, Pune',
+    'COEP Technological University, Pune',
+    'Veermata Jijabai Technological Institute (VJTI), Mumbai',
+    'SNDT Women\'s University, Mumbai',
+    'Narsee Monjee Institute of Management Studies (NMIMS), Mumbai',
+    'Symbiosis International University, Pune',
+    'Visvesvaraya National Institute of Technology (VNIT), Nagpur',
+    'BITS Pilani (Kalyan Campus), Kalyan',
+    'MIT World Peace University, Pune',
+    'DY Patil Vidyapeeth, Pune',
+    'ICT Mumbai, Mumbai',
+    'Ferguson College, Pune',
+    'Symbiosis Institute of Technology, Pune'
+  ],
+  'Tamil Nadu': [
+    'Indian Institute of Technology (IIT) Madras, Chennai',
+    'Anna University, Chennai',
+    'Vellore Institute of Technology (VIT), Vellore',
+    'SRM Institute of Science and Technology, Chennai',
+    'Amrita Vishwa Vidyapeetham, Coimbatore',
+    'National Institute of Technology (NIT) Trichy, Tiruchirappalli',
+    'University of Madras, Chennai',
+    'PSG College of Technology, Coimbatore',
+    'Sathyabama Institute of Science and Technology, Chennai',
+    'SSN College of Engineering, Chennai',
+    'SASTRA Deemed University, Thanjavur',
+    'Coimbatore Institute of Technology, Coimbatore',
+    'Loyola College, Chennai',
+    'Madras Christian College, Chennai'
+  ],
+  'Delhi': [
+    'Indian Institute of Technology (IIT) Delhi, New Delhi',
+    'University of Delhi, Delhi',
+    'Jawaharlal Nehru University (JNU), New Delhi',
+    'Delhi Technological University (DTU), Delhi',
+    'Netaji Subhas University of Technology (NSUT), Delhi',
+    'Jamia Millia Islamia, New Delhi',
+    'Guru Gobind Singh Indraprastha University (GGSIPU), Delhi',
+    'Indraprastha Institute of Information Technology (IIIT) Delhi, New Delhi',
+    'Indira Gandhi Delhi Technical University for Women (IGDTUW), Delhi',
+    'Amity University Delhi NCR, Noida/Delhi',
+    'St. Stephen\'s College, Delhi',
+    'LSR (Lady Shri Ram College for Women), Delhi'
+  ],
+  'Telangana': [
+    'Indian Institute of Technology (IIT) Hyderabad, Hyderabad',
+    'International Institute of Information Technology (IIIT) Hyderabad, Hyderabad',
+    'BITS Pilani (Hyderabad Campus), Hyderabad',
+    'Osmania University, Hyderabad',
+    'Jawaharlal Nehru Technological University (JNTUH), Hyderabad',
+    'University of Hyderabad, Hyderabad',
+    'National Institute of Technology (NIT) Warangal, Warangal',
+    'Chaitanya Bharathi Institute of Technology (CBIT), Hyderabad',
+    'VNR Vignana Jyothi Institute of Engineering and Technology, Hyderabad',
+    'Vasavi College of Engineering, Hyderabad'
+  ],
+  'Andhra Pradesh': [
+    'Andhra University, Visakhapatnam',
+    'Sri Venkateswara University, Tirupati',
+    'Jawaharlal Nehru Technological University (JNTUK), Kakinada',
+    'K L University, Guntur',
+    'National Institute of Technology (NIT) Andhra Pradesh, Tadepalligudem',
+    'IIIT Sri City, Chittoor',
+    'Gitam University, Visakhapatnam',
+    'JNTU Anantapur, Ananthamu'
+  ],
+  'West Bengal': [
+    'Indian Institute of Technology (IIT) Kharagpur, Kharagpur',
+    'Jadavpur University, Kolkata',
+    'University of Calcutta, Kolkata',
+    'Indian Statistical Institute (ISI), Kolkata',
+    'Indian Institute of Engineering Science and Technology (IIEST), Shibpur',
+    'National Institute of Technology (NIT) Durgapur, Durgapur',
+    'Maulana Abul Kalam Azad University of Technology (MAKAUT), Kolkata',
+    'Presidency University, Kolkata',
+    'St. Xavier\'s College, Kolkata',
+    'Heritage Institute of Technology, Kolkata',
+    'Techno India University, Kolkata'
+  ],
+  'Uttar Pradesh': [
+    'Indian Institute of Technology (IIT) Kanpur, Kanpur',
+    'Banaras Hindu University (BHU), Varanasi',
+    'Indian Institute of Technology (IIT BHU) Varanasi, Varanasi',
+    'Aligarh Muslim University (AMU), Aligarh',
+    'Dr. A.P.J. Abdul Kalam Technical University (AKTU), Lucknow',
+    'Motilal Nehru National Institute of Technology (MNNIT), Allahabad',
+    'Amity University Uttar Pradesh, Noida',
+    'Sharda University, Greater Noida',
+    'Shiv Nadar University, Dadri',
+    'Harcourt Butler Technical University (HBTU), Kanpur',
+    'Madan Mohan Malaviya University of Technology, Gorakhpur',
+    'Jaypee Institute of Information Technology (JIIT), Noida'
+  ],
+  'Gujarat': [
+    'Indian Institute of Technology (IIT) Gandhinagar, Gandhinagar',
+    'Sardar Vallabhbhai National Institute of Technology (SVNIT), Surat',
+    'Gujarat Technological University (GTU), Ahmedabad',
+    'Nirma University, Ahmedabad',
+    'Dhirubhai Ambani Institute of Information and Communication Technology (DA-IICT), Gandhinagar',
+    'Maharaja Sayajirao University of Baroda (MSU), Vadodara',
+    'Pandit Deendayal Energy University (PDEU), Gandhinagar',
+    'Ahmedabad University, Ahmedabad',
+    'L.D. College of Engineering, Ahmedabad'
+  ],
+  'Kerala': [
+    'National Institute of Technology (NIT) Calicut, Calicut',
+    'APJ Abdul Kalam Technological University (KTU), Thiruvananthapuram',
+    'Cochin University of Science and Technology (CUSAT), Kochi',
+    'University of Kerala, Thiruvananthapuram',
+    'Mahatma Gandhi University, Kottayam',
+    'Indian Institute of Space Science and Technology (IIST), Thiruvananthapuram',
+    'Indian Institute of Management (IIM) Kozhikode, Kozhikode',
+    'Government Engineering College (GEC), Thrissur',
+    'College of Engineering Trivandrum (CET), Thiruvananthapuram'
+  ],
+  'Rajasthan': [
+    'Malaviya National Institute of Technology (MNIT), Jaipur',
+    'Birla Institute of Technology and Science (BITS), Pilani',
+    'Indian Institute of Technology (IIT) Jodhpur, Jodhpur',
+    'University of Rajasthan, Jaipur',
+    'Rajasthan Technical University (RTU), Kota',
+    'LNM Institute of Information Technology (LNMIIT), Jaipur',
+    'Manipal University, Jaipur',
+    'Mody University, Lakshmangarh'
+  ],
+  'Punjab': [
+    'Indian Institute of Technology (IIT) Ropar, Ropar',
+    'Panjab University, Chandigarh',
+    'Thapar Institute of Engineering and Technology, Patiala',
+    'I. K. Gujral Punjab Technical University (PTU), Jalandhar',
+    'Guru Nanak Dev University (GNDU), Amritsar',
+    'Punjab Agricultural University, Ludhiana',
+    'Lovely Professional University (LPU), Phagwara'
+  ],
+  'Haryana': [
+    'National Institute of Technology (NIT) Kurukshetra, Kurukshetra',
+    'Kurukshetra University, Kurukshetra',
+    'JC Bose University of Science and Technology (YMCA), Faridabad',
+    'Deenbandhu Chhotu Ram University of Science and Technology, Murthal',
+    'Maharshi Dayanand University (MDU), Rohtak',
+    'Ashoka University, Sonepat',
+    'O.P. Jindal Global University, Sonipat'
+  ],
+  'Madhya Pradesh': [
+    'Indian Institute of Technology (IIT) Indore, Indore',
+    'Maulana Azad National Institute of Technology (MANIT), Bhopal',
+    'Devi Ahilya Vishwavidyalaya (DAVV), Indore',
+    'Rajiv Gandhi Proudyogiki Vishwavidyalaya (RGPV), Bhopal',
+    'Shri Govindram Seksaria Institute of Technology and Science (SGSITS), Indore',
+    'Jabalpur Engineering College, Jabalpur',
+    'PDPM IIITDM Jabalpur, Jabalpur',
+    'Amity University Madhya Pradesh, Gwalior'
+  ],
+  'Bihar': [
+    'Indian Institute of Technology (IIT) Patna, Patna',
+    'National Institute of Technology (NIT) Patna, Patna',
+    'Patna University, Patna',
+    'Aryabhatta Knowledge University, Patna',
+    'Chanakya National Law University, Patna',
+    'Nalanda University, Rajgir',
+    'Muzaffarpur Institute of Technology, Muzaffarpur'
+  ],
+  'Odisha': [
+    'Indian Institute of Technology (IIT) Bhubaneswar, Bhubaneswar',
+    'National Institute of Technology (NIT) Rourkela, Rourkela',
+    'Biju Patnaik University of Technology (BPUT), Rourkela',
+    'Utkal University, Bhubaneswar',
+    'Kalinga Institute of Industrial Technology (KIIT), Bhubaneswar',
+    'Siksha \'O\' Anusandhan (SOA) University, Bhubaneswar',
+    'Veer Surendra Sai University of Technology (VSSUT), Burla'
+  ],
+  'Uttarakhand': [
+    'Indian Institute of Technology (IIT) Roorkee, Roorkee',
+    'Govind Ballabh Pant University of Agriculture and Technology, Pantnagar',
+    'Uttarakhand Technical University, Dehradun',
+    'Graphic Era University, Dehradun',
+    'University of Petroleum and Energy Studies (UPES), Dehradun',
+    'National Institute of Technology (NIT) Uttarakhand, Srinagar'
+  ],
+  'Assam': [
+    'Indian Institute of Technology (IIT) Guwahati, Guwahati',
+    'Tezpur University, Tezpur',
+    'Gauhati University, Guwahati',
+    'National Institute of Technology (NIT) Silchar, Silchar',
+    'Assam Engineering College, Guwahati'
+  ],
+  'Chhattisgarh': [
+    'National Institute of Technology (NIT) Raipur, Raipur',
+    'Chhattisgarh Swami Vivekanand Technical University (CSVTU), Bhilai',
+    'Indian Institute of Technology (IIT) Bhilai, Bhilai',
+    'Guru Ghasidas Vishwavidyalaya, Bilaspur',
+    'Kalinga University, Raipur'
+  ],
+  'Jharkhand': [
+    'Indian Institute of Technology (IIT ISM) Dhanbad, Dhanbad',
+    'National Institute of Technology (NIT) Jamshedpur, Jamshedpur',
+    'Birla Institute of Technology (BIT) Mesra, Ranchi',
+    'Ranchi University, Ranchi',
+    'Birsa Institute of Technology (BIT) Sindri, Dhanbad'
+  ],
+  'Himachal Pradesh': [
+    'Indian Institute of Technology (IIT) Mandi, Mandi',
+    'National Institute of Technology (NIT) Hamirpur, Hamirpur',
+    'Himachal Pradesh University, Shimla',
+    'Jaypee University of Information Technology, Waknaghat'
+  ],
+  'Jammu & Kashmir': [
+    'Indian Institute of Technology (IIT) Jammu, Jammu',
+    'National Institute of Technology (NIT) Srinagar, Srinagar',
+    'University of Jammu, Jammu',
+    'University of Kashmir, Srinagar',
+    'Shri Mata Vaishno Devi University (SMVDU), Katra'
+  ],
+  'Goa': [
+    'Birla Institute of Technology and Science (BITS) Pilani (Goa Campus), Zuarinagar',
+    'Goa University, Taleigao Plateau',
+    'Goa College of Engineering, Farmagudi',
+    'Indian Institute of Technology (IIT) Goa, Farmagudi'
+  ]
+};
+
+const NATIONAL_UNIVERSITIES: string[] = [
+  'Indian Institute of Technology (IIT) Bombay',
+  'Indian Institute of Technology (IIT) Delhi',
+  'Indian Institute of Technology (IIT) Madras',
+  'Indian Institute of Technology (IIT) Kanpur',
+  'Indian Institute of Technology (IIT) Kharagpur',
+  'Indian Institute of Technology (IIT) Roorkee',
+  'Indian Institute of Technology (IIT) Guwahati',
+  'Indian Institute of Technology (IIT) Hyderabad',
+  'Birla Institute of Technology and Science (BITS) Pilani',
+  'Indian Institute of Science (IISc), Bengaluru',
+  'National Institute of Technology (NIT) Trichy',
+  'National Institute of Technology (NIT) Karnataka',
+  'National Institute of Technology (NIT) Calicut',
+  'National Institute of Technology (NIT) Warangal',
+  'Delhi Technological University (DTU)',
+  'Vellore Institute of Technology (VIT), Vellore',
+  'SRM Institute of Science and Technology, Chennai',
+  'Anna University, Chennai',
+  'Jadavpur University, Kolkata',
+  'University of Delhi, Delhi',
+  'Banaras Hindu University (BHU), Varanasi',
+  'Jawaharlal Nehru University (JNU), New Delhi',
+  'Symbiosis International University, Pune',
+  'Manipal Academy of Higher Education, Manipal',
+  'Other Institution'
+];
+
+const getUniversitiesForLocation = (locationStr: string): string[] => {
+  if (!locationStr) {
+    return [...NATIONAL_UNIVERSITIES];
+  }
+  
+  // Find which state name is inside the locationStr
+  const matchedState = Object.keys(STATE_UNIVERSITIES_COLLEGES).find(state => 
+    locationStr.toLowerCase().includes(state.toLowerCase())
+  );
+  
+  if (matchedState) {
+    // Return state-specific colleges combined with national ones, deduplicated
+    return Array.from(new Set([
+      ...STATE_UNIVERSITIES_COLLEGES[matchedState],
+      ...NATIONAL_UNIVERSITIES
+    ]));
+  }
+  
+  return [...NATIONAL_UNIVERSITIES];
+};
 
 const institutionColor = (name: string) => {
   if (!name) return '#7c3aed';
@@ -21,6 +373,7 @@ interface EducationSectionProps {
   education?: EducationEntry[] | null;
   isEditing: boolean;
   onUpdate: (eduList: EducationEntry[]) => void;
+  location?: string;
 }
 
 const EMPTY_EDU: EducationEntry = {
@@ -38,7 +391,8 @@ const EMPTY_EDU: EducationEntry = {
 export default React.memo(function EducationSection({
   education = [],
   isEditing,
-  onUpdate
+  onUpdate,
+  location = ''
 }: EducationSectionProps) {
   
   const eduList = education || [];
@@ -107,33 +461,82 @@ export default React.memo(function EducationSection({
         <div className={styles.formGrid2Col}>
           <div className={styles.formField}>
             <label className={styles.formLabel}>Degree *</label>
-            <input 
+            <CustomSelect 
               className={`${styles.formInput} ${errors.degree ? styles.inputError : ''}`}
-              value={formState.degree} 
-              onChange={e => setFormState(p => ({ ...p, degree: e.target.value }))} 
-              placeholder="e.g. B.Tech, MBA" 
+              value={INDIAN_DEGREES.includes(formState.degree) || !formState.degree ? formState.degree : 'Other Degree'} 
+              onChange={e => {
+                const val = e.target.value;
+                setFormState(p => ({ ...p, degree: val === 'Other Degree' ? '' : val }));
+              }} 
+              options={INDIAN_DEGREES}
+              placeholder="Select degree"
+              required
             />
             {errors.degree && <span className={styles.errorText}>{errors.degree}</span>}
           </div>
+          {(formState.degree === 'Other Degree' || (formState.degree && !INDIAN_DEGREES.includes(formState.degree))) && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>Specify Custom Degree *</label>
+              <input 
+                className={`${styles.formInput} ${errors.degree ? styles.inputError : ''}`}
+                value={formState.degree === 'Other Degree' ? '' : formState.degree} 
+                onChange={e => setFormState(p => ({ ...p, degree: e.target.value }))} 
+                placeholder="e.g. Bachelor of Fine Arts" 
+              />
+            </div>
+          )}
+
           <div className={styles.formField}>
             <label className={styles.formLabel}>Institution *</label>
-            <input 
+            <CustomSelect 
               className={`${styles.formInput} ${errors.institution ? styles.inputError : ''}`}
-              value={formState.institution} 
-              onChange={e => setFormState(p => ({ ...p, institution: e.target.value }))} 
-              placeholder="e.g. Stanford University" 
+              value={getUniversitiesForLocation(location).includes(formState.institution) || !formState.institution ? formState.institution : 'Other Institution'} 
+              onChange={e => {
+                const val = e.target.value;
+                setFormState(p => ({ ...p, institution: val === 'Other Institution' ? '' : val }));
+              }} 
+              options={getUniversitiesForLocation(location)}
+              placeholder="Select college / university"
+              required
             />
             {errors.institution && <span className={styles.errorText}>{errors.institution}</span>}
           </div>
+          {(formState.institution === 'Other Institution' || (formState.institution && !getUniversitiesForLocation(location).includes(formState.institution))) && (
+            <div className={styles.formField} style={{ gridColumn: '1 / -1' }}>
+              <label className={styles.formLabel}>Specify Custom Institution *</label>
+              <input 
+                className={`${styles.formInput} ${errors.institution ? styles.inputError : ''}`}
+                value={formState.institution === 'Other Institution' ? '' : formState.institution} 
+                onChange={e => setFormState(p => ({ ...p, institution: e.target.value }))} 
+                placeholder="e.g. Sharda University" 
+              />
+            </div>
+          )}
+
           <div className={styles.formField}>
             <label className={styles.formLabel}>Field of Study</label>
-            <input 
+            <CustomSelect 
               className={styles.formInput}
-              value={formState.field_of_study || ''} 
-              onChange={e => setFormState(p => ({ ...p, field_of_study: e.target.value }))} 
-              placeholder="e.g. Computer Science" 
+              value={FIELDS_OF_STUDY.includes(formState.field_of_study || '') || !formState.field_of_study ? formState.field_of_study || '' : 'Other Field of Study'} 
+              onChange={e => {
+                const val = e.target.value;
+                setFormState(p => ({ ...p, field_of_study: val === 'Other Field of Study' ? '' : val }));
+              }} 
+              options={FIELDS_OF_STUDY}
+              placeholder="Select field of study"
             />
           </div>
+          {(formState.field_of_study === 'Other Field of Study' || (formState.field_of_study && !FIELDS_OF_STUDY.includes(formState.field_of_study))) && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>Specify Custom Field of Study *</label>
+              <input 
+                className={styles.formInput}
+                value={formState.field_of_study === 'Other Field of Study' ? '' : formState.field_of_study} 
+                onChange={e => setFormState(p => ({ ...p, field_of_study: e.target.value }))} 
+                placeholder="e.g. Mechatronics Engineering" 
+              />
+            </div>
+          )}
           <div className={styles.formField}>
             <label className={styles.formLabel}>Start Year</label>
             <input 
@@ -182,7 +585,7 @@ export default React.memo(function EducationSection({
             className={styles.formTextarea}
             value={formState.description || ''} 
             onChange={e => setFormState(p => ({ ...p, description: e.target.value }))} 
-            placeholder="Describe honors, key achievements, coursework, extra activities..." 
+            placeholder="Describe honors, key achievements, coursework, extra activities... (Tip: Use bullet points '•' or '-' for lists)" 
             rows={3} 
           />
         </div>
@@ -281,7 +684,7 @@ export default React.memo(function EducationSection({
                       )}
                     </div>
                     {edu.description && (
-                      <p className={styles.timelineDescText}>
+                      <p className={styles.timelineDescText} style={{ whiteSpace: 'pre-wrap' }}>
                         {edu.description}
                       </p>
                     )}

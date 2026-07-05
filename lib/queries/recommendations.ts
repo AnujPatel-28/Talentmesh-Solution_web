@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { invokeFunction, insforge } from '@/lib/insforge';
 import { queryKeys } from './queryKeys';
 
@@ -33,5 +33,6 @@ export function useRecommendationsQuery(roleId: string, enabled: boolean) {
       }
     },
     enabled: enabled && !!roleId,
+    placeholderData: keepPreviousData,
   });
 }

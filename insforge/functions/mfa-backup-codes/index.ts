@@ -43,7 +43,8 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
 
-    const insforge = createClient({ baseUrl, anonKey, edgeFunctionToken: token, isServerMode: true });
+    const insforge = createClient({ baseUrl, anonKey });
+    insforge.setAccessToken(token);
     const { data: authData } = await insforge.auth.getCurrentUser();
 
     if (!authData?.user) {

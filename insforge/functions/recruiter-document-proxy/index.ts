@@ -32,8 +32,9 @@ export default async function handler(req: Request): Promise<Response> {
   const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
   const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
 
-  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey, edgeFunctionToken: token, isServerMode: true });
-  const insforgeAdmin = createClient({ baseUrl: reqBaseUrl, anonKey: reqServiceKey, isServerMode: true });
+  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey });
+  insforge.setAccessToken(token);
+  const insforgeAdmin = createClient({ baseUrl: reqBaseUrl, anonKey: reqServiceKey });
 
   try {
     // 1. Authenticate caller
@@ -59,9 +60,13 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // 3. Download recruiter document from storage
+    let storageKey = key;
+    if (storageKey.startsWith('objects/')) {
+      storageKey = storageKey.substring(8);
+    }
     const { data: fileBlob, error: storageError } = await insforgeAdmin.storage
       .from('recruiter_documents')
-      .download(key);
+      .download(storageKey);
 
     if (storageError || !fileBlob) {
       console.error('[recruiter-document-proxy] Storage download failed:', storageError?.message);

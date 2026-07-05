@@ -46,6 +46,12 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const [primaryResumeId, setPrimaryResumeId] = useState<string | null>(null);
     
+    // Delete Confirmation state
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [resumeToDelete, setResumeToDelete] = useState<Resume | null>(null);
+    const [deleteWarningMsg, setDeleteWarningMsg] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+
     // Modal state
     const [showModal, setShowModal] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<{ url: string, name: string, size: number } | null>(null);
@@ -265,26 +271,32 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
         }
     };
 
-    const deleteResume = async (resume: Resume) => {
+    const deleteResume = (resume: Resume) => {
         if (resume.is_default && resumes.length === 1) {
             setToast({ message: 'Cannot delete your only default resume.', type: 'error' });
             return;
         }
 
         const isPrimary = resume.id === primaryResumeId;
-        let confirmMsg = 'Are you sure you want to delete this resume?';
+        let warnMsg = 'Are you sure you want to delete this resume?';
 
         if (isPrimary && resume.upload_count > 0) {
-            confirmMsg = 'This resume has been used in previous applications. Deleting it will not affect submitted applications because snapshots are preserved. Do you want to continue?';
+            warnMsg = 'This resume has been used in previous applications. Deleting it will not affect submitted applications because snapshots are preserved. Do you want to continue?';
         } else if (resume.upload_count > 0) {
-            confirmMsg = `This resume has been used in ${resume.upload_count} applications. Are you sure you want to delete it?`;
+            warnMsg = `This resume has been used in ${resume.upload_count} applications. Are you sure you want to delete it?`;
         }
 
-        if (!window.confirm(confirmMsg)) return;
+        setResumeToDelete(resume);
+        setDeleteWarningMsg(warnMsg);
+        setDeleteModalOpen(true);
+    };
 
+    const confirmDelete = async () => {
+        if (!resumeToDelete) return;
+        setIsDeleting(true);
         try {
             // 1. Delete physical file from storage bucket first
-            const filePath = getPathFromUrl(resume.file_url, 'resumes');
+            const filePath = getPathFromUrl(resumeToDelete.file_url, 'resumes');
             if (filePath) {
                 const { error: storageError } = await insforge.storage.from('resumes').remove(filePath);
                 if (storageError) {
@@ -296,16 +308,38 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
             const { error } = await insforge.database
                 .from('candidate_resumes')
                 .delete()
-                .eq('id', resume.id);
+                .eq('id', resumeToDelete.id);
 
             if (error) throw error;
 
-            // Reassignment of primary resume and default flags is handled atomically on the database via trigger.
-
-            setToast({ message: 'Resume deleted.', type: 'success' });
+            setToast({ message: 'Resume deleted successfully.', type: 'success' });
+            setDeleteModalOpen(false);
+            setResumeToDelete(null);
             fetchResumes();
         } catch (err: any) {
             setToast({ message: 'Delete failed: ' + err.message, type: 'error' });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleSecureView = async (resume: Resume) => {
+        try {
+            const token = window.sessionStorage.getItem('tm_token');
+            const targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${resume.id}&accessType=viewed`;
+            const response = await fetch(targetUrl, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) throw new Error('Failed to fetch from proxy');
+            const blob = await response.blob();
+            const fileBlob = new Blob([blob], { type: 'application/pdf' });
+            const blobUrl = window.URL.createObjectURL(fileBlob);
+            window.open(blobUrl, '_blank');
+        } catch (err: any) {
+            console.error('Failed to view resume:', err);
+            setToast({ message: 'Failed to view resume: ' + err.message, type: 'error' });
         }
     };
 
@@ -443,9 +477,14 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                 </div>
                             </div>
                             <div className={styles.actions}>
-                                <a href={getPublicStorageUrl('resumes', resume.file_url)} target="_blank" rel="noreferrer" className={styles.actionBtn} title="Preview Resume">
+                                <button 
+                                    type="button"
+                                    className={styles.actionBtn}
+                                    onClick={() => handleSecureView(resume)}
+                                    title="Preview Resume"
+                                >
                                     {IC.eye}
-                                </a>
+                                </button>
                                 {!resume.is_default && (
                                     <button 
                                         className={`${styles.actionBtn} ${styles.defaultBtn}`} 
@@ -516,6 +555,92 @@ export default function ResumeManager({ candidateId }: ResumeManagerProps) {
                                 disabled={!newLabel.trim()}
                             >
                                 Save Resume
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteModalOpen && resumeToDelete && (
+                <div className={styles.modalOverlay} onClick={() => !isDeleting && setDeleteModalOpen(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: '460px', borderTop: '4px solid #ef4444' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <div style={{
+                                width: '40px', height: '40px', borderRadius: '50%',
+                                background: '#fef2f2', color: '#ef4444',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0
+                            }}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                    <line x1="12" y1="9" x2="12" y2="13" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                            </div>
+                            <h3 className={styles.modalTitle} style={{ margin: 0, fontSize: '1.25rem' }}>Delete Resume?</h3>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.25rem' }}>
+                                {resumeToDelete.label}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: '#64748b', wordBreak: 'break-all' }}>
+                                {resumeToDelete.file_name} • {formatSize(resumeToDelete.file_size_bytes)}
+                            </div>
+                        </div>
+
+                        <p className={styles.modalDesc} style={{ marginBottom: '1.5rem', color: '#475569', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                            {deleteWarningMsg}
+                        </p>
+
+                        <div className={styles.modalActions} style={{ gap: '0.75rem' }}>
+                            <button
+                                className={`${styles.modalBtn} ${styles.btnCancel}`}
+                                onClick={() => setDeleteModalOpen(false)}
+                                disabled={isDeleting}
+                                style={{ padding: '0.7rem' }}
+                            >
+                                No
+                            </button>
+                            <button
+                                className={styles.modalBtn}
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                                style={{
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    padding: '0.7rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)',
+                                    border: 'none',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem',
+                                    borderRadius: '10px',
+                                    flex: 1
+                                }}
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <span style={{
+                                            width: 14, height: 14,
+                                            border: '2px solid rgba(255,255,255,0.3)',
+                                            borderTopColor: 'white',
+                                            borderRadius: '50%',
+                                            animation: 'spin 0.8s linear infinite',
+                                            display: 'inline-block'
+                                        }} />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    <>
+                                        Yes
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

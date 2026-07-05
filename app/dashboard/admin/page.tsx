@@ -11,6 +11,8 @@ import RefreshButton from './_components/RefreshButton';
 import { getOrRefresh, invalidateDashboardCache } from '@/lib/cache/metricCache';
 import { WidgetErrorState, StatsErrorState } from './_components/DashboardErrorState';
 import { startTrace, endTrace } from '@/lib/observability';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 /* ─── Icons ─── */
 const IC = {
@@ -208,7 +210,7 @@ export default function AdminDashboardPage() {
 
   if (authLoading) {
     return (
-      <div className={styles.dash}>
+      <div className={cn(styles.dash, styles.dashPremium)}>
         <StatsSkeleton />
         <div className={styles.mainGrid}>
           <div className={styles.leftCol}>
@@ -226,7 +228,7 @@ export default function AdminDashboardPage() {
   const totalUsers = (dashboardData?.metrics.totalCandidates || 0) + (dashboardData?.metrics.totalRecruiters || 0);
 
   return (
-    <div className={styles.dash}>
+    <div className={cn(styles.dash, styles.dashPremium)}>
       <div className={styles.greet} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className={styles.greetTitle}>Welcome back, {user?.name || 'Admin'}!</h1>
@@ -243,38 +245,65 @@ export default function AdminDashboardPage() {
           <StatsErrorState onRetry={handleRetry} />
         ) : (
           <div className={styles.stats}>
-            <div className={styles.stat}>
-              <div className={styles.statTop}>
-                <span className={styles.statLabel}>Total Users</span>
-                <span className={styles.statIconBox} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
+            <motion.div 
+              className={cn(styles.statPremium, styles.glowBluePremium)}
+              whileHover={{ y: -4 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className={styles.statTopPremium}>
+                <span className={styles.statLabelPremium}>Total Users</span>
+                <span className={styles.statIconBoxPremium} style={{ background: '#eff6ff', color: 'var(--primary-blue)' }}>{IC.users}</span>
               </div>
-              <span className={styles.statVal}>{totalUsers}</span>
-              <span className={styles.statHint}>{dashboardData?.metrics.totalCandidates || 0} candidates + {dashboardData?.metrics.totalRecruiters || 0} recruiters</span>
-            </div>
-            <div className={styles.stat}>
-              <div className={styles.statTop}>
-                <span className={styles.statLabel}>Active Jobs</span>
-                <span className={styles.statIconBox} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
+              <span className={styles.statValPremium}>{totalUsers}</span>
+              <span className={styles.statHintPremium}>{dashboardData?.metrics.totalCandidates || 0} candidates + {dashboardData?.metrics.totalRecruiters || 0} recruiters</span>
+            </motion.div>
+
+            <motion.div 
+              className={cn(styles.statPremium, styles.glowGreenPremium)}
+              whileHover={{ y: -4 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.08 }}
+            >
+              <div className={styles.statTopPremium}>
+                <span className={styles.statLabelPremium}>Active Jobs</span>
+                <span className={styles.statIconBoxPremium} style={{ background: '#f0fdf4', color: '#10b981' }}>{IC.clipboard}</span>
               </div>
-              <span className={styles.statVal}>{dashboardData?.metrics.totalJobs || 0}</span>
-              <span className={styles.statHint}>Published listings</span>
-            </div>
-            <div className={styles.stat}>
-              <div className={styles.statTop}>
-                <span className={styles.statLabel}>Total Applications</span>
-                <span className={styles.statIconBox} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
+              <span className={styles.statValPremium}>{dashboardData?.metrics.totalJobs || 0}</span>
+              <span className={styles.statHintPremium}>Published listings</span>
+            </motion.div>
+
+            <motion.div 
+              className={cn(styles.statPremium, styles.glowOrangePremium)}
+              whileHover={{ y: -4 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.16 }}
+            >
+              <div className={styles.statTopPremium}>
+                <span className={styles.statLabelPremium}>Total Applications</span>
+                <span className={styles.statIconBoxPremium} style={{ background: '#fef3c7', color: '#f59e0b' }}>{IC.send}</span>
               </div>
-              <span className={styles.statVal}>{dashboardData?.metrics.totalApplications || 0}</span>
-              <span className={styles.statHint}>Across all listings</span>
-            </div>
-            <div className={styles.stat}>
-              <div className={styles.statTop}>
-                <span className={styles.statLabel}>Recruiters</span>
-                <span className={styles.statIconBox} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
+              <span className={styles.statValPremium}>{dashboardData?.metrics.totalApplications || 0}</span>
+              <span className={styles.statHintPremium}>Across all listings</span>
+            </motion.div>
+
+            <motion.div 
+              className={cn(styles.statPremium, styles.glowPurplePremium)}
+              whileHover={{ y: -4 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.24 }}
+            >
+              <div className={styles.statTopPremium}>
+                <span className={styles.statLabelPremium}>Recruiters</span>
+                <span className={styles.statIconBoxPremium} style={{ background: '#f5f3ff', color: '#7c3aed' }}>{IC.checkCircle}</span>
               </div>
-              <span className={styles.statVal}>{dashboardData?.metrics.totalRecruiters || 0}</span>
-              <span className={styles.statHint}>Active accounts</span>
-            </div>
+              <span className={styles.statValPremium}>{dashboardData?.metrics.totalRecruiters || 0}</span>
+              <span className={styles.statHintPremium}>Active accounts</span>
+            </motion.div>
           </div>
         )}
       </AnimateOnScroll>
@@ -294,9 +323,9 @@ export default function AdminDashboardPage() {
               />
             ) : (
               dashboardData?.alerts && (
-                <div className={styles.card}>
+                <div className={styles.cardPremium}>
                   <div className={styles.cardHead}>
-                    <h2 className={styles.cardTitle}>Review Queue</h2>
+                    <h2 className={styles.cardTitlePremium}>Review Queue</h2>
                   </div>
                   {dashboardData.alerts.pendingRecruiters > 0 || dashboardData.alerts.pendingJobs > 0 || dashboardData.alerts.reportedJobs > 0 ? (
                     <>
@@ -353,9 +382,9 @@ export default function AdminDashboardPage() {
                 onRetry={handleRetry} 
               />
             ) : (
-              <div className={styles.card}>
+              <div className={styles.cardPremium}>
                 <div className={styles.cardHead}>
-                  <h2 className={styles.cardTitle}>Recent Activity</h2>
+                  <h2 className={styles.cardTitlePremium}>Recent Activity</h2>
                 </div>
                 {(dashboardData?.activities?.length ?? 0) > 0 ? (
                   dashboardData!.activities.map((act) => (
@@ -383,8 +412,8 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className={styles.rightCol}>
-            <div className={styles.card}>
-              <h2 className={styles.cardTitle}>Quick Actions</h2>
+            <div className={styles.cardPremium}>
+              <h2 className={styles.cardTitlePremium}>Quick Actions</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <Link href="/dashboard/admin/jobs" style={{ textDecoration: 'none' }}>
                   <button className={styles.quickAction}>

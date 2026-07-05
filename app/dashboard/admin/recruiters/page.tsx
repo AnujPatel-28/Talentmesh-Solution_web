@@ -1334,13 +1334,21 @@ export default function AdminRecruitersPage() {
       let targetUrl = url;
       if (url.includes('/recruiter_documents/')) {
         const parts = url.split('/recruiter_documents/');
-        const key = parts[parts.length - 1];
+        let key = parts[parts.length - 1];
+        if (key.startsWith('objects/')) {
+          key = key.substring(8);
+        }
         targetUrl = `${window.location.origin}/api/v1/remote/functions/recruiter-document-proxy?key=${encodeURIComponent(key)}`;
       } else if (url.startsWith(insforgeUrl)) {
         targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
       }
 
-      const response = await fetch(targetUrl);
+      const token = window.sessionStorage.getItem('tm_token');
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1362,13 +1370,21 @@ export default function AdminRecruitersPage() {
       let targetUrl = url;
       if (url.includes('/recruiter_documents/')) {
         const parts = url.split('/recruiter_documents/');
-        const key = parts[parts.length - 1];
+        let key = parts[parts.length - 1];
+        if (key.startsWith('objects/')) {
+          key = key.substring(8);
+        }
         targetUrl = `${window.location.origin}/api/v1/remote/functions/recruiter-document-proxy?key=${encodeURIComponent(key)}`;
       } else if (url.startsWith(insforgeUrl)) {
         targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
       }
 
-      const response = await fetch(targetUrl);
+      const token = window.sessionStorage.getItem('tm_token');
+      const response = await fetch(targetUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const blob = await response.blob();
 
       let mimeType = blob.type;
