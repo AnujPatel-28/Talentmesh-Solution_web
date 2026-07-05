@@ -40,12 +40,12 @@ export default function PdfViewer({ url }: PdfViewerProps) {
   }
 
   return (
-    <div className={styles.pdfContainer} style={{ display: 'block', height: '100%', width: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', backgroundColor: '#525659' }}>
       <iframe
-        src={`${url}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+        src={`${url}#toolbar=1&navpanes=0&scrollbar=1`}
         width="100%"
         height="100%"
-        style={{ border: 'none', borderRadius: '8px', display: 'block', width: '100%', height: '100%', minHeight: '500px' }}
+        style={{ border: 'none', display: 'block', width: '100%', height: '100%' }}
         title="Resume Preview"
       />
     </div>
