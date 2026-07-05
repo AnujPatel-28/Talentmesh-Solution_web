@@ -68,7 +68,7 @@ export default function ResumePreviewModal({ isOpen, onClose, resumeUrl }: Resum
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '1rem 1.5rem', background: '#f8fafc' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', padding: '0.85rem 1.25rem', background: '#f8fafc', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1.2rem' }}>📄</span>
             <h3 id="resume-preview-title" style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
@@ -139,8 +139,8 @@ export default function ResumePreviewModal({ isOpen, onClose, resumeUrl }: Resum
           </div>
         </div>
 
-        {/* Modal Body / Scrollable PDF Viewer */}
-        <div style={{ flex: 1, width: '100%', height: '100%', overflow: 'auto', WebkitOverflowScrolling: 'touch', backgroundColor: '#f1f5f9', padding: '0.5rem' }}>
+        {/* Modal Body / Scrollable PDF Viewer Container */}
+        <div style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#525659' }}>
           <PdfViewer url={resumeUrl} />
         </div>
       </div>
