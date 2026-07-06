@@ -147,7 +147,7 @@ export default function TalentSourcingPage() {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 'c755ba58-1a02-45d6-b021-3b66f62eb9fb',
+                    access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || '',
                     subject: `New Sourcing Hiring Brief from ${form.company}`,
                     from_name: 'TalentMesh Sourcing',
                     name: form.name,

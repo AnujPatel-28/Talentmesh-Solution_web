@@ -58,8 +58,6 @@ export async function POST(request: NextRequest) {
   }
 
   const responseBody = await insforgeRes.text();
-  console.log('[oauth/exchange] InsForge response status:', insforgeRes.status);
-  console.log('[oauth/exchange] InsForge response body:', responseBody);
 
   let parsedData: any = null;
   let safeBody = responseBody.trim() === '' ? '{}' : responseBody;

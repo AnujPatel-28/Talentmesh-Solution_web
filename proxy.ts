@@ -23,22 +23,28 @@ interface MiddlewareUser {
  */
 function validateMfaCookie(mfaCookieValue: string, accessToken: string): boolean {
   try {
-    const [signature, timestamp] = mfaCookieValue.split(':');
+    const [signature, timestamp, factorId] = mfaCookieValue.split(':');
     if (!signature || !timestamp) return false;
 
     const now = Date.now();
     const ts = parseInt(timestamp, 10);
 
     // Check if timestamp is recent (within 24 hours)
-    if (Math.abs(now - ts) > 24 * 60 * 60 * 1000) {
+    if (isNaN(ts) || Math.abs(now - ts) > 24 * 60 * 60 * 1000) {
       return false;
     }
 
-    // Validate signature
+    // Validate HMAC signature if factorId is present
     const mfaSecret = process.env.MFA_SIGNING_SECRET || 'default-mfa-secret-change-in-prod';
-    // Note: we can't fully validate here without the factorId, but we validate the timestamp format
-    // and ensure the signature exists (full validation would require factorId)
-    return /^[a-f0-9]{64}$/.test(signature) && !isNaN(ts);
+    if (factorId) {
+      const message = `${accessToken}:${factorId}:${timestamp}`;
+      const expectedSignature = crypto.createHmac('sha256', mfaSecret).update(message).digest('hex');
+      if (signature.length !== expectedSignature.length) return false;
+      return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
+    }
+
+    // Fallback signature regex check for legacy cookies
+    return /^[a-f0-9]{64}$/.test(signature);
   } catch (err) {
     return false;
   }
@@ -137,8 +143,10 @@ async function _proxy(request: NextRequest) {
   let mfaEnabled = false;
   let completedOnboarding = false;
 
+  const allowMockAuth = process.env.NODE_ENV !== 'production' && process.env.ENABLE_MOCK_AUTH === 'true';
+
   if (token) {
-    if (token === 'mock-admin-token') {
+    if (allowMockAuth && token === 'mock-admin-token') {
       user = {
         id: 'adm-uuid-999',
         email: 'admin@test.com',
@@ -147,7 +155,7 @@ async function _proxy(request: NextRequest) {
       role = 'super_admin';
       completedOnboarding = true;
       mfaEnabled = false;
-    } else if (token === 'fake-token') {
+    } else if (allowMockAuth && token === 'fake-token') {
       user = {
         id: 'cand-uuid-123',
         email: 'candidate@test.com',
@@ -226,7 +234,7 @@ async function _proxy(request: NextRequest) {
   }
 
   const isAdmin = ['admin', 'super_admin'].includes(role || '');
-  const hasAdminAccessCookie = request.cookies.get('tm_admin_access')?.value === 'true';
+  const hasAdminAccessCookie = allowMockAuth && request.cookies.get('tm_admin_access')?.value === 'true';
 
   // Redirect unauthenticated requests to /pending-approval back to login
   if (!user && pathname === '/pending-approval') {

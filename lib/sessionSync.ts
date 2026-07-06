@@ -31,7 +31,6 @@ export function initSessionSync(onMessage: (type: SessionSyncEvent, payload?: un
 
   const handleMessage = (event: MessageEvent<SyncMessage>) => {
     const { type, payload } = event.data;
-    console.log(`[SessionSync] Received event: ${type}`, payload);
     onMessage(type, payload);
   };
 
@@ -57,6 +56,5 @@ export function broadcastSessionEvent(type: SessionSyncEvent, payload?: unknown)
     syncChannel = new BroadcastChannel('talentmesh_session_sync');
   }
 
-  console.log(`[SessionSync] Broadcasting event: ${type}`, payload);
   syncChannel.postMessage({ type, payload });
 }

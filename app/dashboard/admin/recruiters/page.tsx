@@ -1223,6 +1223,145 @@ function ApproveSetupModal({
   );
 }
 
+// ── Interactive In-App Document Viewer Modal Component ────────────────────────
+function DocViewerModal({
+  docViewer,
+  onClose,
+  onDownload
+}: {
+  docViewer: {
+    isOpen: boolean;
+    title: string;
+    filename: string;
+    url: string;
+    blobUrl?: string;
+    mimeType?: string;
+    loading: boolean;
+    error?: string;
+  };
+  onClose: () => void;
+  onDownload: (url: string, filename: string) => void;
+}) {
+  return (
+    <div 
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.5rem'
+      }}
+      onClick={onClose}
+    >
+      <div 
+        style={{
+          background: '#ffffff',
+          borderRadius: '20px',
+          width: '100%',
+          maxWidth: '920px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          overflow: 'hidden'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FileText size={20} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{docViewer.title}</h3>
+              <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>{docViewer.filename}</p>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {docViewer.blobUrl && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => window.open(docViewer.blobUrl, '_blank')}
+                  style={{ padding: '6px 12px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Globe size={14} /> Open in Tab
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDownload(docViewer.url, docViewer.filename)}
+                  style={{ padding: '6px 12px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Download size={14} /> Download
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e2e8f0', color: '#475569', border: 'none', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '450px' }}>
+          {docViewer.loading ? (
+            <div style={{ color: 'white', textAlign: 'center' }}>
+              <div style={{ width: '36px', height: '36px', border: '3px solid rgba(255,255,255,0.2)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 1rem' }} />
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#94a3b8' }}>Loading secure verification document...</p>
+            </div>
+          ) : docViewer.error ? (
+            <div style={{ color: '#ef4444', textAlign: 'center', background: '#1e293b', padding: '2rem', borderRadius: '12px', border: '1px solid #334155' }}>
+              <ShieldAlert size={36} style={{ margin: '0 auto 0.5rem', opacity: 0.8 }} />
+              <p style={{ margin: '0 0 1rem', fontWeight: 600 }}>{docViewer.error}</p>
+              <button
+                type="button"
+                onClick={() => window.open(docViewer.url, '_blank')}
+                style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Open Direct URL
+              </button>
+            </div>
+          ) : docViewer.blobUrl ? (
+            docViewer.mimeType?.startsWith('image/') ? (
+              <img
+                src={docViewer.blobUrl}
+                alt={docViewer.title}
+                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
+              />
+            ) : (
+              <object
+                data={docViewer.blobUrl}
+                type="application/pdf"
+                width="100%"
+                height="600px"
+                style={{ borderRadius: '8px', background: 'white' }}
+              >
+                <iframe
+                  src={docViewer.blobUrl}
+                  width="100%"
+                  height="600px"
+                  title={docViewer.title}
+                  style={{ border: 'none', borderRadius: '8px', background: 'white' }}
+                />
+              </object>
+            )
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 export default function AdminRecruitersPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -1259,6 +1398,18 @@ export default function AdminRecruitersPage() {
   // Approve & Setup Modal state
   const [approveSetupTarget, setApproveSetupTarget] = useState<AdminRecruiter | null>(null);
 
+  // Interactive In-App Document Viewer Modal state
+  const [docViewer, setDocViewer] = useState<{
+    isOpen: boolean;
+    title: string;
+    filename: string;
+    url: string;
+    blobUrl?: string;
+    mimeType?: string;
+    loading: boolean;
+    error?: string;
+  } | null>(null);
+
   // Custom Proposal State
   const [proposalFeatures, setProposalFeatures] = useState<string[]>([]);
   const [proposalPrice, setProposalPrice] = useState('');
@@ -1278,7 +1429,7 @@ export default function AdminRecruitersPage() {
     backup: AdminRecruiter[];
     timeLeft: number;
   } | null>(null);
-  
+
   const pendingActionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingActionRef = useRef<typeof pendingAction>(null);
 
@@ -1333,7 +1484,7 @@ export default function AdminRecruitersPage() {
 
   const handleDownload = async (url: string, filename: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
       let targetUrl = url;
       if (url.includes('/recruiter_documents/')) {
         const parts = url.split('/recruiter_documents/');
@@ -1367,9 +1518,18 @@ export default function AdminRecruitersPage() {
     }
   };
 
-  const handleView = async (url: string) => {
+  const handleView = async (url: string, title = 'Verification Document', filename = 'document.pdf') => {
+    if (!url) return;
+    setDocViewer({
+      isOpen: true,
+      title,
+      filename,
+      url,
+      loading: true
+    });
+
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
       let targetUrl = url;
       if (url.includes('/recruiter_documents/')) {
         const parts = url.split('/recruiter_documents/');
@@ -1388,6 +1548,8 @@ export default function AdminRecruitersPage() {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to fetch document`);
       const blob = await response.blob();
 
       let mimeType = blob.type;
@@ -1408,23 +1570,27 @@ export default function AdminRecruitersPage() {
       }
 
       if (mimeType === 'application/octet-stream' || !mimeType) {
-        if (url.toLowerCase().endsWith('.pdf')) {
-          mimeType = 'application/pdf';
-        } else if (url.toLowerCase().endsWith('.png')) {
-          mimeType = 'image/png';
-        } else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) {
-          mimeType = 'image/jpeg';
-        } else {
-          mimeType = 'application/pdf';
-        }
+        if (url.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+        else if (url.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        else if (url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
+        else mimeType = 'application/pdf';
       }
 
       const fileBlob = new Blob([blob], { type: mimeType });
       const blobUrl = window.URL.createObjectURL(fileBlob);
-      window.open(blobUrl, '_blank');
-    } catch (err) {
+
+      setDocViewer({
+        isOpen: true,
+        title,
+        filename,
+        url,
+        blobUrl,
+        mimeType,
+        loading: false
+      });
+    } catch (err: any) {
       console.error('Failed to view document:', err);
-      window.open(url, '_blank');
+      setDocViewer(prev => prev ? { ...prev, loading: false, error: err.message || 'Failed to load document preview' } : null);
     }
   };
 
@@ -1542,7 +1708,7 @@ export default function AdminRecruitersPage() {
           }
 
           if (error) throw new Error(error.message);
-          
+
           recordMetric('bulk_action', ids.length);
           fetchRecruiters(page, activeSearch, statusFilter, sort, true);
         },
@@ -1666,7 +1832,7 @@ export default function AdminRecruitersPage() {
 
   const toggleStatus = async (targetUser: AdminRecruiter) => {
     const backupRecruiters = [...recruiters];
-    
+
     // Optimistic UI update
     setRecruiters(prev => prev.map(r => r.id === targetUser.id ? { ...r, is_active: !targetUser.is_active } : r));
     if (previewUser?.id === targetUser.id) {
@@ -1804,6 +1970,46 @@ export default function AdminRecruitersPage() {
       }
     },
     {
+      header: 'Verification Docs',
+      key: 'documents',
+      render: (recruiter) => {
+        const p = getProfile(recruiter);
+        const docCount = [
+          p?.document_url,
+          p?.kyc_document_url,
+          ...(Array.isArray(p?.companies?.kyc_documents) ? p?.companies?.kyc_documents?.map((d: any) => d?.url) : [p?.companies?.kyc_documents?.url])
+        ].filter(Boolean).length;
+
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewUser(recruiter);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              border: '1px solid',
+              borderColor: docCount > 0 ? '#93c5fd' : '#e2e8f0',
+              background: docCount > 0 ? '#eff6ff' : '#f8fafc',
+              color: docCount > 0 ? '#1d4ed8' : '#64748b',
+              cursor: 'pointer'
+            }}
+            title={docCount > 0 ? 'Click to view recruiter documents' : 'No documents uploaded'}
+          >
+            <FileText size={13} />
+            {docCount > 0 ? `${docCount} Uploaded` : 'No Docs'}
+          </button>
+        );
+      }
+    },
+    {
       header: 'Status',
       key: 'status',
       render: (recruiter) => {
@@ -1854,7 +2060,7 @@ export default function AdminRecruitersPage() {
     setBulkActionTarget(null);
 
     const backupRecruiters = [...recruiters];
-    
+
     // Optimistic UI updates
     if (action === 'delete') {
       setRecruiters(prev => prev.filter(r => !selectedIds.includes(r.id)));
@@ -2496,91 +2702,147 @@ export default function AdminRecruitersPage() {
                   <div><strong>Website:</strong> <a href={getProfile(previewUser)?.website_url} target="_blank" style={{ color: '#3b82f6' }}>{getProfile(previewUser)?.website_url}</a></div>
                 )}
               </div>
-              {getProfile(previewUser)?.document_url && (
-                <div style={{ marginTop: '1rem' }}>
-                  <strong>Company Verification Document:</strong><br />
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleView(getProfile(previewUser)!.document_url!)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                    >
-                      <FileText size={15} /> View Document
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(getProfile(previewUser)!.document_url!, 'company_document.pdf')}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                    >
-                      <Download size={15} /> Download
-                    </button>
-                  </div>
-                </div>
-              )}
             </section>
 
-            {/* KYC Details Section */}
-            <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Personal KYC Verification</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
-                <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            {/* Comprehensive Uploaded Verification Documents Section */}
+            <section className={styles.profileSection} style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileText size={18} style={{ color: '#2563eb' }} /> Recruiter Verification Documents
+                </span>
+                <span style={{
+                  padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+                  background: isPendingVerification(previewUser) || !getProfile(previewUser)?.is_approved ? '#fef3c7' : '#dcfce7',
+                  color: isPendingVerification(previewUser) || !getProfile(previewUser)?.is_approved ? '#92400e' : '#166534',
+                  border: '1px solid',
+                  borderColor: isPendingVerification(previewUser) || !getProfile(previewUser)?.is_approved ? '#fde68a' : '#bbf7d0'
+                }}>
+                  {isPendingVerification(previewUser) || !getProfile(previewUser)?.is_approved ? '⚠️ Unverified / Pending Review' : '✓ Verified Recruiter Documents'}
+                </span>
+              </h4>
+
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                {/* 1. Company Verification Document */}
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.88rem', color: '#0f172a', display: 'block', marginBottom: '2px' }}>Company Verification / License Document</strong>
+                    <span style={{ fontSize: '0.75rem', color: getProfile(previewUser)?.document_url ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                      {getProfile(previewUser)?.document_url ? '✓ Uploaded' : '✕ Not Uploaded'}
+                    </span>
+                  </div>
+                  {getProfile(previewUser)?.document_url ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleView(getProfile(previewUser)!.document_url!, 'Company Verification Document', 'company_verification_document.pdf')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                      >
+                        <FileText size={14} /> View Document
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(getProfile(previewUser)!.document_url!, 'company_verification_document.pdf')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                      >
+                        <Download size={14} /> Download
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>No document file attached</span>
+                  )}
+                </div>
+
+                {/* 2. Personal KYC Document */}
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.88rem', color: '#0f172a', display: 'block', marginBottom: '2px' }}>Personal KYC Document (Aadhaar / PAN Copy)</strong>
+                    <span style={{ fontSize: '0.75rem', color: getProfile(previewUser)?.kyc_document_url ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                      {getProfile(previewUser)?.kyc_document_url ? '✓ Uploaded' : '✕ Not Uploaded'}
+                    </span>
+                  </div>
+                  {getProfile(previewUser)?.kyc_document_url ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleView(getProfile(previewUser)!.kyc_document_url!, 'Personal KYC Verification Document', 'personal_kyc_document.pdf')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                      >
+                        <FileText size={14} /> View KYC
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(getProfile(previewUser)!.kyc_document_url!, 'personal_kyc_document.pdf')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}
+                      >
+                        <Download size={14} /> Download
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>No document file attached</span>
+                  )}
+                </div>
+
+                {/* 3. Company Registration & Tax KYC Files Array */}
+                {getProfile(previewUser)?.companies?.kyc_documents && (
+                  <div style={{ background: 'white', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                    <strong style={{ fontSize: '0.88rem', color: '#0f172a', display: 'block', marginBottom: '0.5rem' }}>Company Registration & Tax Documents</strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {(Array.isArray(getProfile(previewUser)?.companies?.kyc_documents) ? getProfile(previewUser)!.companies!.kyc_documents : [getProfile(previewUser)!.companies!.kyc_documents]).map((doc: any, index: number) => {
+                        const docUrl = doc?.url || (typeof doc === 'string' ? doc : null);
+                        const docName = doc?.name || `company_tax_doc_${index + 1}.pdf`;
+                        if (!docUrl) return null;
+                        return (
+                          <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#334155', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '220px', display: 'flex', alignItems: 'center', gap: '6px' }} title={docName}>
+                              <FileText size={14} /> {docName}
+                            </span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleView(docUrl, docName, docName)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDownload(docUrl, docName)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                              >
+                                Download
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Identity Numbers & Tax Details */}
+            <section className={styles.profileSection} style={{ background: '#ffffff', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Government Tax & Identity Records</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', fontSize: '0.875rem' }}>
+                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>PAN Card Number</div>
                   <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.pan_number || '—'}</div>
                 </div>
-                <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Aadhaar Card Number</div>
                   <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.aadhaar_number ? getProfile(previewUser)!.aadhaar_number!.replace(/(\d{4})/g, '$1 ').trim() : '—'}</div>
                 </div>
-              </div>
-              {getProfile(previewUser)?.kyc_document_url && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <strong>KYC Document (Aadhaar/PAN Copy):</strong><br />
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleView(getProfile(previewUser)!.kyc_document_url!)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                    >
-                      <FileText size={15} /> View KYC
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(getProfile(previewUser)!.kyc_document_url!, 'kyc_document.pdf')}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                    >
-                      <Download size={15} /> Download
-                    </button>
-                  </div>
+                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Company GSTIN</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.companies?.gstin || '—'}</div>
                 </div>
-              )}
-            </section>
-
-            {/* Emergency Contact Section */}
-            <section className={styles.profileSection} style={{ background: '#fef3c7', padding: '1.25rem', borderRadius: '12px', border: '1px solid #fde68a' }}>
-              <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#78350f', borderBottom: '1px solid #fde68a', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldAlert size={18} /> Emergency Contact</h4>
-              <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.875rem', color: '#451a03' }}>
-                <div><strong>Name:</strong> {getProfile(previewUser)?.emergency_contact_name || '—'}</div>
-                <div><strong>Phone:</strong> {getProfile(previewUser)?.emergency_contact_phone || '—'}</div>
-                <div><strong>Address:</strong> {getProfile(previewUser)?.emergency_contact_address || '—'}</div>
+                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Company TAN</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', fontSize: '0.95rem' }}>{getProfile(previewUser)?.companies?.tan || '—'}</div>
+                </div>
               </div>
             </section>
-
-            {/* Company Tax Details */}
-            {(getProfile(previewUser)?.companies?.gstin || getProfile(previewUser)?.companies?.tan) && (
-              <section className={styles.profileSection} style={{ background: '#f0fdf4', padding: '1.25rem', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
-                <h4 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: '#166534', borderBottom: '1px solid #bbf7d0', paddingBottom: '0.5rem' }}>Company Tax Details</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.875rem' }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>GSTIN</div>
-                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{getProfile(previewUser)?.companies?.gstin || '—'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>TAN</div>
-                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{getProfile(previewUser)?.companies?.tan || '—'}</div>
-                  </div>
-                </div>
-              </section>
-            )}
 
             {/* Approve & Setup Button — shown when recruiter is NOT yet approved */}
             {!getProfile(previewUser)?.is_approved && hasApprovePerm && (
@@ -2785,6 +3047,15 @@ export default function AdminRecruitersPage() {
             Undo
           </button>
         </div>
+      )}
+
+      {/* ── Interactive In-App Document Viewer Modal ────────────────────── */}
+      {docViewer && docViewer.isOpen && (
+        <DocViewerModal
+          docViewer={docViewer}
+          onClose={() => setDocViewer(null)}
+          onDownload={handleDownload}
+        />
       )}
     </section>
   );

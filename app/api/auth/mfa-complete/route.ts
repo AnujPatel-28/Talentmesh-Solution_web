@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const mfaSecret = process.env.MFA_SIGNING_SECRET || 'default-mfa-secret-change-in-prod';
     const message = `${token}:${factorId}:${timestamp}`;
     const signature = crypto.createHmac('sha256', mfaSecret).update(message).digest('hex');
-    const mfaVerifiedValue = `${signature}:${timestamp}`;
+    const mfaVerifiedValue = `${signature}:${timestamp}:${factorId}`;
 
     // Set HttpOnly, Secure cookie with 24-hour expiry
     const response = NextResponse.json({ success: true }, { status: 200 });

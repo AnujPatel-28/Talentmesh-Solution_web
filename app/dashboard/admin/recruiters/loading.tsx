@@ -1,5 +1,5 @@
-import { ListSkeleton } from '@/components/ui/LoadingSkeletons';
+import { ListSkeleton } from "@/components/ui/LoadingSkeletons";
 
 export default function Loading() {
-  return <ListSkeleton />;
+  return <ListSkeleton count={6} />;
 }

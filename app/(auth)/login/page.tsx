@@ -379,7 +379,6 @@ function LoginContent() {
             const role = profile?.role || 'candidate';
             const isAdminRole = role === 'admin' || role === 'super_admin';
 
-            console.log(`Login successful. User role: ${role}. Redirecting...`);
 
             // 🔥 STEP 2 — Redirect logic with safety delay for cookie persistence
             // On localhost, subdomains (admin.localhost, jobs.localhost) don't resolve in browsers.

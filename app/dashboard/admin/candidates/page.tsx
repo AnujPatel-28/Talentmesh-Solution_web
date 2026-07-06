@@ -857,7 +857,7 @@ export default function AdminCandidatesPage() {
       if (resolvedResumeId) {
         targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${resolvedResumeId}&accessType=downloaded`;
       } else {
-        const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+        const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
         if (url.startsWith(insforgeUrl)) {
           targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
         }
@@ -907,7 +907,7 @@ export default function AdminCandidatesPage() {
       if (resolvedResumeId) {
         targetUrl = `${window.location.origin}/api/v1/remote/functions/resume-proxy?resumeId=${resolvedResumeId}&accessType=viewed`;
       } else {
-        const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+        const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
         if (url.startsWith(insforgeUrl)) {
           targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
         }

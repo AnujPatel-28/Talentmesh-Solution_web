@@ -58,7 +58,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(blobUrl);
             } else {
-                const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+                const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
                 if (url.startsWith(insforgeUrl)) {
                     targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
                 }
@@ -96,7 +96,7 @@ export default function CandidateProfileDrawer({ candidateId, onClose }: Candida
                 if (!response.ok) throw new Error('Failed to fetch from proxy');
                 blob = await response.blob();
             } else {
-                const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+                const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
                 if (url.startsWith(insforgeUrl)) {
                     targetUrl = url.replace(insforgeUrl, `${window.location.origin}/api/v1/remote`);
                 }

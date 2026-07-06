@@ -231,26 +231,62 @@ const getRecruiterNav = (roleId: string): NavItem[] => [
     { label: 'Integrations', href: `/dashboard/recruiter/${roleId}/integrations`, icon: PlugIcon, id: 'integrations' },
 ];
 
-const SUPER_ADMIN_NAV = (counts?: { jobs: number, candidates: number, recruiters: number, pendingJobs: number }): NavItem[] => [
+const SUPER_ADMIN_NAV = (counts?: { jobs: number, candidates: number, recruiters: number, pendingJobs: number }, roleId: string = ''): NavItem[] => [
     { label: 'Overview', href: '/dashboard/admin', icon: Icons.home },
-    { 
-        label: 'Manage Jobs', href: '/dashboard/admin/jobs', icon: Icons.briefcase, id: 'admin_jobs',
+    {
+        label: 'Jobs & Applications',
+        href: '/dashboard/admin/jobs',
+        icon: Icons.briefcase,
+        id: 'admin_jobs_apps',
         children: [
             { label: 'All Jobs', href: '/dashboard/admin/jobs' },
             { label: 'Job Approvals', href: '/dashboard/admin/job-approvals', badge: counts?.pendingJobs || undefined, badgeType: 'red' },
+            { label: 'Job Applications', href: '/dashboard/admin/applications' },
         ]
     },
-    { label: 'Job Applications', href: '/dashboard/admin/applications', icon: Icons.clipboard },
-    { label: 'Candidates', href: '/dashboard/admin/candidates', icon: Icons.users, badge: counts?.candidates || undefined },
-    { label: 'Recruiters', href: '/dashboard/admin/recruiters', icon: Icons.recruiter, badge: counts?.recruiters || undefined },
-    { label: 'Companies', href: '/dashboard/admin/companies', icon: Icons.building },
-    { label: 'Announcements', href: '/dashboard/admin/announcements', icon: Icons.megaphone },
-    { label: 'Email Templates', href: '/dashboard/admin/email-templates', icon: Icons.envelope },
-    { label: 'Subscription Plans', href: '/dashboard/admin/plans', icon: Icons.creditCard },
-    { label: 'Billing / Invoices', href: '/dashboard/admin/billing', icon: Icons.creditCard },
-    { label: 'Blogs', href: '/dashboard/admin/blogs', icon: Icons.bookOpen },
-    { label: 'Reports', href: '/dashboard/admin/reports', icon: Icons.pieChart },
-    { label: 'Audit Logs', href: '/dashboard/admin/audit-logs', icon: Icons.fileText },
+    {
+        label: 'Users & Companies',
+        href: '/dashboard/admin/candidates',
+        icon: Icons.users,
+        id: 'admin_users_companies',
+        children: [
+            { label: 'Candidates', href: '/dashboard/admin/candidates', badge: counts?.candidates || undefined },
+            { label: 'Recruiters', href: '/dashboard/admin/recruiters', badge: counts?.recruiters || undefined },
+            { label: 'Companies', href: '/dashboard/admin/companies' },
+        ]
+    },
+    {
+        label: 'Content Management',
+        href: '/dashboard/admin/announcements',
+        icon: Icons.megaphone,
+        id: 'admin_content',
+        children: [
+            { label: 'Announcements', href: '/dashboard/admin/announcements' },
+            { label: 'Blog CMS', href: '/dashboard/admin/blogs' },
+            { label: 'Email Templates', href: '/dashboard/admin/email-templates' },
+        ]
+    },
+    {
+        label: 'Billing & Subscriptions',
+        href: '/dashboard/admin/plans',
+        icon: Icons.creditCard,
+        id: 'admin_billing_plans',
+        children: [
+            { label: 'Subscription Plans', href: '/dashboard/admin/plans' },
+            { label: 'Billing / Invoices', href: '/dashboard/admin/billing' },
+        ]
+    },
+    {
+        label: 'System & Audit',
+        href: '/dashboard/admin/audit-logs',
+        icon: Icons.activity,
+        id: 'admin_system_audit',
+        children: [
+            { label: 'Audit Logs', href: '/dashboard/admin/audit-logs' },
+            { label: 'Admin Settings', href: '/dashboard/admin/settings' },
+        ]
+    },
+    { label: 'Messages', href: `/dashboard/admin/${roleId || 'me'}/messages`, icon: Icons.messageSquare },
 ];
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
@@ -335,7 +371,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         setNotifCount(data.appCount || 0);
                         setApplicationCount(data.appCount || 0);
                     }
-                    
+
                     // Fetch NVite and Offer unread counts dynamically
                     const { data: profile } = await insforge.database.from('candidate_profiles').select('id').eq('id', authUser.id).single();
                     if (profile) {
@@ -390,7 +426,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                     // Ensure connect() doesn't block forever
                     const connectPromise = directInsforge.realtime.connect();
                     const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Realtime timeout')), 8000));
-                    
+
                     await Promise.race([connectPromise, timeoutPromise]);
 
                     if (isAdmin && typeof directInsforge.realtime.subscribe === 'function' && typeof directInsforge.realtime.on === 'function') {
@@ -435,11 +471,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     ) || '';
 
     const roleId = authUser?.id || roleIdFromPath;
-    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV(adminCounts) : isRecruiter ? getRecruiterNav(roleId) : getCandidateNav(roleId, nviteCount, offerCount, applicationCount);
+    const navItems = isSuperAdmin ? SUPER_ADMIN_NAV(adminCounts, roleId) : isRecruiter ? getRecruiterNav(roleId) : getCandidateNav(roleId, nviteCount, offerCount, applicationCount);
 
-    /* Auto-open the accordion group that contains the active route (recruiter) */
+    /* Auto-open the accordion group that contains the active route */
     useEffect(() => {
-        if (!isRecruiter) return;
         const toOpen = new Set<string>();
         for (const item of navItems) {
             if (item.children?.some(c => pathname.startsWith(c.href.replace(/\/$/, '')))) {
@@ -449,7 +484,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (toOpen.size > 0) {
             setOpenGroups(prev => new Set([...prev, ...toOpen]));
         }
-    }, [pathname, roleId, isRecruiter]);
+    }, [pathname, roleId, isRecruiter, isSuperAdmin, navItems]);
 
     const toggleGroup = useCallback((id: string) => {
         setOpenGroups(prev => {
@@ -503,8 +538,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         // Prevent redirect while loading
         if (!isInitialized) return;
 
-        const isDedicatedBranch = 
-            pathname.startsWith('/dashboard/admin') || 
+        const isDedicatedBranch =
+            pathname.startsWith('/dashboard/admin') ||
             pathname.startsWith('/dashboard/recruiter') ||
             pathname.startsWith('/admin') ||
             pathname.startsWith('/recruiter');
@@ -523,7 +558,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                 return;
             }
         }
-        
+
         // Guard recruiter subpages from non-recruiters
         if (authUser && pathname.startsWith('/dashboard/recruiter')) {
             if (authUser.role !== 'recruiter' && authUser.role !== 'admin' && authUser.role !== 'super_admin') {
@@ -599,7 +634,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                     if (error) throw new Error(error.message);
                                     window.dispatchEvent(new CustomEvent('admin-candidates:refresh'));
                                 },
-                                () => {}
+                                () => { }
                             );
                         }
                     } catch (e) {
@@ -639,7 +674,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                     if (error) throw new Error(error.message);
                                     window.dispatchEvent(new CustomEvent('admin-recruiters:refresh'));
                                 },
-                                () => {}
+                                () => { }
                             );
                         }
                     } catch (e) {
@@ -661,14 +696,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         if (!authUser) {
             return null; // Will redirect via useEffect
         }
-        
+
         return (
             <GlobalErrorBoundary>
                 {isImpersonating && (
-                    <ImpersonationBanner 
-                        userName={authUser.name || 'User'} 
-                        userEmail={authUser.email} 
-                        role={authUser.role} 
+                    <ImpersonationBanner
+                        userName={authUser.name || 'User'}
+                        userEmail={authUser.email}
+                        role={authUser.role}
                     />
                 )}
                 {children}
@@ -755,7 +790,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                                                         </span>
                                                         {child.badge != null && (
                                                             <span className={`${styles.navBadge} ${child.badgeType === 'red' ? styles.navBadgeRed : ''}`} style={{ marginRight: '0.75rem', position: 'static' }}>
-                                                                 {child.badge}
+                                                                {child.badge}
                                                             </span>
                                                         )}
                                                     </Link>
@@ -768,7 +803,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
                         }
 
                         /* ── Flat link (no children) ── */
-                        const active = isDashboardHome 
+                        const active = isDashboardHome
                             ? (cleanPathname === cleanHref || normPathname === cleanItemHref)
                             : (cleanPathname.startsWith(cleanHref) && (cleanPathname === cleanHref || cleanPathname.slice(cleanHref.length)[0] === '/'));
 

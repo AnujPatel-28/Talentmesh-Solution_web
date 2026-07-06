@@ -11,6 +11,21 @@ import styles from './OpsDarkSidebarShell.module.css';
 
 /* ─── SVG Icons ─── */
 const Icons = {
+    home: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+    ),
+    creditCard: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
+        </svg>
+    ),
+    megaphone: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+    ),
     jobs: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
@@ -109,6 +124,19 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
     const [isCreateNewOpen, setIsCreateNewOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
     const [notifCount, setNotifCount] = useState(0);
+    const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+
+    const toggleGroup = (id: string) => {
+        setOpenGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
     const accountRef = useRef<HTMLDivElement>(null);
     const createNewRef = useRef<HTMLDivElement>(null);
@@ -199,11 +227,17 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
         }
     ], [roleId]);
 
-    // Admin Nav Definitions (Consolidated into 6 categories)
+    // Admin Nav Definitions (Organized into flyout sub-options)
     const adminNav = useMemo<OpsNavItem[]>(() => [
         {
+            id: 'overview',
+            label: 'Overview',
+            href: '/dashboard/admin',
+            icon: Icons.home,
+        },
+        {
             id: 'jobs',
-            label: 'Jobs',
+            label: 'Jobs & Applications',
             href: '/dashboard/admin/jobs',
             icon: Icons.jobs,
             children: [
@@ -214,7 +248,7 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
         },
         {
             id: 'candidates',
-            label: 'Candidates',
+            label: 'Users & Companies',
             href: '/dashboard/admin/candidates',
             icon: Icons.candidates,
             children: [
@@ -224,32 +258,58 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
             ]
         },
         {
-            id: 'analytics',
-            label: 'Analytics',
-            href: '/dashboard/admin/reports',
-            icon: Icons.analytics,
+            id: 'content',
+            label: 'Content Management',
+            href: '/dashboard/admin/announcements',
+            icon: Icons.megaphone,
             children: [
-                { label: 'Platform Metrics', href: '/dashboard/admin/reports' },
-                { label: 'Live Telemetry Traces', href: '/dashboard/admin/reports?tab=telemetry' }
+                { label: 'Announcements Manager', href: '/dashboard/admin/announcements' },
+                { label: 'Blog Posts', href: '/dashboard/admin/blogs' },
+                { label: 'Email Templates', href: '/dashboard/admin/email-templates' }
+            ]
+        },
+        {
+            id: 'billing',
+            label: 'Billing & Plans',
+            href: '/dashboard/admin/plans',
+            icon: Icons.creditCard,
+            children: [
+                { label: 'Subscription Plans', href: '/dashboard/admin/plans' },
+                { label: 'Billing & Invoices', href: '/dashboard/admin/billing' }
             ]
         },
         {
             id: 'tools',
-            label: 'Tools',
-            href: '/dashboard/admin/announcements',
+            label: 'System & Audit',
+            href: '/dashboard/admin/audit-logs',
             icon: Icons.tools,
             children: [
-                { label: 'Announcements Manager', href: '/dashboard/admin/announcements' },
-                { label: 'Blog Posts', href: '/dashboard/admin/blogs' },
-                { label: 'Email Templates', href: '/dashboard/admin/email-templates' },
-                { label: 'Billing & MRR', href: '/dashboard/admin/billing' },
                 { label: 'Audit Logs', href: '/dashboard/admin/audit-logs' },
                 { label: 'System Settings', href: '/dashboard/admin/settings' }
             ]
+        },
+        {
+            id: 'messages',
+            label: 'Messages',
+            href: `/dashboard/admin/${roleId || 'me'}/messages`,
+            icon: Icons.mail,
         }
-    ], []);
+    ], [roleId]);
 
     const navItems = isRecruiterRoute ? recruiterNav : adminNav;
+
+    // Auto-open active group on page navigation
+    useEffect(() => {
+        const activeIds = new Set<string>();
+        navItems.forEach(item => {
+            if (item.children?.some(child => pathname === child.href || pathname.startsWith(child.href + '/'))) {
+                activeIds.add(item.id);
+            }
+        });
+        if (activeIds.size > 0) {
+            setOpenGroups(prev => new Set([...prev, ...activeIds]));
+        }
+    }, [pathname, navItems]);
 
     // Load unread notifications dot
     useEffect(() => {
@@ -313,26 +373,41 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
                 ${isCollapsed ? styles.sidebarCollapsed : ''} 
                 ${isMobileOpen ? styles.sidebarMobileOpen : ''}
             `}>
-                {/* Brand Header */}
+                {/* Top Header Row with Logo & Collapse Toggle */}
                 <div className={styles.brandRow}>
-                    <Image 
-                        src="/TalentMesh_page-0002-removebg-preview.png" 
-                        alt="TalentMesh Logo" 
-                        width={24} 
-                        height={24} 
-                        unoptimized 
-                    />
-                    {!isCollapsed && <span className={styles.brandName}>talentMesh</span>}
-                </div>
-
-                {/* Collapse Row */}
-                <div className={styles.collapseRow}>
+                    {!isCollapsed && (
+                        <Link href={isRecruiterRoute ? `/dashboard/recruiter/${roleId}` : '/dashboard/admin'} style={{ display: 'flex', alignItems: 'center' }}>
+                            <Image 
+                                src="/TalentMesh_page-0002-removebg-preview.png" 
+                                alt="TalentMesh Logo" 
+                                width={32} 
+                                height={32} 
+                                unoptimized 
+                            />
+                        </Link>
+                    )}
                     <button 
                         onClick={() => setIsCollapsed(!isCollapsed)} 
-                        className={styles.collapseBtn}
+                        className={styles.collapseBtnTop}
+                        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        aria-label="Toggle sidebar"
                     >
-                        {Icons.close}
-                        {!isCollapsed && <span className={styles.collapseLabel}>Collapse</span>}
+                        <svg 
+                            width="18" 
+                            height="18" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2.2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            style={{ 
+                                transform: isCollapsed ? 'rotate(180deg)' : 'none', 
+                                transition: 'transform 0.2s ease' 
+                            }}
+                        >
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
                     </button>
                 </div>
 
@@ -377,9 +452,60 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
                 {/* Main Nav Items List */}
                 <nav className={styles.nav}>
                     {navItems.map((item: OpsNavItem) => {
-                        const isLinkActive = pathname === item.href || pathname.startsWith(item.href + '/');
                         const hasChildren = item.children && item.children.length > 0;
+                        const isOpen = openGroups.has(item.id);
+                        const isChildActive = item.children?.some(c => pathname === c.href || pathname.startsWith(c.href + '/'));
+                        const isLinkActive = pathname === item.href || isChildActive;
                         const isHovered = hoveredItem === item.id;
+
+                        if (hasChildren && !isCollapsed) {
+                            return (
+                                <div key={item.id} className={styles.navRow}>
+                                    <button 
+                                        type="button"
+                                        onClick={() => toggleGroup(item.id)}
+                                        className={`
+                                            ${styles.navLink} 
+                                            ${styles.navLinkButton}
+                                            ${isLinkActive || isOpen ? styles.navLinkActive : ''}
+                                        `}
+                                    >
+                                        <span className={styles.navIcon}>{item.icon}</span>
+                                        <span className={styles.navLabel}>{item.label}</span>
+                                        <span 
+                                            className={styles.chevronRight}
+                                            style={{ 
+                                                transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                                                transition: 'transform 0.2s ease'
+                                            }}
+                                        >
+                                            {Icons.chevronRight}
+                                        </span>
+                                    </button>
+
+                                    {/* Inline Sub-items list on click */}
+                                    {isOpen && (
+                                        <div className={styles.subList}>
+                                            {item.children?.map((child) => {
+                                                const active = pathname === child.href;
+                                                return (
+                                                    <Link 
+                                                        key={child.href}
+                                                        href={child.href}
+                                                        className={`${styles.subLink} ${active ? styles.subLinkActive : ''}`}
+                                                        target={child.isExternal ? '_blank' : undefined}
+                                                    >
+                                                        <span className={styles.subDot} />
+                                                        <span>{child.label}</span>
+                                                        {child.isExternal && <span style={{ marginLeft: '4px' }}>{Icons.externalLink}</span>}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
 
                         return (
                             <div 
@@ -407,10 +533,9 @@ export default function OpsDarkSidebarShell({ children }: { children: React.Reac
                                     )}
                                 </Link>
 
-                                {/* Absolute Floating Submenu */}
-                                {hasChildren && isHovered && (
+                                {/* Absolute Floating Submenu in Collapsed Mode */}
+                                {hasChildren && isCollapsed && isHovered && (
                                     <div className={styles.flyout} style={{ top: '0px' }}>
-                                        {/* Pre-highlighted 'You are here' item */}
                                         <div className={styles.flyoutHeader}>
                                             {item.label}
                                         </div>

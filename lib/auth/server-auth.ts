@@ -90,7 +90,9 @@ function mapProfileToUser(userId: string, email: string, profile: ProfileRecord 
 }
 
 export async function resolveSessionFromToken(accessToken: string): Promise<AuthenticatedSession | null> {
-  if (accessToken === 'mock-admin-token') {
+  const allowMockAuth = process.env.NODE_ENV !== 'production' && process.env.ENABLE_MOCK_AUTH === 'true';
+
+  if (allowMockAuth && accessToken === 'mock-admin-token') {
     return {
       accessToken,
       user: {
@@ -111,7 +113,7 @@ export async function resolveSessionFromToken(accessToken: string): Promise<Auth
       requiresMfa: false
     };
   }
-  if (accessToken === 'fake-token') {
+  if (allowMockAuth && accessToken === 'fake-token') {
     return {
       accessToken,
       user: {
@@ -133,45 +135,41 @@ export async function resolveSessionFromToken(accessToken: string): Promise<Auth
     };
   }
 
-  let authUser: { id: string; email: string; role: string } | null = null;
-  
   try {
-    const payloadBase64 = accessToken.split('.')[1];
-    const payload = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
-    authUser = { id: payload.sub, email: payload.email, role: payload.role };
-  } catch (e) {
-    return null;
-  }
+    const insforge = createServerSessionClient(accessToken);
+    const { data: { user: authUser }, error: authError } = await insforge.auth.getCurrentUser();
 
-  if (!authUser?.id || !authUser.email || authUser.id === 'project-admin-with-api-key') {
-    return null;
-  }
+    if (authError || !authUser || !authUser.id || !authUser.email) {
+      return null;
+    }
 
-  let profile: ProfileRecord | null = null;
-  const insforge = createServerSessionClient(accessToken);
+    let profile: ProfileRecord | null = null;
 
-  try {
-    const { data } = await insforge.database
-      .from('profiles')
-      .select('id, email, role, name, avatar_url, company_id, created_at, mfa_enabled, password_set_at, status, mfa_locked_until')
-      .eq('id', authUser.id)
-      .single();
+    try {
+      const { data } = await insforge.database
+        .from('profiles')
+        .select('id, email, role, name, avatar_url, company_id, created_at, mfa_enabled, password_set_at, status, mfa_locked_until')
+        .eq('id', authUser.id)
+        .single();
 
-    profile = (data as ProfileRecord | null) || null;
+      profile = (data as ProfileRecord | null) || null;
+    } catch {
+      profile = null;
+    }
+
+    const user = mapProfileToUser(authUser.id, authUser.email, profile);
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+
+    return {
+      accessToken,
+      user,
+      profile,
+      isAdmin,
+      requiresMfa: isAdmin && Boolean(profile?.mfa_enabled),
+    };
   } catch {
-    profile = null;
+    return null;
   }
-
-  const user = mapProfileToUser(authUser.id, authUser.email, profile);
-  const isAdmin = user.role === 'admin' || user.role === 'super_admin';
-
-  return {
-    accessToken,
-    user,
-    profile,
-    isAdmin,
-    requiresMfa: isAdmin && Boolean(profile?.mfa_enabled),
-  };
 }
 
 export async function getAuthenticatedSession(): Promise<AuthenticatedSession | null> {
