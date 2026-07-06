@@ -36,6 +36,27 @@
     width: 80px;
 }
 
+.sidebarCollapsed .sidebarHead {
+    justify-content: center;
+    padding: 0;
+}
+
+.sidebarCollapsed .navLink {
+    justify-content: center;
+    padding: 0.65rem 0;
+    width: 100%;
+}
+
+.sidebarCollapsed .navIcon {
+    margin: 0 auto;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
 .sidebarHead {
     height: 60px;
     padding: 0 1rem;

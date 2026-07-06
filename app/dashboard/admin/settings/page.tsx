@@ -365,7 +365,7 @@ export default function AdminSettingsPage() {
       await fetch('/api/v1/remote/functions/cleanup-stale-resources', {
         method: 'POST',
         headers: {
-          'x-insforge-service-key': window.sessionStorage.getItem('tm_token') || ''
+          'Authorization': `Bearer ${window.sessionStorage.getItem('tm_token') || ''}`
         }
       }).catch(console.error);
 
@@ -391,7 +391,7 @@ export default function AdminSettingsPage() {
       await fetch('/api/v1/remote/functions/cleanup-stale-resources', {
         method: 'POST',
         headers: {
-          'x-insforge-service-key': window.sessionStorage.getItem('tm_token') || ''
+          'Authorization': `Bearer ${window.sessionStorage.getItem('tm_token') || ''}`
         }
       }).catch(console.error);
 

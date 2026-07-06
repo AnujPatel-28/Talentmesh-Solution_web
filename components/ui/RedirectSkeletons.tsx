@@ -94,7 +94,7 @@ export function CandidateTopNavSkeleton({ label = 'Loading Candidate Dashboard..
                 <div style={{ display: 'flex', alignItems: 'center', gap: '3rem', flex: 1 }}>
                     {/* Brand Logo Placeholder */}
                     <div className="sk-pulse" style={{ width: 120, height: 32, borderRadius: 6 }} />
-                    
+
                     {/* Centered navigation tabs */}
                     <div style={{ display: 'flex', gap: '2rem', margin: '0 auto' }}>
                         {[1, 2, 3, 4].map(i => (
@@ -113,7 +113,7 @@ export function CandidateTopNavSkeleton({ label = 'Loading Candidate Dashboard..
 
             {/* 3-Column Content Body */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100vw' }}>
-                
+
                 {/* Column 1: Left Profile Sidebar (250px) */}
                 <div style={{ width: 250, borderRight: '1px solid #e2e8f0', background: '#f8fafc', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
                     <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -129,7 +129,7 @@ export function CandidateTopNavSkeleton({ label = 'Loading Candidate Dashboard..
                             <div className="sk-pulse" style={{ width: '100%', height: 4, borderRadius: 9999 }} />
                         </div>
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {[1, 2, 3].map(i => (
                             <div key={i} className="sk-pulse" style={{ width: '100%', height: 38, borderRadius: 8 }} />
@@ -141,7 +141,7 @@ export function CandidateTopNavSkeleton({ label = 'Loading Candidate Dashboard..
                 <div style={{ width: 440, borderRight: '1px solid #e2e8f0', background: '#ffffff', padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '16px', boxSizing: 'border-box' }}>
                     {/* Search bar placeholder */}
                     <div className="sk-pulse" style={{ width: '100%', height: 48, borderRadius: 9999 }} />
-                    
+
                     {/* Welcome message placeholder */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
                         <div className="sk-pulse" style={{ width: 140, height: 18, borderRadius: 4 }} />

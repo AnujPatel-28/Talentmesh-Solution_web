@@ -412,7 +412,7 @@ export default function AdminReportsPage() {
             <div className={styles.chartCard}>
               <h3 className={styles.chartTitle}>Candidate Onboarding <span style={{ fontSize: '0.7rem', color: '#64748b' }}>4-Week Trajectory</span></h3>
               <div className={styles.chartContainer}>
-                <svg viewBox="0 0 400 200" width="100%" height="100%">
+                <svg viewBox="0 0 400 200" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style={{ overflow: 'visible' }}>
                   <line x1="40" y1="180" x2="360" y2="180" stroke="#e2e8f0" strokeWidth="1" />
                   <line x1="40" y1="130" x2="360" y2="130" stroke="#f1f5f9" strokeWidth="1" />
                   <line x1="40" y1="80" x2="360" y2="80" stroke="#f1f5f9" strokeWidth="1" />
@@ -466,7 +466,7 @@ export default function AdminReportsPage() {
             {/* Skill distribution */}
             <div className={styles.chartCard}>
               <h3 className={styles.chartTitle}>Skill Demand Heatmap <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Candidate Proficiencies</span></h3>
-              <div>
+              <div style={{ width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                 {data.topSkills.map((skill, i) => (
                   <div key={i} className={styles.skillBar}>
                     <span className={styles.skillName}>{skill.name}</span>
@@ -482,13 +482,13 @@ export default function AdminReportsPage() {
             {/* Status Distribution */}
             <div className={styles.chartCard}>
               <h3 className={styles.chartTitle}>Application Lifecycle <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Stage Distribution</span></h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', height: '100%', alignItems: 'center' }}>
-                <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: 'conic-gradient(#3b82f6 0% 30%, #10b981 30% 55%, #f59e0b 55% 75%, #ef4444 75% 100%)', boxShadow: 'inset 0 0 0 30px white, 0 0 20px rgba(0,0,0,0.1)' }} />
-                <div style={{ fontSize: '0.8rem', display: 'grid', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }} /> Applied ({data.statusBreakdown.applied || 0})</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} /> Shortlisted ({data.statusBreakdown.shortlisted || 0})</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Interview ({data.statusBreakdown.interview || 0})</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} /> Rejected ({data.statusBreakdown.rejected || 0})</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '1.618rem', flexWrap: 'wrap', width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                <div style={{ width: '140px', height: '140px', borderRadius: '50%', background: 'conic-gradient(#3b82f6 0% 30%, #10b981 30% 55%, #f59e0b 55% 75%, #ef4444 75% 100%)', boxShadow: 'inset 0 0 0 28px white, 0 4px 16px rgba(0,0,0,0.06)', flexShrink: 0 }} />
+                <div style={{ fontSize: '0.8rem', display: 'grid', gap: '0.618rem', minWidth: '130px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, color: '#334155' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3b82f6' }} /> Applied ({data.statusBreakdown.applied || 0})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, color: '#334155' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} /> Shortlisted ({data.statusBreakdown.shortlisted || 0})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, color: '#334155' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} /> Interview ({data.statusBreakdown.interview || 0})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, color: '#334155' }}><div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} /> Rejected ({data.statusBreakdown.rejected || 0})</div>
                 </div>
               </div>
             </div>

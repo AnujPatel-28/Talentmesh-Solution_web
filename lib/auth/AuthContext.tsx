@@ -517,7 +517,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: message };
       }
 
-      console.log('[AuthContext] signIn data:', typeof data === 'string' ? data : JSON.stringify(data));
       let parsedData = data;
       if (typeof data === 'string') {
         try {
@@ -527,7 +526,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = parsedData?.accessToken || (parsedData as any)?.access_token;
       const userIdVal = parsedData?.user?.id;
       const userEmail = parsedData?.user?.email;
-      console.log('[AuthContext] parsed values:', { token, userIdVal, userEmail });
       if (!token || !userIdVal || !userEmail) {
         return { error: 'Sign in succeeded, but the session payload was incomplete.' };
       }

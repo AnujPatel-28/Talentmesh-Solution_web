@@ -32,6 +32,5 @@ export function isAdminEmail(email: string): boolean {
  */
 export function generateAdminToken(): string {
   const token = crypto.randomUUID();
-  console.log('Generated ADMIN_INVITE_TOKEN:', token);
   return token;
 }

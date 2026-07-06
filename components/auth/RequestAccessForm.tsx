@@ -380,7 +380,7 @@ const RequestAccessForm: React.FC<RequestAccessFormProps> = ({ onBack, variant =
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({
-            access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || 'c755ba58-1a02-45d6-b021-3b66f62eb9fb',
+            access_key: process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY || '',
             subject: `New Discovery Call Request from ${formData.companyName}`,
             from_name: 'TalentMesh Discovery',
             name: formData.fullName,

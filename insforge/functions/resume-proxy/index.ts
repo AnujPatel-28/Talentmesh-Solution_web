@@ -7,7 +7,7 @@ const serviceKey = Deno.env.get('INSFORGE_SERVICE_KEY') || Deno.env.get('SUPABAS
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, x-insforge-service-key',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info',
   'Access-Control-Allow-Credentials': 'true',
 };
 
@@ -363,9 +363,9 @@ export default async function handler(req: Request): Promise<Response> {
     });
   }
 
-  const reqBaseUrl = req.headers.get('x-insforge-url') || baseUrl;
-  const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
-  const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
+  const reqBaseUrl = baseUrl;
+  const reqAnonKey = anonKey;
+  const reqServiceKey = serviceKey || reqAnonKey;
 
   const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey });
   insforge.setAccessToken(token);

@@ -44,7 +44,7 @@ export default function AdminCompaniesPage() {
 
   const handleDownload = async (url: string, filename: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
       let targetUrl = url;
       if (url.includes('/recruiter_documents/')) {
         const parts = url.split('/recruiter_documents/');
@@ -80,7 +80,7 @@ export default function AdminCompaniesPage() {
 
   const handleView = async (url: string) => {
     try {
-      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || 'https://sytk3jgv.ap-southeast.insforge.app';
+      const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL || '';
       let targetUrl = url;
       if (url.includes('/recruiter_documents/')) {
         const parts = url.split('/recruiter_documents/');

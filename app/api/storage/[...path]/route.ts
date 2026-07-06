@@ -81,7 +81,6 @@ function resolveToken(request: NextRequest): string {
   if (authHeader.startsWith('Bearer ')) {
     const headerToken = authHeader.slice(7).trim();
     if (headerToken && headerToken !== ANON_KEY) {
-      console.log('[Storage Proxy] Using token from Authorization header');
       return headerToken;
     }
   }
@@ -95,14 +94,12 @@ function resolveToken(request: NextRequest): string {
       // Strip leading "Bearer " if it was accidentally stored with that prefix
       if (raw.startsWith('Bearer ')) raw = raw.slice(7).trim();
       if (raw && raw !== ANON_KEY) {
-        console.log('[Storage Proxy] Using token from tm_access_token cookie');
         return raw;
       }
     }
   }
 
   // 3. Anon key fallback
-  console.log('[Storage Proxy] No user token found — using anon key');
   return ANON_KEY;
 }
 
@@ -127,7 +124,6 @@ async function handleProxy(
   // Set the best available token as the Authorization header
   const token = resolveToken(request);
   headers.set('authorization', `Bearer ${token}`);
-  console.log('[Storage Proxy] Final auth:', `Bearer ${token.substring(0, 15)}...`);
 
   try {
     let requestBody: any = undefined;
@@ -149,10 +145,8 @@ async function handleProxy(
 
     // On 401 try a server-side token refresh and retry once
     if (response.status === 401) {
-      console.log('[Storage Proxy] Got 401 — attempting server-side refresh...');
       const refreshResult = await refreshServerToken(request);
       if (refreshResult) {
-        console.log('[Storage Proxy] Refresh succeeded — retrying...');
         const newHeaders = new Headers(headers);
         newHeaders.set('authorization', `Bearer ${refreshResult.accessToken}`);
 
