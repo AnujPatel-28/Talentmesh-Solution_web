@@ -290,7 +290,8 @@ function LoginContent() {
 
             if (isAdminRole) {
                 setIsRedirecting(true); setRedirectLabel('Entering Admin Portal…');
-                router.push('/admin/dashboard');
+                const adminPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+                router.push(`/${adminPath}/dashboard`);
             } else if (role === 'recruiter') {
                 let hasRecruiterData = false;
                 try {
@@ -422,7 +423,8 @@ function LoginContent() {
                 (profile as any)?.completed_onboarding === true;
 
             if (isAdminRole) {
-                destination = getDestinationUrl('admin', '/admin/dashboard');
+                const adminPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+                destination = getDestinationUrl('admin', `/${adminPath}/dashboard`);
             } else if (role === 'recruiter') {
                 let hasRecruiterData = false;
                 try {

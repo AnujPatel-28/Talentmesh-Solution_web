@@ -87,7 +87,8 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [
+    const secretPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+    const rewritesList = [
       {
         source: '/candidates',
         destination: '/dashboard/admin/candidates',
@@ -97,6 +98,21 @@ const nextConfig: NextConfig = {
         destination: '/dashboard/admin/recruiters',
       },
     ];
+
+    if (secretPath && secretPath !== 'admin') {
+      rewritesList.push(
+        {
+          source: `/${secretPath}/:path*`,
+          destination: '/dashboard/admin/:path*',
+        },
+        {
+          source: `/${secretPath}`,
+          destination: '/dashboard/admin',
+        }
+      );
+    }
+
+    return rewritesList;
   },
 };
 
