@@ -10,7 +10,7 @@ import FilterBar, { FilterDropdown } from '@/components/dashboard/FilterBar';
 import StatusPill from '@/components/dashboard/StatusPill';
 import { toast } from 'react-hot-toast';
 import styles from './candidates.module.css';
-import sharedStyles from '../../shared-dashboard.module.css';
+import sharedStyles from '@/app/dashboard/shared-dashboard.module.css';
 
 /* ─── Icons ─── */
 const IC = {

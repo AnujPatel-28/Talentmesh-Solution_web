@@ -11,7 +11,7 @@ import StatusPill from '@/components/dashboard/StatusPill';
 import DetailDrawer from '@/components/dashboard/DetailDrawer';
 import { toast } from 'react-hot-toast';
 import styles from './jobs.module.css';
-import sharedStyles from '../../shared-dashboard.module.css';
+import sharedStyles from '@/app/dashboard/shared-dashboard.module.css';
 
 /* ─── Icons ─── */
 const IC = {
