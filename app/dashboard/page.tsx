@@ -49,7 +49,8 @@ export default function DashboardRedirect() {
 
         // Redirect based on role
         if (user.role === 'admin' || user.role === 'super_admin') {
-            window.location.replace(getDestinationUrl('admin', '/admin/dashboard'));
+            const adminPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+            window.location.replace(getDestinationUrl('admin', `/${adminPath}/dashboard`));
         } else if (user.role === 'recruiter') {
             window.location.replace(getDestinationUrl('app', '/recruiter/dashboard'));
         } else {

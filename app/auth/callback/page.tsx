@@ -338,7 +338,8 @@ function AuthCallbackContent() {
           window.location.replace(getSubdomainUrl('app', '/onboarding/recruiter/setup'));
         } else if (finalRole === 'admin' || finalRole === 'super_admin') {
           // Admins don't have onboarding, just go to dashboard
-          window.location.replace(getSubdomainUrl('admin', '/admin/dashboard'));
+          const adminPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+          window.location.replace(getSubdomainUrl('admin', `/${adminPath}/dashboard`));
         } else {
           window.location.replace(getSubdomainUrl('jobs', '/onboarding/candidate'));
         }
@@ -362,9 +363,10 @@ function AuthCallbackContent() {
         return;
       }
 
-      // (3) route based on role: admin → /admin/dashboard, recruiter → /recruiter/dashboard, candidate → /candidate/dashboard
+      // (3) route based on role: admin → /<adminPath>/dashboard, recruiter → /recruiter/dashboard, candidate → /candidate/dashboard
       if (finalRole === 'admin' || finalRole === 'super_admin') {
-        window.location.replace(getSubdomainUrl('admin', '/admin/dashboard'));
+        const adminPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+        window.location.replace(getSubdomainUrl('admin', `/${adminPath}/dashboard`));
         return;
       }
 
