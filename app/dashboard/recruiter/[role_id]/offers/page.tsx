@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge } from '@/lib/insforge';
 import { HomeSkeleton } from '@/components/ui/DashboardSkeleton';
-import styles from '../../shared-dashboard.module.css';
+import styles from '@/app/dashboard/shared-dashboard.module.css';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
 

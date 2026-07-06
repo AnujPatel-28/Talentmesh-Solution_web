@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext';
 import { insforge, invokeFunction } from '@/lib/insforge';
 import { useRouter } from 'next/navigation';
-import styles from '../../shared-dashboard.module.css';
+import styles from '@/app/dashboard/shared-dashboard.module.css';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { getPublicStorageUrl } from '@/lib/utils/storage-url';
 import { toast } from 'react-hot-toast';
@@ -41,13 +41,13 @@ type DateFilter = 'today' | 'week' | 'month' | 'all';
 
 /* ─── Icons ─── */
 const IC = {
-    plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-    video: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>,
-    phone: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 10.8a19.79 19.79 0 0 1-3.07-8.64A2 2 0 0 1 2 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 14.92v2z"/></svg>,
-    map: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-    code: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
-    calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-    clock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+    plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
+    video: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" /></svg>,
+    phone: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 10.8a19.79 19.79 0 0 1-3.07-8.64A2 2 0 0 1 2 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.09 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 14.92v2z" /></svg>,
+    map: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>,
+    code: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>,
+    calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
+    clock: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
 };
 
 function TypeIcon({ t }: { t: Interview['type'] }) {
@@ -120,7 +120,7 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
             const app = applications.find(a => a.id === form.application_id);
             if (!app) throw new Error('Application not found');
             const scheduled_at = new Date(`${form.date}T${form.time}`).toISOString();
-            
+
             const combinedNotes = `Title: ${form.title || ''}\n\nNotes: ${form.notes || ''}`;
 
             const { error } = await insforge.database.from('interviews').insert([{
@@ -166,14 +166,14 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                     </div>
                     <button className={styles.modalCloseCircle} onClick={onClose} style={{ color: 'var(--tm-text-secondary)' }}>✕</button>
                 </div>
-                
+
                 <form onSubmit={handleSubmit}>
                     <div className={styles.formRow}>
                         <label className={styles.label}>Select Candidate & Job</label>
-                        <CustomSelect 
-                            className={styles.select} 
+                        <CustomSelect
+                            className={styles.select}
                             value={form.application_id}
-                            onChange={e => handleApplicationChange(e.target.value)} 
+                            onChange={e => handleApplicationChange(e.target.value)}
                             required
                             placeholder="Select candidate & position…"
                             options={applications.map(a => ({
@@ -225,13 +225,13 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
 
                     <div className={styles.formRow}>
                         <label className={styles.label}>Interview Title</label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             className={styles.input}
-                            value={form.title} 
-                            onChange={e => set('title', e.target.value)} 
+                            value={form.title}
+                            onChange={e => set('title', e.target.value)}
                             placeholder="e.g. UX Designer Interview - Jake and Aspect Team"
-                            required 
+                            required
                         />
                     </div>
 
@@ -279,8 +279,8 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                             <label className={styles.label}>Duration</label>
                             <div className={styles.durationSelector}>
                                 {[30, 60, 90].map(d => (
-                                    <button 
-                                        key={d} 
+                                    <button
+                                        key={d}
                                         type="button"
                                         className={`${styles.durationBtn} ${form.duration_minutes === d ? styles.durationBtnActive : ''}`}
                                         onClick={() => set('duration_minutes', d)}
@@ -291,7 +291,7 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className={styles.rowTwo}>
                         <div className={styles.formRow}>
                             <label className={styles.label}>Time slot</label>
@@ -308,22 +308,22 @@ function ScheduleModal({ onClose, onSuccess, recruiterId }: {
                         <div className={styles.rowTwo}>
                             <div className={styles.formRow}>
                                 <label className={styles.label}>Name</label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className={styles.input}
-                                    value={form.prospect_name} 
-                                    onChange={e => set('prospect_name', e.target.value)} 
-                                    placeholder="Name" 
+                                    value={form.prospect_name}
+                                    onChange={e => set('prospect_name', e.target.value)}
+                                    placeholder="Name"
                                 />
                             </div>
                             <div className={styles.formRow}>
                                 <label className={styles.label}>Email Address</label>
-                                <input 
-                                    type="email" 
+                                <input
+                                    type="email"
                                     className={styles.input}
-                                    value={form.prospect_email} 
-                                    onChange={e => set('prospect_email', e.target.value)} 
-                                    placeholder="Email Address" 
+                                    value={form.prospect_email}
+                                    onChange={e => set('prospect_email', e.target.value)}
+                                    placeholder="Email Address"
                                 />
                             </div>
                         </div>
@@ -533,7 +533,7 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--tm-surface)', border: '1px solid var(--tm-border)', borderRadius: 'var(--tm-card-radius)', padding: '1.5rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--tm-border)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
                     {(['all', 'scheduled', 'completed', 'cancelled'] as StatusFilter[]).map(s => (
-                        <button key={s} 
+                        <button key={s}
                             style={{
                                 padding: '0.45rem 1rem', borderRadius: '99px', fontSize: '0.8rem', fontWeight: 600,
                                 border: 'none', cursor: 'pointer', transition: 'all 0.15s',
@@ -632,9 +632,9 @@ export default function InterviewsPage({ params }: { params: Promise<{ role_id: 
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             {selectedIv.type === 'video' && selectedIv.meeting_link && selectedIv.status === 'scheduled' && (
-                                <a 
-                                    href={selectedIv.meeting_link} 
-                                    target="_blank" 
+                                <a
+                                    href={selectedIv.meeting_link}
+                                    target="_blank"
                                     rel="noopener noreferrer"
                                     style={{
                                         display: 'block',
