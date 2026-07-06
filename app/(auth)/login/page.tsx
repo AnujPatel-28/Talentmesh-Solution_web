@@ -384,18 +384,19 @@ function LoginContent() {
             // 🔥 STEP 2 — Redirect logic with safety delay for cookie persistence
             // On localhost, subdomains (admin.localhost, jobs.localhost) don't resolve in browsers.
             // Detect local dev and use same-origin path-based routing instead.
-            const isLocalhost = typeof window !== 'undefined' &&
+            const isSingleOrigin = typeof window !== 'undefined' &&
                 (window.location.hostname === 'localhost' ||
                     window.location.hostname === '127.0.0.1' ||
-                    window.location.hostname.endsWith('.localhost'));
+                    window.location.hostname.endsWith('.localhost') ||
+                    window.location.hostname.endsWith('.vercel.app'));
 
             const getDestinationUrl = (subdomain: string, path: string) => {
                 if (typeof window === 'undefined') return path;
                 const host = window.location.host;
                 const proto = window.location.protocol;
 
-                if (isLocalhost) {
-                    // Same-origin path-based routing for local dev — no subdomain needed
+                if (isSingleOrigin) {
+                    // Same-origin path-based routing for local dev & Vercel testing stage
                     let url = `${proto}//${host}${path}`;
                     if (result.accessToken) {
                         const separator = url.includes('?') ? '&' : '?';

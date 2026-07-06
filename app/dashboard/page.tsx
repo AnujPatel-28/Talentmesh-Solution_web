@@ -17,18 +17,19 @@ export default function DashboardRedirect() {
 
         const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('tm_token') : null;
 
-        const isLocalhost = typeof window !== 'undefined' &&
+        const isSingleOrigin = typeof window !== 'undefined' &&
             (window.location.hostname === 'localhost' ||
                 window.location.hostname === '127.0.0.1' ||
-                window.location.hostname.endsWith('.localhost'));
+                window.location.hostname.endsWith('.localhost') ||
+                window.location.hostname.endsWith('.vercel.app'));
 
         const getDestinationUrl = (subdomain: string, path: string) => {
             if (typeof window === 'undefined') return path;
             const host = window.location.host;
             const proto = window.location.protocol;
 
-            if (isLocalhost) {
-                // Same-origin path-based routing for local dev — subdomains don't resolve
+            if (isSingleOrigin) {
+                // Same-origin path-based routing for local dev & Vercel testing stage
                 let url = `${proto}//${host}${path}`;
                 if (token) {
                     const separator = url.includes('?') ? '&' : '?';

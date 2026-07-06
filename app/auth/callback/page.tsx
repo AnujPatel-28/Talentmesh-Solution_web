@@ -323,6 +323,20 @@ function AuthCallbackContent() {
         if (typeof window === 'undefined') return path;
         const host = window.location.host;
         const proto = window.location.protocol;
+        const isSingleOrigin = window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          window.location.hostname.endsWith('.localhost') ||
+          window.location.hostname.endsWith('.vercel.app');
+
+        if (isSingleOrigin) {
+          let url = `${proto}//${host}${path}`;
+          if (session.accessToken) {
+            const separator = url.includes('?') ? '&' : '?';
+            url = `${url}${separator}token=${session.accessToken}`;
+          }
+          return url;
+        }
+
         const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
         let url = `${proto}//${subdomain}.${cleanHost}${path}`;
         if (session.accessToken) {
