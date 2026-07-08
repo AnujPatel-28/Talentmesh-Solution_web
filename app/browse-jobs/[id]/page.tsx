@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Toast from '@/components/ui/Toast';
 import styles from './jobDetail.module.css';
 import { useAuth } from '@/lib/auth/AuthContext';
 
@@ -38,6 +39,7 @@ export default function JobDetailPage() {
     const [loading, setLoading] = useState(true);
     const [isApplying, setIsApplying] = useState(false);
     const [applied, setApplied] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
     const [menuOpen, setMenuOpen] = useState(false);
 
     useEffect(() => {
@@ -101,25 +103,84 @@ export default function JobDetailPage() {
         }
     };
 
-    const handleCopyLink = () => {
+    const handleCopyLink = async () => {
         const url = window.location.href;
-        navigator.clipboard.writeText(url);
-        alert('Job link synchronized to clipboard!');
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            }
+        } catch (err) {
+            console.error('Copy link failed:', err);
+            setToast({ message: `Share link: ${url}`, type: 'info' });
+        }
         setMenuOpen(false);
     };
 
     const handleShare = async () => {
         const url = window.location.href;
-        if (navigator.share) {
+        const companyName = job?.company_profiles?.company_name || 'TalentMesh Company';
+        const shareData = { 
+            title: job?.title || 'Job Opportunity', 
+            text: `Check out this ${job?.title} position at ${companyName}`, 
+            url 
+        };
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
             try {
-                await navigator.share({ 
-                    title: job?.title || 'Job Opportunity', 
-                    text: `Check out this ${job?.title} position at ${job?.company_profiles?.company_name}`, 
-                    url 
-                });
-            } catch (err) { console.log('Share canceled'); }
-        } else {
-            alert(`Spread the word: ${url}`);
+                await navigator.share(shareData);
+                setToast({ message: 'Shared successfully!', type: 'success' });
+                setMenuOpen(false);
+                return;
+            } catch (err: any) {
+                if (err.name !== 'AbortError') {
+                    console.warn('Native share failed:', err);
+                } else {
+                    setMenuOpen(false);
+                    return;
+                }
+            }
+        }
+
+        // Fallback: copy to clipboard
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            }
+        } catch (err) {
+            console.error('Clipboard copy failed:', err);
+            setToast({ message: `Share link: ${url}`, type: 'info' });
         }
         setMenuOpen(false);
     };
@@ -317,7 +378,7 @@ export default function JobDetailPage() {
                     </aside>
                 </div>
             </div>
-
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </main>
     );
 }

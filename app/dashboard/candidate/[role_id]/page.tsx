@@ -106,8 +106,114 @@ export default function CandidateDashboardHome({ params }: { params: Promise<{ r
 
 function CandidateDashboardInner({ role_id }: { role_id: string }) {
     const router = useRouter();
-    const { user: authUser, isLoading: authLoading, refreshUser } = useAuth();
+    const { user: authUser, isLoading: authLoading, refreshUser, updateUser } = useAuth();
     const [onboardingVerified, setOnboardingVerified] = useState(false);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !authUser) return;
+
+        // Size validation (Max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setToast({ message: 'File is too large. Max size is 5MB.', type: 'error' });
+            return;
+        }
+
+        // Type validation
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            setToast({ message: 'Unsupported file type. Please upload a JPEG, PNG, or WebP image.', type: 'error' });
+            return;
+        }
+
+        setIsUploadingAvatar(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${authUser.id}_${Date.now()}.${fileExt}`;
+
+            const { error: uploadError } = await insforge.storage
+                .from('avatars')
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            const { error: dbErr } = await insforge.database
+                .from('profiles')
+                .update({ avatar_url: fileName })
+                .eq('id', authUser.id);
+
+            if (dbErr) throw dbErr;
+
+            updateUser({
+                ...authUser,
+                avatar_url: fileName
+            });
+
+            setToast({ message: 'Avatar updated successfully!', type: 'success' });
+        } catch (err: any) {
+            console.error('Avatar upload failed:', err);
+            setToast({ message: 'Avatar upload failed: ' + (err.message || err), type: 'error' });
+        } finally {
+            setIsUploadingAvatar(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleShareJobClick = async () => {
+        if (!selectedJob) return;
+        const jobId = selectedJob.id;
+        const jobTitle = selectedJob.title;
+        const companyName = selectedJob.company_profiles?.company_name || selectedJob.company_profiles?.name || 'TalentMesh Company';
+        
+        const url = `${window.location.origin}/browse-jobs/${jobId}`;
+        const shareData = {
+            title: jobTitle,
+            text: `Check out this job opportunity: ${jobTitle} at ${companyName}`,
+            url: url
+        };
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+            try {
+                await navigator.share(shareData);
+                setToast({ message: 'Shared successfully!', type: 'success' });
+                return;
+            } catch (err: any) {
+                if (err.name !== 'AbortError') {
+                    console.warn('Native share failed:', err);
+                } else {
+                    return; // User canceled
+                }
+            }
+        }
+
+        // Fallback: copy to clipboard
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            }
+        } catch (err) {
+            console.error('Clipboard copy failed:', err);
+            setToast({ message: `Share link: ${url}`, type: 'info' });
+        }
+    };
 
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
@@ -153,9 +259,85 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
     const [candidateProfile, setCandidateProfile] = useState<any | null>(null);
 
+    const [activeTab, setActiveTab] = useState<'browse' | 'saved'>('browse');
+    const [savedJobsList, setSavedJobsList] = useState<any[]>([]);
+    const [loadingSaved, setLoadingSaved] = useState(false);
+
     const [search, setSearch] = useState('');
     const [location, setLocation] = useState('');
     const isMounted = useRef(false);
+
+    const fetchSavedJobsList = async () => {
+        if (!authUser) return;
+        setLoadingSaved(true);
+        try {
+            const { data, error } = await insforge.database
+                .from('saved_jobs')
+                .select(`
+                    job_id,
+                    jobs (
+                        id,
+                        title,
+                        description,
+                        location,
+                        type,
+                        salary_min,
+                        salary_max,
+                        currency,
+                        posted_at,
+                        created_at,
+                        skills_required,
+                        experience_required,
+                        companies (
+                            id,
+                            name,
+                            logo_url,
+                            color
+                        )
+                    )
+                `)
+                .eq('candidate_id', authUser.id);
+
+            if (error) throw error;
+
+            const normalized = (data || [])
+                .map((row: any) => {
+                    const job = row.jobs;
+                    if (!job) return null;
+                    return {
+                        ...job,
+                        company_profiles: job.companies || {},
+                        salary: job.salary_min 
+                            ? `${job.currency || '$'}${job.salary_min.toLocaleString()} - ${job.currency || '$'}${job.salary_max.toLocaleString()}`
+                            : 'Salary not disclosed',
+                        posted_days: job.created_at 
+                            ? Math.max(0, Math.floor((Date.now() - new Date(job.created_at).getTime()) / (1000 * 60 * 60 * 24)))
+                            : 0
+                    };
+                })
+                .filter(Boolean);
+
+            setSavedJobsList(normalized);
+            if (normalized.length > 0) {
+                setSelectedJob(normalized[0]);
+            } else {
+                setSelectedJob(null);
+            }
+        } catch (err: any) {
+            console.error('Failed to fetch saved jobs list:', err);
+        } finally {
+            setLoadingSaved(false);
+        }
+    };
+
+    const handleTabChange = (tab: 'browse' | 'saved') => {
+        setActiveTab(tab);
+        const newUrl = `${window.location.pathname}?tab=${tab}`;
+        window.history.pushState(null, '', newUrl);
+        if (tab === 'saved') {
+            fetchSavedJobsList();
+        }
+    };
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -166,6 +348,17 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
             }
         }
     }, []);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && onboardingVerified && authUser) {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab');
+            if (tabParam === 'saved') {
+                setActiveTab('saved');
+                fetchSavedJobsList();
+            }
+        }
+    }, [authUser, onboardingVerified]);
 
     /* ─── Fetch candidate profile ─── */
     const fetchCandidateProfile = async () => {
@@ -297,6 +490,16 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                     next.delete(jobId);
                     return next;
                 });
+                
+                // Optimistic removal from saved jobs list
+                setSavedJobsList(currentList => {
+                    const updated = currentList.filter(j => j.id !== jobId);
+                    if (selectedJob?.id === jobId) {
+                        setSelectedJob(updated.length > 0 ? updated[0] : null);
+                    }
+                    return updated;
+                });
+                
                 setToast({ message: 'Job removed from saved list.', type: 'info' });
             } else {
                 await insforge.database.from('saved_jobs').insert({ job_id: jobId, candidate_id: authUser.id });
@@ -306,6 +509,10 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                     return next;
                 });
                 setToast({ message: 'Job saved successfully!', type: 'success' });
+                // If on saved jobs tab, trigger list reload
+                if (activeTab === 'saved') {
+                    fetchSavedJobsList();
+                }
             }
         } catch (err) {
             console.error('Save toggle failed:', err);
@@ -396,15 +603,63 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                     <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e5ea', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '8px' }}>
                             {/* Avatar */}
-                            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#EFF6FF', color: '#007BFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 700, border: '2px solid #BFDBFE', overflow: 'hidden' }}>
-                                {authUser?.avatar_url ? (
+                            <div 
+                                onClick={() => !isUploadingAvatar && avatarInputRef.current?.click()}
+                                onKeyDown={(e) => {
+                                    if (!isUploadingAvatar && (e.key === 'Enter' || e.key === ' ')) {
+                                        e.preventDefault();
+                                        avatarInputRef.current?.click();
+                                    }
+                                }}
+                                tabIndex={0}
+                                role="button"
+                                aria-label="Change avatar"
+                                title="Change avatar"
+                                style={{ 
+                                    width: 64, 
+                                    height: 64, 
+                                    borderRadius: '50%', 
+                                    background: '#EFF6FF', 
+                                    color: '#007BFF', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    fontSize: '1.4rem', 
+                                    fontWeight: 700, 
+                                    border: '2px solid #BFDBFE', 
+                                    overflow: 'hidden',
+                                    cursor: isUploadingAvatar ? 'not-allowed' : 'pointer',
+                                    position: 'relative',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                onMouseOver={e => {
+                                    if (!isUploadingAvatar) e.currentTarget.style.opacity = '0.8';
+                                }}
+                                onMouseOut={e => {
+                                    e.currentTarget.style.opacity = '1';
+                                }}
+                            >
+                                {isUploadingAvatar ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                                        <svg className="animate-spin" style={{ width: '20px', height: '20px', color: '#007BFF' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                            <circle cx="12" cy="12" r="10" strokeDasharray="40 20" />
+                                        </svg>
+                                    </div>
+                                ) : authUser?.avatar_url ? (
                                     <img src={getPublicStorageUrl('avatars', authUser.avatar_url)} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
                                     userInitials
                                 )}
                             </div>
+                            <input 
+                                type="file" 
+                                ref={avatarInputRef} 
+                                style={{ display: 'none' }} 
+                                accept="image/jpeg,image/png,image/webp" 
+                                onChange={handleAvatarChange} 
+                            />
                             <div style={{ fontSize: '15px', fontWeight: 700, color: '#12263A' }}>
-                                {authUser?.name || 'Candidate'}
+                                {userName || 'Candidate'}
                             </div>
                             <div style={{ fontSize: '12px', color: '#475569', lineHeight: 1.4 }}>
                                 {candidateProfile?.headline || candidateProfile?.current_role || 'Add your headline'}
@@ -488,9 +743,28 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                         <Link href="/candidate/dashboard/applications" style={{ display: 'block', fontSize: '13px', color: '#475569', textDecoration: 'none', background: '#ffffff', border: '1px solid #e2e5ea', borderRadius: '8px', padding: '10px 12px', fontWeight: 600, transition: 'all 0.15s' }} onMouseOver={e => e.currentTarget.style.borderColor = '#007BFF'} onMouseOut={e => e.currentTarget.style.borderColor = '#e2e5ea'}>
                             My Applications
                         </Link>
-                        <Link href="/candidate/dashboard/saved-jobs" style={{ display: 'block', fontSize: '13px', color: '#475569', textDecoration: 'none', background: '#ffffff', border: '1px solid #e2e5ea', borderRadius: '8px', padding: '10px 12px', fontWeight: 600, transition: 'all 0.15s' }} onMouseOver={e => e.currentTarget.style.borderColor = '#007BFF'} onMouseOut={e => e.currentTarget.style.borderColor = '#e2e5ea'}>
+                        <button
+                            onClick={() => handleTabChange(activeTab === 'saved' ? 'browse' : 'saved')}
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                textAlign: 'left',
+                                fontSize: '13px',
+                                color: activeTab === 'saved' ? '#007BFF' : '#475569',
+                                textDecoration: 'none',
+                                background: activeTab === 'saved' ? '#EFF6FF' : '#ffffff',
+                                border: `1px solid ${activeTab === 'saved' ? '#007BFF' : '#e2e5ea'}`,
+                                borderRadius: '8px',
+                                padding: '10px 12px',
+                                fontWeight: 600,
+                                transition: 'all 0.15s',
+                                cursor: 'pointer'
+                            }}
+                            onMouseOver={e => e.currentTarget.style.borderColor = '#007BFF'}
+                            onMouseOut={e => e.currentTarget.style.borderColor = activeTab === 'saved' ? '#007BFF' : '#e2e5ea'}
+                        >
                             Saved Jobs
-                        </Link>
+                        </button>
                         <Link href="/candidate/dashboard/resumes" style={{ display: 'block', fontSize: '13px', color: '#475569', textDecoration: 'none', background: '#ffffff', border: '1px solid #e2e5ea', borderRadius: '8px', padding: '10px 12px', fontWeight: 600, transition: 'all 0.15s' }} onMouseOver={e => e.currentTarget.style.borderColor = '#007BFF'} onMouseOut={e => e.currentTarget.style.borderColor = '#e2e5ea'}>
                             Resumes
                         </Link>
@@ -511,11 +785,48 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                     <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
                         {/* Section header */}
                         <div style={{ marginBottom: '2px' }}>
-                            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#12263A', margin: '0 0 2px' }}>Welcome, {userName}</h2>
-                            <h3 style={{ fontSize: '14px', fontWeight: 500, color: '#475569', margin: 0 }}>Jobs for you</h3>
+                            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#12263A', margin: '0 0 8px' }}>Welcome, {userName}</h2>
+                            
+                            {/* Tab Switchers */}
+                            <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e2e5ea', paddingBottom: '8px', marginBottom: '4px' }}>
+                                <button
+                                    onClick={() => handleTabChange('browse')}
+                                    style={{
+                                        border: 'none',
+                                        background: 'none',
+                                        fontSize: '13px',
+                                        fontWeight: activeTab === 'browse' ? 700 : 500,
+                                        color: activeTab === 'browse' ? '#007BFF' : '#475569',
+                                        borderBottom: activeTab === 'browse' ? '2px solid #007BFF' : 'none',
+                                        paddingBottom: '8px',
+                                        cursor: 'pointer',
+                                        paddingLeft: 0,
+                                        paddingRight: 0
+                                    }}
+                                >
+                                    Recommended Jobs
+                                </button>
+                                <button
+                                    onClick={() => handleTabChange('saved')}
+                                    style={{
+                                        border: 'none',
+                                        background: 'none',
+                                        fontSize: '13px',
+                                        fontWeight: activeTab === 'saved' ? 700 : 500,
+                                        color: activeTab === 'saved' ? '#007BFF' : '#475569',
+                                        borderBottom: activeTab === 'saved' ? '2px solid #007BFF' : 'none',
+                                        paddingBottom: '8px',
+                                        cursor: 'pointer',
+                                        paddingLeft: 0,
+                                        paddingRight: 0
+                                    }}
+                                >
+                                    Saved Jobs ({savedIds.size})
+                                </button>
+                            </div>
                         </div>
 
-                        {loading && jobs.length === 0 ? (
+                        {((activeTab === 'browse' && loading && jobs.length === 0) || (activeTab === 'saved' && loadingSaved)) ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
                                 <style>{`
                                     @keyframes sk-pulse {
@@ -557,11 +868,17 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                                     </div>
                                 ))}
                             </div>
-                        ) : jobs.length === 0 ? (
+                        ) : activeTab === 'browse' && jobs.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e5ea', width: '100%' }}>
                                 <span style={{ fontSize: '2.5rem' }}>🔍</span>
                                 <h3 style={{ margin: '1rem 0 0.5rem', color: '#12263A', fontSize: '16px' }}>No jobs match your search</h3>
                                 <p style={{ color: '#475569', fontSize: '13px', margin: 0 }}>Try clearing filters or search terms.</p>
+                            </div>
+                        ) : activeTab === 'saved' && savedJobsList.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e5ea', width: '100%' }}>
+                                <span style={{ fontSize: '2.5rem' }}>🔖</span>
+                                <h3 style={{ margin: '1rem 0 0.5rem', color: '#12263A', fontSize: '15px' }}>No saved jobs yet</h3>
+                                <p style={{ color: '#6B7280', fontSize: '13px', margin: 0 }}>Jobs you save will appear in this tab.</p>
                             </div>
                         ) : (
                             <>
@@ -571,7 +888,7 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                                         to { opacity: 1; transform: translateY(0); }
                                     }
                                 `}</style>
-                                {jobs.map((job) => {
+                                {(activeTab === 'browse' ? jobs : savedJobsList).map((job) => {
                                     const isSelected = selectedJob?.id === job.id;
                                     const isApplied = appliedIds.has(job.id);
                                     const isSaved = savedIds.has(job.id);
@@ -640,7 +957,7 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                                             <h3 style={{ margin: '2px 0 0', fontSize: '15px', fontWeight: 600, color: '#12263A', lineHeight: 1.3 }}>{job.title}</h3>
 
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                                <span style={{ fontSize: '13px', color: '#475569' }}>{job.companies?.name}</span>
+                                                <span style={{ fontSize: '13px', color: '#475569' }}>{job.company_profiles?.company_name || job.company_profiles?.name || 'TalentMesh Company'}</span>
                                                 <span style={{ fontSize: '13px', color: '#475569' }}>{job.location}</span>
                                             </div>
 
@@ -670,7 +987,7 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                                         </div>
                                     );
                                 })}
-                                {hasMore && (
+                                {activeTab === 'browse' && hasMore && (
                                     <button
                                         onClick={handleLoadMore}
                                         disabled={loadingMore}
@@ -791,6 +1108,7 @@ function CandidateDashboardInner({ role_id }: { role_id: string }) {
                                         {savedIds.has(selectedJob.id) ? IC.bookmarkFilled : IC.bookmark}
                                     </button>
                                     <button
+                                        onClick={handleShareJobClick}
                                         style={{
                                             width: '44px',
                                             height: '44px',

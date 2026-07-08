@@ -853,7 +853,7 @@ function getFirstIncompleteStep(data: CandidateSettingsBundle): Step {
 
 export default function CandidateOnboardingPage() {
     const router = useRouter();
-    const { user, isLoading: authLoading, refreshUser } = useAuth();
+    const { user, isLoading: authLoading, refreshUser, updateUser } = useAuth();
 
     const [step, setStep] = useState<Step>(1);
     const [form, setForm] = useState<CandidateSettingsBundle>(EMPTY_STATE);
@@ -1279,10 +1279,17 @@ export default function CandidateOnboardingPage() {
 
             if (saveError) throw new Error(saveError.message);
 
-            setUploadProgress(100);
-            
             // Settle saving state BEFORE redirecting client-side
             setIsSaving(false);
+            
+            // Update auth state so the name and onboarding state syncs instantly
+            if (user) {
+                updateUser({
+                    ...user,
+                    name: payload.profile.name,
+                    onboarding_completed: true
+                });
+            }
             
             // Navigate using client-side router.replace() to keep SPA behavior and prevent full reload.
             // Do not call refreshUser() here as it triggers isLoading=true which re-renders the page and aborts the redirect.

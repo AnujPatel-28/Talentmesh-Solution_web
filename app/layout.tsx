@@ -74,7 +74,10 @@ export default async function RootLayout({
   const host = headersList.get("host") || "";
   const pathname = headersList.get("x-pathname") || "";
   const isPortal = host.startsWith("jobs.") || host.startsWith("app.") || host.startsWith("admin.");
-  const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/signup") || pathname.startsWith("/auth");
+  const isAuthRoute = pathname.startsWith("/login") || 
+                      pathname.startsWith("/signup") || 
+                      pathname.startsWith("/auth") || 
+                      pathname.startsWith("/onboarding");
   const skipHeaderFooter = isPortal || isAuthRoute;
 
   return (

@@ -36,7 +36,7 @@ export default async function handler(req: Request): Promise<Response> {
   const reqAnonKey = req.headers.get('x-insforge-anon-key') || anonKey;
   const reqServiceKey = req.headers.get('x-insforge-service-key') || serviceKey || reqAnonKey;
 
-  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey });
+  const insforge = createClient({ baseUrl: reqBaseUrl, anonKey: reqAnonKey, isServerMode: true });
   insforge.setAccessToken(token);
   const { data: authData, error: authError } = await insforge.auth.getCurrentUser();
 
@@ -109,6 +109,21 @@ export default async function handler(req: Request): Promise<Response> {
   // ── PATCH — Withdraw application ─────────────────────────────────────────
   if (req.method === 'PATCH') {
     try {
+      const idempotencyKey = req.headers.get('x-idempotency-key');
+      if (idempotencyKey) {
+        const { data: existingKey } = await insforgeAdmin.database
+          .from('idempotency_keys')
+          .select('*')
+          .eq('key', idempotencyKey)
+          .single();
+        if (existingKey) {
+          return new Response(
+            JSON.stringify({ id: applicationId, status: 'withdrawn', idempotent: true }),
+            { status: existingKey.status, headers: corsHeaders }
+          );
+        }
+      }
+
       const body = await req.json();
       if (body.status !== 'withdrawn') {
         return new Response(
@@ -133,6 +148,14 @@ export default async function handler(req: Request): Promise<Response> {
 
       // Already withdrawn — idempotent
       if (existing.status === 'withdrawn') {
+        if (idempotencyKey) {
+          await insforgeAdmin.database.from('idempotency_keys').insert([{
+            key: idempotencyKey,
+            status: 200,
+            response_hash: '',
+            response_ref: applicationId
+          }]);
+        }
         return new Response(
           JSON.stringify({ id: applicationId, status: 'withdrawn' }),
           { status: 200, headers: corsHeaders }
@@ -159,6 +182,15 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (rpcError || !rpcResult?.success) {
         throw new Error(`Failed to withdraw application: ${rpcError?.message || 'Unknown RPC error'}`);
+      }
+
+      if (idempotencyKey) {
+        await insforgeAdmin.database.from('idempotency_keys').insert([{
+          key: idempotencyKey,
+          status: 200,
+          response_hash: '',
+          response_ref: applicationId
+        }]);
       }
 
       return new Response(

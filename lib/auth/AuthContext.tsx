@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<User | null>;
   login: (token: string, user: User) => void;
+  updateUser: (updatedUser: User) => void;
   isImpersonating: boolean;
   impersonatedUser?: { id: string; role: string } | null;
   adminId?: string | null;
@@ -689,7 +690,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Role-based timeout settings
-    let idleMs = 360 * 60 * 1000; // default candidate: 6h (360m)
+    let idleMs = 7 * 24 * 60 * 60 * 1000; // default candidate: 7 days
     const warningMs = 60 * 1000;  // 60s
 
     if (user.role === 'admin' || user.role === 'super_admin') {
@@ -761,7 +762,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Role-based timeout settings
-    let idleMs = 360 * 60 * 1000; // default candidate: 6h (360m)
+    let idleMs = 7 * 24 * 60 * 60 * 1000; // default candidate: 7 days
     if (user.role === 'admin' || user.role === 'super_admin') {
       idleMs = 120 * 60 * 1000; // admin: 2h (120m)
     } else if (user.role === 'recruiter') {
@@ -821,6 +822,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [cacheUser, syncAuthCookies]);
 
+  const updateUser = useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+    cacheUser(updatedUser);
+  }, [cacheUser]);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -833,6 +839,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout: signOut,
       refreshUser,
       login,
+      updateUser,
       isImpersonating,
       impersonatedUser,
       adminId

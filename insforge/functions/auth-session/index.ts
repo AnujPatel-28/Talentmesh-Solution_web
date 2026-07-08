@@ -87,7 +87,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // Verify token signature with SDK
-    const userDb = createClient({ baseUrl, anonKey });
+    const userDb = createClient({ baseUrl, anonKey, isServerMode: true });
     userDb.setAccessToken(token);
     const { data: authData, error: authError } = await userDb.auth.getCurrentUser();
 
@@ -101,7 +101,7 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ error: 'Unauthorized, invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const adminDb = createClient({ baseUrl, anonKey: serviceKey });
+    const adminDb = createClient({ baseUrl, anonKey: serviceKey, isServerMode: true });
     const refreshToken = cookies['tm_refresh_token'] || cookies['insforge_refresh_token'] || token;
     const fingerprint = await cSign(refreshToken, serviceKey);
 
@@ -127,10 +127,28 @@ export default async function handler(req: Request): Promise<Response> {
         .eq('id', userId)
         .single();
 
-      const oauthName = (user.metadata?.full_name || user.metadata?.name || '') as string;
-      const displayName = profile?.name && profile.name !== profile.email?.split('@')[0]
-        ? profile.name
-        : oauthName.trim() || profile?.name || profile?.email?.split('@')[0] || 'User';
+      const oauthName = ((user.metadata?.full_name || user.metadata?.name || '') as string).trim();
+      const dbName = profile?.name || '';
+      const emailPrefix = (profile?.email || user.email || '').split('@')[0] || '';
+
+      let displayName = dbName;
+      let shouldWriteBack = false;
+
+      const isDefaultName = !dbName || dbName.toLowerCase() === emailPrefix.toLowerCase();
+      if (isDefaultName && oauthName) {
+        displayName = oauthName;
+        shouldWriteBack = true;
+      } else if (!dbName) {
+        displayName = emailPrefix || 'User';
+        shouldWriteBack = true;
+      }
+
+      if (shouldWriteBack && profile?.id) {
+        await adminDb.database
+          .from('profiles')
+          .update({ name: displayName })
+          .eq('id', profile.id);
+      }
 
       const finalUser = {
         id: userId,

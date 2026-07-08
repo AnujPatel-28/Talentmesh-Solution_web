@@ -53,6 +53,7 @@ function validateMfaCookie(mfaCookieValue: string, accessToken: string): boolean
 }
 
 function rewrite(url: URL, request: NextRequest) {
+  request.headers.set('x-pathname', request.nextUrl.pathname);
   return NextResponse.rewrite(url, {
     request: {
       headers: request.headers,
@@ -61,6 +62,7 @@ function rewrite(url: URL, request: NextRequest) {
 }
 
 function next(request: NextRequest) {
+  request.headers.set('x-pathname', request.nextUrl.pathname);
   return NextResponse.next({
     request: {
       headers: request.headers,
@@ -73,6 +75,7 @@ function next(request: NextRequest) {
  * Separates access control logic into a dedicated edge layer.
  */
 export async function proxy(request: NextRequest) {
+  request.headers.set('x-pathname', request.nextUrl.pathname);
   let token = request.headers.get('x-access-token') || request.cookies.get('tm_access_token')?.value;
   if (!token) {
     const cookieHeader = request.headers.get('cookie') || '';

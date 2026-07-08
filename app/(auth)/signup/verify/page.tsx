@@ -85,7 +85,7 @@ function VerifyContent() {
                 type: 'signup_verify'
             }]);
 
-            login(actualToken, {
+            await login(actualToken, {
                 id: userId,
                 email,
                 name,
@@ -99,7 +99,7 @@ function VerifyContent() {
                 window.location.assign('/onboarding/recruiter/setup');
             }
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'Verification failed. Please try again.');
             setIsLoading(false);
         }
     };

@@ -467,6 +467,7 @@ export default function ProfilePage() {
           .eq('id', profile.id);
         if (dbErr) throw dbErr;
         setProfile(prev => prev ? { ...prev, avatar_url: fileName } : null);
+        await refreshUser();
       } else {
         // Validate file type
         const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
@@ -736,9 +737,57 @@ export default function ProfilePage() {
             onEditToggle={handleCancel}
           />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--tm-text-primary)', borderBottom: '1px solid #E2E5EA', paddingBottom: '8px' }}>Edit Contact Info</h2>
             
+            {/* Avatar upload section inside edit mode */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '0.5rem', background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div 
+                onClick={() => avatarInputRef.current?.click()}
+                title="Change avatar"
+                style={{
+                  width: 80, height: 80, borderRadius: '50%',
+                  backgroundColor: '#EFF6FF', color: '#007BFF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px', fontWeight: 700, border: '2px solid #BFDBFE',
+                  cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                  flexShrink: 0
+                }}
+              >
+                {profile?.avatar_url ? (
+                  <img src={getPublicStorageUrl('avatars', profile.avatar_url)} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  initials
+                )}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  background: 'rgba(0, 0, 0, 0.6)', color: '#ffffff',
+                  fontSize: '10px', padding: '3px 0', textAlign: 'center',
+                  fontWeight: 600
+                }}>
+                  Edit
+                </div>
+              </div>
+              <div>
+                <button 
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  style={{
+                    padding: '8px 16px', background: '#007BFF', border: 'none',
+                    borderRadius: '8px', color: '#ffffff', fontSize: '13px',
+                    fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = '#006AE6'}
+                  onMouseOut={e => e.currentTarget.style.background = '#007BFF'}
+                >
+                  Upload new photo
+                </button>
+                <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                  Allowed JPG, PNG or WebP. Max size of 5MB.
+                </p>
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tm-text-secondary)', display: 'block', marginBottom: '6px' }}>Display Name</label>
@@ -802,7 +851,7 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#12263A', margin: 0, letterSpacing: '-0.02em' }}>
-                {profile.name}
+                {profile.name.split(' ')[0]}
               </h1>
             </div>
 
@@ -1203,6 +1252,14 @@ export default function ProfilePage() {
           resumeUrl={previewBlobUrl}
         />
       )}
+
+      <input 
+        type="file" 
+        ref={avatarInputRef} 
+        style={{ display: 'none' }} 
+        accept="image/jpeg,image/png,image/webp" 
+        onChange={(e) => handleFileUpload(e, 'avatar')} 
+      />
     </div>
   );
 }

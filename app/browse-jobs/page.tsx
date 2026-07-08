@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import Toast from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 import styles from './jobs.module.css';
 
@@ -119,6 +120,7 @@ export default function BrowseJobsPage() {
     const [page, setPage] = useState(1);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
     const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
     const toggleFaq = (index: number) => {
         setFaqOpen(prev => ({ ...prev, [index]: !prev[index] }));
     };
@@ -282,12 +284,34 @@ export default function BrowseJobsPage() {
     const pages = Math.ceil(filtered.length / jobsPerPage);
     const paginated = sorted.slice((page - 1) * jobsPerPage, page * jobsPerPage);
 
-    const handleCopyLink = (e: React.MouseEvent, id: string) => {
+    const handleCopyLink = async (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
         const url = `${window.location.origin}/browse-jobs/${id}`;
-        navigator.clipboard.writeText(url);
-        alert('Universal job link captured to clipboard!');
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            }
+        } catch (err) {
+            console.error('Copy link failed:', err);
+            setToast({ message: `Share link: ${url}`, type: 'info' });
+        }
         setActiveMenuId(null);
     };
 
@@ -297,12 +321,53 @@ export default function BrowseJobsPage() {
         const url = `${window.location.origin}/browse-jobs/${job.id}`;
         const company = job.company_profiles || job.companies || {};
         const companyName = company.company_name || company.name || 'TalentMesh Company';
-        if (navigator.share) {
+        
+        const shareData = { 
+            title: job.title, 
+            text: `Check out this ${job.title} role at ${companyName}`, 
+            url 
+        };
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
             try {
-                await navigator.share({ title: job.title, text: `Check out this ${job.title} role at ${companyName}`, url });
-            } catch (err) { console.log('Share aborted'); }
-        } else {
-            alert(`Spread the word: ${url}`);
+                await navigator.share(shareData);
+                setToast({ message: 'Shared successfully!', type: 'success' });
+                setActiveMenuId(null);
+                return;
+            } catch (err: any) {
+                if (err.name !== 'AbortError') {
+                    console.warn('Native share failed:', err);
+                } else {
+                    setActiveMenuId(null);
+                    return;
+                }
+            }
+        }
+
+        // Fallback: copy to clipboard
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    setToast({ message: 'Job link copied to clipboard!', type: 'success' });
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            }
+        } catch (err) {
+            console.error('Clipboard copy failed:', err);
+            setToast({ message: `Share link: ${url}`, type: 'info' });
         }
         setActiveMenuId(null);
     };
@@ -718,6 +783,7 @@ export default function BrowseJobsPage() {
                     </div>
                 </div>
             </section>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </main>
     );
 }
