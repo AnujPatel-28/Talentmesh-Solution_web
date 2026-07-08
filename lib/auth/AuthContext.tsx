@@ -98,38 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isImpersonating = !!impersonatedUser && !!adminId;
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
-  const clearAuthCookies = useCallback(() => {
-    document.cookie = 'tm_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'tm_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'tm_admin_access=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'impersonating_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'impersonating_user_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'admin_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  const clearAuthCookies = useCallback(async () => {
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(USER_STORAGE_KEY);
+      window.sessionStorage.removeItem('tm_token');
+    }
+    try {
+      await fetch('/api/auth/session', { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to clear auth cookies via API', err);
     }
   }, []);
 
   const syncAuthCookies = useCallback(async (token: string, authUser: Pick<User, 'role' | 'email'>) => {
-    clearAuthCookies();
-
-    // Set token in local cookie so invokeFunction can find it immediately
-    const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-
-    const host = typeof window !== 'undefined' ? window.location.hostname : '';
-    let domainStr = '';
-    if (host) {
-      if (host.includes('localhost')) {
-        domainStr = '';
-      } else if (!host.includes('127.0.0.1')) {
-        const domainParts = host.split('.');
-        const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
-        domainStr = `; domain=.${baseDomain}`;
-      }
-    }
-    document.cookie = `tm_access_token=${token}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}${domainStr}`;
-
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem('tm_token', token);
 
@@ -150,24 +131,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const adminAccess = authUser.role === 'admin' || authUser.role === 'super_admin';
 
-    // Call the auth-session edge function to set cookies in the function domain
-    const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-    const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
-    await fetch(authEndpoint, {
+    // Call the NEW Next.js API route to govern cookies
+    await fetch('/api/auth/session', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'x-client-info': 'talentmesh-web'
-      },
-      body: JSON.stringify({
-        token,
-        role: authUser.role,
-        adminAccess,
-      }),
-      credentials: 'include'
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, role: authUser.role, adminAccess }),
     }).catch(console.error);
-  }, [clearAuthCookies]);
+  }, []);
 
 
   const cacheUser = useCallback((authUser: User | null) => {
@@ -189,26 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     metadata?: Record<string, unknown>,
   ): Promise<User | null> => {
-    if (token === 'mock-admin-token') {
-      return {
-        id: 'adm-uuid-999',
-        email: 'admin@test.com',
-        name: 'Super Admin',
-        role: 'admin',
-        avatar_url: null,
-        onboarding_completed: true,
-      };
-    }
-    if (token === 'fake-token') {
-      return {
-        id: 'cand-uuid-123',
-        email: 'candidate@test.com',
-        name: 'Test User',
-        role: 'candidate',
-        avatar_url: null,
-        onboarding_completed: true,
-      };
-    }
+    if (!token) return null;
     try {
       const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/remote` : (process.env.NEXT_PUBLIC_INSFORGE_URL || '');
       const authEndpoint = typeof window !== 'undefined' ? '/api/v1/remote/functions/auth-session' : `${baseUrl}/functions/auth-session`;
@@ -342,38 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const authEndpoint = '/api/v1/remote/functions/auth-session';
-      if (token === 'mock-admin-token') {
-        const adminUser: User = {
-          id: 'adm-uuid-999',
-          email: 'admin@test.com',
-          name: 'Super Admin',
-          role: 'admin',
-          mfa_enabled: false,
-          avatar_url: null,
-          onboarding_completed: true,
-        };
-        setUser(adminUser);
-        cacheUser(adminUser);
-        setIsLoading(false);
-        setIsInitialized(true);
-        return adminUser;
-      }
-      if (token === 'fake-token') {
-        const candidateUser: User = {
-          id: 'cand-uuid-123',
-          email: 'candidate@test.com',
-          name: 'Test User',
-          role: 'candidate',
-          mfa_enabled: false,
-          avatar_url: null,
-          onboarding_completed: true,
-        };
-        setUser(candidateUser);
-        cacheUser(candidateUser);
-        setIsLoading(false);
-        setIsInitialized(true);
-        return candidateUser;
-      }
+      if (!token) return null;
 
       const response = await fetch(authEndpoint, {
         method: 'GET',
@@ -401,28 +321,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const resolvedUser = payload.user as User;
 
-      const host = typeof window !== 'undefined' ? window.location.hostname : '';
-      let domainStr = '';
-      if (host) {
-        if (host.includes('localhost')) {
-          domainStr = '';
-        } else if (!host.includes('127.0.0.1')) {
-          const domainParts = host.split('.');
-          const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
-          domainStr = `; domain=.${baseDomain}`;
-        }
-      }
-      document.cookie = `tm_role=${resolvedUser.role}; path=/; SameSite=Lax${domainStr}`;
-      if (resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin') {
-        document.cookie = `tm_admin_access=true; path=/; SameSite=Lax${domainStr}`;
-      }
-
-      // Sync token to local cookie/SDK if we have a token
+      // Sync token to API route
       const finalToken = payload.token || token;
       if (finalToken) {
-        const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-        const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-        document.cookie = `tm_access_token=${finalToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}`;
+        await fetch('/api/auth/session', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             token: finalToken,
+             role: resolvedUser.role,
+             adminAccess: resolvedUser.role === 'admin' || resolvedUser.role === 'super_admin'
+           })
+        }).catch(console.error);
         // Also save to sessionStorage so invokeFunction can find it reliably
         window.sessionStorage.setItem('tm_token', finalToken);
 

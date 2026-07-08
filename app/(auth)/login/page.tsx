@@ -398,20 +398,12 @@ function LoginContent() {
                 if (isSingleOrigin) {
                     // Same-origin path-based routing for local dev & Vercel testing stage
                     let url = `${proto}//${host}${path}`;
-                    if (result.accessToken) {
-                        const separator = url.includes('?') ? '&' : '?';
-                        url = `${url}${separator}token=${result.accessToken}`;
-                    }
                     return url;
                 }
 
                 // Production: use subdomains
                 const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
                 let url = `${proto}//${subdomain}.${cleanHost}${path}`;
-                if (result.accessToken) {
-                    const separator = url.includes('?') ? '&' : '?';
-                    url = `${url}${separator}token=${result.accessToken}`;
-                }
                 return url;
             };
 
@@ -467,11 +459,6 @@ function LoginContent() {
                 if (url.startsWith('/')) {
                     // Relative path — use same-origin on localhost, subdomain on production
                     url = getDestinationUrl('jobs', savedReturnTo);
-                } else if (result.accessToken) {
-                    const separator = url.includes('?') ? '&' : '?';
-                    if (!url.includes('token=')) {
-                        url = `${url}${separator}token=${result.accessToken}`;
-                    }
                 }
                 destination = url;
             }

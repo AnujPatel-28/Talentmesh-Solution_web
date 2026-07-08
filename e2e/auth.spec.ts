@@ -64,7 +64,7 @@ test.describe('Authentication Flow', () => {
     });
 
     // 2. Mock Auth Success
-    await page.route('**/api/auth/sessions', async route => {
+    await page.route('**/token?grant_type=password', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

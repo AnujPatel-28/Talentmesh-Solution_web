@@ -216,22 +216,7 @@ export default async function handler(req: Request): Promise<Response> {
         console.error('[auth-session] Session upsert failed:', upsertErr.message);
       }
 
-      const cookieOptions = `Path=/; HttpOnly; SameSite=None; Secure`;
       const responseHeaders = new Headers();
-      responseHeaders.append('Set-Cookie', `tm_access_token=${token}; ${cookieOptions}`);
-      responseHeaders.append('Set-Cookie', `tm_role=${role}; ${cookieOptions}`);
-      if (adminAccess) {
-        responseHeaders.append('Set-Cookie', `tm_admin_access=true; ${cookieOptions}`);
-      }
-
-      // If we had stale impersonation cookies but are logging in normally, clear them
-      if ((!!adminId || !!impersonatingId) && !isImpersonating) {
-        const clearOptions = `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        responseHeaders.append('Set-Cookie', `impersonating_user_id=; ${clearOptions}`);
-        responseHeaders.append('Set-Cookie', `impersonating_user_role=; ${clearOptions}`);
-        responseHeaders.append('Set-Cookie', `admin_user_id=; ${clearOptions}`);
-      }
-
       responseHeaders.append('Content-Type', 'application/json');
       Object.entries(corsHeaders).forEach(([k, v]) => responseHeaders.set(k, v));
 
@@ -251,12 +236,7 @@ export default async function handler(req: Request): Promise<Response> {
         // ignore
       }
 
-      const clearOptions = `Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
       const responseHeaders = new Headers();
-      responseHeaders.append('Set-Cookie', `tm_access_token=; ${clearOptions}`);
-      responseHeaders.append('Set-Cookie', `tm_role=; ${clearOptions}`);
-      responseHeaders.append('Set-Cookie', `tm_admin_access=; ${clearOptions}`);
-      responseHeaders.append('Set-Cookie', `mfa_verified=; ${clearOptions}`);
       responseHeaders.append('Content-Type', 'application/json');
       Object.entries(corsHeaders).forEach(([k, v]) => responseHeaders.set(k, v));
 

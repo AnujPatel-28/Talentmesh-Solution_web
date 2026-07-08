@@ -92,8 +92,8 @@ export default function ApplicationsPage() {
     /* ─── Tab Counts ─── */
     const counts = useMemo(() => ({
         saved: 0, // future: saved jobs count
-        applied: applications.filter(a => !['interviewing', 'offered', 'hired', 'rejected', 'withdrawn'].includes(a.status)).length,
-        interviews: applications.filter(a => a.status === 'interviewing').length,
+        applied: applications.filter(a => ['applied', 'reviewing', 'shortlisted'].includes(a.status)).length,
+        interviews: applications.filter(a => ['interviewing', 'offered', 'hired'].includes(a.status)).length,
         archived: applications.filter(a => ['rejected', 'withdrawn'].includes(a.status)).length,
     }), [applications]);
 
@@ -103,9 +103,9 @@ export default function ApplicationsPage() {
             case 'saved':
                 return []; // future: saved jobs
             case 'applied':
-                return applications.filter(a => !['interviewing', 'offered', 'hired', 'rejected', 'withdrawn'].includes(a.status));
+                return applications.filter(a => ['applied', 'reviewing', 'shortlisted'].includes(a.status));
             case 'interviews':
-                return applications.filter(a => a.status === 'interviewing');
+                return applications.filter(a => ['interviewing', 'offered', 'hired'].includes(a.status));
             case 'archived':
                 return applications.filter(a => ['rejected', 'withdrawn'].includes(a.status));
             default:

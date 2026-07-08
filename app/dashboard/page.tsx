@@ -31,20 +31,12 @@ export default function DashboardRedirect() {
             if (isSingleOrigin) {
                 // Same-origin path-based routing for local dev & Vercel testing stage
                 let url = `${proto}//${host}${path}`;
-                if (token) {
-                    const separator = url.includes('?') ? '&' : '?';
-                    url = `${url}${separator}token=${token}`;
-                }
                 return url;
             }
 
             // Production: use subdomains
             const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
             let url = `${proto}//${subdomain}.${cleanHost}${path}`;
-            if (token) {
-                const separator = url.includes('?') ? '&' : '?';
-                url = `${url}${separator}token=${token}`;
-            }
             return url;
         };
 

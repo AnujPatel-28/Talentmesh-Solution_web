@@ -140,7 +140,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       // Explicit allow-list for withdrawable statuses
-      const WITHDRAWABLE_STATUSES = ['applied', 'reviewing', 'shortlisted'];
+      const WITHDRAWABLE_STATUSES = ['applied', 'reviewing', 'shortlisted', 'interviewing', 'offered'];
       if (!WITHDRAWABLE_STATUSES.includes(existing.status)) {
         return new Response(
           JSON.stringify({ error: `Cannot withdraw an application with status '${existing.status}'.` }),

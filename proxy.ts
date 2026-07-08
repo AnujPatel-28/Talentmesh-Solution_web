@@ -35,16 +35,18 @@ function validateMfaCookie(mfaCookieValue: string, accessToken: string): boolean
     }
 
     // Validate HMAC signature if factorId is present
-    const mfaSecret = process.env.MFA_SIGNING_SECRET || 'default-mfa-secret-change-in-prod';
-    if (factorId) {
-      const message = `${accessToken}:${factorId}:${timestamp}`;
-      const expectedSignature = crypto.createHmac('sha256', mfaSecret).update(message).digest('hex');
-      if (signature.length !== expectedSignature.length) return false;
-      return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
+    const mfaSecret = process.env.MFA_SIGNING_SECRET;
+    if (!mfaSecret) {
+      console.error('CRITICAL: MFA_SIGNING_SECRET is not set');
+      return false;
     }
+    
+    if (!factorId) return false;
 
-    // Fallback signature regex check for legacy cookies
-    return /^[a-f0-9]{64}$/.test(signature);
+    const message = `${accessToken}:${factorId}:${timestamp}`;
+    const expectedSignature = crypto.createHmac('sha256', mfaSecret).update(message).digest('hex');
+    if (signature.length !== expectedSignature.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'));
   } catch (err) {
     return false;
   }
@@ -71,58 +73,24 @@ function next(request: NextRequest) {
  * Separates access control logic into a dedicated edge layer.
  */
 export async function proxy(request: NextRequest) {
-  const queryToken = request.nextUrl.searchParams.get('token');
-  if (queryToken) {
-    request.cookies.set('tm_access_token', queryToken);
+  let token = request.headers.get('x-access-token') || request.cookies.get('tm_access_token')?.value;
+  if (!token) {
     const cookieHeader = request.headers.get('cookie') || '';
-    const newCookieHeader = cookieHeader
-      ? `${cookieHeader}; tm_access_token=${queryToken}`
-      : `tm_access_token=${queryToken}`;
-    request.headers.set('cookie', newCookieHeader);
-    request.headers.set('x-access-token', queryToken);
-  } else {
-    // If not queryToken, see if it is in x-access-token or cookie
-    let token = request.headers.get('x-access-token') || request.cookies.get('tm_access_token')?.value;
-    if (!token) {
-      const cookieHeader = request.headers.get('cookie') || '';
-      const match = cookieHeader.match(/tm_access_token=([^;]+)/);
-      if (match) {
-        token = match[1];
-      }
-    }
-    if (token) {
-      request.headers.set('x-access-token', token);
+    const match = cookieHeader.match(/tm_access_token=([^;]+)/);
+    if (match) {
+      token = match[1];
     }
   }
-  const response = await _proxy(request);
-
-  if (queryToken && response) {
-    const host = request.headers.get('host') || '';
-    let domainStr = '';
-    if (host) {
-      const parts = host.split(':');
-      const domainParts = parts[0].split('.');
-      if (domainParts.includes('localhost')) {
-        domainStr = '';
-      } else if (!host.includes('127.0.0.1')) {
-        const baseDomain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : domainParts.join('.');
-        domainStr = `; domain=.${baseDomain}`;
-      }
-    }
-    const isSecure = request.url.startsWith('https');
-    const sameSiteStr = isSecure ? 'SameSite=None; Secure;' : 'SameSite=Lax;';
-    response.headers.append(
-      'Set-Cookie',
-      `tm_access_token=${queryToken}; path=/; ${sameSiteStr} max-age=${60 * 60 * 24 * 7}${domainStr}`
-    );
+  if (token) {
+    request.headers.set('x-access-token', token);
   }
-
-  return response;
+  
+  return await _proxy(request);
 }
 
 async function _proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  let token = request.cookies.get('tm_access_token')?.value || request.nextUrl.searchParams.get('token') || request.headers.get('x-access-token') || undefined;
+  let token = request.cookies.get('tm_access_token')?.value || request.headers.get('x-access-token') || undefined;
 
   if (!token) {
     const cookieHeader = request.headers.get('cookie') || '';
@@ -143,98 +111,75 @@ async function _proxy(request: NextRequest) {
   let mfaEnabled = false;
   let completedOnboarding = false;
 
-  const allowMockAuth = process.env.NODE_ENV !== 'production' && process.env.ENABLE_MOCK_AUTH === 'true';
-
   if (token) {
-    if (allowMockAuth && token === 'mock-admin-token') {
-      user = {
-        id: 'adm-uuid-999',
-        email: 'admin@test.com',
-        metadata: { role: 'super_admin' }
-      };
-      role = 'super_admin';
-      completedOnboarding = true;
-      mfaEnabled = false;
-    } else if (allowMockAuth && token === 'fake-token') {
-      user = {
-        id: 'cand-uuid-123',
-        email: 'candidate@test.com',
-        metadata: { role: 'candidate' }
-      };
-      role = 'candidate';
-      completedOnboarding = true;
-      mfaEnabled = false;
-    } else {
-      try {
-        const insforge = createServerSessionClient(token);
-        const res = await insforge.auth.getCurrentUser();
-        const currentUser = res.data?.user;
+    try {
+      const insforge = createServerSessionClient(token);
+      const res = await insforge.auth.getCurrentUser();
+      const currentUser = res.data?.user;
 
-        if (currentUser) {
-          user = {
-            id: currentUser.id,
-            email: currentUser.email,
-            metadata: currentUser.metadata as Record<string, any>,
-          };
+      if (currentUser) {
+        user = {
+          id: currentUser.id,
+          email: currentUser.email,
+          metadata: currentUser.metadata as Record<string, any>,
+        };
 
-          const adminDb = createClient({
-            baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
-            anonKey: process.env.INSFORGE_SERVICE_KEY!,
-            isServerMode: true
-          });
+        const adminDb = createClient({
+          baseUrl: process.env.NEXT_PUBLIC_INSFORGE_URL!,
+          anonKey: process.env.INSFORGE_SERVICE_KEY!,
+          isServerMode: true
+        });
 
-          const { data: profile } = await adminDb.database
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
+        const { data: profile } = await adminDb.database
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-          if (profile) {
-            user.role_id = profile.role_id as string | null;
-            // Map is_active (boolean) to status string — live DB has is_active not status
-            user.status = profile.is_active === false ? 'suspended' : (profile.role === 'recruiter' ? 'active' : 'active');
-            completedOnboarding =
-              profile.onboarding_complete === true ||
-              profile.completed_onboarding === true ||
-              profile.onboarding_completed === true ||
-              profile.is_onboarded === true;
-          }
+        if (profile) {
+          user.role_id = profile.role_id as string | null;
+          user.status = profile.is_active === false ? 'suspended' : (profile.role === 'recruiter' ? 'active' : 'active');
+          completedOnboarding =
+            profile.onboarding_complete === true ||
+            profile.completed_onboarding === true ||
+            profile.onboarding_completed === true ||
+            profile.is_onboarded === true;
+        }
 
-          role = normalizeRole(
-            (profile?.role as string | undefined) || (user.metadata?.role as string | undefined) || role
-          );
-          mfaEnabled = profile?.mfa_enabled === true;
+        role = normalizeRole(
+          (profile?.role as string | undefined) || (user.metadata?.role as string | undefined) || role
+        );
+        mfaEnabled = profile?.mfa_enabled === true;
 
-          if (role === 'recruiter') {
-            try {
-              const { data: recProfile, error: recError } = await insforge.database
-                .from('recruiter_profiles')
-                .select('company_id, job_title')
-                .eq('id', user.id)
-                .single();
-              if (recProfile && !recError) {
-                user.company_id = recProfile.company_id;
-                if (!recProfile.company_id || !recProfile.job_title) {
-                  completedOnboarding = false;
-                }
-              } else {
+        if (role === 'recruiter') {
+          try {
+            const { data: recProfile, error: recError } = await insforge.database
+              .from('recruiter_profiles')
+              .select('company_id, job_title')
+              .eq('id', user.id)
+              .single();
+            if (recProfile && !recError) {
+              user.company_id = recProfile.company_id;
+              if (!recProfile.company_id || !recProfile.job_title) {
                 completedOnboarding = false;
               }
-            } catch {
+            } else {
               completedOnboarding = false;
             }
+          } catch (err) {
+            console.error('[proxy] Recruiter profile fetch error:', err);
           }
         }
-      } catch {
-        user = null;
-        role = undefined;
-        mfaEnabled = false;
       }
+    } catch {
+      user = null;
+      role = undefined;
+      mfaEnabled = false;
     }
   }
 
   const isAdmin = ['admin', 'super_admin'].includes(role || '');
-  const hasAdminAccessCookie = allowMockAuth && request.cookies.get('tm_admin_access')?.value === 'true';
+  const hasAdminAccessCookie = request.cookies.get('tm_admin_access')?.value === 'true';
 
   // Redirect unauthenticated requests to /pending-approval back to login
   if (!user && pathname === '/pending-approval') {

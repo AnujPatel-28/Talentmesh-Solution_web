@@ -440,7 +440,7 @@ export default function ApplicationDetailPage() {
     class: appStyles.statusReviewing
   };
 
-  const isWithdrawable = ['applied', 'reviewing', 'shortlisted'].includes(currentStatus);
+  const isWithdrawable = ['applied', 'reviewing', 'shortlisted', 'interviewing', 'offered'].includes(currentStatus);
 
   // Next steps calculator
   const nextSteps = [

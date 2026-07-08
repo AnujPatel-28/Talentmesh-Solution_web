@@ -330,19 +330,11 @@ function AuthCallbackContent() {
 
         if (isSingleOrigin) {
           let url = `${proto}//${host}${path}`;
-          if (session.accessToken) {
-            const separator = url.includes('?') ? '&' : '?';
-            url = `${url}${separator}token=${session.accessToken}`;
-          }
           return url;
         }
 
         const cleanHost = host.replace(/^(jobs|app|admin)\./, '');
         let url = `${proto}//${subdomain}.${cleanHost}${path}`;
-        if (session.accessToken) {
-          const separator = url.includes('?') ? '&' : '?';
-          url = `${url}${separator}token=${session.accessToken}`;
-        }
         return url;
       };
 
@@ -367,11 +359,6 @@ function AuthCallbackContent() {
         let url = savedReturnTo;
         if (url.startsWith('/')) {
             url = getSubdomainUrl('jobs', savedReturnTo);
-        } else if (session.accessToken) {
-            const separator = url.includes('?') ? '&' : '?';
-            if (!url.includes('token=')) {
-                url = `${url}${separator}token=${session.accessToken}`;
-            }
         }
         window.location.replace(url);
         return;
